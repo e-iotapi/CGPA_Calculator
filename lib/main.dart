@@ -2195,13 +2195,189 @@ class _MyHomePageState extends State<MyHomePage> {
 
                                                     );
                                                     }).toList(),
-                                                        onSelected: (value) {
+                                                        onSelected: (value) async{
                                                           _isGradeChanged =
                                                               true;
                                                           selectedgrade =
                                                               reversegradecalc(
                                                                 value!,
                                                               );
+
+                                                            if (selectedprofile !=
+                                                                3) {
+                                                              if (_isGradeChanged) {
+                                                                Course
+                                                                tempcourse = sitems
+                                                                    .firstWhere(
+                                                                      (course) =>
+                                                                  course
+                                                                      .id ==
+                                                                      "$addcourse $addcourseid",
+                                                                );
+                                                                await removeCourseById(
+                                                                "$addcourse $addcourseid",
+                                                                );
+                                                                await Future.delayed(
+                                                                  Duration(
+                                                                    milliseconds:
+                                                                    20,
+                                                                  ),
+                                                                );
+                                                                if (selectedprofile ==
+                                                                    1) {
+                                                                  await addOrUpdateCourse(
+                                                                  Course(
+                                                                    elective:
+                                                                    tempcourse
+                                                                        .elective,
+                                                                    title:
+                                                                    tempcourse
+                                                                        .title,
+                                                                    sem:
+                                                                    currentsem,
+                                                                    id:
+                                                                    "$addcourse $addcourseid",
+                                                                    discipline:
+                                                                    tempcourse
+                                                                        .discipline,
+                                                                    grade1:
+                                                                    selectedgrade,
+                                                                    grade2:
+                                                                    tempcourse
+                                                                        .grade2,
+                                                                    credits:
+                                                                    tempcourse
+                                                                        .credits,
+                                                                  ),
+                                                                  );
+                                                                  await Future.delayed(
+                                                                    Duration(
+                                                                      milliseconds:
+                                                                      50,
+                                                                    ),
+                                                                  );
+                                                                  selectedelective = "None";
+                                                                } else if (selectedprofile ==
+                                                                    2) {
+                                                                  await addOrUpdateCourse(
+                                                                  Course(
+                                                                    elective:
+                                                                    tempcourse
+                                                                        .elective,
+                                                                    title:
+                                                                    tempcourse
+                                                                        .title,
+                                                                    sem:
+                                                                    currentsem,
+                                                                    id:
+                                                                    "$addcourse $addcourseid",
+                                                                    discipline:
+                                                                    ((selecteddiscipline.substring(
+                                                                      0,
+                                                                      2,
+                                                                    ) !=
+                                                                        "--")
+                                                                        ? selecteddiscipline.substring(
+                                                                      0,
+                                                                      2,
+                                                                    )
+                                                                        : selecteddiscipline.substring(
+                                                                      2,
+                                                                      4,
+                                                                    )),
+                                                                    grade1:
+                                                                    tempcourse
+                                                                        .grade1,
+                                                                    grade2:
+                                                                    selectedgrade,
+                                                                    credits:
+                                                                    tempcourse
+                                                                        .credits,
+                                                                  ),
+                                                                  );
+                                                                  selectedelective = "None";
+                                                                  await Future.delayed(
+                                                                    Duration(
+                                                                      milliseconds:
+                                                                      50,
+                                                                    ),
+                                                                  );
+                                                                }
+                                                              }
+                                                            } else {
+                                                              ScaffoldMessenger.of(
+                                                                context,
+                                                              ).showSnackBar(
+                                                                SnackBar(
+                                                                  content: Text(
+                                                                    style: TextStyle(
+                                                                      fontFamily:
+                                                                      "Montserrat",
+                                                                      fontWeight:
+                                                                      FontWeight
+                                                                          .normal,
+                                                                      fontSize: 16,
+                                                                    ),
+                                                                    "Select Profile First",
+                                                                  ),
+                                                                  duration:
+                                                                  Duration(
+                                                                    seconds: 3,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                            }
+                                                            setState(() {
+                                                              if (_isGradeChanged) {
+                                                                selecteddiscipline =
+                                                                    selecteddiscipline;
+                                                                currentsem =
+                                                                    currentsem;
+                                                                addcourse = "AN";
+                                                                addcourseid =
+                                                                "F311";
+                                                                electiveSetter();
+                                                                dropdownid =
+                                                                    mcourselist
+                                                                        .where(
+                                                                          (
+                                                                          course,
+                                                                          ) => course
+                                                                          .id
+                                                                          .startsWith(
+                                                                        "AN" +
+                                                                            ' ',
+                                                                      ),
+                                                                    )
+                                                                        .map(
+                                                                          (
+                                                                          course,
+                                                                          ) => course
+                                                                          .id
+                                                                          .replaceFirst(
+                                                                        "AN" +
+                                                                            ' ',
+                                                                        '',
+                                                                      ),
+                                                                    )
+                                                                        .toList();
+                                                                dropdownid.sort(
+                                                                      (a, b) => a
+                                                                      .compareTo(b),
+                                                                );
+                                                                sort(sitems);
+                                                                _isCourseCardOpen =
+                                                                false;
+                                                                _isGradeChanged =
+                                                                false;
+                                                              } else {
+                                                                sort(sitems);
+                                                                _isCourseCardOpen =
+                                                                false;
+                                                              }
+                                                              selectedgrade = 10;
+                                                            });
+
                                                         },
                                                       ),
                                                     ),
@@ -2220,205 +2396,205 @@ class _MyHomePageState extends State<MyHomePage> {
                                               width: wid * 0.8,
                                               child: Row(
                                                 children: [
-                                                  Container(
-                                                    width: wid * 0.57,
-                                                    height: double.infinity,
-                                                    child: FloatingActionButton(
-                                                      backgroundColor:
-                                                          thm
-                                                              .butcolor,
-                                                      elevation: 2,
-                                                      child: Text(
-                                                        "Update Course",
-                                                        style: TextStyle(
-                                                          fontFamily:
-                                                              'Montserrat',
-                                                          fontWeight:
-                                                              FontWeight.normal,
-                                                          fontSize: 22,
-                                                          color:
-                                                              thm
-                                                                  .highcolor,
-                                                        ),
-                                                      ),
-                                                      onPressed: () async {
-                                                        if (selectedprofile !=
-                                                            3) {
-                                                          if (_isGradeChanged) {
-                                                            Course
-                                                            tempcourse = sitems
-                                                                .firstWhere(
-                                                                  (course) =>
-                                                                      course
-                                                                          .id ==
-                                                                      "$addcourse $addcourseid",
-                                                                );
-                                                            await removeCourseById(
-                                                              "$addcourse $addcourseid",
-                                                            );
-                                                            await Future.delayed(
-                                                              Duration(
-                                                                milliseconds:
-                                                                    20,
-                                                              ),
-                                                            );
-                                                            if (selectedprofile ==
-                                                                1) {
-                                                              await addOrUpdateCourse(
-                                                                Course(
-                                                                  elective:
-                                                                      tempcourse
-                                                                          .elective,
-                                                                  title:
-                                                                      tempcourse
-                                                                          .title,
-                                                                  sem:
-                                                                      currentsem,
-                                                                  id:
-                                                                      "$addcourse $addcourseid",
-                                                                  discipline:
-                                                                      tempcourse
-                                                                          .discipline,
-                                                                  grade1:
-                                                                      selectedgrade,
-                                                                  grade2:
-                                                                      tempcourse
-                                                                          .grade2,
-                                                                  credits:
-                                                                      tempcourse
-                                                                          .credits,
-                                                                ),
-                                                              );
-                                                              await Future.delayed(
-                                                                Duration(
-                                                                  milliseconds:
-                                                                      20,
-                                                                ),
-                                                              );
-                                                              selectedelective = "None";
-                                                            } else if (selectedprofile ==
-                                                                2) {
-                                                              await addOrUpdateCourse(
-                                                                Course(
-                                                                  elective:
-                                                                      tempcourse
-                                                                          .elective,
-                                                                  title:
-                                                                      tempcourse
-                                                                          .title,
-                                                                  sem:
-                                                                      currentsem,
-                                                                  id:
-                                                                      "$addcourse $addcourseid",
-                                                                  discipline:
-                                                                      ((selecteddiscipline.substring(
-                                                                                0,
-                                                                                2,
-                                                                              ) !=
-                                                                              "--")
-                                                                          ? selecteddiscipline.substring(
-                                                                            0,
-                                                                            2,
-                                                                          )
-                                                                          : selecteddiscipline.substring(
-                                                                            2,
-                                                                            4,
-                                                                          )),
-                                                                  grade1:
-                                                                      tempcourse
-                                                                          .grade1,
-                                                                  grade2:
-                                                                      selectedgrade,
-                                                                  credits:
-                                                                      tempcourse
-                                                                          .credits,
-                                                                ),
-                                                              );
-                                                              selectedelective = "None";
-                                                              await Future.delayed(
-                                                                Duration(
-                                                                  milliseconds:
-                                                                      20,
-                                                                ),
-                                                              );
-                                                            }
-                                                          }
-                                                        } else {
-                                                          ScaffoldMessenger.of(
-                                                            context,
-                                                          ).showSnackBar(
-                                                            SnackBar(
-                                                              content: Text(
-                                                                style: TextStyle(
-                                                                  fontFamily:
-                                                                      "Montserrat",
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .normal,
-                                                                  fontSize: 16,
-                                                                ),
-                                                                "Select Profile First",
-                                                              ),
-                                                              duration:
-                                                                  Duration(
-                                                                    seconds: 3,
-                                                                  ),
-                                                            ),
-                                                          );
-                                                        }
-                                                        setState(() {
-                                                          if (_isGradeChanged) {
-                                                            selecteddiscipline =
-                                                                selecteddiscipline;
-                                                            currentsem =
-                                                                currentsem;
-                                                            addcourse = "AN";
-                                                            addcourseid =
-                                                                "F311";
-                                                            electiveSetter();
-                                                            dropdownid =
-                                                                mcourselist
-                                                                    .where(
-                                                                      (
-                                                                        course,
-                                                                      ) => course
-                                                                          .id
-                                                                          .startsWith(
-                                                                            "AN" +
-                                                                                ' ',
-                                                                          ),
-                                                                    )
-                                                                    .map(
-                                                                      (
-                                                                        course,
-                                                                      ) => course
-                                                                          .id
-                                                                          .replaceFirst(
-                                                                            "AN" +
-                                                                                ' ',
-                                                                            '',
-                                                                          ),
-                                                                    )
-                                                                    .toList();
-                                                            dropdownid.sort(
-                                                              (a, b) => a
-                                                                  .compareTo(b),
-                                                            );
-                                                            sort(sitems);
-                                                            _isCourseCardOpen =
-                                                                false;
-                                                            _isGradeChanged =
-                                                                false;
-                                                          } else {
-                                                            sort(sitems);
-                                                            _isCourseCardOpen =
-                                                                false;
-                                                          }
-                                                          selectedgrade = 10;
-                                                        });
-                                                      },
-                                                    ),
-                                                  ),
+                                                  // Container(
+                                                  //   width: wid * 0.57,
+                                                  //   height: double.infinity,
+                                                  //   child: FloatingActionButton(
+                                                  //     backgroundColor:
+                                                  //         thm
+                                                  //             .butcolor,
+                                                  //     elevation: 2,
+                                                  //     child: Text(
+                                                  //       "Update Course",
+                                                  //       style: TextStyle(
+                                                  //         fontFamily:
+                                                  //             'Montserrat',
+                                                  //         fontWeight:
+                                                  //             FontWeight.normal,
+                                                  //         fontSize: 22,
+                                                  //         color:
+                                                  //             thm
+                                                  //                 .highcolor,
+                                                  //       ),
+                                                  //     ),
+                                                  //     onPressed: () async {
+                                                  //       if (selectedprofile !=
+                                                  //           3) {
+                                                  //         if (_isGradeChanged) {
+                                                  //           Course
+                                                  //           tempcourse = sitems
+                                                  //               .firstWhere(
+                                                  //                 (course) =>
+                                                  //                     course
+                                                  //                         .id ==
+                                                  //                     "$addcourse $addcourseid",
+                                                  //               );
+                                                  //           await removeCourseById(
+                                                  //             "$addcourse $addcourseid",
+                                                  //           );
+                                                  //           await Future.delayed(
+                                                  //             Duration(
+                                                  //               milliseconds:
+                                                  //                   20,
+                                                  //             ),
+                                                  //           );
+                                                  //           if (selectedprofile ==
+                                                  //               1) {
+                                                  //             await addOrUpdateCourse(
+                                                  //               Course(
+                                                  //                 elective:
+                                                  //                     tempcourse
+                                                  //                         .elective,
+                                                  //                 title:
+                                                  //                     tempcourse
+                                                  //                         .title,
+                                                  //                 sem:
+                                                  //                     currentsem,
+                                                  //                 id:
+                                                  //                     "$addcourse $addcourseid",
+                                                  //                 discipline:
+                                                  //                     tempcourse
+                                                  //                         .discipline,
+                                                  //                 grade1:
+                                                  //                     selectedgrade,
+                                                  //                 grade2:
+                                                  //                     tempcourse
+                                                  //                         .grade2,
+                                                  //                 credits:
+                                                  //                     tempcourse
+                                                  //                         .credits,
+                                                  //               ),
+                                                  //             );
+                                                  //             await Future.delayed(
+                                                  //               Duration(
+                                                  //                 milliseconds:
+                                                  //                     20,
+                                                  //               ),
+                                                  //             );
+                                                  //             selectedelective = "None";
+                                                  //           } else if (selectedprofile ==
+                                                  //               2) {
+                                                  //             await addOrUpdateCourse(
+                                                  //               Course(
+                                                  //                 elective:
+                                                  //                     tempcourse
+                                                  //                         .elective,
+                                                  //                 title:
+                                                  //                     tempcourse
+                                                  //                         .title,
+                                                  //                 sem:
+                                                  //                     currentsem,
+                                                  //                 id:
+                                                  //                     "$addcourse $addcourseid",
+                                                  //                 discipline:
+                                                  //                     ((selecteddiscipline.substring(
+                                                  //                               0,
+                                                  //                               2,
+                                                  //                             ) !=
+                                                  //                             "--")
+                                                  //                         ? selecteddiscipline.substring(
+                                                  //                           0,
+                                                  //                           2,
+                                                  //                         )
+                                                  //                         : selecteddiscipline.substring(
+                                                  //                           2,
+                                                  //                           4,
+                                                  //                         )),
+                                                  //                 grade1:
+                                                  //                     tempcourse
+                                                  //                         .grade1,
+                                                  //                 grade2:
+                                                  //                     selectedgrade,
+                                                  //                 credits:
+                                                  //                     tempcourse
+                                                  //                         .credits,
+                                                  //               ),
+                                                  //             );
+                                                  //             selectedelective = "None";
+                                                  //             await Future.delayed(
+                                                  //               Duration(
+                                                  //                 milliseconds:
+                                                  //                     20,
+                                                  //               ),
+                                                  //             );
+                                                  //           }
+                                                  //         }
+                                                  //       } else {
+                                                  //         ScaffoldMessenger.of(
+                                                  //           context,
+                                                  //         ).showSnackBar(
+                                                  //           SnackBar(
+                                                  //             content: Text(
+                                                  //               style: TextStyle(
+                                                  //                 fontFamily:
+                                                  //                     "Montserrat",
+                                                  //                 fontWeight:
+                                                  //                     FontWeight
+                                                  //                         .normal,
+                                                  //                 fontSize: 16,
+                                                  //               ),
+                                                  //               "Select Profile First",
+                                                  //             ),
+                                                  //             duration:
+                                                  //                 Duration(
+                                                  //                   seconds: 3,
+                                                  //                 ),
+                                                  //           ),
+                                                  //         );
+                                                  //       }
+                                                  //       setState(() {
+                                                  //         if (_isGradeChanged) {
+                                                  //           selecteddiscipline =
+                                                  //               selecteddiscipline;
+                                                  //           currentsem =
+                                                  //               currentsem;
+                                                  //           addcourse = "AN";
+                                                  //           addcourseid =
+                                                  //               "F311";
+                                                  //           electiveSetter();
+                                                  //           dropdownid =
+                                                  //               mcourselist
+                                                  //                   .where(
+                                                  //                     (
+                                                  //                       course,
+                                                  //                     ) => course
+                                                  //                         .id
+                                                  //                         .startsWith(
+                                                  //                           "AN" +
+                                                  //                               ' ',
+                                                  //                         ),
+                                                  //                   )
+                                                  //                   .map(
+                                                  //                     (
+                                                  //                       course,
+                                                  //                     ) => course
+                                                  //                         .id
+                                                  //                         .replaceFirst(
+                                                  //                           "AN" +
+                                                  //                               ' ',
+                                                  //                           '',
+                                                  //                         ),
+                                                  //                   )
+                                                  //                   .toList();
+                                                  //           dropdownid.sort(
+                                                  //             (a, b) => a
+                                                  //                 .compareTo(b),
+                                                  //           );
+                                                  //           sort(sitems);
+                                                  //           _isCourseCardOpen =
+                                                  //               false;
+                                                  //           _isGradeChanged =
+                                                  //               false;
+                                                  //         } else {
+                                                  //           sort(sitems);
+                                                  //           _isCourseCardOpen =
+                                                  //               false;
+                                                  //         }
+                                                  //         selectedgrade = 10;
+                                                  //       });
+                                                  //     },
+                                                  //   ),
+                                                  // ),
                                                   Spacer(flex: 1),
                                                   Container(
                                                     height: double.infinity,
@@ -3303,9 +3479,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                   ,
                                                   onSelected: (value) {
                                                     selectedgrade =
-                                                        reversegradecalc(
-                                                          value!,
-                                                        );
+                                                        reversegradecalc(value!);
                                                   },
                                                 ),
                                               ),
