@@ -68,7 +68,7 @@ List<Course> hydCourseList = [
  Course(elective: "CDC2", title: "Microelectronic Circuits", sem: "2 - 2", discipline: "AA", id: "ECE F244", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Practice School I", sem: "PS 1", discipline: "AA", id: "BITS F221", grade1: -2, grade2: -2, credits: 5,),
  Course(elective: "CDC2", title: "Communication System", sem: "3 - 1", id: "ECE F311", discipline: "AA", grade1: -2, grade2: -2, credits: 4,),
- Course(elective: "CDC2", title: "EM Fields and Micro Engg", sem: "3 - 1",  id: "ECE F314", discipline: "AA", grade1: -2, grade2: -2, credits: 4,),
+ Course(elective: "CDC2", title: "EM Fields and Micro Engg", sem: "3 - 1", id: "ECE F314", discipline: "AA", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDC2", title: "Digital Signal Processes", sem: "3 - 1", id: "ECE F434", discipline: "AA", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDC2", title: "Analog Electronics", sem: "3 - 2", id: "ECE F341", discipline: "AA", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDC2", title: "Communication Networks", sem: "3 - 2", id: "ECE F343", discipline: "AA", grade1: -2, grade2: -2, credits: 3,),
