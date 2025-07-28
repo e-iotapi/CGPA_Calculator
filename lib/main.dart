@@ -498,20 +498,20 @@ class _MyHomePageState extends State<MyHomePage> {
     int s1 = 0;
     if (selectedprofile == 1) {
       for (Course i in allCourses) {
-        s1 += (i.grade1 > 0) ? i.credits : 0;
+        s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
       }
       int sum = 0;
       for (Course i in allCourses) {
-        sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
+        sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : (i.grade1 ==-3) ? (10 * i.credits):0;
       }
       return (s1 != 0) ? double.parse(((sum) / (s1)).toStringAsFixed(2)) : 0;
     } else if (selectedprofile == 2) {
       for (Course i in allCourses) {
-        s1 += (i.grade2 > 0) ? i.credits : 0;
+        s1 += (i.grade2 > 0 || i.grade2==-3) ? i.credits :0;
       }
       int sum = 0;
       for (Course i in allCourses) {
-        sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
+        sum += (i.grade2 > 0) ? (i.grade2 * i.credits) :(i.grade2 ==-3) ?  (10 * i.credits) : 0;
       }
       return (s1 != 0) ? double.parse(((sum) / (s1)).toStringAsFixed(2)) : 0;
     } else {
@@ -530,21 +530,21 @@ class _MyHomePageState extends State<MyHomePage> {
     int s1 = 0;
     String ans = "";
     for (Course i in allCourses) {
-      s1 += (i.grade1 > 0) ? i.credits : 0;
+      s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
     }
     int sum = 0;
     for (Course i in allCourses) {
-      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
+      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : (i.grade1 == -3) ? (10 * i.credits) : 0;
     }
     ans = (s1 != 0) ? ((sum) / (s1)).toStringAsFixed(2) : "0";
     ans += ' ';
     s1 = 0;
     for (Course i in allCourses) {
-      s1 += (i.grade2 > 0) ? i.credits : 0;
+      s1 += (i.grade2 > 0 || i.grade1 == -3) ? i.credits : 0;
     }
     sum = 0;
     for (Course i in allCourses) {
-      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
+      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : (i.grade2 == -3) ? (10 * i.credits) :0;
     }
     return ans + ((s1 != 0) ? ((sum) / (s1)).toStringAsFixed(2) : "0");
   }
@@ -559,20 +559,20 @@ class _MyHomePageState extends State<MyHomePage> {
     int s1 = 0;
     if (selectedprofile == 1) {
       for (Course i in allCourses) {
-        s1 += (i.grade1 > 0) ? i.credits : 0;
+        s1 += (i.grade1 > 0 || i.grade1==-3) ? i.credits : 0;
       }
       int sum = 0;
       for (Course i in allCourses) {
-        sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
+        sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : (i.grade1 == -3) ? (10 * i.credits) : 0;
       }
       return (s1 != 0) ? double.parse(((sum) / (s1)).toStringAsFixed(2)) : 0;
     } else if (selectedprofile == 2) {
       for (Course i in allCourses) {
-        s1 += (i.grade2 > 0) ? i.credits : 0;
+        s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
       }
       int sum = 0;
       for (Course i in allCourses) {
-        sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
+        sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : (i.grade2 == -3) ? (10 * i.credits):0;
       }
       return (s1 != 0) ? double.parse(((sum) / (s1)).toStringAsFixed(2)) : 0;
     }
@@ -588,21 +588,21 @@ class _MyHomePageState extends State<MyHomePage> {
     String ans = "";
     int s1 = 0;
     for (Course i in allCourses) {
-      s1 += (i.grade1 != -2) ? i.credits : 0;
+      s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
     }
     int sum = 0;
     for (Course i in allCourses) {
-      sum += (i.grade1 != -2) ? (i.grade1 * i.credits) : 0;
+      sum += (i.grade1 >0) ? (i.grade1 * i.credits) : (i.grade1 ==-3) ? (10 * i.credits):0;
     }
     ans = (s1 != 0) ? ((sum) / (s1)).toStringAsFixed(2) : "0";
     ans += " ";
     s1 = 0;
     for (Course i in allCourses) {
-      s1 += (i.grade2 != -2) ? i.credits : 0;
+      s1 += (i.grade2 >0 || i.grade2 == -3) ? i.credits : 0;
     }
     sum = 0;
     for (Course i in allCourses) {
-      sum += (i.grade2 != -2) ? (i.grade2 * i.credits) : 0;
+      sum += (i.grade2 != -2) ? (i.grade2 * i.credits) : (i.grade2 == -3) ? (10 * i.credits):0;
     }
     return ans + ((s1 != 0) ? ((sum) / (s1)).toStringAsFixed(2) : "0");
   }
@@ -686,8 +686,8 @@ class _MyHomePageState extends State<MyHomePage> {
               course.discipline == selecteddiscipline.substring(2, 4)) &&
           course.sem == currentsem,
     )) {
-      scred1 += (i.grade1 < 0) ? 0 : i.credits;
-      scred2 += (i.grade2 < 0) ? 0 : i.credits;
+      scred1 += (i.grade1 < 0 && !(i.grade1==-3)) ? 0 : i.credits;
+      scred2 += (i.grade2 < 0 && !(i.grade2==-3)) ? 0 : i.credits;
     }
 
     for (Course i in Hive.box<Course>('coursesBox').values.where(
@@ -695,8 +695,8 @@ class _MyHomePageState extends State<MyHomePage> {
           (course.discipline == selecteddiscipline.substring(0, 2) ||
               course.discipline == selecteddiscipline.substring(2, 4)),
     )) {
-      ccred1 += (i.grade1 < 0) ? 0 : i.credits;
-      ccred2 += (i.grade2 < 0) ? 0 : i.credits;
+      ccred1 += (i.grade1 < 0 && !(i.grade1==-3)) ? 0 : i.credits;
+      ccred2 += (i.grade2 < 0 && !(i.grade2==-3)) ? 0 : i.credits;
     }
     var wid = MediaQuery.of(context).size.width;
     var hei = MediaQuery.of(context).size.height;
