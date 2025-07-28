@@ -550,7 +550,7 @@ class _MyHomePageState extends State<MyHomePage> {
     s1 = 0;
     dontCount=0;
     for (Course i in allCourses) {
-      s1 += (i.grade2 > 0 || i.grade1 == -3) ? i.credits : 0;
+      s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
       if(i.grade2 == -3){
         dontCount += i.credits;
       }
