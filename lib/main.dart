@@ -582,7 +582,8 @@ class _MyHomePageState extends State<MyHomePage> {
         sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
       }
       return ((s1-dontCount) != 0) ? double.parse(((sum) / (s1-dontCount)).toStringAsFixed(2)) : 0;
-    } else if (selectedprofile == 2) {
+    }
+    else if (selectedprofile == 2) {
       for (Course i in allCourses) {
         s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
         if(i.grade2 == -3){
