@@ -494,26 +494,32 @@ class _MyHomePageState extends State<MyHomePage> {
           (course.discipline == selecteddiscipline.substring(0, 2) ||
               course.discipline == selecteddiscipline.substring(2, 4)),
     );
-
+   int dontCount =0;
     int s1 = 0;
     if (selectedprofile == 1) {
       for (Course i in allCourses) {
         s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
+        if(i.grade1 == -3){
+          dontCount += i.credits;
+        }
       }
       int sum = 0;
       for (Course i in allCourses) {
-        sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : (i.grade1 ==-3) ? (10 * i.credits):0;
+        sum += (i.grade1 > 0) ? (i.grade1 * i.credits):0;
       }
-      return (s1 != 0) ? double.parse(((sum) / (s1)).toStringAsFixed(2)) : 0;
+      return ((s1-dontCount) != 0) ? double.parse(((sum) / (s1-dontCount)).toStringAsFixed(2)) : 0;
     } else if (selectedprofile == 2) {
       for (Course i in allCourses) {
         s1 += (i.grade2 > 0 || i.grade2==-3) ? i.credits :0;
+        if(i.grade2 == -3){
+          dontCount += i.credits;
+        }
       }
       int sum = 0;
       for (Course i in allCourses) {
-        sum += (i.grade2 > 0) ? (i.grade2 * i.credits) :(i.grade2 ==-3) ?  (10 * i.credits) : 0;
+        sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
       }
-      return (s1 != 0) ? double.parse(((sum) / (s1)).toStringAsFixed(2)) : 0;
+      return ((s1-dontCount) != 0) ? double.parse(((sum) / (s1-dontCount)).toStringAsFixed(2)) : 0;
     } else {
       return -3.0;
     }
@@ -526,27 +532,34 @@ class _MyHomePageState extends State<MyHomePage> {
           (course.discipline == selecteddiscipline.substring(0, 2) ||
               course.discipline == selecteddiscipline.substring(2, 4)),
     );
-
+    int dontCount =0;
     int s1 = 0;
     String ans = "";
     for (Course i in allCourses) {
       s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
+      if(i.grade1 == -3){
+        dontCount += i.credits;
+      }
     }
     int sum = 0;
     for (Course i in allCourses) {
-      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : (i.grade1 == -3) ? (10 * i.credits) : 0;
+      sum += (i.grade1 > 0) ? (i.grade1 * i.credits)  : 0;
     }
-    ans = (s1 != 0) ? ((sum) / (s1)).toStringAsFixed(2) : "0";
+    ans = ((s1-dontCount) != 0) ? ((sum) / (s1-dontCount)).toStringAsFixed(2) : "0";
     ans += ' ';
     s1 = 0;
+    dontCount=0;
     for (Course i in allCourses) {
       s1 += (i.grade2 > 0 || i.grade1 == -3) ? i.credits : 0;
+      if(i.grade2 == -3){
+        dontCount += i.credits;
+      }
     }
     sum = 0;
     for (Course i in allCourses) {
-      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : (i.grade2 == -3) ? (10 * i.credits) :0;
+      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) :0;
     }
-    return ans + ((s1 != 0) ? ((sum) / (s1)).toStringAsFixed(2) : "0");
+    return ans + (((s1-dontCount) != 0) ? ((sum) / (s1-dontCount)).toStringAsFixed(2) : "0");
   }
 
   double cgcalc() {
@@ -555,26 +568,32 @@ class _MyHomePageState extends State<MyHomePage> {
           (course.discipline == selecteddiscipline.substring(0, 2) ||
               course.discipline == selecteddiscipline.substring(2, 4)),
     );
-
+    int dontCount =0;
     int s1 = 0;
     if (selectedprofile == 1) {
       for (Course i in allCourses) {
         s1 += (i.grade1 > 0 || i.grade1==-3) ? i.credits : 0;
+        if(i.grade1 == -3){
+          dontCount += i.credits;
+        }
       }
       int sum = 0;
       for (Course i in allCourses) {
-        sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : (i.grade1 == -3) ? (10 * i.credits) : 0;
+        sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
       }
-      return (s1 != 0) ? double.parse(((sum) / (s1)).toStringAsFixed(2)) : 0;
+      return ((s1-dontCount) != 0) ? double.parse(((sum) / (s1-dontCount)).toStringAsFixed(2)) : 0;
     } else if (selectedprofile == 2) {
       for (Course i in allCourses) {
         s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
+        if(i.grade2 == -3){
+          dontCount += i.credits;
+        }
       }
       int sum = 0;
       for (Course i in allCourses) {
-        sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : (i.grade2 == -3) ? (10 * i.credits):0;
+        sum += (i.grade2 > 0) ? (i.grade2 * i.credits) :0;
       }
-      return (s1 != 0) ? double.parse(((sum) / (s1)).toStringAsFixed(2)) : 0;
+      return ((s1-dontCount) != 0) ? double.parse(((sum) / (s1-dontCount)).toStringAsFixed(2)) : 0;
     }
     return -3.0;
   }
@@ -586,25 +605,33 @@ class _MyHomePageState extends State<MyHomePage> {
               course.discipline == selecteddiscipline.substring(2, 4)),
     );
     String ans = "";
+    int dontCount =0;
     int s1 = 0;
     for (Course i in allCourses) {
       s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
+      if(i.grade1 == -3){
+        dontCount += i.credits;
+      }
     }
     int sum = 0;
     for (Course i in allCourses) {
-      sum += (i.grade1 >0) ? (i.grade1 * i.credits) : (i.grade1 ==-3) ? (10 * i.credits):0;
+      sum += (i.grade1 >0) ? (i.grade1 * i.credits) :0;
     }
-    ans = (s1 != 0) ? ((sum) / (s1)).toStringAsFixed(2) : "0";
+    ans = ((s1-dontCount) != 0) ? ((sum) / (s1-dontCount)).toStringAsFixed(2) : "0";
     ans += " ";
     s1 = 0;
+    dontCount =0;
     for (Course i in allCourses) {
       s1 += (i.grade2 >0 || i.grade2 == -3) ? i.credits : 0;
+      if(i.grade2 == -3){
+        dontCount += i.credits;
+      }
     }
     sum = 0;
     for (Course i in allCourses) {
-      sum += (i.grade2 != -2) ? (i.grade2 * i.credits) : (i.grade2 == -3) ? (10 * i.credits):0;
+      sum += (i.grade2 >0) ? (i.grade2 * i.credits) : 0;
     }
-    return ans + ((s1 != 0) ? ((sum) / (s1)).toStringAsFixed(2) : "0");
+    return ans + (((s1 - dontCount) != 0) ? ((sum) / (s1-dontCount)).toStringAsFixed(2) : "0");
   }
 
   void sort(List<Course> sitems) {
