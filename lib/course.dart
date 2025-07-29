@@ -623,6 +623,7 @@ List<Course> hydCourseList = [
  Course(title: "Communication Networks", sem: "3 - 1", elective: "CDC2", discipline: "AC", id: "ECOM F343", grade1: -2, grade2: -2, credits: 3,),
  Course(title: "Real Time Operating Systems", sem: "3 - 2", elective: "CDC2", discipline: "AC", id: "ECOM F321", grade1: -2, grade2: -2, credits: 4,),
  Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline: "AC", id: "ECOM F462", grade1: -2, grade2: -2, credits: 3 ) ];
+
 List<Course> goaCourseList = [];
 List<Course> pilaniCourseList = [];
 var del = {
