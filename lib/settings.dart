@@ -22,6 +22,7 @@ class _SettingsState extends State<Settings> {
     text: profile2n,
   );
   bool _isProfileCardOpen = false;
+  TextEditingController _batchController = TextEditingController(text: batch.toString());
   @override
   Widget build(BuildContext context) {
     var thm = themes.firstWhere((theme) => theme.theme == selected_theme);
@@ -206,6 +207,7 @@ class _SettingsState extends State<Settings> {
                         ),
                       ],
                     ),
+
                     //Remove following comment for campus
                     //Spacer(flex: 1),
                     // Column(
@@ -275,6 +277,28 @@ class _SettingsState extends State<Settings> {
                   ],
                 ),
               ),
+              Column(
+                children: [
+                  Row(children: [
+                SizedBox(width: 25,),
+                Text("Batch",style: TextStyle(fontFamily: "Montserrat",fontSize: 16,color: thm.textcolor),),
+                SizedBox(width: 10,),
+                SizedBox(width: 25,child: TextField(keyboardType: TextInputType.number,style: TextStyle(fontFamily: "Montserrat",fontSize: 16,color: thm.textcolor),inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],controller: _batchController,
+                    onSubmitted: (value){
+                      if (_batchController.text.isNotEmpty) {
+                        if(batch<25 && int.parse(value)>=25){
+                          erase=1;
+                        }
+                        else if(batch>=25 && int.parse(value)<25){
+                          erase =1;
+                        }
+                        batch = int.parse(value);
+                      }
+                      setdis();
+                      initializeCourses();
+                    })
+                ),],),
+                ],),
               SizedBox(height: 25),
               Container(
                 height: 0.5,

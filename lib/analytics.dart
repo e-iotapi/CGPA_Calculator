@@ -31,7 +31,7 @@ class Analytics extends StatefulWidget {
 int creds(String s, List<Course> si) {
   int sum = 0;
   for (int i = 0; i < si.length; i++) {
-    if (si[i].elective == s && si[i].grade1 > 0) {
+    if (si[i].elective == s && si[i].grade1 > 0 || si[i].grade1 == -3) {
       sum += si[i].credits;
     }
   }
@@ -239,7 +239,7 @@ class _AnalyticsState extends State<Analytics> {
                                             .where(
                                               (Course) =>
                                                   Course.elective == "CDC2" &&
-                                                  Course.grade1 > 0,
+                                                      (Course.grade1 > 0 || Course.grade1==-3),
                                             )
                                             .length
                                             .toString() +
@@ -355,7 +355,7 @@ class _AnalyticsState extends State<Analytics> {
                                               (Course) =>
                                                   Course.elective ==
                                                       "Disciplinary Elective2" &&
-                                                  Course.grade1 > 0,
+                                                      (Course.grade1 > 0 || Course.grade1 == -3),
                                             )
                                             .length
                                             .toString() +
@@ -479,7 +479,7 @@ class _AnalyticsState extends State<Analytics> {
                                             .where(
                                               (Course) =>
                                                   Course.elective == "CDC1" &&
-                                                  Course.grade1 > 0,
+                                                      (Course.grade1 > 0 || Course.grade1==-3),
                                             )
                                             .length
                                             .toString() + ((!selecteddiscipline.startsWith("B-"))?(
@@ -594,7 +594,7 @@ class _AnalyticsState extends State<Analytics> {
                                               (Course) =>
                                                   Course.elective ==
                                                       "Disciplinary Elective1" &&
-                                                  Course.grade1 > 0,
+                                                      (Course.grade1 > 0 || Course.grade1==-3),
                                             )
                                             .length
                                             .toString() +((!selecteddiscipline.startsWith("B-"))?(
@@ -720,7 +720,7 @@ class _AnalyticsState extends State<Analytics> {
                                                   (Course) =>
                                                       Course.elective ==
                                                           "Humanity Elective" &&
-                                                      Course.grade1 > 0,
+                                                          (Course.grade1 > 0 || Course.grade1==-3),
                                                 )
                                                 .length
                                                 .toString() +
@@ -829,7 +829,7 @@ class _AnalyticsState extends State<Analytics> {
                                               (Course) =>
                                                   Course.elective ==
                                                       "Open Elective" &&
-                                                  Course.grade1 > 0,
+                                                      (Course.grade1 > 0 || Course.grade1==-3),
                                             )
                                             .length
                                             .toString() + ((selecteddiscipline.startsWith("B"))?"  ":

@@ -71,6 +71,10 @@ Future<void> initializeCourses() async {
     'selecteddiscipline',
     defaultValue: selecteddiscipline,
   );
+  batch = settingsBox.get(
+    'batch',
+    defaultValue: 24,
+  );
   selectedcampus = settingsBox.get(
     'selectedcampus',
     defaultValue: selectedcampus,
@@ -98,7 +102,7 @@ Future<void> initializeCourses() async {
                   : "ccccc"),
     )) {
       String tempsem = "";
-      for (var course in (selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList) {
+      for (var course in (batch<25)?hydCourseList:hydCourseListNew) {
         if (course.discipline ==
             ((selecteddiscipline.substring(0, 2) != "--")
                 ? selecteddiscipline.substring(0, 2)
@@ -137,7 +141,8 @@ Future<void> initializeCourses() async {
       //print("All keys in coursesBox: ${coursesBox.keys}");
       setsort();
     }
-  } else if (erase == 0) {
+  }
+  else if (erase == 0) {
     if (!coursesBox.values.any(
       (course) =>
           course.discipline ==
@@ -150,7 +155,7 @@ Future<void> initializeCourses() async {
                   : "ccccc"),
     )) {
       String tempsem = "";
-      for (var course in (selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList) {
+      for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
         if (course.discipline ==
             ((selecteddiscipline.substring(0, 2) != "--")
                 ? selecteddiscipline.substring(0, 2)
@@ -189,7 +194,8 @@ Future<void> initializeCourses() async {
       //print("All keys in coursesBox: ${coursesBox.keys}");
       setsort();
     }
-  } else if (erase == 2) {
+  }
+  else if (erase == 2) {
     final keysToDelete = [];
     for (final entry in coursesBox.toMap().entries) {
       final key = entry.key;
@@ -208,7 +214,7 @@ Future<void> initializeCourses() async {
       await coursesBox.deleteAll(keysToDelete);
     }
     String tempsem = "";
-    for (var course in (selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList) {
+    for (var course in ((batch<25)?hydCourseList:hydCourseListNew)) {
       if (course.discipline == selecteddiscipline.substring(2, 4)) {
         if (course.elective == "CDC2" && selecteddiscipline.startsWith("B")) {
           tempsem = course.sem;
@@ -244,6 +250,7 @@ Future<void> initializeCourses() async {
 
 Future<void> setdis() async {
   var settingsBox = await Hive.openBox('settingsBox');
+  await settingsBox.put('batch', batch);
   await settingsBox.put('selecteddiscipline', selecteddiscipline);
   await settingsBox.put('selectedcampus', selectedcampus);
   await settingsBox.put('degree_selected', true);
@@ -325,6 +332,7 @@ var thm = themes.firstWhere((x) => x.theme == selected_theme);
 double sgpa = 0.00;
 double cgpa = 0.00;
 int tapid = 0;
+int batch = 24;
 String selecteddiscipline = "----"; //store
 String selectedcampus = "Hyd";
 int selectedprofile = 1;
@@ -472,6 +480,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isCourseCardOpen = false;
   bool _isrightswipe = true;
   bool _isSearched = false;
+  TextEditingController _batchController1 = TextEditingController(text: batch.toString());
   String name1 =
       mcourselist
           .firstWhere(
@@ -893,6 +902,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           profile2n = profile2n;
                                           //await setprof();
                                           currentsem = currentsem;
+                                          batch=batch;
                                           selecteddiscipline =selecteddiscipline;
                                           await setdis();
                                           await initializeCourses();
@@ -901,6 +911,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                             profile1n = profile1n;
                                             profile2n = profile2n;
                                             currentsem = currentsem;
+                                            batch=batch;
                                             selecteddiscipline =
                                                 selecteddiscipline;
                                             thm = themes.firstWhere((theme) => theme.theme == selected_theme);
@@ -2332,6 +2343,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                               if (_isGradeChanged) {
                                                                 selecteddiscipline =
                                                                     selecteddiscipline;
+                                                                batch=batch;
                                                                 currentsem =
                                                                     currentsem;
                                                                 addcourse = "AN";
@@ -2605,7 +2617,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         shape: RoundedRectangleBorder(
                                                           borderRadius:
                                                               BorderRadius.circular(
-                                                                20,
+                                                                14,
                                                               ),
                                                         ),
                                                         foregroundColor:
@@ -2616,11 +2628,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                       ),
                                                       child: Transform.scale(
-                                                        scale: 0.6,
-                                                        child: Image.asset(
-                                                          'images/trash.png',
-                                                          color: Colors.red,
-                                                        ),
+                                                        scale: 2,
+                                                        child: Icon(Icons.delete_outline_rounded)
+                                                        // Image.asset(
+                                                        //   'images/trash.png',
+                                                        //   color: Colors.red,
+                                                        // ),
                                                       ),
 
                                                       onPressed: () async {
@@ -2637,6 +2650,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                               currentsem;
                                                           selecteddiscipline =
                                                               selecteddiscipline;
+                                                          batch-batch;
                                                           addcourse = "AN";
                                                           addcourseid = "F311";
                                                           electiveSetter();
@@ -3629,6 +3643,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                       currentsem = currentsem;
                                                       selecteddiscipline =
                                                           selecteddiscipline;
+                                                      batch=batch;
                                                       addcourse = "AN";
                                                       addcourseid = "F311";
                                                       electiveSetter();
@@ -3719,7 +3734,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: SizedBox(
-                                    height: hei * 0.32,
+                                    height: hei * 0.42,
                                     width: wid * 0.75,
                                     child: Column(
                                       children: [
@@ -3981,6 +3996,25 @@ class _MyHomePageState extends State<MyHomePage> {
                                         //   ],
                                         // ),
                                         // Spacer(flex: 1,),
+                                        Row(children: [
+                                          Text("Batch",style: TextStyle(fontFamily: "Montserrat",fontSize: 18,color: thm.textcolor),),
+                                          Spacer(flex: 1,),
+                                          SizedBox(width: 30,child: TextField(keyboardType: TextInputType.number,inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],controller: _batchController1,
+                                              onSubmitted: (value){
+                                                if (_batchController1.text.isNotEmpty) {
+                                                  if(batch<25 && int.parse(value)>=25){
+                                                    erase=1;
+                                                  }
+                                                  else if(batch>=25 && int.parse(value)<25){
+                                                    erase =1;
+                                                  }
+                                                  batch = int.parse(value);
+                                                }
+                                                setdis();
+                                                initializeCourses();
+                                              })
+                                          ),],),
+                                        SizedBox(height: 5,),
                                         Row(
                                           children: [
                                             Spacer(flex: 1),
@@ -4001,6 +4035,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                   if (_isDisciplineChanged) {
                                                     selecteddiscipline =
                                                         selecteddiscipline;
+                                                    batch= batch;
                                                     await setdis();
                                                     await initializeCourses();
                                                     await Future.delayed(
@@ -4014,6 +4049,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                       currentsem = currentsem;
                                                       selecteddiscipline =
                                                           selecteddiscipline;
+                                                      batch=batch;
                                                       addcourse = "AN";
                                                       addcourseid = "F311";
                                                       electiveSetter();
