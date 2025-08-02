@@ -12,6 +12,16 @@ class Mastercourselist {
 
 // -1NC, -2CLR,-3GD, not included in cgcalculation- edit
 List<Mastercourselist> mcourselist = [
+  Mastercourselist(title: "Linear Algebra and Complex Variables", id: "MATH F102", credits: 3),
+  Mastercourselist(title: "Innovation and Design Thinking", id: "BITS F102", credits: 1),
+  Mastercourselist(title: "Oscillations and Waves", id: "PHY F101", credits: 3),
+  Mastercourselist(title: "Fundamentals of Chemistry", id: "CHEM F101", credits: 3),
+  Mastercourselist(title: "Social Conduct", id: "BITS F101", credits: 1),
+  Mastercourselist(title: "Physical Well-being and Creativity", id: "BITS K101", credits: 1),
+  Mastercourselist(title: "Engineering Design and Prototyping", id: "BITS F103", credits: 4),
+  Mastercourselist(title: "Introduction to Biological Sciences", id: "BIO F101", credits: 3),
+  Mastercourselist(title: "Introduction to Oscillations and Waves", id: "PHY F102", credits: 3),
+  Mastercourselist(title: "Multivariable Calculus", id: "MATH F101", credits: 3),
   Mastercourselist(title: "Computer Programming", id: "CS F111", credits: 4),
   Mastercourselist(title: "Mathematics I", id: "MATH F111", credits: 3),
   Mastercourselist(title: "Thermodynamics", id: "BITS F111", credits: 3),
@@ -1414,6 +1424,7 @@ List<Mastercourselist> mcourselist = [
   ),
 
   //abcde
+  Mastercourselist(title: "Modern Control Systems", id: "ECE F422", credits: 3),
   Mastercourselist(title: "Electrical Machines", id: "ECE F211", credits: 4),
   Mastercourselist(title: "Electromagnetic Theory", id: "ECE F212", credits: 3),
   Mastercourselist(title: "Electronic Devices", id: "ECE F214", credits: 3),
@@ -3445,4 +3456,3 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Communication Networks", id: "ECOM F343", credits: 3),
   Mastercourselist(title: "Network Programming", id: "ECOM F462", credits: 3),
 ];
-//IS

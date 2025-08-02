@@ -321,7 +321,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-var thm = themes.firstWhere((theme) => theme.theme == selected_theme);
+var thm = themes.firstWhere((x) => x.theme == selected_theme);
 double sgpa = 0.00;
 double cgpa = 0.00;
 int tapid = 0;
@@ -749,14 +749,14 @@ class _MyHomePageState extends State<MyHomePage> {
                       vertical: BorderSide(
                         color:
                             (MediaQuery.of(context).size.width > wid)
-                                ? (thm.bordcolor)
+                                ? (thm.backcolor)
                                 : (thm.backcolor),
                         width: 1,
                       ),
                       horizontal: BorderSide(
                         color:
                             (MediaQuery.of(context).size.width > wid)
-                                ? (thm.bordcolor)
+                                ? (thm.backcolor)
                                 : (thm.backcolor),
                         width: 1,
                       ),
@@ -845,12 +845,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                           thm.iconcolor,
                                     ),
                                     onPressed: () {
+
                                       setState(() {
                                         Navigator.of(context).push(
                                           MaterialPageRoute(
                                             builder:
                                                 (context) => Analytics(
-                                                  sitemslist: sitems,
                                                 ),
                                           ),
                                         );
@@ -1448,13 +1448,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                     DropdownMenuEntry(
                                       value: "Sort by Credits(Asc)",
                                       enabled: (selectedprofile != 3),
-                                      leadingIcon: Image.asset(
-                                        'images/down.png',
-                                        width: 32,
-                                        height: 24,
-                                        color:
-                                            thm.textcolor,
-                                      ),
+                                      leadingIcon: Icon(Icons.keyboard_arrow_down_outlined, color: thm.textcolor,),
                                       label: "Asc Credits",
                                       style: MenuItemButton.styleFrom(
                                         textStyle: TextStyle(
@@ -1467,16 +1461,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                     DropdownMenuEntry(
                                       value: "Sort by Credits(Des)",
                                       enabled: (selectedprofile != 3),
-                                      leadingIcon: Transform.rotate(
-                                        angle: 3.1415926,
-                                        child: Image.asset(
-                                          'images/down.png',
-                                          width: 32,
-                                          height: 24,
-                                          color:
-                                              thm.textcolor,
-                                        ),
-                                      ),
+
+                                      leadingIcon: Icon(Icons.keyboard_arrow_up_outlined, color: thm.textcolor,),
                                       label: "Desc Credits",
                                       style: MenuItemButton.styleFrom(
                                         textStyle: TextStyle(
@@ -1489,13 +1475,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                     DropdownMenuEntry(
                                       enabled: (selectedprofile != 3),
                                       value: "Sort by Grades(Asc)",
-                                      leadingIcon: Image.asset(
-                                        'images/down.png',
-                                        width: 32,
-                                        height: 24,
-                                        color:
-                                            thm.textcolor,
-                                      ),
+
+                                      leadingIcon: Icon(Icons.keyboard_arrow_down_outlined, color: thm.textcolor,),
                                       label: "Asc Grades",
                                       style: MenuItemButton.styleFrom(
                                         textStyle: TextStyle(
@@ -1508,16 +1489,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                     DropdownMenuEntry(
                                       enabled: (selectedprofile != 3),
                                       value: "Sort by Grades(Des)",
-                                      leadingIcon: Transform.rotate(
-                                        angle: 3.1415926,
-                                        child: Image.asset(
-                                          'images/down.png',
-                                          width: 32,
-                                          height: 24,
-                                          color:
-                                              thm.textcolor,
-                                        ),
-                                      ),
+
+                                      leadingIcon: Icon(Icons.keyboard_arrow_up_outlined, color: thm.textcolor,),
                                       label: "Desc Grades",
                                       style: MenuItemButton.styleFrom(
                                         textStyle: TextStyle(
@@ -3050,14 +3023,15 @@ class _MyHomePageState extends State<MyHomePage> {
                                                   );
                                                 }),
                                                 barBackgroundColor:
+
                                                     WidgetStateProperty.all(
                                                       thm
                                                           .backcolor,
                                                     ),
                                                 viewBackgroundColor:
-                                                    thm
-                                                        .cardcolor,
-
+                                                (selected_theme=="Black")?
+                                                    Color(0xFF3F3C3C):(selected_theme=="Blue")?
+                                                Color(0xFF2E2E50):thm.backcolor,
                                                 barHintText: 'Search Courses',
                                                 barHintStyle: WidgetStateProperty.all(
                                                   TextStyle(

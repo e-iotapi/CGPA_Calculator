@@ -2,12 +2,27 @@ import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/settings.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'main.dart';
 import 'dart:math';
 
 class Analytics extends StatefulWidget {
-  final List<Course> sitemslist;
-  const Analytics({Key? key, required this.sitemslist}) : super(key: key);
+  const Analytics({Key? key}) : super(key: key);
+
+  List<Course> get sitemslist =>
+  Hive.box<Course>('coursesBox').values
+      .where(
+  (course) =>
+  (course.discipline ==
+  ((selecteddiscipline.substring(0, 2) != "--")
+  ? selecteddiscipline.substring(0, 2)
+      : selecteddiscipline.substring(2, 4)) ||
+  course.discipline ==
+  ((selecteddiscipline.substring(0, 2) != "--")
+  ? selecteddiscipline.substring(2, 4)
+      : "ccccc")),
+  )
+      .toList();
 
   @override
   State<Analytics> createState() => _AnalyticsState();
@@ -817,8 +832,8 @@ class _AnalyticsState extends State<Analytics> {
                                                   Course.grade1 > 0,
                                             )
                                             .length
-                                            .toString() +
-                                        "/5  ",
+                                            .toString() + ((selecteddiscipline.startsWith("B"))?"  ":
+                                        "/5  "),
                                     style: TextStyle(
                                       color:
                                           thm
@@ -848,8 +863,8 @@ class _AnalyticsState extends State<Analytics> {
                                     creds(
                                           "Open Elective",
                                           widget.sitemslist,
-                                        ).toString() +
-                                        "/15  ",
+                                        ).toString() + ((selecteddiscipline.startsWith("B"))?"  ":
+                                        "/15  "),
                                     style: TextStyle(
                                       color:
                                           thm
@@ -873,7 +888,7 @@ class _AnalyticsState extends State<Analytics> {
                               child: Container(
                                 color: thm
                                     .backcolor
-                                    .withValues(alpha: 0.6),
+                                    .withValues(alpha: 0),
                               ),
                             ),
                           ),
