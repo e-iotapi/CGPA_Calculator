@@ -936,6 +936,23 @@ Course(title: "Communication Networks", sem: "3 - 1", elective: "CDC2", discipli
 Course(title: "Real Time Operating Systems", sem: "3 - 2", elective: "CDC2", discipline: "AC", id: "ECOM F321", grade1: -2, grade2: -2, credits: 4,),
 Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline: "AC", id: "ECOM F462", grade1: -2, grade2: -2, credits: 3 ),
 
+ Course(elective: "CDCN", title: "Mathematics III", sem: "2 - 1", discipline: "B7", id: "MATH F211", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Fundamentals of Nanoscience and Nanotechnology", sem: "2 - 1", discipline: "B7", id: "SNS F211", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Basic Electronics", sem: "2 - 1", discipline: "B7", id: "SNS F212", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Material Science of Solid State Devices", sem: "2 - 1", discipline: "B7", id: "SNS F213", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDCN", title: "Environmental Studies", sem: "2 - 1", discipline: "B7", id: "BITS F225", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Chemistry at Nanoscale", sem: "2 - 2", discipline: "B7", id: "SNS F241", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Electronic Devices", sem: "2 - 2", discipline: "B7", id: "SNS F242", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Materials & Nanoscale Characterization", sem: "2 - 2", discipline: "B7", id: "SNS F243", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDCN", title: "Practice School-1", sem: "Summer", discipline: "B7", id: "BITS F221", grade1: -2, grade2: -2, credits: 5,),
+ Course(elective: "CDC1", title: "Semiconductor Thin Film Technology", sem: "3 - 1", discipline: "B7", id: "SNS F311", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Molecular Simulations", sem: "3 - 1", discipline: "B7", id: "SNS F312", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Instrumental Methods of Analysis", sem: "3 - 1", discipline: "B7", id: "SNS F313", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Principles of Nanobiotechnology", sem: "3 - 2", discipline: "B7", id: "SNS F341", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Principles of Nanophotonics and Devices", sem: "3 - 2", discipline: "B7", id: "SNS F342", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDC1", title: "Advanced Nanofabrication", sem: "3 - 2", discipline: "B7", id: "SNS F343", grade1: -2, grade2: -2, credits: 3,),
+
+
  //1st year courses
  Course(elective: "CDCN", title: "Multivariable Calculus", sem: "1 - 1", id: "MATH F101", discipline: "A1", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 1", id: "BITS F112", discipline: "A1", grade1: -2, grade2: -2, credits: 2,),
@@ -1201,4 +1218,4 @@ var del = {
  "B5" : ["BIO F215", "BITS F316", "BITS F317", "BITS F386", "BITS F416", "BITS F417", "BITS F446", "EEE F426", "MATH F424", "MATH F456", "PHY F215", "PHY F315", "PHY F316", "PHY F317", "PHY F346", "PHY F378", "PHY F379", "PHY F412", "PHY F413", "PHY F414", "PHY F415", "PHY F416", "PHY F417", "PHY F418", "PHY F419", "PHY F420", "PHY F421", "PHY F422", "PHY F423", "PHY F424", "PHY F425", "PHY F426", "PHY F427", "PHY F428", "PHY F431", "PHY F432", "PHY F433", "PHY F434"],
 };
 var huel = ["BITS F214","BITS F226","BITS F385","BITS F399","BITS F419"];
-var nonelist =["ECON F211", "MGTS F211", "BITS F225",];
+var nonelist =["ECON F211", "MGTS F211", "BITS F225","MATH F101","BITS F112",'BITS F111','BIO F101','BITS F103','BITS K101','BITS F101','MATH F102','MATH F113','BITS F102','CHEM F101','CS F111','PHA F214','PHA F216','MATH F114'];

@@ -3455,4 +3455,18 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Computer Architecture", id: "ECOM F342", credits: 4),
   Mastercourselist(title: "Communication Networks", id: "ECOM F343", credits: 3),
   Mastercourselist(title: "Network Programming", id: "ECOM F462", credits: 3),
+
+
+  Mastercourselist(title: "Fundamentals of Nanoscience and Nanotechnology", id: "SNS F211", credits: 3),
+  Mastercourselist(title: "Basic Electronics", id: "SNS F212", credits: 3),
+  Mastercourselist(title: "Material Science of Solid State Devices", id: "SNS F213", credits: 3),
+  Mastercourselist(title: "Chemistry at Nanoscale", id: "SNS F241", credits: 3),
+  Mastercourselist(title: "Electronic Devices", id: "SNS F242", credits: 3),
+  Mastercourselist(title: "Materials & Nanoscale Characterization", id: "SNS F243", credits: 3),
+  Mastercourselist(title: "Semiconductor Thin Film Technology", id: "SNS F311", credits: 3),
+  Mastercourselist(title: "Molecular Simulations", id: "SNS F312", credits: 3),
+  Mastercourselist(title: "Instrumental Methods of Analysis", id: "SNS F313", credits: 3),
+  Mastercourselist(title: "Principles of Nanobiotechnology", id: "SNS F341", credits: 3),
+  Mastercourselist(title: "Principles of Nanophotonics and Devices", id: "SNS F342", credits: 3),
+  Mastercourselist(title: "Advanced Nanofabrication", id: "SNS F343", credits: 3),
 ];
