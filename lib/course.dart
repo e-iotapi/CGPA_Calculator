@@ -1161,6 +1161,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "AD", grade1: -2, grade2: -2, credits: 1,),
  Course(elective: "CDCN", title: "Probability and Statistics", sem: "1 - 2", id: "MATH F113", discipline: "AD", grade1: -2, grade2: -2, credits: 3,),
 
+
  Course(elective: "CDCN", title: "Multivariable Calculus", sem: "1 - 1", id: "MATH F101", discipline: "AJ", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Fundamentals of Chemistry", sem: "1 - 1", id: "CHEM F101", discipline: "AJ", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Oscillations and Waves", sem: "1 - 1", id: "PHY F101", discipline: "AJ", grade1: -2, grade2: -2, credits: 3,),
