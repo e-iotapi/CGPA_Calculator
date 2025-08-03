@@ -57,6 +57,7 @@ class _AnalyticsState extends State<Analytics> {
     'B3': [14, 42, 6, 18],
     'B4': [14, 42, 5, 15],
     'B5': [15, 45, 4, 15],
+    'B7': [15, 45, 5, 15],
     'B-': [0,0,0,0],
   };
   @override

@@ -102,7 +102,7 @@ Future<void> initializeCourses() async {
                   : "ccccc"),
     )) {
       String tempsem = "";
-      for (var course in (batch<25)?hydCourseList:hydCourseListNew) {
+      for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
         if (course.discipline ==
             ((selecteddiscipline.substring(0, 2) != "--")
                 ? selecteddiscipline.substring(0, 2)
@@ -214,7 +214,7 @@ Future<void> initializeCourses() async {
       await coursesBox.deleteAll(keysToDelete);
     }
     String tempsem = "";
-    for (var course in ((batch<25)?hydCourseList:hydCourseListNew)) {
+    for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
       if (course.discipline == selecteddiscipline.substring(2, 4)) {
         if (course.elective == "CDC2" && selecteddiscipline.startsWith("B")) {
           tempsem = course.sem;
@@ -361,7 +361,7 @@ List<String> dropdownid = anCourseIds;
 final List<String> depts = ["AN","BIO","BIOT","BITS","CE","CHE","CHEM","CS","ECE", "ECON","ECOM","EEE","FIN","GS","HSS","INSTR","IS","MAC","MATH","ME","MF","MGTS","MSE","MST","PHA","PHY",];
 final List<String> grades = ["A","A-","B","B-","C","C-","D","E","NC","CLR","GD"];
 final List<String> sems = ["1 - 1","1 - 2","2 - 1","2 - 2","PS 1","3 - 1","3 - 2","ST 1","4 - 1","4 - 2",];
-final List<String> degreelist = ["B1","B2","B3","B4","B5","A1","A2","A3","A4","A5","A7","A8","A9","AA","AB","AC","AD"];
+final List<String> degreelist = ["B1","B2","B3","B4","B5","B7","A1","A2","A3","A4","A5","A7","A8","A9","AA","AB","AC","AD"];
 final List<String> campuslist = ["Pilani", "Goa", "Hyd"];
 
 class MyHomePage extends StatefulWidget {
@@ -4002,17 +4002,17 @@ class _MyHomePageState extends State<MyHomePage> {
                                           SizedBox(width: 30,child: TextField(keyboardType: TextInputType.number,inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],controller: _batchController1,
                                               onSubmitted: (value){
                                                 if (_batchController1.text.isNotEmpty) {
-                                                  if(batch<25 && int.parse(value)>=25){
-                                                    erase=1;
-                                                  }
-                                                  else if(batch>=25 && int.parse(value)<25){
-                                                    erase =1;
-                                                  }
                                                   batch = int.parse(value);
                                                 }
                                                 setdis();
-                                                initializeCourses();
-                                              })
+                                              },
+                                              onChanged: (value){
+                                                if (_batchController1.text.isNotEmpty) {
+                                                  batch = int.parse(value);
+                                                }
+                                                setdis();
+                                              }
+                                              )
                                           ),],),
                                         SizedBox(height: 5,),
                                         Row(
