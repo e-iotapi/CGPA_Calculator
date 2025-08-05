@@ -277,6 +277,7 @@ class _SettingsState extends State<Settings> {
                   ],
                 ),
               ),
+
               Column(
                 children: [
                   Row(children: [

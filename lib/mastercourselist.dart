@@ -1770,6 +1770,7 @@ List<Mastercourselist> mcourselist = [
     id: "GS F244",
     credits: 3,
   ),
+
   Mastercourselist(
     title: "Effective Public Speaking",
     id: "GS F245",

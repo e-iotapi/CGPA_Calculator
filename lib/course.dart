@@ -39,6 +39,7 @@ class Course extends HiveObject {
   });
 }
 
+
 // -1NC, -2CLR,-3GD, not included in cgcalculation- edit
 List<Course> hydCourseList = [
  Course(title: "Computer Programming", sem: "1 - 1", elective: "CDCN", id: "CS F111", discipline: "AA", grade1: -2, grade2: -2, credits: 4,),

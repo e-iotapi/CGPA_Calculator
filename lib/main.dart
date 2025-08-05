@@ -189,6 +189,7 @@ Future<void> initializeCourses() async {
               credits: course.credits,
               elective: course.elective,
             );
+
             try {
               await coursesBox.put(Course1.id, Course1);
               //print('Stored modified course with id: ${course.id}');
