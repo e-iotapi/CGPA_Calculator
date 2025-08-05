@@ -102,38 +102,45 @@ Future<void> initializeCourses() async {
                   : "ccccc"),
     )) {
       String tempsem = "";
+      List <String> tempaddedcourses =[];
       for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
         if (course.discipline ==
             ((selecteddiscipline.substring(0, 2) != "--")
                 ? selecteddiscipline.substring(0, 2)
                 : selecteddiscipline.substring(2, 4))) {
           await coursesBox.put(course.id, course);
+          tempaddedcourses.add(course.title);
         }
         if (course.discipline ==
             ((selecteddiscipline.substring(0, 2) != "--")
                 ? selecteddiscipline.substring(2, 4)
                 : "cccc")) {
-          if (course.elective == "CDC2") {
-            tempsem = course.sem;
-            tempsem =
-                (int.parse(tempsem.substring(0, 1)) + 1).toString() +
-                tempsem.substring(1, 5);
-            //print(tempsem);
-            Course Course1 = Course(
-              title: course.title,
-              sem: tempsem,
-              id: course.id,
-              grade1: course.grade1,
-              grade2: course.grade2,
-              discipline: course.discipline,
-              credits: course.credits,
-              elective: course.elective,
-            );
-            try {
-              await coursesBox.put(Course1.id, Course1);
-              //print('Stored modified course with id: ${course.id}');
-            } catch (e) {
-              //print('Error storing course: $e');
+          if (course.elective == "CDC2" && !tempaddedcourses.contains(course.title)) {
+            if(selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3"|| selecteddiscipline == "B5A8"){
+              if((course.title == "Electromagnetic Theory")){}
+              else{
+                tempsem = course.sem;
+                tempsem =
+                    (int.parse(tempsem.substring(0, 1)) + 1).toString() +
+                        tempsem.substring(1, 5);
+                //print(tempsem);
+                Course Course1 = Course(
+                  title: course.title,
+                  sem: tempsem,
+                  id: course.id,
+                  grade1: course.grade1,
+                  grade2: course.grade2,
+                  discipline: course.discipline,
+                  credits: course.credits,
+                  elective: course.elective,
+                );
+                try {
+                  await coursesBox.put(Course1.id, Course1);
+                  //print('Stored modified course with id: ${course.id}');
+                } catch (e) {
+                  //print('Error storing course: $e');
+                }
+              }
             }
           }
         }
@@ -358,7 +365,7 @@ List<String> anCourseIds =
         .map((course) => course.id.replaceFirst('AN ', ''))
         .toList();
 List<String> dropdownid = anCourseIds;
-final List<String> depts = ["AN","BIO","BIOT","BITS","CE","CHE","CHEM","CS","ECE", "ECON","ECOM","EEE","FIN","GS","HSS","INSTR","IS","MAC","MATH","ME","MF","MGTS","MSE","MST","PHA","PHY",];
+final List<String> depts = ["AN","BIO","BIOT","BITS","CE","CHE","CHEM","CS","ECE","ECON","ECOM","EEE","FIN","GS","HSS","INSTR","IS","MAC","MATH","ME","MF","MGTS","MSE","MST","PHA","PHY","SNS",];
 final List<String> grades = ["A","A-","B","B-","C","C-","D","E","NC","CLR","GD"];
 final List<String> sems = ["1 - 1","1 - 2","2 - 1","2 - 2","PS 1","3 - 1","3 - 2","ST 1","4 - 1","4 - 2",];
 final List<String> degreelist = ["B1","B2","B3","B4","B5","B7","A1","A2","A3","A4","A5","A7","A8","A9","AA","AB","AC","AD","AJ"];

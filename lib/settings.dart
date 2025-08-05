@@ -284,7 +284,7 @@ class _SettingsState extends State<Settings> {
                 Text("Batch",style: TextStyle(fontFamily: "Montserrat",fontSize: 16,color: thm.textcolor),),
                 SizedBox(width: 10,),
                 SizedBox(width: 25,child: TextField(keyboardType: TextInputType.number,style: TextStyle(fontFamily: "Montserrat",fontSize: 16,color: thm.textcolor),inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],controller: _batchController,
-                    onSubmitted: (value){
+                    onChanged: (value){
                       if (_batchController.text.isNotEmpty) {
                         if(batch<25 && int.parse(value)>=25){
                           erase=1;
