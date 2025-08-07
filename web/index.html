@@ -41,24 +41,42 @@
 
   <!-- Manifest -->
   <link rel="manifest" href="manifest.json" />
-</head>
-<body>
 
-<!-- Content for SEO only—hidden when Flutter loads -->
-<div id="seo-fallback-content" style="display:none;">
-  <h1>CGPA Calculator for BITS Pilani</h1>
-  <h2>CGPA Calculator for BITS</h2>
-  <h3>CGPA Calculator BITS</h3>
-  <p>This web app provides a fast and accurate CGPA calculator for BITS Pilani students. Simply enter your grades and get instant results for all semesters.</p>
-  <p>Mainly Designed for iOS users who cannot use traditional play store apps, this platform makes it easy to track your academic progress.</p>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "CGPA Calculator for BITS Pilani",
+      "description": "Calculate your CGPA easily with this user-friendly CGPA Calculator designed specifically for BITS Pilani students. Get quick, accurate results for all semesters.",
+      "applicationCategory": "EducationalApplication",
+      "author": { "@type": "Person", "name": "Srijen Raja" },
+      "url": "https://cgpa-calculator-bits.vercel.app/"
+    }
+  </script>
+
+
+</head>
+<body style="background-color:#f6f8fa; margin:0; padding:0; font-family:'Segoe UI', Arial, sans-serif;">
+<div id="seo-fallback-content" style="max-width:480px; margin:60px auto 0 auto; background:#fff; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.06); padding:36px 28px 28px 28px; text-align:center;">
+  <h1 style="font-size:2.2rem; font-weight:700; color:#1d3557; margin-bottom:0.6em; margin-top:0;">
+    CGPA Calculator for BITS Pilani
+  </h1>
+  <p style="font-size:1.15rem; color:#333; line-height:1.5; margin-bottom:1em;">
+    This web app provides a fast and accurate CGPA calculator for BITS Pilani students. Simply enter your grades and get instant results for all semesters.
+  </p>
+  <p style="font-size:1.08rem; color:#555; margin-bottom:1.0em;">
+    Mainly designed for iOS users who cannot use traditional Play Store apps, this platform makes it easy to track your academic progress.
+  </p>
+  <p style="color:#767676; font-size:0.98rem; margin-bottom:0;">
+    Loading CGPA Calculator, Please Wait...
+  </p>
 </div>
+
 <script>
   document.addEventListener('flutter-first-frame', function() {
     document.getElementById('seo-fallback-content').style.display = 'none';
   });
 </script>
-
-
 <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
