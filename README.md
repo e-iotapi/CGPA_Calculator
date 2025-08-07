@@ -17,3 +17,5 @@ Smart Sorting: Easily organize and view your courses sorted by grades or credits
 Multiple Themes: Personalize your experience by choosing from a variety of themes to suit your style.
 
 Add Electives Easily: A powerful search option allows you to find and add your elective courses in seconds.
+
+Struggling to calculate your CGPA on your iPhone as a BITS Pilani student? Look no further! This easy-to-use web app brings the power of CGPA Calculation directly to iOS devices -no App Store download needed! Just open your browser, enter your grades, and get instant, accurate results. Designed by BITSian, for BITSians-now available everywhere, hassle-free.
