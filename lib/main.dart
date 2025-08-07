@@ -1814,6 +1814,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                                       )
                                                                       : "–") +
                                                                   "‎ ‎ ",
+
                                                           textAlign:
                                                               TextAlign.right,
                                                           style: TextStyle(
@@ -2971,30 +2972,24 @@ class _MyHomePageState extends State<MyHomePage> {
                                             ),
                                           ),
                                           child: Theme(
-                                            // Override the theme for just this SearchAnchor
                                             data: Theme.of(context).copyWith(
-                                              // This is the key part that controls the TextField's look
                                               inputDecorationTheme: InputDecorationTheme(
-                                                // Style for the text when the bar is focused
                                                 labelStyle: TextStyle(
                                                   fontFamily: "Montserrat",
                                                   color:
                                                       thm
                                                           .textcolor,
                                                 ),
-                                                // Style for the hint text
                                                 hintStyle: TextStyle(
                                                   fontFamily: 'Montserrat',
                                                   color:
                                                       thm
                                                           .textcolor,
                                                 ),
-                                                // Remove the default underline border
                                                 border: InputBorder.none,
                                                 focusedBorder: InputBorder.none,
                                                 enabledBorder: InputBorder.none,
                                               ),
-                                              // Also theme the text selection handles and cursor
                                               textSelectionTheme:
                                                   TextSelectionThemeData(
                                                     cursorColor:
