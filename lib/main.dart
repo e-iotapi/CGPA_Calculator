@@ -32,7 +32,7 @@ void main() async {
   Hive.registerAdapter(CourseAdapter());
   await Hive.openBox<Course>('coursesBox');
   await initializeCourses();
-  await Future.delayed(Duration(milliseconds: 40));
+  //await Future.delayed(Duration(milliseconds: 40));
   if (!kIsWeb) {
     if (defaultTargetPlatform == TargetPlatform.windows) {
       final maxwindowsscreen = await screenRetriever.getPrimaryDisplay();
