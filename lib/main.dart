@@ -31,7 +31,7 @@ void main() async {
   }
   Hive.registerAdapter(CourseAdapter());
   //await Hive.openBox<Course>('coursesBox');
-  await initializeCourses();
+  //await initializeCourses();
   //await Future.delayed(Duration(milliseconds: 40));
   if (!kIsWeb) {
     if (defaultTargetPlatform == TargetPlatform.windows) {
