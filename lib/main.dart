@@ -30,7 +30,7 @@ void main() async {
     await Hive.initFlutter();
   }
   Hive.registerAdapter(CourseAdapter());
-  await Hive.openBox<Course>('coursesBox');
+  //await Hive.openBox<Course>('coursesBox');
   await initializeCourses();
   //await Future.delayed(Duration(milliseconds: 40));
   if (!kIsWeb) {
