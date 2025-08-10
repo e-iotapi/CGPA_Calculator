@@ -150,6 +150,7 @@ Future<void> initializeCourses() async {
     }
   }
   else if (erase == 0) {
+    if(degree_selected==true){
     if (!coursesBox.values.any(
       (course) =>
           course.discipline ==
@@ -202,6 +203,7 @@ Future<void> initializeCourses() async {
       //print("All keys in coursesBox: ${coursesBox.keys}");
       setsort();
     }
+  }
   }
   else if (erase == 2) {
     final keysToDelete = [];
