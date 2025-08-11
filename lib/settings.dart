@@ -1,7 +1,7 @@
 import 'package:cgpa_calculator/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 import 'main.dart';
 
 class Settings extends StatefulWidget {
@@ -455,6 +455,33 @@ class _SettingsState extends State<Settings> {
                 width: MediaQuery.of(context).size.width * 0.8,
                 color: thm.sepcolor,
               ),
+
+              SizedBox(height: 25),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.05,
+                width: MediaQuery.of(context).size.width * 0.90,
+                child: FloatingActionButton(
+                  key: ValueKey("report"),
+                  elevation: 1,
+                  focusElevation: 0,
+                  hoverElevation: 0,
+                  highlightElevation: 0,
+                  disabledElevation: 0,
+                  backgroundColor: thm.cardcolor,
+                  child: Text(
+                    "Report a Bug or Add courses",
+                    style: TextStyle(
+                      fontFamily: "Montserrat",
+                      fontSize: 18,
+                      color: thm.highcolor,
+                    ),
+                  ),
+                    onPressed: () async {
+                      await launchUrl(Uri.parse('https://forms.gle/t852T4DwNzoDN8tH6'));
+                    },
+                ),
+              ),
+
               Spacer(flex: 1),
               Text(
                 "Made by Srijen Raja",

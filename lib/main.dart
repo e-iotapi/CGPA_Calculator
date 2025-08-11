@@ -9,10 +9,13 @@ import 'package:marquee/marquee.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:pwa_install/pwa_install.dart';
 import 'settings.dart';
 import 'mastercourselist.dart';
 import 'constants.dart';
 import 'dart:math';
+import 'package:in_app_update/in_app_update.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +57,14 @@ void main() async {
         await windowManager.show();
         await windowManager.focus();
       });
+    }
+  }
+  if(!kIsWeb){
+    if(Platform.isAndroid){
+      final updateInfo = await InAppUpdate.checkForUpdate();
+      if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable && updateInfo.flexibleUpdateAllowed) {
+        await InAppUpdate.startFlexibleUpdate();
+      }
     }
   }
   SystemChrome.setPreferredOrientations([
@@ -843,8 +854,89 @@ class _MyHomePageState extends State<MyHomePage> {
                           Spacer(flex: 1),
                           Row(
                             children: [
+                                    if(kIsWeb)
+                                      SizedBox(height: 35,width: 70,child:
+                                      FloatingActionButton(
+                                      elevation: 0,
+                                      focusElevation: 0,
+                                      hoverElevation: 0,
+                                      highlightElevation: 0,
+                                      disabledElevation: 0,
+                                      backgroundColor: Colors.transparent,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        side: BorderSide(color: thm.iconcolor)
+                                      ),
+                                      child: Text(
+                                        "Install",style: TextStyle(
+                                        color:
+                                        thm.iconcolor,
+                                        fontFamily: 'Montserrat',
+                                        fontSize: 14,
+                                      ),
+                                      ),
+                                      onPressed: () async{
+                                        if(!kIsWeb){
+                                          if(Platform.isAndroid){
+                                            await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'));
+                                          }
+                                          else if(Platform.isIOS){
+                                            if (PWAInstall().installPromptEnabled) {
+                                              PWAInstall().promptInstall_();
+                                            }
+                                            else{
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      style: TextStyle(
+                                                        fontFamily:
+                                                        "Montserrat",
+                                                        fontWeight:
+                                                        FontWeight
+                                                            .normal,
+                                                        fontSize: 16,
+                                                      ),
+                                                      "Click on Share => Add to home screen",
+                                                    ),
+                                                    duration: Duration(
+                                                      seconds: 3,
+                                                    ),
+                                                  ));
+                                            }
+                                          }
+                                        }
+                                        else{
+                                          if (PWAInstall().installPromptEnabled) {
+                                            PWAInstall().promptInstall_();
+                                          }
+                                          else{
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                      "Montserrat",
+                                                      fontWeight:
+                                                      FontWeight
+                                                          .normal,
+                                                      fontSize: 16,
+                                                    ),
+                                                    "Click on Settings => Cast,Save and Share => Install Page as app",
+                                                  ),
+                                                  duration: Duration(
+                                                    seconds: 4,
+                                                  ),
+                                                ));
+                                          }
+                                        }
+                                      },
+                                ),),
                               Transform(
-                                alignment: Alignment.centerRight,
+                                alignment: Alignment.center,
                                 transform: Matrix4.rotationY(3.1416),
                                 child: Transform.scale(
                                   scale: 1.2,
@@ -862,7 +954,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                           thm.iconcolor,
                                     ),
                                     onPressed: () {
-
                                       setState(() {
                                         Navigator.of(context).push(
                                           MaterialPageRoute(
@@ -876,7 +967,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 55),
                               Transform.scale(
                                 alignment: Alignment.centerRight,
                                 scale: 1.2,

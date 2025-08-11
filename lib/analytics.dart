@@ -31,7 +31,8 @@ class Analytics extends StatefulWidget {
 int creds(String s, List<Course> si) {
   int sum = 0;
   for (int i = 0; i < si.length; i++) {
-    if (si[i].elective == s && si[i].grade1 > 0 || si[i].grade1 == -3) {
+    if (si[i].elective == s && (si[i].grade1 > 0 || si[i].grade1 == -3)) {
+      print(si[i].title);
       sum += si[i].credits;
     }
   }
