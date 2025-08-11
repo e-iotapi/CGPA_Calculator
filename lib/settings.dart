@@ -455,7 +455,6 @@ class _SettingsState extends State<Settings> {
                 width: MediaQuery.of(context).size.width * 0.8,
                 color: thm.sepcolor,
               ),
-
               SizedBox(height: 25),
               SizedBox(
                 height: MediaQuery.of(context).size.height * 0.05,
