@@ -879,42 +879,31 @@ class _MyHomePageState extends State<MyHomePage> {
                                       ),
                                       ),
                                       onPressed: () async{
-                                        if(!kIsWeb){
-                                          if(Platform.isAndroid){
-                                            await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'));
-                                          }
-                                          else if(Platform.isIOS){
-                                            if (PWAInstall().installPromptEnabled) {
-                                              PWAInstall().promptInstall_();
-                                            }
-                                            else{
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      style: TextStyle(
-                                                        fontFamily:
-                                                        "Montserrat",
-                                                        fontWeight:
-                                                        FontWeight
-                                                            .normal,
-                                                        fontSize: 16,
-                                                      ),
-                                                      "Click on Share => Add to home screen",
-                                                    ),
-                                                    duration: Duration(
-                                                      seconds: 3,
-                                                    ),
-                                                  ));
-                                            }
-                                          }
-                                        }
-                                        else{
                                           if (PWAInstall().installPromptEnabled) {
                                             PWAInstall().promptInstall_();
                                           }
-                                          else{
+                                          else if(Platform.isWindows || Platform.isMacOS || Platform.isLinux){
+                                            ScaffoldMessenger.of(
+                                            context,
+                                            ).showSnackBar(
+                                            SnackBar(
+                                            content: Text(
+                                            style: TextStyle(
+                                            fontFamily:
+                                            "Montserrat",
+                                            fontWeight:
+                                            FontWeight
+                                                .normal,
+                                            fontSize: 16,
+                                            ),
+                                            "Click on Settings => Cast,Save and Share => Install Page as app",
+                                            ),
+                                            duration: Duration(
+                                            seconds: 4,
+                                            ),
+                                            ));
+                                            }
+                                          else if(Platform.isAndroid){
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
@@ -928,15 +917,35 @@ class _MyHomePageState extends State<MyHomePage> {
                                                           .normal,
                                                       fontSize: 16,
                                                     ),
-                                                    "Click on Settings => Cast,Save and Share => Install Page as app",
+                                                    "Click on Settings => Add to Home Screen",
                                                   ),
                                                   duration: Duration(
                                                     seconds: 4,
                                                   ),
                                                 ));
                                           }
-                                        }
-                                      },
+                                          else if(Platform.isIOS){
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                      "Montserrat",
+                                                      fontWeight:
+                                                      FontWeight
+                                                          .normal,
+                                                      fontSize: 16,
+                                                    ),
+                                                    "Click on Share => Add to Home Screen",
+                                                  ),
+                                                  duration: Duration(
+                                                    seconds: 4,
+                                                  ),
+                                                ));
+                                          }
+                                      }
                                 ),),
                               Transform(
                                 alignment: Alignment.center,
