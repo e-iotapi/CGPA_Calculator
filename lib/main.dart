@@ -33,9 +33,9 @@ void main() async {
     await Hive.initFlutter();
   }
   Hive.registerAdapter(CourseAdapter());
-  await Hive.openBox<Course>('coursesBox');
+  //await Hive.openBox<Course>('coursesBox');
   await initializeCourses();
-  await Future.delayed(Duration(milliseconds: 40));
+  //await Future.delayed(Duration(milliseconds: 40));
   if (!kIsWeb) {
     if (defaultTargetPlatform == TargetPlatform.windows) {
       final maxwindowsscreen = await screenRetriever.getPrimaryDisplay();
@@ -161,6 +161,7 @@ Future<void> initializeCourses() async {
     }
   }
   else if (erase == 0) {
+    if(degree_selected==true){
     if (!coursesBox.values.any(
       (course) =>
           course.discipline ==
@@ -213,6 +214,7 @@ Future<void> initializeCourses() async {
       //print("All keys in coursesBox: ${coursesBox.keys}");
       setsort();
     }
+  }
   }
   else if (erase == 2) {
     final keysToDelete = [];
