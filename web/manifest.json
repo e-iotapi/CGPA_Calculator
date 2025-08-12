@@ -1,13 +1,32 @@
 {
-    "name": "cgpa_calculator",
-    "short_name": "cgpa_calculator",
+    "name": "CGPA Calculator for BITS Pilani",
+    "short_name": "CGPA Calculator",
     "start_url": ".",
+    "id": "/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "CGPA Calculator",
+    "description": "CGPA Calculator For BITS: Track & Compare for BITS Pilani\nThe ultimate CGPA Calculator designed exclusively for students of BITS Pilani. Say goodbye to manual, error-prone calculations. This app provides an effortless and accurate way to track your academic progress throughout your journey at BITS.\n\nThis CGPA Calculator simplifies your life by automating the entire tracking process. With a user-friendly interface tailored for BITSians, you can instantly compute your CGPA, maintain a history of your grades, and plan for future semesters with confidence. It's the essential academic tool for every BITS Pilani student.\n\nKey Features:\nAutomatic Course Lists: Courses are automatically added based on your selected discipline at BITS, saving you time.\n\nCompare CGPA Scenarios: Plan your academic goals by comparing your potential CGPA across two different grade profiles.\n\nSupport for 2025 Batch: New curriculum courses are added for 25 batch students.\n\nSmart Sorting: Easily organize and view your courses sorted by grades or credits to better understand your performance.\n\nMultiple Themes: Personalize your experience by choosing from a variety of themes to suit your style.\n\nAdd Electives Easily: A powerful search option allows you to find and add your elective courses in seconds.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "screenshots": [
+        {
+            "src": "images/Screenshot1.png",
+            "sizes": "640x1280",
+            "type": "image/png",
+            "purpose": "any",
+            "label": "App main screen"
+        },
+        {
+            "src": "images/Screenshot2.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "App main screen"
+        }
+    ],
+
     "icons": [
         {
             "src": "icons/Icon-192.png",

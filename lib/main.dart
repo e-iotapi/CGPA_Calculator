@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:cgpa_calculator/analytics.dart';
 import 'dart:html' as html;
+import 'dart:js' as js;
 import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +12,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:pwa_install/pwa_install.dart';
 import 'settings.dart';
 import 'mastercourselist.dart';
 import 'constants.dart';
@@ -483,15 +483,6 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    if (kIsWeb) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        try {
-          PWAInstall().setup();
-        } catch (e) {
-          //print('PWAInstall setup failed: $e');
-        }
-      });
-    }
   }
   List<Course> get items =>
       Hive.box<Course>('coursesBox').values
@@ -899,38 +890,55 @@ class _MyHomePageState extends State<MyHomePage> {
                                             'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
                                             );
                                             }
-                                            else if (PWAInstall()
-                                                .installPromptEnabled  && !ua.contains('android')) {
-                                              PWAInstall().promptInstall_();
-                                            }else if (ua.contains('ios') || ua.contains('ipad') || ua.contains('iphone')) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    "Click on Share => Add to Home Screen => Add",
-                                                    style: TextStyle(
-                                                      fontFamily: "Montserrat",
-                                                      fontWeight: FontWeight.normal,
-                                                      fontSize: 16,
+                                            else{
+                                              try {
+                                                js.context.callMethod(
+                                                    'promptInstall');
+                                              }
+                                              catch (e) {
+                                                if (ua.contains('ios') ||
+                                                    ua.contains('ipad') ||
+                                                    ua.contains('iphone')) {
+                                                  ScaffoldMessenger
+                                                      .of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        "Click on Share => Add to Home Screen => Add",
+                                                        style: TextStyle(
+                                                          fontFamily: "Montserrat",
+                                                          fontWeight: FontWeight
+                                                              .normal,
+                                                          fontSize: 16,
+                                                        ),
+                                                      ),
+                                                      duration: Duration(
+                                                          seconds: 4),
                                                     ),
-                                                  ),
-                                                  duration: Duration(seconds: 4),
-                                                ),
-                                              );
-                                            }
-                                            else if (ua.contains('win') || ua.contains('mac') || ua.contains('linux')) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    "Click on Settings => Cast, Save and Share => Install Page as app",
-                                                    style: TextStyle(
-                                                      fontFamily: "Montserrat",
-                                                      fontWeight: FontWeight.normal,
-                                                      fontSize: 16,
+                                                  );
+                                                }
+                                                else if (ua.contains('win') ||
+                                                    ua.contains('mac') ||
+                                                    ua.contains('linux')) {
+                                                  ScaffoldMessenger
+                                                      .of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        "Click on Settings => Cast, Save and Share => Install Page as app",
+                                                        style: TextStyle(
+                                                          fontFamily: "Montserrat",
+                                                          fontWeight: FontWeight
+                                                              .normal,
+                                                          fontSize: 16,
+                                                        ),
+                                                      ),
+                                                      duration: Duration(
+                                                          seconds: 4),
                                                     ),
-                                                  ),
-                                                  duration: Duration(seconds: 4),
-                                                ),
-                                              );
+                                                  );
+                                                }
+                                              }
                                             }
                                           }
 

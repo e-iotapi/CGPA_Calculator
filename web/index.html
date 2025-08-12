@@ -48,25 +48,23 @@
     let deferredPrompt;
 
     window.addEventListener('beforeinstallprompt', (e) => {
-      // Save the event for later use
       deferredPrompt = e;
     });
 
-    function promptInstall() {
+    window.promptInstall = function() {  // <-- Attach here explicitly!
       if (deferredPrompt) {
         deferredPrompt.prompt();
 
         deferredPrompt.userChoice.then(() => {
           deferredPrompt = null;
         });
+        console.log('promptInstall called'); // Add console log to confirm call
+      } else {
+        console.log('No deferredPrompt available');
       }
-    }
-
-    window.addEventListener('appinstalled', () => {
-      deferredPrompt = null;
-      // You can handle an app installed event here if needed
-    });
+    };
   </script>
+
 
 
 
