@@ -68,7 +68,6 @@ void main() async {
       }
     }
   }
-
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -481,6 +480,19 @@ void setnavcolor() {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          PWAInstall().setup();
+        } catch (e) {
+          //print('PWAInstall setup failed: $e');
+        }
+      });
+    }
+  }
   List<Course> get items =>
       Hive.box<Course>('coursesBox').values
           .where(
@@ -879,57 +891,50 @@ class _MyHomePageState extends State<MyHomePage> {
                                         fontSize: 14,
                                       ),
                                       ),
-                                        onPressed: () async{
-                                            if (PWAInstall().installPromptEnabled) {
+                                          onPressed: () async {
+                                            final ua = html.window.navigator.userAgent.toLowerCase();
+                                            if (ua.contains('android')) {
+                                            await launchUrl(
+                                            Uri.parse(
+                                            'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
+                                            );
+                                            }
+                                            else if (PWAInstall()
+                                                .installPromptEnabled  && !ua.contains('android')) {
                                               PWAInstall().promptInstall_();
-                                            }
-                                            else if(html.window.navigator.platform!.toLowerCase().contains('win') || html.window.navigator.platform!.toLowerCase().contains('mac') || html.window.navigator.platform!.toLowerCase().contains('linux')){
-                                              ScaffoldMessenger.of(
-                                              context,
-                                              ).showSnackBar(
-                                              SnackBar(
-                                              content: Text(
-                                              style: TextStyle(
-                                              fontFamily:
-                                              "Montserrat",
-                                              fontWeight:
-                                              FontWeight
-                                                  .normal,
-                                              fontSize: 16,
-                                              ),
-                                              "Click on Settings => Cast,Save and Share => Install Page as app",
-                                              ),
-                                              duration: Duration(
-                                              seconds: 4,
-                                              ),
-                                              ));
-                                              }
-                                            else if(html.window.navigator.platform!.toLowerCase().contains('and')){
-                                              await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'));
-                                            }
-                                            else if(html.window.navigator.platform!.toLowerCase().contains('ip')){
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      style: TextStyle(
-                                                        fontFamily:
-                                                        "Montserrat",
-                                                        fontWeight:
-                                                        FontWeight
-                                                            .normal,
-                                                        fontSize: 16,
-                                                      ),
-                                                      "Click on Share => Add to Home Screen",
+                                            }else if (ua.contains('ios') || ua.contains('ipad') || ua.contains('iphone')) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    "Click on Share => Add to Home Screen => Add",
+                                                    style: TextStyle(
+                                                      fontFamily: "Montserrat",
+                                                      fontWeight: FontWeight.normal,
+                                                      fontSize: 16,
                                                     ),
-                                                    duration: Duration(
-                                                      seconds: 4,
-                                                    ),
-                                                  ));
+                                                  ),
+                                                  duration: Duration(seconds: 4),
+                                                ),
+                                              );
                                             }
-                                        }
-                                ),),
+                                            else if (ua.contains('win') || ua.contains('mac') || ua.contains('linux')) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    "Click on Settings => Cast, Save and Share => Install Page as app",
+                                                    style: TextStyle(
+                                                      fontFamily: "Montserrat",
+                                                      fontWeight: FontWeight.normal,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                                  duration: Duration(seconds: 4),
+                                                ),
+                                              );
+                                            }
+                                          }
+
+                                      ),),
                               Transform(
                                 alignment: Alignment.center,
                                 transform: Matrix4.rotationY(3.1416),
