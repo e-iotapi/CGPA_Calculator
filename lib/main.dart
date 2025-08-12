@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:cgpa_calculator/analytics.dart';
+import 'dart:html' as html;
 import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +16,6 @@ import 'mastercourselist.dart';
 import 'constants.dart';
 import 'dart:math';
 import 'package:in_app_update/in_app_update.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -878,74 +878,74 @@ class _MyHomePageState extends State<MyHomePage> {
                                         fontSize: 14,
                                       ),
                                       ),
-                                      onPressed: () async{
-                                          if (PWAInstall().installPromptEnabled) {
-                                            PWAInstall().promptInstall_();
-                                          }
-                                          else if(Platform.isWindows || Platform.isMacOS || Platform.isLinux){
-                                            ScaffoldMessenger.of(
-                                            context,
-                                            ).showSnackBar(
-                                            SnackBar(
-                                            content: Text(
-                                            style: TextStyle(
-                                            fontFamily:
-                                            "Montserrat",
-                                            fontWeight:
-                                            FontWeight
-                                                .normal,
-                                            fontSize: 16,
-                                            ),
-                                            "Click on Settings => Cast,Save and Share => Install Page as app",
-                                            ),
-                                            duration: Duration(
-                                            seconds: 4,
-                                            ),
-                                            ));
+                                        onPressed: () async{
+                                            if (PWAInstall().installPromptEnabled) {
+                                              PWAInstall().promptInstall_();
                                             }
-                                          else if(Platform.isAndroid){
-                                            ScaffoldMessenger.of(
+                                            else if(html.window.navigator.platform!.toLowerCase().contains('win') || html.window.navigator.platform!.toLowerCase().contains('mac') || html.window.navigator.platform!.toLowerCase().contains('linux')){
+                                              ScaffoldMessenger.of(
                                               context,
-                                            ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    style: TextStyle(
-                                                      fontFamily:
-                                                      "Montserrat",
-                                                      fontWeight:
-                                                      FontWeight
-                                                          .normal,
-                                                      fontSize: 16,
+                                              ).showSnackBar(
+                                              SnackBar(
+                                              content: Text(
+                                              style: TextStyle(
+                                              fontFamily:
+                                              "Montserrat",
+                                              fontWeight:
+                                              FontWeight
+                                                  .normal,
+                                              fontSize: 16,
+                                              ),
+                                              "Click on Settings => Cast,Save and Share => Install Page as app",
+                                              ),
+                                              duration: Duration(
+                                              seconds: 4,
+                                              ),
+                                              ));
+                                              }
+                                            else if(Platform.isAndroid){
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      style: TextStyle(
+                                                        fontFamily:
+                                                        "Montserrat",
+                                                        fontWeight:
+                                                        FontWeight
+                                                            .normal,
+                                                        fontSize: 16,
+                                                      ),
+                                                      "Click on Settings => Add to Home Screen",
                                                     ),
-                                                    "Click on Settings => Add to Home Screen",
-                                                  ),
-                                                  duration: Duration(
-                                                    seconds: 4,
-                                                  ),
-                                                ));
-                                          }
-                                          else if(Platform.isIOS){
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    style: TextStyle(
-                                                      fontFamily:
-                                                      "Montserrat",
-                                                      fontWeight:
-                                                      FontWeight
-                                                          .normal,
-                                                      fontSize: 16,
+                                                    duration: Duration(
+                                                      seconds: 4,
                                                     ),
-                                                    "Click on Share => Add to Home Screen",
-                                                  ),
-                                                  duration: Duration(
-                                                    seconds: 4,
-                                                  ),
-                                                ));
-                                          }
-                                      }
+                                                  ));
+                                            }
+                                            else if(Platform.isIOS){
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      style: TextStyle(
+                                                        fontFamily:
+                                                        "Montserrat",
+                                                        fontWeight:
+                                                        FontWeight
+                                                            .normal,
+                                                        fontSize: 16,
+                                                      ),
+                                                      "Click on Share => Add to Home Screen",
+                                                    ),
+                                                    duration: Duration(
+                                                      seconds: 4,
+                                                    ),
+                                                  ));
+                                            }
+                                        }
                                 ),),
                               Transform(
                                 alignment: Alignment.center,
