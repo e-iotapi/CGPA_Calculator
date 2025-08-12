@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:marquee/marquee.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:screen_retriever/screen_retriever.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:pwa_install/pwa_install.dart';
 import 'settings.dart';
@@ -903,28 +904,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                               ),
                                               ));
                                               }
-                                            else if(Platform.isAndroid){
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      style: TextStyle(
-                                                        fontFamily:
-                                                        "Montserrat",
-                                                        fontWeight:
-                                                        FontWeight
-                                                            .normal,
-                                                        fontSize: 16,
-                                                      ),
-                                                      "Click on Settings => Add to Home Screen",
-                                                    ),
-                                                    duration: Duration(
-                                                      seconds: 4,
-                                                    ),
-                                                  ));
+                                            else if(html.window.navigator.platform!.toLowerCase().contains('and')){
+                                              await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'));
                                             }
-                                            else if(Platform.isIOS){
+                                            else if(html.window.navigator.platform!.toLowerCase().contains('ip')){
                                               ScaffoldMessenger.of(
                                                 context,
                                               ).showSnackBar(
