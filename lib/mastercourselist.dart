@@ -1760,6 +1760,8 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Introductory Psychology", id: "GS F232", credits: 3),
+  Mastercourselist(title: "Ocean Humanities", id: "HSS F386", credits: 3),
+  Mastercourselist(title: "Gandhi in Literature", id: "HSS F388", credits: 3),
   Mastercourselist(title: "Public Policy", id: "GS F233", credits: 3),
   Mastercourselist(title: "Development Economics", id: "GS F234", credits: 3),
   Mastercourselist(title: "Creative Writing", id: "GS F241", credits: 3),
@@ -2115,6 +2117,12 @@ List<Mastercourselist> mcourselist = [
     title:
         "Business and Politics in Colonial and Post Colonial India: a historical approach",
     id: "HSS F375",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title:
+    "Mental Health Literacy for Youth",
+    id: "HSS F385",
     credits: 3,
   ),
   Mastercourselist(
