@@ -891,14 +891,15 @@ class _MyHomePageState extends State<MyHomePage> {
                                       ),
                                       ),
                                           onPressed: () async {
-                                            final ua = html.window.navigator.userAgent.toLowerCase();
+                                            final ua = html.window.navigator
+                                                .userAgent.toLowerCase();
                                             if (ua.contains('android')) {
-                                            await launchUrl(
-                                            Uri.parse(
-                                            'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
-                                            );
+                                              await launchUrl(
+                                                Uri.parse(
+                                                    'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
+                                              );
                                             }
-                                            else{
+                                            else {
                                               try {
                                                 js.context.callMethod(
                                                     'promptInstall');
@@ -946,10 +947,28 @@ class _MyHomePageState extends State<MyHomePage> {
                                                     ),
                                                   );
                                                 }
+                                                else {
+                                                  ScaffoldMessenger
+                                                      .of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        "Click on Share => Add to Home Screen => Add",
+                                                        style: TextStyle(
+                                                          fontFamily: "Montserrat",
+                                                          fontWeight: FontWeight
+                                                              .normal,
+                                                          fontSize: 16,
+                                                        ),
+                                                      ),
+                                                      duration: Duration(
+                                                          seconds: 4),
+                                                    ),
+                                                  );
+                                                }
                                               }
                                             }
                                           }
-
                                       ),),
                               Transform(
                                 alignment: Alignment.center,
