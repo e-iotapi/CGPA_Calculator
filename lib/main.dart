@@ -30,7 +30,8 @@ void main() async {
     } else {
       await Hive.initFlutter();
     }
-  } else {
+  }
+  else {
     await Hive.initFlutter();
   }
   Hive.registerAdapter(CourseAdapter());
@@ -61,14 +62,6 @@ void main() async {
       });
     }
   }
-  if(!kIsWeb){
-    if(Platform.isAndroid){
-      final updateInfo = await InAppUpdate.checkForUpdate();
-      if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable && updateInfo.flexibleUpdateAllowed) {
-        await InAppUpdate.startFlexibleUpdate();
-      }
-    }
-  }
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -80,15 +73,15 @@ void main() async {
 Future<void> basicStartup() async{
   var settingsBox = await Hive.openBox('settingsBox');
   final coursesBox = await Hive.openBox<Course>('coursesBox');
-  selecteddiscipline = settingsBox.get('selecteddiscipline', defaultValue: selecteddiscipline,);
-  batch = settingsBox.get('batch', defaultValue: 24,);
-  selectedcampus = settingsBox.get('selectedcampus', defaultValue: selectedcampus,);
-  selected_theme = settingsBox.get('selected_theme', defaultValue: selected_theme,);
-  degree_selected = settingsBox.get('degree_selected', defaultValue: false);
-  currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
-  currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
-  profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
-  profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
+  // selecteddiscipline = settingsBox.get('selecteddiscipline', defaultValue: selecteddiscipline,);
+  // batch = settingsBox.get('batch', defaultValue: 24,);
+  // selectedcampus = settingsBox.get('selectedcampus', defaultValue: selectedcampus,);
+  // selected_theme = settingsBox.get('selected_theme', defaultValue: selected_theme,);
+  //degree_selected = settingsBox.get('degree_selected', defaultValue: false);
+  // currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
+  // currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
+  //profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
+  //profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
 }
 
 Future<void> initializeCourses() async {
@@ -487,9 +480,17 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if(!kIsWeb){
+        if(Platform.isAndroid){
+          final updateInfo = await InAppUpdate.checkForUpdate();
+          if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable && updateInfo.flexibleUpdateAllowed) {
+            await InAppUpdate.startFlexibleUpdate();
+          }
+        }
+      }
       await initializeCourses();
       setState(() {
-      }); // triggers UI update if needed
+      });
     });
   }
   List<Course> get items =>
