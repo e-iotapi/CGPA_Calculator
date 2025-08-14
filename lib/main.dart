@@ -18,6 +18,8 @@ import 'constants.dart';
 import 'dart:math';
 import 'package:in_app_update/in_app_update.dart';
 
+//html and js imports and uses to be removed for android build
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (!kIsWeb) {
@@ -73,15 +75,15 @@ void main() async {
 Future<void> basicStartup() async{
   var settingsBox = await Hive.openBox('settingsBox');
   final coursesBox = await Hive.openBox<Course>('coursesBox');
-  // selecteddiscipline = settingsBox.get('selecteddiscipline', defaultValue: selecteddiscipline,);
-  // batch = settingsBox.get('batch', defaultValue: 24,);
-  // selectedcampus = settingsBox.get('selectedcampus', defaultValue: selectedcampus,);
-  // selected_theme = settingsBox.get('selected_theme', defaultValue: selected_theme,);
-  //degree_selected = settingsBox.get('degree_selected', defaultValue: false);
-  // currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
-  // currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
-  //profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
-  //profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
+  selecteddiscipline = settingsBox.get('selecteddiscipline', defaultValue: selecteddiscipline,);
+  batch = settingsBox.get('batch', defaultValue: 24,);
+  selectedcampus = settingsBox.get('selectedcampus', defaultValue: selectedcampus,);
+  selected_theme = settingsBox.get('selected_theme', defaultValue: selected_theme,);
+  degree_selected = settingsBox.get('degree_selected', defaultValue: false);
+  currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
+  currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
+  profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
+  profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
 }
 
 Future<void> initializeCourses() async {
@@ -488,9 +490,6 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         }
       }
-      await initializeCourses();
-      setState(() {
-      });
     });
   }
   List<Course> get items =>

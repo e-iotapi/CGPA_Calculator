@@ -1,5 +1,5 @@
 name: cgpa_calculator
-description: "CGPA Calculator"
+description: "Calculate your CGPA easily with this user-friendly CGPA Calculator designed specifically for BITS Pilani students. Get quick, accurate results for all semesters."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.6.0+60
+version: 1.6.3+63
 
 
 environment:
