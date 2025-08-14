@@ -22,5 +22,7 @@ Struggling to calculate your CGPA on your iPhone as a BITS Pilani student? Look 
 
 App Links-
 
-https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator
+https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator,
+
+iOS and Web-
 https://cgpa-calculator-bits.vercel.app/
