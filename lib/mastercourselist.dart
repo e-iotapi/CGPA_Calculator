@@ -1766,6 +1766,7 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Development Economics", id: "GS F234", credits: 3),
   Mastercourselist(title: "Creative Writing", id: "GS F241", credits: 3),
   Mastercourselist(title: "Cultural Studies", id: "GS F242", credits: 3),
+  Mastercourselist(title: "Computer Mediated Communication", id: "GS F342", credits: 3),
   Mastercourselist(title: "Current Affairs", id: "GS F243", credits: 3),
   Mastercourselist(
     title: "Reporting and Writing for Media",

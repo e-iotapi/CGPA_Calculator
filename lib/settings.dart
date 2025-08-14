@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cgpa_calculator/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -39,6 +41,32 @@ class _SettingsState extends State<Settings> {
           ),
         ),
         backgroundColor: thm.backcolor,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.info_outline),
+          onPressed: ()=> showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                backgroundColor: thm.backcolor,
+                title: Text('Updates',style: TextStyle(fontFamily: 'Montserrat',color: thm.highcolor),textAlign: TextAlign.center,),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children:
+                [Text('Click on Reset to update courses',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                  Text('Play Store Updates will show up as Prompts',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                  Text('Bugs / New course requests can be sent from the app itself',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                ],),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Close',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor),),
+                  ),
+                ],
+              );
+            },
+          ),),
+        ]
       ),
       backgroundColor: thm.backcolor, //themes[0].backcolor,
       body: Stack(
@@ -297,8 +325,55 @@ class _SettingsState extends State<Settings> {
                       }
                       setdis();
                       initializeCourses();
-                    })
-                ),],),
+                    }),
+                ),
+                Spacer(flex: 1,),
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.05,
+                      width: 100,
+                      child: FloatingActionButton(
+                        key: ValueKey("Reset"),
+                        elevation: 1,
+                        focusElevation: 0,
+                        hoverElevation: 0,
+                        highlightElevation: 0,
+                        disabledElevation: 0,
+                        backgroundColor: thm.cardcolor,
+                        child: Text(
+                          "Reset",
+                          style: TextStyle(
+                            fontFamily: "Montserrat",
+                            fontSize: 18,
+                            color: thm.highcolor,
+                          ),
+                        ),
+                        onPressed: ()=> showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                              return AlertDialog(
+                                backgroundColor: thm.backcolor,
+                              title: Text('Updates',style: TextStyle(fontFamily: 'Montserrat',color: thm.highcolor),textAlign: TextAlign.center,),
+                              content: Text('Resetting Courses will Delete grade data',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                              actions: <Widget>[
+                                TextButton(
+                                  onPressed: () =>Navigator.pop(context),
+                                  child: Text('Cancel',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor),),
+                                ),TextButton(
+                              onPressed: () async
+                              {
+                                erase = 1;
+                                await initializeCourses();
+                                Navigator.pop(context);
+                              },
+                              child: Text('Reset',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor),),
+                              ),
+                              ],
+                              );
+                        }
+                      ),
+                    ),),
+                    SizedBox(width: 25,)
+                  ],),
                 ],),
               SizedBox(height: 25),
               Container(
