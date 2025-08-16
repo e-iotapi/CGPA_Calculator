@@ -43,7 +43,7 @@ class _SettingsState extends State<Settings> {
         backgroundColor: thm.backcolor,
         actions: [
           IconButton(
-            icon: Icon(Icons.info_outline),
+            icon: Icon(Icons.info_outline,color: thm.iconcolor,),
           onPressed: ()=> showDialog(
             context: context,
             builder: (BuildContext context) {
