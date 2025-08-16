@@ -53,9 +53,9 @@ class _SettingsState extends State<Settings> {
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children:
-                [Text('Click on Reset to update courses',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
-                  Text('Play Store Updates will show up as Prompts',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
-                  Text('Bugs / New course requests can be sent from the app itself',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                [Text('1) Click on Reset to update courses',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                  Text('2) Play Store Updates will show up as Prompts',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                  Text('3) Bugs / New course requests can be sent from the app itself',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                 ],),
                 actions: <Widget>[
                   TextButton(
