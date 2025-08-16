@@ -42,8 +42,12 @@ class _SettingsState extends State<Settings> {
         ),
         backgroundColor: thm.backcolor,
         actions: [
-          IconButton(
-            icon: Icon(Icons.info_outline_rounded,color: thm.iconcolor,),
+          Transform.scale(scale: 1.2,child: FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: thm.backcolor,
+        shape: CircleBorder()
+            )
+            ,
+            child: Icon(Icons.info_outline_rounded,color: thm.iconcolor,),
           onPressed: ()=> showDialog(
             context: context,
             builder: (BuildContext context) {
@@ -65,7 +69,7 @@ class _SettingsState extends State<Settings> {
                 ],
               );
             },
-          ),),
+          ),),),
         ]
       ),
       backgroundColor: thm.backcolor, //themes[0].backcolor,
