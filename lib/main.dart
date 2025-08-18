@@ -100,17 +100,6 @@ Future<void> initializeCourses() async {
   profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
   if (erase == 1) {
     await coursesBox.clear();
-    if (!coursesBox.values.any(
-      (course) =>
-          course.discipline ==
-              ((selecteddiscipline.startsWith("B"))
-                  ? selecteddiscipline.substring(0, 2)
-                  : selecteddiscipline.substring(2, 4)) ||
-          course.discipline ==
-              ((selecteddiscipline.startsWith("B"))
-                  ? selecteddiscipline.substring(2, 4)
-                  : "ccccc"),
-    )) {
       String tempsem = "";
       List <String> tempaddedcourses =[];
       for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
@@ -157,7 +146,6 @@ Future<void> initializeCourses() async {
       }
       //print("All keys in coursesBox: ${coursesBox.keys}");
       setsort();
-    }
   }
   else if (erase == 0) {
     if(degree_selected==true){
@@ -217,9 +205,13 @@ Future<void> initializeCourses() async {
   }
   else if (erase == 2) {
     final keysToDelete = [];
+    final tempcourses = [];
     for (final entry in coursesBox.toMap().entries) {
       final key = entry.key;
       final item = entry.value;
+      if(item.discipline.startsWith("B")){
+        tempcourses.add(item.title);
+      }
       if (item.discipline.startsWith("A") &&
           item.elective == "CDC2" &&
           !item.sem.startsWith("1")) {
@@ -236,6 +228,10 @@ Future<void> initializeCourses() async {
     String tempsem = "";
     for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
       if (course.discipline == selecteddiscipline.substring(2, 4)) {
+        if(!tempcourses.contains(course.title)){
+            if(selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3"|| selecteddiscipline == "B5A8"){
+              if((course.title == "Electromagnetic Theory")){}
+              else{
         if (course.elective == "CDC2" && selecteddiscipline.startsWith("B")) {
           tempsem = course.sem;
           tempsem =
@@ -257,7 +253,7 @@ Future<void> initializeCourses() async {
           } catch (e) {
             //print('Error storing course: $e');
           }
-        } else if (selecteddiscipline.startsWith("--")) {
+        }}}} else if (selecteddiscipline.startsWith("--")) {
           //print("abc");
           await coursesBox.put(course.id, course);
         }
