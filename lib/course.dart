@@ -400,7 +400,7 @@ List<Course> hydCourseList = [
  Course(elective: "CDC2", title: "Discrete Mathematics", sem: "2 - 1", discipline: "B4", id: "MATH F213", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDC2", title: "Elementary Real Analysis", sem: "2 - 1", discipline: "B4", id: "MATH F214", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDC2", title: "Algebra I", sem: "2 - 1", discipline: "B4", id: "MATH F215", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Environmental Studies", sem: "2 - 2", discipline: "B4", id: "BITS F225", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDCN", title: "Environmental Studies", sem: "2 - 1", discipline: "B4", id: "BITS F225", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDC2", title: "Mathematical Methods", sem: "2 - 2", discipline: "B4", id: "MATH F241", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDC2", title: "Operations Research", sem: "2 - 2", discipline: "B4", id: "MATH F242", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDC2", title: "Graphs and Networks", sem: "2 - 2", discipline: "B4", id: "MATH F243", grade1: -2, grade2: -2, credits: 3,),

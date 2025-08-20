@@ -356,7 +356,7 @@ class _SettingsState extends State<Settings> {
                               builder: (BuildContext context) {
                               return AlertDialog(
                                 backgroundColor: thm.backcolor,
-                              title: Text('Updates',style: TextStyle(fontFamily: 'Montserrat',color: thm.highcolor),textAlign: TextAlign.center,),
+                              title: Text('Reset?',style: TextStyle(fontFamily: 'Montserrat',color: thm.highcolor),textAlign: TextAlign.center,),
                               content: Text('Resetting Courses will Delete grade data',style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                               actions: <Widget>[
                                 TextButton(
