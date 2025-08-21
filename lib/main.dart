@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:cgpa_calculator/analytics.dart';
-import 'dart:html' as html;
-import 'dart:js' as js;
+// import 'dart:html' as html;
+// import 'dart:js' as js;
 import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -98,6 +98,7 @@ Future<void> initializeCourses() async {
   currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
   profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
   profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
+  print(erase);
   if (erase == 1) {
     await coursesBox.clear();
       String tempsem = "";
@@ -115,8 +116,31 @@ Future<void> initializeCourses() async {
                 ? selecteddiscipline.substring(2, 4)
                 : "cccc")) {
           if (course.elective == "CDC2" && !tempaddedcourses.contains(course.title)) {
-            if(selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3"|| selecteddiscipline == "B5A8"){
-              if((course.title == "Electromagnetic Theory")){}
+            if(selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3"|| selecteddiscipline == "B5A8" || selecteddiscipline == "B4AD"){
+              if((course.title=="Algebra I" || course.title=="Discrete Mathematics" ||course.title=="Elementary Real Analysis" ||course.title=="Numerical Analysis" || course.title == "Electromagnetic Theory")){}
+              else{
+              tempsem = course.sem;
+              tempsem =
+                  (int.parse(tempsem.substring(0, 1)) + 1).toString() +
+                      tempsem.substring(1, 5);
+              //print(tempsem);
+              Course Course1 = Course(
+                title: course.title,
+                sem: tempsem,
+                id: course.id,
+                grade1: course.grade1,
+                grade2: course.grade2,
+                discipline: course.discipline,
+                credits: course.credits,
+                elective: course.elective,
+              );
+              try {
+                await coursesBox.put(Course1.id, Course1);
+                //print('Stored modified course with id: ${course.id}');
+              } catch (e) {
+                //print('Error storing course: $e');
+              }
+            }}
               else{
                 tempsem = course.sem;
                 tempsem =
@@ -139,7 +163,6 @@ Future<void> initializeCourses() async {
                 } catch (e) {
                   //print('Error storing course: $e');
                 }
-              }
             }
           }
         }
@@ -148,62 +171,78 @@ Future<void> initializeCourses() async {
       setsort();
   }
   else if (erase == 0) {
-    if(degree_selected==true){
-    if (!coursesBox.values.any(
-      (course) =>
-          course.discipline ==
-              ((selecteddiscipline.startsWith("B"))
-                  ? selecteddiscipline.substring(0, 2)
-                  : selecteddiscipline.substring(2, 4)) ||
-          course.discipline ==
-              ((selecteddiscipline.startsWith("B"))
-                  ? selecteddiscipline.substring(2, 4)
-                  : "ccccc"),
-    )) {
-      String tempsem = "";
-      for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
-        if (course.discipline ==
-            ((selecteddiscipline.substring(0, 2) != "--")
+    if (degree_selected == true) {
+      if (!coursesBox.values.any(
+            (course) =>
+        course.discipline ==
+            ((selecteddiscipline.startsWith("B"))
                 ? selecteddiscipline.substring(0, 2)
-                : selecteddiscipline.substring(2, 4))) {
-          await coursesBox.put(course.id, course);
-        }
-        if (course.discipline ==
-            ((selecteddiscipline.substring(0, 2) != "--")
-                ? selecteddiscipline.substring(2, 4)
-                : "cccc")) {
-          if (course.elective == "CDC2") {
-            tempsem = course.sem;
-            tempsem =
-                (int.parse(tempsem.substring(0, 1)) + 1).toString() +
-                tempsem.substring(1, 5);
-            //print(tempsem);
-            Course Course1 = Course(
-              title: course.title,
-              sem: tempsem,
-              id: course.id,
-              grade1: course.grade1,
-              grade2: course.grade2,
-              discipline: course.discipline,
-              credits: course.credits,
-              elective: course.elective,
-            );
+                : selecteddiscipline.substring(2, 4)) ||
+            course.discipline ==
+                ((selecteddiscipline.startsWith("B"))
+                    ? selecteddiscipline.substring(2, 4)
+                    : "ccccc"),
+      )) {
+        String tempsem = "";
+        for (var course in ((batch < 25)
+            ? (selectedcampus == "Hyd")
+            ? hydCourseList
+            : (selectedcampus == "Goa") ? goaCourseList : pilaniCourseList
+            : (selectedcampus == "Hyd") ? hydCourseListNew : (selectedcampus ==
+            "Goa") ? goaCourseListNew : pilaniCourseListNew)) {
+          if (course.discipline ==
+              ((selecteddiscipline.substring(0, 2) != "--")
+                  ? selecteddiscipline.substring(0, 2)
+                  : selecteddiscipline.substring(2, 4))) {
+            await coursesBox.put(course.id, course);
+          }
+          if (course.discipline ==
+              ((selecteddiscipline.substring(0, 2) != "--")
+                  ? selecteddiscipline.substring(2, 4)
+                  : "cccc")) {
+            if (selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3" ||
+                selecteddiscipline == "B5A8" || selecteddiscipline == "B4AD") {
+              if ((course.title == "Algebra I" ||
+                  course.title == "Discrete Mathematics" ||
+                  course.title == "Elementary Real Analysis" ||
+                  course.title == "Numerical Analysis" ||
+                  course.title == "Electromagnetic Theory")) {}
+              else {
+                if (course.elective == "CDC2") {
+                  tempsem = course.sem;
+                  tempsem =
+                      (int.parse(tempsem.substring(0, 1)) + 1).toString() +
+                          tempsem.substring(1, 5);
+                  //print(tempsem);
+                  Course Course1 = Course(
+                    title: course.title,
+                    sem: tempsem,
+                    id: course.id,
+                    grade1: course.grade1,
+                    grade2: course.grade2,
+                    discipline: course.discipline,
+                    credits: course.credits,
+                    elective: course.elective,
+                  );
 
-            try {
-              await coursesBox.put(Course1.id, Course1);
-              //print('Stored modified course with id: ${course.id}');
-            } catch (e) {
-              //print('Error storing course: $e');
+                  try {
+                    await coursesBox.put(Course1.id, Course1);
+                    //print('Stored modified course with id: ${course.id}');
+                  } catch (e) {
+                    //print('Error storing course: $e');
+                  }
+                }
+              }
             }
           }
+          //print("All keys in coursesBox: ${coursesBox.keys}");
+          setsort();
         }
       }
-      //print("All keys in coursesBox: ${coursesBox.keys}");
-      setsort();
     }
   }
-  }
   else if (erase == 2) {
+    print("running");
     final keysToDelete = [];
     final tempcourses = [];
     for (final entry in coursesBox.toMap().entries) {
@@ -225,12 +264,44 @@ Future<void> initializeCourses() async {
     if (keysToDelete.isNotEmpty) {
       await coursesBox.deleteAll(keysToDelete);
     }
+    print("1");
     String tempsem = "";
     for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
+      //print("0");
       if (course.discipline == selecteddiscipline.substring(2, 4)) {
+        //print("A");
         if(!tempcourses.contains(course.title)){
-            if(selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3"|| selecteddiscipline == "B5A8"){
-              if((course.title == "Electromagnetic Theory")){}
+            //print("B");
+            if(selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3"|| selecteddiscipline == "B5A8" || selecteddiscipline== "B4AD"){
+              //print("C");
+              if(!(course.title=="Algebra I" || course.title=="Discrete Mathematics" ||course.title=="Elementary Real Analysis" ||course.title=="Numerical Analysis" || course.title == "Electromagnetic Theory")){
+
+               // print("D");
+                if (course.elective == "CDC2" && selecteddiscipline.startsWith("B")) {
+                tempsem = course.sem;
+                tempsem =
+                    (int.parse(tempsem.substring(0, 1)) + 1).toString() +
+                        tempsem.substring(1, 5);
+                //print(tempsem);
+                Course Course1 = Course(
+                  title: course.title,
+                  sem: tempsem,
+                  id: course.id,
+                  grade1: course.grade1,
+                  grade2: course.grade2,
+                  discipline: course.discipline,
+                  credits: course.credits,
+                  elective: course.elective,
+                );
+                try {
+                  await coursesBox.put(Course1.id, Course1);
+                  //print('Stored modified course with id: ${course.id}');
+                } catch (e) {
+                  //print('Error storing course: $e');
+                }
+              }
+              }
+            }
               else{
         if (course.elective == "CDC2" && selecteddiscipline.startsWith("B")) {
           tempsem = course.sem;
@@ -253,7 +324,8 @@ Future<void> initializeCourses() async {
           } catch (e) {
             //print('Error storing course: $e');
           }
-        }}}} else if (selecteddiscipline.startsWith("--")) {
+        }}}
+        } else if (selecteddiscipline.startsWith("--")) {
           //print("abc");
           await coursesBox.put(course.id, course);
         }
@@ -261,7 +333,6 @@ Future<void> initializeCourses() async {
       }
     }
     //print("All keys in coursesBox: ${coursesBox.keys}");
-  }
 }
 
 Future<void> setdis() async {
@@ -367,6 +438,7 @@ String currentsort = "Sort by Credits(Asc)"; //store
 String selected_theme = "White";
 bool degree_selected = false;
 int erase = 0;
+bool isUpdating = false;
 String addcourseid = dropdownid[0];
 List<String> anCourseIds =
     mcourselist
@@ -483,6 +555,7 @@ class _MyHomePageState extends State<MyHomePage> {
           final updateInfo = await InAppUpdate.checkForUpdate();
           if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable && updateInfo.flexibleUpdateAllowed) {
             await InAppUpdate.startFlexibleUpdate();
+            isUpdating =true;
           }
         }
       }
@@ -726,6 +799,15 @@ class _MyHomePageState extends State<MyHomePage> {
     setprof();
     settheme();
     setnavcolor();
+    if(isUpdating){
+      InAppUpdate.installUpdateListener.listen((status) async{
+        if (status == InstallStatus.downloaded){
+          await InAppUpdate.completeFlexibleUpdate();
+          isUpdating=false;
+        }
+      });
+
+    }
     name1 =
         mcourselist
             .firstWhere(
@@ -865,107 +947,107 @@ class _MyHomePageState extends State<MyHomePage> {
                           Spacer(flex: 1),
                           Row(
                             children: [
-                                    if(kIsWeb)
-                                      SizedBox(height: 35,width: 70,child:
-                                      FloatingActionButton(
-                                      elevation: 0,
-                                      focusElevation: 0,
-                                      hoverElevation: 0,
-                                      highlightElevation: 0,
-                                      disabledElevation: 0,
-                                      backgroundColor: Colors.transparent,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        side: BorderSide(color: thm.iconcolor)
-                                      ),
-                                      child: Text(
-                                        "Install",style: TextStyle(
-                                        color:
-                                        thm.iconcolor,
-                                        fontFamily: 'Montserrat',
-                                        fontSize: 14,
-                                      ),
-                                      ),
-                                          onPressed: () async {
-                                            final ua = html.window.navigator
-                                                .userAgent.toLowerCase();
-                                            if (ua.contains('android')) {
-                                              await launchUrl(
-                                                Uri.parse(
-                                                    'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
-                                              );
-                                            }
-                                            else {
-                                              try {
-                                                js.context.callMethod(
-                                                    'promptInstall');
-                                              }
-                                              catch (e) {
-                                                if (ua.contains('ios') ||
-                                                    ua.contains('ipad') ||
-                                                    ua.contains('iphone')) {
-                                                  ScaffoldMessenger
-                                                      .of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        "Click on Share => Add to Home Screen => Add",
-                                                        style: TextStyle(
-                                                          fontFamily: "Montserrat",
-                                                          fontWeight: FontWeight
-                                                              .normal,
-                                                          fontSize: 16,
-                                                        ),
-                                                      ),
-                                                      duration: Duration(
-                                                          seconds: 4),
-                                                    ),
-                                                  );
-                                                }
-                                                else if (ua.contains('win') ||
-                                                    ua.contains('mac') ||
-                                                    ua.contains('linux')) {
-                                                  ScaffoldMessenger
-                                                      .of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        "Click on Settings => Cast, Save and Share => Install Page as app",
-                                                        style: TextStyle(
-                                                          fontFamily: "Montserrat",
-                                                          fontWeight: FontWeight
-                                                              .normal,
-                                                          fontSize: 16,
-                                                        ),
-                                                      ),
-                                                      duration: Duration(
-                                                          seconds: 4),
-                                                    ),
-                                                  );
-                                                }
-                                                else {
-                                                  ScaffoldMessenger
-                                                      .of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        "Click on Share => Add to Home Screen => Add",
-                                                        style: TextStyle(
-                                                          fontFamily: "Montserrat",
-                                                          fontWeight: FontWeight
-                                                              .normal,
-                                                          fontSize: 16,
-                                                        ),
-                                                      ),
-                                                      duration: Duration(
-                                                          seconds: 4),
-                                                    ),
-                                                  );
-                                                }
-                                              }
-                                            }
-                                          }
-                                      ),),
+                                    // if(kIsWeb)
+                                    //   SizedBox(height: 35,width: 70,child:
+                                    //   FloatingActionButton(
+                                    //   elevation: 0,
+                                    //   focusElevation: 0,
+                                    //   hoverElevation: 0,
+                                    //   highlightElevation: 0,
+                                    //   disabledElevation: 0,
+                                    //   backgroundColor: Colors.transparent,
+                                    //   shape: RoundedRectangleBorder(
+                                    //       borderRadius: BorderRadius.circular(20),
+                                    //     side: BorderSide(color: thm.iconcolor)
+                                    //   ),
+                                    //   child: Text(
+                                    //     "Install",style: TextStyle(
+                                    //     color:
+                                    //     thm.iconcolor,
+                                    //     fontFamily: 'Montserrat',
+                                    //     fontSize: 14,
+                                    //   ),
+                                    //   ),
+                                    //       onPressed: () async {
+                                    //         final ua = html.window.navigator
+                                    //             .userAgent.toLowerCase();
+                                    //         if (ua.contains('android')) {
+                                    //           await launchUrl(
+                                    //             Uri.parse(
+                                    //                 'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
+                                    //           );
+                                    //         }
+                                    //         else {
+                                    //           try {
+                                    //             js.context.callMethod(
+                                    //                 'promptInstall');
+                                    //           }
+                                    //           catch (e) {
+                                    //             if (ua.contains('ios') ||
+                                    //                 ua.contains('ipad') ||
+                                    //                 ua.contains('iphone')) {
+                                    //               ScaffoldMessenger
+                                    //                   .of(context)
+                                    //                   .showSnackBar(
+                                    //                 SnackBar(
+                                    //                   content: Text(
+                                    //                     "Click on Share => Add to Home Screen => Add",
+                                    //                     style: TextStyle(
+                                    //                       fontFamily: "Montserrat",
+                                    //                       fontWeight: FontWeight
+                                    //                           .normal,
+                                    //                       fontSize: 16,
+                                    //                     ),
+                                    //                   ),
+                                    //                   duration: Duration(
+                                    //                       seconds: 4),
+                                    //                 ),
+                                    //               );
+                                    //             }
+                                    //             else if (ua.contains('win') ||
+                                    //                 ua.contains('mac') ||
+                                    //                 ua.contains('linux')) {
+                                    //               ScaffoldMessenger
+                                    //                   .of(context)
+                                    //                   .showSnackBar(
+                                    //                 SnackBar(
+                                    //                   content: Text(
+                                    //                     "Click on Settings => Cast, Save and Share => Install Page as app",
+                                    //                     style: TextStyle(
+                                    //                       fontFamily: "Montserrat",
+                                    //                       fontWeight: FontWeight
+                                    //                           .normal,
+                                    //                       fontSize: 16,
+                                    //                     ),
+                                    //                   ),
+                                    //                   duration: Duration(
+                                    //                       seconds: 4),
+                                    //                 ),
+                                    //               );
+                                    //             }
+                                    //             else {
+                                    //               ScaffoldMessenger
+                                    //                   .of(context)
+                                    //                   .showSnackBar(
+                                    //                 SnackBar(
+                                    //                   content: Text(
+                                    //                     "Click on Share => Add to Home Screen => Add",
+                                    //                     style: TextStyle(
+                                    //                       fontFamily: "Montserrat",
+                                    //                       fontWeight: FontWeight
+                                    //                           .normal,
+                                    //                       fontSize: 16,
+                                    //                     ),
+                                    //                   ),
+                                    //                   duration: Duration(
+                                    //                       seconds: 4),
+                                    //                 ),
+                                    //               );
+                                    //             }
+                                    //           }
+                                    //         }
+                                    //       }
+                                    //   ),),
                               Transform(
                                 alignment: Alignment.center,
                                 transform: Matrix4.rotationY(3.1416),

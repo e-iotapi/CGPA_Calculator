@@ -181,8 +181,11 @@ class _SettingsState extends State<Settings> {
                               selecengg = value!;
                               if (selecteddiscipline.substring(2, 4) !=
                                   selecengg) {
-                                if (erase != 1) {
+                                if (erase != 1 && selecteddiscipline.startsWith("B")) {
                                   erase = 2;
+                                }
+                                else{
+                                  erase=1;
                                 }
                               }
                               selecteddiscipline = selectdual + value;
