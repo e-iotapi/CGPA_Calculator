@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:cgpa_calculator/analytics.dart';
-// import 'dart:html' as html;
-// import 'dart:js' as js;
+import 'dart:html' as html;
+import 'dart:js' as js;
 import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -947,107 +947,107 @@ class _MyHomePageState extends State<MyHomePage> {
                           Spacer(flex: 1),
                           Row(
                             children: [
-                                    // if(kIsWeb)
-                                    //   SizedBox(height: 35,width: 70,child:
-                                    //   FloatingActionButton(
-                                    //   elevation: 0,
-                                    //   focusElevation: 0,
-                                    //   hoverElevation: 0,
-                                    //   highlightElevation: 0,
-                                    //   disabledElevation: 0,
-                                    //   backgroundColor: Colors.transparent,
-                                    //   shape: RoundedRectangleBorder(
-                                    //       borderRadius: BorderRadius.circular(20),
-                                    //     side: BorderSide(color: thm.iconcolor)
-                                    //   ),
-                                    //   child: Text(
-                                    //     "Install",style: TextStyle(
-                                    //     color:
-                                    //     thm.iconcolor,
-                                    //     fontFamily: 'Montserrat',
-                                    //     fontSize: 14,
-                                    //   ),
-                                    //   ),
-                                    //       onPressed: () async {
-                                    //         final ua = html.window.navigator
-                                    //             .userAgent.toLowerCase();
-                                    //         if (ua.contains('android')) {
-                                    //           await launchUrl(
-                                    //             Uri.parse(
-                                    //                 'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
-                                    //           );
-                                    //         }
-                                    //         else {
-                                    //           try {
-                                    //             js.context.callMethod(
-                                    //                 'promptInstall');
-                                    //           }
-                                    //           catch (e) {
-                                    //             if (ua.contains('ios') ||
-                                    //                 ua.contains('ipad') ||
-                                    //                 ua.contains('iphone')) {
-                                    //               ScaffoldMessenger
-                                    //                   .of(context)
-                                    //                   .showSnackBar(
-                                    //                 SnackBar(
-                                    //                   content: Text(
-                                    //                     "Click on Share => Add to Home Screen => Add",
-                                    //                     style: TextStyle(
-                                    //                       fontFamily: "Montserrat",
-                                    //                       fontWeight: FontWeight
-                                    //                           .normal,
-                                    //                       fontSize: 16,
-                                    //                     ),
-                                    //                   ),
-                                    //                   duration: Duration(
-                                    //                       seconds: 4),
-                                    //                 ),
-                                    //               );
-                                    //             }
-                                    //             else if (ua.contains('win') ||
-                                    //                 ua.contains('mac') ||
-                                    //                 ua.contains('linux')) {
-                                    //               ScaffoldMessenger
-                                    //                   .of(context)
-                                    //                   .showSnackBar(
-                                    //                 SnackBar(
-                                    //                   content: Text(
-                                    //                     "Click on Settings => Cast, Save and Share => Install Page as app",
-                                    //                     style: TextStyle(
-                                    //                       fontFamily: "Montserrat",
-                                    //                       fontWeight: FontWeight
-                                    //                           .normal,
-                                    //                       fontSize: 16,
-                                    //                     ),
-                                    //                   ),
-                                    //                   duration: Duration(
-                                    //                       seconds: 4),
-                                    //                 ),
-                                    //               );
-                                    //             }
-                                    //             else {
-                                    //               ScaffoldMessenger
-                                    //                   .of(context)
-                                    //                   .showSnackBar(
-                                    //                 SnackBar(
-                                    //                   content: Text(
-                                    //                     "Click on Share => Add to Home Screen => Add",
-                                    //                     style: TextStyle(
-                                    //                       fontFamily: "Montserrat",
-                                    //                       fontWeight: FontWeight
-                                    //                           .normal,
-                                    //                       fontSize: 16,
-                                    //                     ),
-                                    //                   ),
-                                    //                   duration: Duration(
-                                    //                       seconds: 4),
-                                    //                 ),
-                                    //               );
-                                    //             }
-                                    //           }
-                                    //         }
-                                    //       }
-                                    //   ),),
+                                    if(kIsWeb)
+                                      SizedBox(height: 35,width: 70,child:
+                                      FloatingActionButton(
+                                      elevation: 0,
+                                      focusElevation: 0,
+                                      hoverElevation: 0,
+                                      highlightElevation: 0,
+                                      disabledElevation: 0,
+                                      backgroundColor: Colors.transparent,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        side: BorderSide(color: thm.iconcolor)
+                                      ),
+                                      child: Text(
+                                        "Install",style: TextStyle(
+                                        color:
+                                        thm.iconcolor,
+                                        fontFamily: 'Montserrat',
+                                        fontSize: 14,
+                                      ),
+                                      ),
+                                          onPressed: () async {
+                                            final ua = html.window.navigator
+                                                .userAgent.toLowerCase();
+                                            if (ua.contains('android')) {
+                                              await launchUrl(
+                                                Uri.parse(
+                                                    'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
+                                              );
+                                            }
+                                            else {
+                                              try {
+                                                js.context.callMethod(
+                                                    'promptInstall');
+                                              }
+                                              catch (e) {
+                                                if (ua.contains('ios') ||
+                                                    ua.contains('ipad') ||
+                                                    ua.contains('iphone')) {
+                                                  ScaffoldMessenger
+                                                      .of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        "Click on Share => Add to Home Screen => Add",
+                                                        style: TextStyle(
+                                                          fontFamily: "Montserrat",
+                                                          fontWeight: FontWeight
+                                                              .normal,
+                                                          fontSize: 16,
+                                                        ),
+                                                      ),
+                                                      duration: Duration(
+                                                          seconds: 4),
+                                                    ),
+                                                  );
+                                                }
+                                                else if (ua.contains('win') ||
+                                                    ua.contains('mac') ||
+                                                    ua.contains('linux')) {
+                                                  ScaffoldMessenger
+                                                      .of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        "Click on Settings => Cast, Save and Share => Install Page as app",
+                                                        style: TextStyle(
+                                                          fontFamily: "Montserrat",
+                                                          fontWeight: FontWeight
+                                                              .normal,
+                                                          fontSize: 16,
+                                                        ),
+                                                      ),
+                                                      duration: Duration(
+                                                          seconds: 4),
+                                                    ),
+                                                  );
+                                                }
+                                                else {
+                                                  ScaffoldMessenger
+                                                      .of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        "Click on Share => Add to Home Screen => Add",
+                                                        style: TextStyle(
+                                                          fontFamily: "Montserrat",
+                                                          fontWeight: FontWeight
+                                                              .normal,
+                                                          fontSize: 16,
+                                                        ),
+                                                      ),
+                                                      duration: Duration(
+                                                          seconds: 4),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          }
+                                      ),),
                               Transform(
                                 alignment: Alignment.center,
                                 transform: Matrix4.rotationY(3.1416),
