@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:cgpa_calculator/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -450,50 +448,7 @@ class _SettingsState extends State<Settings> {
                       menuStyle: MenuStyle(
                         backgroundColor: WidgetStateProperty.all(thm.backcolor),
                       ),
-                      dropdownMenuEntries: [
-                        DropdownMenuEntry(
-                          value: "White",
-                          label: "White",
-                          style: MenuItemButton.styleFrom(
-                            textStyle: TextStyle(fontFamily: 'Montserrat'),
-                            foregroundColor: thm.highcolor,
-                          ),
-                        ),
-                        DropdownMenuEntry(
-                          value: "Black",
-                          label: "Black",
-                          style: MenuItemButton.styleFrom(
-                            textStyle: TextStyle(fontFamily: 'Montserrat'),
-                            foregroundColor: thm.highcolor,
-                          ),
-                        ),
-                        DropdownMenuEntry(
-                          value: "Blue",
-                          label: "Blue",
-                          style: MenuItemButton.styleFrom(
-                            textStyle: TextStyle(fontFamily: 'Montserrat'),
-                            foregroundColor: thm.highcolor,
-                          ),
-                        ),
-                        DropdownMenuEntry(
-                          value: "Lilac",
-                          label: "Lilac",
-                          style: MenuItemButton.styleFrom(
-                            textStyle: TextStyle(fontFamily: 'Montserrat'),
-                            foregroundColor: thm.highcolor,
-                          ),
-                        ),
-                        DropdownMenuEntry(
-                          value: "Brown",
-                          label: "Brown",
-                          style: MenuItemButton.styleFrom(
-                            textStyle: TextStyle(fontFamily: 'Montserrat'),
-                            foregroundColor:
-                                thm
-                                    .highcolor,
-                          ),
-                        ),
-                      ],
+                      dropdownMenuEntries: themes.map((id) => DropdownMenuEntry(value: id.theme, label: id.theme,style: MenuItemButton.styleFrom( textStyle: TextStyle( fontFamily: 'Montserrat', ), foregroundColor: thm .highcolor, ),)).toList(),
                     ),
                   ],
                 ),

@@ -32,7 +32,6 @@ int creds(String s, List<Course> si) {
   int sum = 0;
   for (int i = 0; i < si.length; i++) {
     if (si[i].elective == s && (si[i].grade1 > 0 || si[i].grade1 == -3)) {
-      print(si[i].title);
       sum += si[i].credits;
     }
   }
@@ -64,6 +63,8 @@ class _AnalyticsState extends State<Analytics> {
   @override
   Widget build(BuildContext context) {
     //print(((MediaQuery.of(context).size.height -max((40+min(MediaQuery.of(context).size.width * 0.28,100)),100)) > 3*MediaQuery.of(context).size.width*0.50 )?20:(MediaQuery.of(context).size.height*0.78 -(40+min(MediaQuery.of(context).size.width * 0.28,100)))/3);
+    // print(widget.sitemslist.where((Course) => Course.elective == "CDC1" && (Course.grade1 > 0 || Course.grade1==-3),).length.toString());
+    // `print`(widget.sitemslist.where((Course) => Course.elective == "CDC2" && (Course.grade1 > 0 || Course.grade1==-3),).length.toString());
     var thm = themes.firstWhere((theme) => theme.theme == selected_theme);
     setnavcolor();
     return Scaffold(

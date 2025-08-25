@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:marquee/marquee.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:screen_retriever/screen_retriever.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'settings.dart';
 import 'mastercourselist.dart';
@@ -207,7 +206,7 @@ Future<void> initializeCourses() async {
                   course.title == "Elementary Real Analysis" ||
                   course.title == "Numerical Analysis" ||
                   course.title == "Electromagnetic Theory")) {}
-              else {
+              else{
                 if (course.elective == "CDC2") {
                   tempsem = course.sem;
                   tempsem =
@@ -234,6 +233,32 @@ Future<void> initializeCourses() async {
                 }
               }
             }
+              else {
+                if (course.elective == "CDC2") {
+                  tempsem = course.sem;
+                  tempsem =
+                      (int.parse(tempsem.substring(0, 1)) + 1).toString() +
+                          tempsem.substring(1, 5);
+                  //print(tempsem);
+                  Course Course1 = Course(
+                    title: course.title,
+                    sem: tempsem,
+                    id: course.id,
+                    grade1: course.grade1,
+                    grade2: course.grade2,
+                    discipline: course.discipline,
+                    credits: course.credits,
+                    elective: course.elective,
+                  );
+
+                  try {
+                    await coursesBox.put(Course1.id, Course1);
+                    //print('Stored modified course with id: ${course.id}');
+                  } catch (e) {
+                    //print('Error storing course: $e');
+                  }
+                }
+              }
           }
           //print("All keys in coursesBox: ${coursesBox.keys}");
           setsort();
@@ -546,6 +571,7 @@ void setnavcolor() {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
   @override
   void initState() {
     super.initState();
@@ -555,12 +581,34 @@ class _MyHomePageState extends State<MyHomePage> {
           final updateInfo = await InAppUpdate.checkForUpdate();
           if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable && updateInfo.flexibleUpdateAllowed) {
             await InAppUpdate.startFlexibleUpdate();
-            isUpdating =true;
           }
+          InAppUpdate.installUpdateListener.listen((status) async {
+            if (status == InstallStatus.downloaded) {
+              if (mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('A new update is ready. Restart to install.'),
+                      action: SnackBarAction(
+                        label: 'Restart',
+                        onPressed: () async {
+                          await InAppUpdate.completeFlexibleUpdate();
+                        },
+                      ),
+                      duration: Duration(minutes: 1),
+                    ),
+                  );
+                });
+              }
+            }
+          });
+
+
         }
       }
     });
   }
+
   List<Course> get items =>
       Hive.box<Course>('coursesBox').values
           .where(
@@ -799,15 +847,6 @@ class _MyHomePageState extends State<MyHomePage> {
     setprof();
     settheme();
     setnavcolor();
-    if(isUpdating){
-      InAppUpdate.installUpdateListener.listen((status) async{
-        if (status == InstallStatus.downloaded){
-          await InAppUpdate.completeFlexibleUpdate();
-          isUpdating=false;
-        }
-      });
-
-    }
     name1 =
         mcourselist
             .firstWhere(
@@ -2432,7 +2471,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                               if (_isGradeChanged) {
                                                                 Course
                                                                 tempcourse = sitems
-                                                                    .firstWhere(
+                                                                    .lastWhere(
                                                                       (course) =>
                                                                   course
                                                                       .id ==
@@ -3762,7 +3801,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                     } else {
                                                       Mastercourselist?
                                                       tempcourse = mcourselist
-                                                          .firstWhere(
+                                                          .lastWhere(
                                                             (course) =>
                                                                 course.id ==
                                                                 "$addcourse $addcourseid",
