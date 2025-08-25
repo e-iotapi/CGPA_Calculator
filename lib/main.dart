@@ -16,6 +16,7 @@ import 'mastercourselist.dart';
 import 'constants.dart';
 import 'dart:math';
 import 'package:in_app_update/in_app_update.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 //html and js imports and uses to be removed for android build
 
