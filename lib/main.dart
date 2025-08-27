@@ -580,31 +580,30 @@ class _MyHomePageState extends State<MyHomePage> {
       if(!kIsWeb){
         if(Platform.isAndroid){
           final updateInfo = await InAppUpdate.checkForUpdate();
-          if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable && updateInfo.flexibleUpdateAllowed) {
-            await InAppUpdate.startFlexibleUpdate();
-          }
-          InAppUpdate.installUpdateListener.listen((status) async {
-            if (status == InstallStatus.downloaded) {
-              if (mounted) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('A new update is ready. Restart to install.'),
-                      action: SnackBarAction(
-                        label: 'Restart',
-                        onPressed: () async {
-                          await InAppUpdate.completeFlexibleUpdate();
-                        },
-                      ),
-                      duration: Duration(minutes: 1),
+          if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
+            if (mounted) {
+              showDialog(
+                context: context,
+                barrierDismissible: true,
+                builder: (context) => AlertDialog(
+                  title: Text('Update Available'),
+                  content: Text('An Update is Available. Update now?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        await launchUrl(
+                                      Uri.parse(
+                                          'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
+                                    );
+                      },
+                      child: Text('Install'),
                     ),
-                  );
-                });
-              }
+                  ],
+                ),
+              );
             }
-          });
-
-
+          }
         }
       }
     });
@@ -4402,11 +4401,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 label: profile1n,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.account_box_rounded),
+                icon: Icon(Icons.account_box_outlined),
                 label: profile2n,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.comment_bank_rounded),
+                icon: Icon(Icons.comment_bank_outlined),
                 label: "Compare",
               ),
             ],

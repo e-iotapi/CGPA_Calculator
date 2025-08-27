@@ -98,10 +98,10 @@ List<Constants> themes = [
     bordcolor: Color(0xFFCECBCB),
     cardcolor: Color(0xFF0E574C),
     textcolor: Color(0xFFC4D2CB),
-    sepcolor: Color(0xFF2A5F4A),
+    sepcolor: Color(0xFF38936E),
     highcolor: Color(0xFF1EE67B),
     unscolor: Color(0x996D9C8C),
-    iconcolor: Color(0xFFB5EFE0),
+    iconcolor: Color(0xFF9FE1D6),
   ),
 
   // Constants(
