@@ -1463,6 +1463,20 @@ List<Mastercourselist> mcourselist = [
     title: "Digital Signal Processing",
     id: "ECE F434",
     credits: 4,
+  ),Mastercourselist(
+    title: "Electric Vehicles",
+    id: "ECE F438",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Electric Vehicles",
+    id: "EEE F438",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Electric Vehicles",
+    id: "INSTR F438",
+    credits: 3,
   ),
   Mastercourselist(
     title: "Electronic Devices Simulation Laboratory",
