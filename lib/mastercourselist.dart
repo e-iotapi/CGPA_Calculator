@@ -1455,6 +1455,7 @@ List<Mastercourselist> mcourselist = [
     id: "ECE F344",
     credits: 3,
   ),
+
   Mastercourselist(title: "Lab Project", id: "ECE F366", credits: 3),
   Mastercourselist(title: "Lab Project", id: "ECE F367", credits: 3),
   Mastercourselist(title: "Design Project", id: "ECE F376", credits: 3),
