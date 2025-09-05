@@ -98,7 +98,6 @@ Future<void> initializeCourses() async {
   currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
   profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
   profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
-  print(erase);
   if (erase == 1) {
     await coursesBox.clear();
       String tempsem = "";
@@ -268,7 +267,6 @@ Future<void> initializeCourses() async {
     }
   }
   else if (erase == 2) {
-    print("running");
     final keysToDelete = [];
     final tempcourses = [];
     for (final entry in coursesBox.toMap().entries) {
@@ -290,7 +288,6 @@ Future<void> initializeCourses() async {
     if (keysToDelete.isNotEmpty) {
       await coursesBox.deleteAll(keysToDelete);
     }
-    print("1");
     String tempsem = "";
     for (var course in ((batch < 25)?(selectedcampus=="Hyd")?hydCourseList:(selectedcampus=="Goa")?goaCourseList:pilaniCourseList:(selectedcampus=="Hyd")?hydCourseListNew:(selectedcampus=="Goa")?goaCourseListNew:pilaniCourseListNew) ){
       //print("0");
