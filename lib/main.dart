@@ -115,7 +115,7 @@ Future<void> initializeCourses() async {
                 ? selecteddiscipline.substring(2, 4)
                 : "cccc")) {
           if (course.elective == "CDC2" && !tempaddedcourses.contains(course.title)) {
-            if(selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3"|| selecteddiscipline == "B5A8" || selecteddiscipline == "B4AD"){
+            if(selecteddiscipline == "B5AA" || selecteddiscipline == "B5A3"|| selecteddiscipline == "B5A8" ||selecteddiscipline == "B2AA" || selecteddiscipline == "B2A3"|| selecteddiscipline == "B2A8" || selecteddiscipline == "B4AD"){
               if((course.title=="Algebra I" || course.title=="Discrete Mathematics" ||course.title=="Elementary Real Analysis" ||course.title=="Numerical Analysis" || course.title == "Electromagnetic Theory")){}
               else{
               tempsem = course.sem;

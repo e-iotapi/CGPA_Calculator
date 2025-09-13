@@ -1,8 +1,11 @@
 import 'package:cgpa_calculator/constants.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'main.dart';
+import 'dart:io';
+import 'package:in_app_review/in_app_review.dart';
 
 class Settings extends StatefulWidget {
   const Settings({super.key});
@@ -519,6 +522,41 @@ class _SettingsState extends State<Settings> {
               ),
 
               Spacer(flex: 1),
+        if(!kIsWeb && Platform.isAndroid)
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.05,
+          width: MediaQuery.of(context).size.width * 0.90,
+          child: FloatingActionButton(
+            key: ValueKey("report"),
+            elevation: 1,
+            focusElevation: 0,
+            hoverElevation: 0,
+            highlightElevation: 0,
+            disabledElevation: 0,
+            backgroundColor: thm.cardcolor,
+            child: Text(
+              "Write a Review",
+              style: TextStyle(
+                fontFamily: "Montserrat",
+                fontSize: 18,
+                color: thm.highcolor,
+              ),
+            ),
+              onPressed: ()async {
+                final InAppReview inAppReview = InAppReview.instance;
+                if (await inAppReview.isAvailable()) {
+                  await inAppReview.requestReview();
+                }
+                else{
+                  await launchUrl(
+                    Uri.parse(
+                        'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
+                  );
+                }
+              }
+          ),
+        ),
+              SizedBox(height: 10),
               Text(
                 "Made by Srijen Raja",
                 style: TextStyle(
