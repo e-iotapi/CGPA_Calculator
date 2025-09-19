@@ -1446,6 +1446,16 @@ List<Mastercourselist> mcourselist = [
     id: "EEE F314",
     credits: 3,
   ),
+  Mastercourselist(
+    title: "FGPA Lab",
+    id: "INSTR F314",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "FGPA Lab",
+    id: "ECE F314",
+    credits: 3,
+  ),
   Mastercourselist(title: "Analog Electronics", id: "ECE F341", credits: 4),
   Mastercourselist(title: "Study Project", id: "ECE F266", credits: 3),
   Mastercourselist(title: "Communication Systems", id: "ECE F311", credits: 4),
