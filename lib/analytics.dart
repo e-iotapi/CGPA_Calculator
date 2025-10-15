@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'main.dart';
 import 'dart:math';
+import 'script.dart';
 
 class Analytics extends StatefulWidget {
   const Analytics({Key? key}) : super(key: key);

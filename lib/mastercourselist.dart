@@ -1772,6 +1772,7 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Development Theories", id: "GS F213", credits: 3),
+  Mastercourselist(title: "Constitution of India", id: "GS F345", credits: 3),
   Mastercourselist(title: "Business Communication", id: "GS F221", credits: 3),
   Mastercourselist(title: "Language Lab Practice", id: "GS F222", credits: 3),
   Mastercourselist(
