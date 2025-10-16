@@ -169,6 +169,8 @@ class _MyHomePageState extends State<MyHomePage> {
           )
           .toList();
   bool _isCardOpen = false;
+  bool _isClosing = false;
+  bool _isClosingCourse = false;
   bool _isGradeChanged = false;
   bool _isDisciplineChanged = false;
   bool _isCourseCardOpen = false;
@@ -196,6 +198,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _showFab = true;
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _showFab = false);
+      else _showFab =false;
     });
   }
   double sgcalc(String s) {
@@ -1745,7 +1748,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             AnimatedSwitcher(
-              duration: Duration(milliseconds: 500),
+              duration: Duration(milliseconds: 600),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               child:
@@ -1753,10 +1756,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       ? Stack(
                         children: [
                           AnimatedOpacity(
-                            opacity: _isCourseCardOpen ? 0.6 : 0.0,
-                            duration: Duration(milliseconds: 500),
+                            opacity: !_isClosingCourse ? 0.6 : 0.0,
+                            duration: Duration(milliseconds: 300),
                             child: GestureDetector(
-                              onTap: () {
+                              onTap: () async{
                                 setState(() {
                                   addcourse = "AN";
                                   addcourseid = "F311";
@@ -1776,7 +1779,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                           )
                                           .toList();
                                   dropdownid.sort((a, b) => a.compareTo(b));
+                                  _isClosingCourse=true;
+                                });
+                                Future.delayed(Duration(milliseconds: 300));
+                                setState(() {
                                   _isCourseCardOpen = false;
+                                  _isClosingCourse=false;
                                 });
                               },
                               child: Container(
@@ -1789,9 +1797,10 @@ class _MyHomePageState extends State<MyHomePage> {
                           Center(
                             child: AnimatedScale(
                               scale: _isCourseCardOpen ? 1.0 : 0.8,
-                              duration: Duration(milliseconds: 500),
+                              duration: Duration(milliseconds: 700),
                               curve: Curves.easeOutBack,
                               child: Card(
+                                key: ValueKey("open"),
                                 color: thm.cardcolor,
                                 elevation: 40,
                                 margin: EdgeInsets.all(16),
@@ -2035,7 +2044,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                                               reversegradecalc(
                                                                 value!,
                                                               );
-
                                                           if (selectedprofile !=
                                                               3) {
                                                             if (_isGradeChanged) {
@@ -2047,25 +2055,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                                                             .id ==
                                                                         "$addcourse $addcourseid",
                                                                   );
-                                                              await removeCourseById(
-                                                                "$addcourse $addcourseid",
-                                                              );
-                                                              await Future.delayed(
-                                                                Duration(
-                                                                  milliseconds:
-                                                                      20,
-                                                                ),
-                                                              );
+                                                              // await removeCourseById(
+                                                              //   "$addcourse $addcourseid",
+                                                              // );
                                                               if (selectedprofile ==
                                                                   1) {
                                                                 await addOrUpdateCourse(
                                                                   Course( elective: tempcourse .elective, title: tempcourse .title, sem: currentsem, id: "$addcourse $addcourseid", discipline: tempcourse .discipline, grade1: selectedgrade, grade2: tempcourse .grade2, credits: tempcourse .credits, ), );
-                                                                await Future.delayed(
-                                                                  Duration(
-                                                                    milliseconds:
-                                                                        50,
-                                                                  ),
-                                                                );
                                                                 selectedelective =
                                                                     "None";
                                                               } else if (selectedprofile ==
@@ -2074,12 +2070,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                                                   Course( elective: tempcourse .elective, title: tempcourse .title, sem: currentsem, id: "$addcourse $addcourseid", discipline: ((selecteddiscipline.substring( 0, 2, ) != "--") ? selecteddiscipline.substring( 0, 2, ) : selecteddiscipline.substring( 2, 4, )), grade1: tempcourse .grade1, grade2: selectedgrade, credits: tempcourse .credits, ), );
                                                                 selectedelective =
                                                                     "None";
-                                                                await Future.delayed(
-                                                                  Duration(
-                                                                    milliseconds:
-                                                                        50,
-                                                                  ),
-                                                                );
                                                               }
                                                             }
                                                           } else {
@@ -2191,14 +2181,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         await removeCourseById(
                                                           "$addcourse $addcourseid",
                                                         );
-                                                        await Future.delayed(
-                                                          Duration(
-                                                            milliseconds: 20,
-                                                          ),
-                                                        );
                                                         setState(() {
-
-                                                          batch - batch;
                                                           addcourse = "AN";
                                                           addcourseid = "F311";
                                                           electiveSetter();
@@ -2229,10 +2212,11 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ],
                       )
-                      : SizedBox.shrink(),
+                      : SizedBox.shrink(
+                    key: ValueKey("closed"),),
             ),
             AnimatedSwitcher(
-              duration: Duration(milliseconds: 500),
+              duration: Duration(milliseconds: 700),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               child:
@@ -2240,10 +2224,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       ? Stack(
                         children: [
                           AnimatedOpacity(
-                            opacity: _isCardOpen ? 0.6 : 0.0,
-                            duration: Duration(milliseconds: 500),
+                            opacity: _isClosing ? 0.0:0.6,
+                            duration: Duration(milliseconds: 700),
                             child: GestureDetector(
-                              onTap: () {
+                              onTap: () async{
                                 setState(() {
                                   addcourse = "AN";
                                   addcourseid = "F311";
@@ -2263,7 +2247,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                           )
                                           .toList();
                                   dropdownid.sort((a, b) => a.compareTo(b));
-                                  _isCardOpen = false;
+                                  _isClosing = true;
+                                });
+                                Future.delayed(Duration(milliseconds: 700));
+                                setState(() {
+                                  _isClosing = false;
+                                  _isCardOpen=false;
                                 });
                               },
                               child: Container(
@@ -2275,10 +2264,11 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           Center(
                             child: AnimatedScale(
-                              scale: _isCardOpen ? 1.0 : 0.8,
-                              duration: Duration(milliseconds: 500),
-                              curve: Curves.easeOutBack,
+                              scale: _isClosing ? 0: 1.0,
+                              duration: Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
                               child: Card(
+                                key: ValueKey('open'),
                                 color: thm.backcolor,
                                 elevation: 40,
                                 margin: EdgeInsets.all(16),
@@ -3055,8 +3045,17 @@ class _MyHomePageState extends State<MyHomePage> {
                                                             a.compareTo(b),
                                                       );
                                                       sort(sitems);
-                                                      _isCardOpen = false;
                                                     }
+                                                  });
+                                                  setState(() {
+                                                    _isClosing = true; // Start close animation
+                                                  });
+                                                  Future.delayed(const Duration(milliseconds: 700), () {
+                                                    if (!mounted) return;
+                                                    setState(() {
+                                                      _isCardOpen = false;
+                                                      _isClosing = false;
+                                                    });
                                                   });
                                                 },
                                               ),
@@ -3073,10 +3072,10 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ],
                       )
-                      : SizedBox.shrink(),
+                      : SizedBox.shrink(key: ValueKey('closed'),),
             ),
             AnimatedSwitcher(
-              duration: Duration(milliseconds: 500),
+              duration: Duration(milliseconds: 700),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               child:
@@ -3085,7 +3084,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         children: [
                           AnimatedOpacity(
                             opacity: !degree_selected ? 0.6 : 0.0,
-                            duration: Duration(milliseconds: 500),
+                            duration: Duration(milliseconds: 700),
                             child: GestureDetector(
                               onTap: () async {},
                               child: Container(
@@ -3098,7 +3097,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           Center(
                             child: AnimatedScale(
                               scale: !degree_selected ? 1.0 : 0.8,
-                              duration: Duration(milliseconds: 500),
+                              duration: Duration(milliseconds: 700),
                               curve: Curves.easeOutBack,
                               child: Card(
                                 elevation: 40,
@@ -3516,11 +3515,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                                     batch = batch;
                                                     await setdis();
                                                     await initializeCourses();
-                                                    await Future.delayed(
-                                                      Duration(
-                                                        milliseconds: 100,
-                                                      ),
-                                                    );
                                                     sort(sitems);
                                                     setState(() {
                                                       selectedgrade = 10;
