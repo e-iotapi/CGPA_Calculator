@@ -3510,18 +3510,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                                 ),
                                                 onPressed: () async {
                                                   if (_isDisciplineChanged) {
-                                                    selecteddiscipline =
-                                                        selecteddiscipline;
-                                                    batch = batch;
                                                     await setdis();
                                                     await initializeCourses();
                                                     sort(sitems);
                                                     setState(() {
                                                       selectedgrade = 10;
-                                                      currentsem = currentsem;
-                                                      selecteddiscipline =
-                                                          selecteddiscipline;
-                                                      batch = batch;
                                                       addcourse = "AN";
                                                       addcourseid = "F311";
                                                       electiveSetter();
