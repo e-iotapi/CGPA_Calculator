@@ -485,7 +485,7 @@ int reversegradecalc(String s) {
       ? 2
       : (s == "NC")
       ? -1
-      : (s == "CLR")
+      : (s == "CLR" || s=="")
       ? -2
       : (s == "GD")
       ? -3
@@ -575,6 +575,7 @@ final List<String> grades = [
   "NC",
   "CLR",
   "GD",
+  ""
 ];
 final List<String> sems = [
   "1 - 1",

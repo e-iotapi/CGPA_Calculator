@@ -1748,7 +1748,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             AnimatedSwitcher(
-              duration: Duration(milliseconds: 600),
+              duration: Duration(milliseconds: 400),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               child:
@@ -1757,7 +1757,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         children: [
                           AnimatedOpacity(
                             opacity: !_isClosingCourse ? 0.6 : 0.0,
-                            duration: Duration(milliseconds: 300),
+                            duration: Duration(milliseconds: 100),
                             child: GestureDetector(
                               onTap: () async{
                                 setState(() {
@@ -1781,7 +1781,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   dropdownid.sort((a, b) => a.compareTo(b));
                                   _isClosingCourse=true;
                                 });
-                                Future.delayed(Duration(milliseconds: 300));
+                                Future.delayed(Duration(milliseconds: 100));
                                 setState(() {
                                   _isCourseCardOpen = false;
                                   _isClosingCourse=false;
@@ -1797,7 +1797,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           Center(
                             child: AnimatedScale(
                               scale: _isCourseCardOpen ? 1.0 : 0.8,
-                              duration: Duration(milliseconds: 700),
+                              duration: Duration(milliseconds: 500),
                               curve: Curves.easeOutBack,
                               child: Card(
                                 key: ValueKey("open"),
@@ -2216,7 +2216,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     key: ValueKey("closed"),),
             ),
             AnimatedSwitcher(
-              duration: Duration(milliseconds: 700),
+              duration: Duration(milliseconds: 400),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               child:
@@ -2225,7 +2225,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         children: [
                           AnimatedOpacity(
                             opacity: _isClosing ? 0.0:0.6,
-                            duration: Duration(milliseconds: 700),
+                            duration: Duration(milliseconds: 500),
                             child: GestureDetector(
                               onTap: () async{
                                 setState(() {
@@ -2249,7 +2249,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   dropdownid.sort((a, b) => a.compareTo(b));
                                   _isClosing = true;
                                 });
-                                Future.delayed(Duration(milliseconds: 700));
+                                Future.delayed(Duration(milliseconds: 500));
                                 setState(() {
                                   _isClosing = false;
                                   _isCardOpen=false;
@@ -2265,7 +2265,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           Center(
                             child: AnimatedScale(
                               scale: _isClosing ? 0: 1.0,
-                              duration: Duration(milliseconds: 300),
+                              duration: Duration(milliseconds: 100),
                               curve: Curves.easeOut,
                               child: Card(
                                 key: ValueKey('open'),
@@ -3050,7 +3050,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                   setState(() {
                                                     _isClosing = true; // Start close animation
                                                   });
-                                                  Future.delayed(const Duration(milliseconds: 700), () {
+                                                  Future.delayed(const Duration(milliseconds: 500), () {
                                                     if (!mounted) return;
                                                     setState(() {
                                                       _isCardOpen = false;
@@ -3075,7 +3075,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       : SizedBox.shrink(key: ValueKey('closed'),),
             ),
             AnimatedSwitcher(
-              duration: Duration(milliseconds: 700),
+              duration: Duration(milliseconds: 400),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               child:
@@ -3084,7 +3084,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         children: [
                           AnimatedOpacity(
                             opacity: !degree_selected ? 0.6 : 0.0,
-                            duration: Duration(milliseconds: 700),
+                            duration: Duration(milliseconds: 500),
                             child: GestureDetector(
                               onTap: () async {},
                               child: Container(
@@ -3097,7 +3097,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           Center(
                             child: AnimatedScale(
                               scale: !degree_selected ? 1.0 : 0.8,
-                              duration: Duration(milliseconds: 700),
+                              duration: Duration(milliseconds: 500),
                               curve: Curves.easeOutBack,
                               child: Card(
                                 elevation: 40,

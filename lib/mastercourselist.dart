@@ -284,7 +284,6 @@ List<Mastercourselist> mcourselist = [
   ),
   Mastercourselist(title: "Downstream Processing", id: "BIOT F344", credits: 3),
   Mastercourselist(title: "Proteomics", id: "BIOT F345", credits: 3),
-  Mastercourselist(title: "Proteomics", id: "BIOT F345", credits: 3),
   Mastercourselist(title: "Genomics", id: "BIOT F346", credits: 3),
   Mastercourselist(title: "Immunotechnology", id: "BIOT F347", credits: 3),
   Mastercourselist(
@@ -824,7 +823,6 @@ List<Mastercourselist> mcourselist = [
     id: "BITS F215",
     credits: 2,
   ),
-  Mastercourselist(title: "Environmental Studies", id: "BITS F225", credits: 3),
   Mastercourselist(
     title: "Theoretical Neuroscience",
     id: "BITS F317",
@@ -899,7 +897,7 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(
-    title: "renewable Energy Laboratory",
+    title: "Renewable Energy Laboratory",
     id: "BITS F430",
     credits: 2,
   ),
@@ -2382,7 +2380,7 @@ List<Mastercourselist> mcourselist = [
     id: "MAC F214",
     credits: 3,
   ),
-  Mastercourselist(title: "Numerical Analysis", id: "MAC F241", credits: 4),
+  Mastercourselist(title: "Numerical Analysis", id: "MAC F241", credits: 3),
   Mastercourselist(
     title: "Data Structures & Algorithms",
     id: "MAC F242",
@@ -2487,7 +2485,7 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Lab Project", id: "MATH F366", credits: 3),
   Mastercourselist(title: "Lab Project", id: "MATH F367", credits: 3),
   Mastercourselist(title: "Design Project", id: "MATH F376", credits: 3),
-  Mastercourselist(title: "Deisgn Project", id: "MATH F377", credits: 3),
+  Mastercourselist(title: "Design Project", id: "MATH F377", credits: 3),
   Mastercourselist(
     title: "Advanced Probability Theory",
     id: "MATH F378",
