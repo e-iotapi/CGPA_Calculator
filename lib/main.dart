@@ -39,39 +39,41 @@ void main() async {
   Hive.registerAdapter(CourseAdapter());
   //await Hive.openBox<Course>('coursesBox');
   await basicStartup();
-  mcourselist = await loadMcourselistFromFile();
-  //await initializeCourses();
-  //await Future.delayed(Duration(milliseconds: 40));
-  if (!kIsWeb) {
-    if (defaultTargetPlatform == TargetPlatform.windows) {
-      final maxwindowsscreen = await screenRetriever.getPrimaryDisplay();
-      final maxwindowsheight = maxwindowsscreen.size.height.toDouble();
-      await windowManager.ensureInitialized();
-      //await windowManager.setAspectRatio(9.5 / 18);
-      //await windowManager.setMaximumSize(Size(maxwindowsheight * 9.5 / 18, maxwindowsheight));
-      //await windowManager.setMinimumSize(Size(720 * 9.5 / 18, 720));
-      //await windowManager.setAsFrameless();
-      WindowOptions windowOptions = WindowOptions(
-        size: Size(maxwindowsheight * 9.5 / 18, maxwindowsheight),
-        //center: true,
-        //backgroundColor: themes.firstWhere((t) => t.theme == selected_theme).backcolor,
-        skipTaskbar: false,
-        titleBarStyle: TitleBarStyle.normal,
-      );
-
-      windowManager.waitUntilReadyToShow(windowOptions, () async {
-        await windowManager.show();
-        await windowManager.focus();
-      });
-    }
+  if(!kIsWeb) {
+    mcourselist = await loadMcourselistFromFile();
   }
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]).then((_) {
-    runApp(MyApp());
-  });
-}
+    //await initializeCourses();
+    //await Future.delayed(Duration(milliseconds: 40));
+    if (!kIsWeb) {
+      if (defaultTargetPlatform == TargetPlatform.windows) {
+        final maxwindowsscreen = await screenRetriever.getPrimaryDisplay();
+        final maxwindowsheight = maxwindowsscreen.size.height.toDouble();
+        await windowManager.ensureInitialized();
+        //await windowManager.setAspectRatio(9.5 / 18);
+        //await windowManager.setMaximumSize(Size(maxwindowsheight * 9.5 / 18, maxwindowsheight));
+        //await windowManager.setMinimumSize(Size(720 * 9.5 / 18, 720));
+        //await windowManager.setAsFrameless();
+        WindowOptions windowOptions = WindowOptions(
+          size: Size(maxwindowsheight * 9.5 / 18, maxwindowsheight),
+          //center: true,
+          //backgroundColor: themes.firstWhere((t) => t.theme == selected_theme).backcolor,
+          skipTaskbar: false,
+          titleBarStyle: TitleBarStyle.normal,
+        );
+
+        windowManager.waitUntilReadyToShow(windowOptions, () async {
+          await windowManager.show();
+          await windowManager.focus();
+        });
+      }
+    }
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]).then((_) {
+      runApp(MyApp());
+    });
+  }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -152,7 +154,9 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         }
       }
-      mcourselist = await fetchData();
+      if(!kIsWeb) {
+        mcourselist = await fetchData();
+      }
     });
   }
   List<Course> get items =>
