@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 class Mastercourselist {
   final String title;
@@ -3422,9 +3423,15 @@ List<Mastercourselist> mcourselist = [
   ),
 ];
 
+Future<String> _getFilePath() async {
+  final directory = await getApplicationDocumentsDirectory();
+  return '${directory.path}/mcourselist.json';
+}
+
 Future<List<Mastercourselist>> fetchData() async {
+  print("___________________");
   final url =
-      'https://raw.githubusercontent.com/Srijen-Raja/CGPA_Calculator/refs/heads/Srijen-Raja-json-test/lib/masterlist.json';
+      'https://raw.githubusercontent.com/Srijen-Raja/CGPA_Calculator/refs/heads/master/lib/mcourselist.json';
   try {
     final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
@@ -3454,12 +3461,14 @@ Future<List<Mastercourselist>> fetchData() async {
 Future<void> convertAndSaveToJsonFile(List<Mastercourselist> mcourselist) async {
   List<Map<String, dynamic>> jsonList = mcourselist.map((course) => course.toJson()).toList();
   String jsonString = jsonEncode(jsonList);
-  final file = File('mcourselist.json');
+  final path = await _getFilePath();
+  final file = File(path);
   await file.writeAsString(jsonString);
 }
 
 Future<List<Mastercourselist>> loadMcourselistFromFile() async {
-  final file = File('mcourselist.json');
+  final path = await _getFilePath();
+  final file = File(path);
   if (await file.exists()) {
     String jsonString = await file.readAsString();
     List jsonList = jsonDecode(jsonString);

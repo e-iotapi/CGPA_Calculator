@@ -112,6 +112,9 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if(!kIsWeb) {
+        mcourselist = await fetchData();
+      }
       if (!kIsWeb) {
         if (Platform.isAndroid) {
           final updateInfo = await InAppUpdate.checkForUpdate();
@@ -153,9 +156,6 @@ class _MyHomePageState extends State<MyHomePage> {
             }
           }
         }
-      }
-      if(!kIsWeb) {
-        mcourselist = await fetchData();
       }
     });
   }
