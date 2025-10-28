@@ -39,6 +39,7 @@ void main() async {
   Hive.registerAdapter(CourseAdapter());
   //await Hive.openBox<Course>('coursesBox');
   await basicStartup();
+  mcourselist = await loadMcourselistFromFile();
   //await initializeCourses();
   //await Future.delayed(Duration(milliseconds: 40));
   if (!kIsWeb) {
@@ -151,6 +152,7 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         }
       }
+      mcourselist = await fetchData();
     });
   }
   List<Course> get items =>

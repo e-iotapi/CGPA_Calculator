@@ -3,7 +3,6 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/settings.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'main.dart';
 import 'dart:math';
 import 'script.dart';
 
@@ -45,6 +44,7 @@ class _AnalyticsState extends State<Analytics> {
     'AA': [14, 48, 4, 12],
     'AB': [15, 48, 4, 12],
     'AC': [14, 48, 4, 12],
+    'AJ': [14, 48, 4, 12],
     'A1': [15, 45, 5, 15],
     'A2': [17, 57, 4, 12],
     'A3': [15, 49, 4, 12],

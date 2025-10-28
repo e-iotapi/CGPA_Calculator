@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
+
 class Mastercourselist {
   final String title;
   final String id;
@@ -8,20 +13,60 @@ class Mastercourselist {
     required this.id,
     required this.credits,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'id': id,
+      'credits': credits,
+    };
+  }
 }
 
 // -1NC, -2CLR,-3GD, not included in cgcalculation- edit
 List<Mastercourselist> mcourselist = [
-  Mastercourselist(title: "Linear Algebra and Complex Variables", id: "MATH F102", credits: 3),
-  Mastercourselist(title: "Innovation and Design Thinking", id: "BITS F102", credits: 1),
+  Mastercourselist(
+    title: "Linear Algebra and Complex Variables",
+    id: "MATH F102",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Innovation and Design Thinking",
+    id: "BITS F102",
+    credits: 1,
+  ),
   Mastercourselist(title: "Oscillations and Waves", id: "PHY F101", credits: 3),
-  Mastercourselist(title: "Fundamentals of Chemistry", id: "CHEM F101", credits: 3),
+  Mastercourselist(
+    title: "Fundamentals of Chemistry",
+    id: "CHEM F101",
+    credits: 3,
+  ),
   Mastercourselist(title: "Social Conduct", id: "BITS F101", credits: 1),
-  Mastercourselist(title: "Physical Well-being and Creativity", id: "BITS K101", credits: 1),
-  Mastercourselist(title: "Engineering Design and Prototyping", id: "BITS F103", credits: 4),
-  Mastercourselist(title: "Introduction to Biological Sciences", id: "BIO F101", credits: 3),
-  Mastercourselist(title: "Introduction to Oscillations and Waves", id: "PHY F102", credits: 3),
-  Mastercourselist(title: "Multivariable Calculus", id: "MATH F101", credits: 3),
+  Mastercourselist(
+    title: "Physical Well-being and Creativity",
+    id: "BITS K101",
+    credits: 1,
+  ),
+  Mastercourselist(
+    title: "Engineering Design and Prototyping",
+    id: "BITS F103",
+    credits: 4,
+  ),
+  Mastercourselist(
+    title: "Introduction to Biological Sciences",
+    id: "BIO F101",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Introduction to Oscillations and Waves",
+    id: "PHY F102",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Multivariable Calculus",
+    id: "MATH F101",
+    credits: 3,
+  ),
   Mastercourselist(title: "Computer Programming", id: "CS F111", credits: 4),
   Mastercourselist(title: "Mathematics I", id: "MATH F111", credits: 3),
   Mastercourselist(title: "Thermodynamics", id: "BITS F111", credits: 3),
@@ -58,13 +103,7 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Workshop Practice", id: "ME F112", credits: 2),
   Mastercourselist(title: "Chemistry Laboratory", id: "CHEM F110", credits: 1),
   Mastercourselist(title: "Physics Laboratory", id: "PHY F110", credits: 1),
-
-  //abcd
-  Mastercourselist(
-    title: "Principles of Aerodynamics",
-    id: "AN F311",
-    credits: 3,
-  ),
+  Mastercourselist(title: "Principles of Aerodynamics",id: "AN F311",credits: 3,),
   Mastercourselist(title: "Aircraft Propulsion", id: "AN F312", credits: 3),
   Mastercourselist(
     title: "Flight Mechanics and Controls",
@@ -238,8 +277,6 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Transport Phenomena", id: "CE F212", credits: 3),
   Mastercourselist(title: "Surveying", id: "CE F213", credits: 4),
   Mastercourselist(title: "Construction Materials", id: "CE F214", credits: 3),
-
-  // abcdefgh
   Mastercourselist(title: "Biological Chemistry", id: "BIOT F211", credits: 3),
   Mastercourselist(title: "Microbiology", id: "BIOT F212", credits: 4),
   Mastercourselist(title: "Cell Biology", id: "BIOT F213", credits: 3),
@@ -318,8 +355,6 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Food Biotechnology", id: "BIOT F424", credits: 3),
-
-  // abcdefg
   Mastercourselist(title: "Biology Laboratory", id: "BIO F110", credits: 1),
   Mastercourselist(title: "General Biology", id: "BIO F111", credits: 3),
   Mastercourselist(title: "Introductory Biology", id: "BIO F201", credits: 4),
@@ -488,8 +523,6 @@ List<Mastercourselist> mcourselist = [
     id: "BIO G671",
     credits: 5,
   ),
-
-  //abcdef
   Mastercourselist(title: "Mechanics of Solids", id: "CE F211", credits: 3),
   Mastercourselist(title: "Surveying", id: "CE F213", credits: 4),
   Mastercourselist(
@@ -654,13 +687,7 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "CE F491", credits: 3),
-
-  //abcdef
-  Mastercourselist(
-    title: "Bioethics and Biosafety",
-    id: "BITS F467",
-    credits: 3,
-  ),
+  Mastercourselist(title: "Bioethics and Biosafety",id: "BITS F467",credits: 3,),
   Mastercourselist(title: "Introduction to MEMS", id: "BITS F415", credits: 4),
   Mastercourselist(
     title: "Introduction to Nanoscience",
@@ -784,7 +811,11 @@ List<Mastercourselist> mcourselist = [
     id: "BITS F226",
     credits: 3,
   ),
-  Mastercourselist(title: "Foundations of Data Structures and Algorithms", id: "BITS F232", credits: 4),
+  Mastercourselist(
+    title: "Foundations of Data Structures and Algorithms",
+    id: "BITS F232",
+    credits: 4,
+  ),
   Mastercourselist(title: "Practice School I", id: "BITS F231", credits: 5),
   Mastercourselist(title: "Practice School I", id: "BITS F241", credits: 3),
   Mastercourselist(
@@ -984,13 +1015,7 @@ List<Mastercourselist> mcourselist = [
     id: "BITS G517",
     credits: 3,
   ),
-
-  //abcdef
-  Mastercourselist(
-    title: "Chemical Process Calculations",
-    id: "CHE F211",
-    credits: 3,
-  ),
+  Mastercourselist(title: "Chemical Process Calculations",id: "CHE F211",credits: 3,),
   Mastercourselist(title: "Fluid Mechanics", id: "CHE F212", credits: 3),
   Mastercourselist(
     title: "Chemical Engineering Thermodynamics",
@@ -1134,150 +1159,121 @@ List<Mastercourselist> mcourselist = [
     id: "CHE G511",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Petroleum Refining and Petrochemicals",
     id: "CHE G512",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Environmental Management Systems",
     id: "CHE G513",
     credits: 5,
   ),
-
   Mastercourselist(title: "Polymer Technology", id: "CHE G522", credits: 4),
-
   Mastercourselist(
     title: "Mathematical Methods in Chemical Engineering",
     id: "CHE G523",
     credits: 5,
   ),
-
   Mastercourselist(
     title: "Introduction to Multiphase flow",
     id: "CHE G524",
     credits: 4,
   ),
-
   Mastercourselist(title: "Nuclear Engineering", id: "CHE G526", credits: 4),
-
   Mastercourselist(
     title: "Energy Conservation and Management",
     id: "CHE G527",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Introduction to Nanoscience & Technology",
     id: "CHE G528",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Pulp & Paper Technology",
     id: "CHE G529",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Alternate Energy Resources",
     id: "CHE G532",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Petroleum Product Characterization",
     id: "CHE G533",
     credits: 5,
   ),
-
   Mastercourselist(
     title: "Advanced Separation Technology",
     id: "CHE G551",
     credits: 5,
   ),
-
   Mastercourselist(
     title: "Advanced Transport Phenomena",
     id: "CHE G552",
     credits: 5,
   ),
-
   Mastercourselist(
     title: "Computational Fluid Dynamics",
     id: "CHE G554",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Electrochemical Engineering",
     id: "CHE G556",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Energy Systems Engineering",
     id: "CHE G557",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Chemical Process Optimization",
     id: "CHE G558",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Modeling and Simulation in Petroleum Refining",
     id: "CHE G568",
     credits: 4,
   ),
-
   Mastercourselist(title: "Advanced Mass Transfer", id: "CHE G613", credits: 5),
-
   Mastercourselist(title: "Advanced Heat Transfer", id: "CHE G614", credits: 5),
-
   Mastercourselist(
     title: "Petroleum Reservoir Engineering",
     id: "CHE G616",
     credits: 5,
   ),
-
   Mastercourselist(
     title: "Petroleum Refinery Engg.",
     id: "CHE G617",
     credits: 5,
   ),
-
   Mastercourselist(
     title: "Petroleum Downstream Processing",
     id: "CHE G618",
     credits: 5,
   ),
-
   Mastercourselist(
     title: "Process Intensification",
     id: "CHE G619",
     credits: 5,
   ),
-
   Mastercourselist(
     title: "Energy Integration Analysis",
     id: "CHE G620",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Advanced Chemical Engineering Thermodynamics",
     id: "CHE G622",
     credits: 5,
   ),
-
   Mastercourselist(title: "Reaction Engineering", id: "CHE G641", credits: 5),
-
-  //abcdef
   Mastercourselist(title: "Physical Chemistry I", id: "CHEM F211", credits: 3),
   Mastercourselist(title: "Organic Chemistry I", id: "CHEM F212", credits: 3),
   Mastercourselist(title: "Physical Chemistry II", id: "CHEM F213", credits: 3),
@@ -1420,8 +1416,6 @@ List<Mastercourselist> mcourselist = [
     id: "CHEM G521",
     credits: 5,
   ),
-
-  //abcde
   Mastercourselist(title: "Modern Control Systems", id: "ECE F422", credits: 3),
   Mastercourselist(title: "Electrical Machines", id: "ECE F211", credits: 4),
   Mastercourselist(title: "Electromagnetic Theory", id: "ECE F212", credits: 3),
@@ -1439,21 +1433,9 @@ List<Mastercourselist> mcourselist = [
     id: "ECE F244",
     credits: 3,
   ),
-  Mastercourselist(
-    title: "FGPA Lab",
-    id: "EEE F314",
-    credits: 3,
-  ),
-  Mastercourselist(
-    title: "FGPA Lab",
-    id: "INSTR F314",
-    credits: 3,
-  ),
-  Mastercourselist(
-    title: "FGPA Lab",
-    id: "ECE F314",
-    credits: 3,
-  ),
+  Mastercourselist(title: "FGPA Lab", id: "EEE F314", credits: 3),
+  Mastercourselist(title: "FGPA Lab", id: "INSTR F314", credits: 3),
+  Mastercourselist(title: "FGPA Lab", id: "ECE F314", credits: 3),
   Mastercourselist(title: "Analog Electronics", id: "ECE F341", credits: 4),
   Mastercourselist(title: "Study Project", id: "ECE F266", credits: 3),
   Mastercourselist(title: "Communication Systems", id: "ECE F311", credits: 4),
@@ -1468,7 +1450,6 @@ List<Mastercourselist> mcourselist = [
     id: "ECE F344",
     credits: 3,
   ),
-
   Mastercourselist(title: "Lab Project", id: "ECE F366", credits: 3),
   Mastercourselist(title: "Lab Project", id: "ECE F367", credits: 3),
   Mastercourselist(title: "Design Project", id: "ECE F376", credits: 3),
@@ -1477,21 +1458,10 @@ List<Mastercourselist> mcourselist = [
     title: "Digital Signal Processing",
     id: "ECE F434",
     credits: 4,
-  ),Mastercourselist(
-    title: "Electric Vehicles",
-    id: "ECE F438",
-    credits: 3,
   ),
-  Mastercourselist(
-    title: "Electric Vehicles",
-    id: "EEE F438",
-    credits: 3,
-  ),
-  Mastercourselist(
-    title: "Electric Vehicles",
-    id: "INSTR F438",
-    credits: 3,
-  ),
+  Mastercourselist(title: "Electric Vehicles", id: "ECE F438", credits: 3),
+  Mastercourselist(title: "Electric Vehicles", id: "EEE F438", credits: 3),
+  Mastercourselist(title: "Electric Vehicles", id: "INSTR F438", credits: 3),
   Mastercourselist(
     title: "Electronic Devices Simulation Laboratory",
     id: "ECE F216",
@@ -1530,13 +1500,7 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "ECE F491", credits: 3),
-
-  //abcdef
-  Mastercourselist(
-    title: "Principles of Economics",
-    id: "ECON F211",
-    credits: 3,
-  ),
+  Mastercourselist(title: "Principles of Economics",id: "ECON F211",credits: 3,),
   Mastercourselist(
     title: "Fundamentals of Finance and Accounts",
     id: "ECON F212",
@@ -1688,8 +1652,6 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "ECON F491", credits: 3),
-
-  //abcdef
   Mastercourselist(title: "Financial Management", id: "FIN F211", credits: 3),
   Mastercourselist(
     title: "Fundamentals of Finance and Accounts",
@@ -1757,13 +1719,7 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "FIN F491", credits: 3),
-
-  // abcdef
-  Mastercourselist(
-    title: "Modern Political Concepts",
-    id: "GS F211",
-    credits: 3,
-  ),
+  Mastercourselist(title: "Modern Political Concepts",id: "GS F211",credits: 3,),
   Mastercourselist(
     title: "Environment, Development & Climate Change",
     id: "GS F212",
@@ -1795,14 +1751,17 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Development Economics", id: "GS F234", credits: 3),
   Mastercourselist(title: "Creative Writing", id: "GS F241", credits: 3),
   Mastercourselist(title: "Cultural Studies", id: "GS F242", credits: 3),
-  Mastercourselist(title: "Computer Mediated Communication", id: "GS F342", credits: 3),
+  Mastercourselist(
+    title: "Computer Mediated Communication",
+    id: "GS F342",
+    credits: 3,
+  ),
   Mastercourselist(title: "Current Affairs", id: "GS F243", credits: 3),
   Mastercourselist(
     title: "Reporting and Writing for Media",
     id: "GS F244",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Effective Public Speaking",
     id: "GS F245",
@@ -1855,8 +1814,6 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Lab Project", id: "GS F366", credits: 3),
   Mastercourselist(title: "Lab Project", id: "GS F367", credits: 3),
   Mastercourselist(title: "Special Projects", id: "GS F491", credits: 3),
-
-  //abcdef
   Mastercourselist(title: "Readings from Drama", id: "HSS F221", credits: 3),
   Mastercourselist(title: "Linguistics", id: "HSS F222", credits: 3),
   Mastercourselist(
@@ -2150,8 +2107,7 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(
-    title:
-    "Mental Health Literacy for Youth",
+    title: "Mental Health Literacy for Youth",
     id: "HSS F385",
     credits: 3,
   ),
@@ -2165,8 +2121,6 @@ List<Mastercourselist> mcourselist = [
     id: "HSS F399",
     credits: 3,
   ),
-
-  //abcdef
   Mastercourselist(title: "Electrical Machines", id: "INSTR F211", credits: 4),
   Mastercourselist(
     title: "Electromagnetic Theory",
@@ -2291,84 +2245,52 @@ List<Mastercourselist> mcourselist = [
     id: "INSTR G611",
     credits: 5,
   ),
-
-  //abcedf
-  Mastercourselist(
-    title: "Data Structures and Algorithms",
-    id: "IS F211",
-    credits: 4,
-  ),
-
+  Mastercourselist(title: "Data Structures and Algorithms",id: "IS F211",credits: 4,),
   Mastercourselist(
     title: "Object Oriented Programming",
     id: "IS F213",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Logic in Computer Science",
     id: "IS F214",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Discrete Structures for Computer Science",
     id: "IS F222",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Digital Electronics and Microprocessors",
     id: "IS F241",
     credits: 4,
   ),
-
   Mastercourselist(title: "Computer Organization", id: "IS F242", credits: 4),
-
   Mastercourselist(
     title: "Database System and Application",
     id: "IS F243",
     credits: 4,
   ),
-
   Mastercourselist(title: "Study Project", id: "IS F266", credits: 3),
-
   Mastercourselist(
     title: "Principles of Programming",
     id: "IS F301",
     credits: 2,
   ),
-
   Mastercourselist(title: "Computer Networks", id: "IS F303", credits: 4),
-
   Mastercourselist(title: "Computer Graphics", id: "IS F311", credits: 3),
-
   Mastercourselist(title: "Software Testing", id: "IS F322", credits: 3),
-
   Mastercourselist(title: "Software Engineering", id: "IS F341", credits: 4),
-
   Mastercourselist(title: "Compiler Design", id: "IS F342", credits: 3),
-
   Mastercourselist(title: "Lab Project", id: "IS F366", credits: 3),
-
   Mastercourselist(title: "Lab Project", id: "IS F367", credits: 3),
-
   Mastercourselist(title: "Design Project", id: "IS F376", credits: 3),
-
   Mastercourselist(title: "Design Project", id: "IS F377", credits: 3),
-
   Mastercourselist(title: "Operating Systems", id: "IS F372", credits: 3),
-
   Mastercourselist(title: "Network Programming", id: "IS F462", credits: 3),
-
   Mastercourselist(title: "Special Project", id: "IS F491", credits: 3),
-
-  //abcedf
-  Mastercourselist(
-    title: "Linear Algebra and Applications",
-    id: "MAC F211",
-    credits: 3,
-  ),
+  Mastercourselist(title: "Linear Algebra and Applications",id: "MAC F211",credits: 3,),
   Mastercourselist(
     title: "Object Oriented Programming",
     id: "MAC F212",
@@ -2419,8 +2341,6 @@ List<Mastercourselist> mcourselist = [
     id: "MAC F342",
     credits: 4,
   ),
-
-  //abcedf
   Mastercourselist(title: "Mathematics III", id: "MATH F211", credits: 3),
   Mastercourselist(title: "Optimization", id: "MATH F212", credits: 3),
   Mastercourselist(title: "Discrete Mathematics", id: "MATH F213", credits: 3),
@@ -2566,8 +2486,6 @@ List<Mastercourselist> mcourselist = [
     id: "MATH F492",
     credits: 4,
   ),
-
-  //abcdef
   Mastercourselist(title: "Mechanics of Solids", id: "ME F211", credits: 3),
   Mastercourselist(title: "Fluid Mechanics", id: "ME F212", credits: 3),
   Mastercourselist(
@@ -2775,8 +2693,6 @@ List<Mastercourselist> mcourselist = [
     id: "ME G515",
     credits: 5,
   ),
-
-  //abcdef
   Mastercourselist(title: "Mechanics of Solids", id: "MF F211", credits: 3),
   Mastercourselist(title: "Fluid Mechanics", id: "MF F212", credits: 3),
   Mastercourselist(
@@ -2931,13 +2847,7 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "MF F491", credits: 3),
-
-  //abcdef
-  Mastercourselist(
-    title: "Principles of Management",
-    id: "MGTS F211",
-    credits: 3,
-  ),
+  Mastercourselist(title: "Principles of Management",id: "MGTS F211",credits: 3,),
   Mastercourselist(title: "Marketing", id: "MGTS F311", credits: 3),
   Mastercourselist(
     title: "Product and Brand Management",
@@ -2959,87 +2869,53 @@ List<Mastercourselist> mcourselist = [
     id: "MGTS F433",
     credits: 3,
   ),
-
-  //abcdef
-  Mastercourselist(
-    title: "Materials Characterisation",
-    id: "MST F331",
-    credits: 4,
-  ),
-
+  Mastercourselist(title: "Materials Characterisation",id: "MST F331",credits: 4,),
   Mastercourselist(title: "Materials Processing", id: "MST F332", credits: 3),
-
   Mastercourselist(
     title: "Introduction to Biomaterials",
     id: "MST F333",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Materials for Catalytic Applications",
     id: "MST F334",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Coating and Thin Film Technology",
     id: "MST F335",
     credits: 3,
   ),
-
   Mastercourselist(title: "Glass Technology", id: "MST F336", credits: 3),
-
   Mastercourselist(
     title: "Materials for Energy Applications",
     id: "MST F337",
     credits: 3,
   ),
-
   Mastercourselist(title: "Metals and Alloys", id: "MST F338", credits: 3),
-
   Mastercourselist(title: "Polymer Materials", id: "MST F339", credits: 3),
-
   Mastercourselist(
     title: "Material Characterization Techniques",
     id: "MST G521",
     credits: 5,
   ),
   Mastercourselist(title: "Advanced Composites", id: "MST G522", credits: 5),
-
-  //abcdef
   Mastercourselist(title: "Mechantronics", id: "MSE G511", credits: 5),
-
-  //abcdef
-  Mastercourselist(
-    title: "Material Characterization Techniques",
-    id: "MST G521",
-    credits: 5,
-  ),
+  Mastercourselist(title: "Material Characterization Techniques",id: "MST G521",credits: 5,),
   Mastercourselist(title: "Advanced Composites", id: "MST G522", credits: 5),
-
-  //abcdef
-  Mastercourselist(
-    title: "Pharmaceutical Analysis",
-    id: "PHA F211",
-    credits: 3,
-  ),
-
+  Mastercourselist(title: "Pharmaceutical Analysis",id: "PHA F211",credits: 3,),
   Mastercourselist(title: "Dispensing Pharmacy", id: "PHA F212", credits: 3),
-
   Mastercourselist(title: "MicroBiology", id: "PHA F213", credits: 3),
-
   Mastercourselist(
     title: "Anatomy, Physiology & Hygiene",
     id: "PHA F214",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Introduction to Molecular Biology and Immunology",
     id: "PHA F215",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Pharmaceutical Formulations I",
     id: "PHA F216",
@@ -3059,7 +2935,6 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Industrial Pharmacy", id: "PHA F243", credits: 3),
   Mastercourselist(title: "Physical Pharmacy", id: "PHA F244", credits: 3),
   Mastercourselist(title: "Study Project", id: "PHA F266", credits: 3),
-
   Mastercourselist(title: "Pharmacology I", id: "PHA F311", credits: 3),
   Mastercourselist(title: "Medicinal Chemistry I", id: "PHA F312", credits: 3),
   Mastercourselist(
@@ -3072,7 +2947,6 @@ List<Mastercourselist> mcourselist = [
     id: "PHA F314",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Pharmaceutical Formulations II",
     id: "PHA F315",
@@ -3129,15 +3003,11 @@ List<Mastercourselist> mcourselist = [
     id: "PHA G546",
     credits: 3,
   ),
-
   Mastercourselist(title: "Lab Project", id: "PHA F366", credits: 3),
   Mastercourselist(title: "Lab Project", id: "PHA F367", credits: 3),
   Mastercourselist(title: "Design Project", id: "PHA F376", credits: 3),
   Mastercourselist(title: "Design Project", id: "PHA F377", credits: 3),
-
   Mastercourselist(title: "Special Projects", id: "PHA F491", credits: 3),
-
-  //abcdef
   Mastercourselist(title: "General Physics", id: "PHY F112", credits: 3),
   Mastercourselist(title: "Classical Mechanics", id: "PHY F211", credits: 4),
   Mastercourselist(
@@ -3322,10 +3192,7 @@ List<Mastercourselist> mcourselist = [
     id: "PHY G512",
     credits: 3,
   ),
-
   Mastercourselist(title: "Special Projects", id: "PHY F491", credits: 3),
-
-  //abcdef
   Mastercourselist(title: "Electrical Sciences", id: "EEE F111", credits: 3),
   Mastercourselist(title: "Electrical Machines", id: "EEE F211", credits: 3),
   Mastercourselist(title: "Electromagnetic Theory", id: "EEE F212", credits: 3),
@@ -3392,86 +3259,70 @@ List<Mastercourselist> mcourselist = [
     id: "EEE F112",
     credits: 1,
   ),
-
   Mastercourselist(
     title: "Electrical Machines Laboratory",
     id: "EEE F213",
     credits: 2,
   ),
-
   Mastercourselist(
     title: "Electronic Devices Laboratory",
     id: "EEE F216",
     credits: 2,
   ),
-
   Mastercourselist(
     title: "Digital Design Laboratory",
     id: "EEE F217",
     credits: 2,
   ),
-
   Mastercourselist(
     title: "Power Systems Laboratory",
     id: "EEE F316",
     credits: 2,
   ),
-
   Mastercourselist(
     title: "Analog & Digital VLSI Design Laboratory",
     id: "EEE F317",
     credits: 2,
   ),
-
   Mastercourselist(
     title: "Analog Electronics Laboratory",
     id: "EEE F343",
     credits: 2,
   ),
-
   Mastercourselist(
     title: "Power Electronics Laboratory",
     id: "EEE F344",
     credits: 2,
   ),
   Mastercourselist(title: "Advanced Power Systems", id: "EEE 462", credits: 3),
-
   Mastercourselist(title: "Satellite Communication", id: "EEE 472", credits: 3),
-
   Mastercourselist(title: "Wind Electrical Systems", id: "EEE 473", credits: 3),
-
   Mastercourselist(
     title: "Antenna Theory and Design",
     id: "EEE 474",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Special Electrical Machines",
     id: "EEE 475",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Switch Gear and Protection",
     id: "EEE 476",
     credits: 4,
   ),
-
   Mastercourselist(
     title: "Modelling of Field Effect Nanodevices",
     id: "EEE 477",
     credits: 3,
   ),
-
   Mastercourselist(
     title: "Power Systems Laboratory",
     id: "EEE 478",
     credits: 3,
   ),
-
   Mastercourselist(title: "Special Projects", id: "EEE F491", credits: 3),
-
   Mastercourselist(title: "Study Project", id: "EEE F266", credits: 3),
   Mastercourselist(title: "Embedded System Design", id: "EEE G512", credits: 4),
   Mastercourselist(
@@ -3479,33 +3330,145 @@ List<Mastercourselist> mcourselist = [
     id: "EEE G626",
     credits: 4,
   ),
-
-  Mastercourselist(title: "Data Structures & Algorithms", id: "ECOM F211", credits: 4),
+  Mastercourselist(
+    title: "Data Structures & Algorithms",
+    id: "ECOM F211",
+    credits: 4,
+  ),
   Mastercourselist(title: "Electronic Devices", id: "ECOM F214", credits: 3),
-  Mastercourselist(title: "Object Oriented Programming", id: "ECOM F213", credits: 4),
+  Mastercourselist(
+    title: "Object Oriented Programming",
+    id: "ECOM F213",
+    credits: 4,
+  ),
   Mastercourselist(title: "Digital Design", id: "ECOM F215", credits: 4),
-  Mastercourselist(title: "Discrete Structures for CS", id: "ECOM F222", credits: 3),
-  Mastercourselist(title: "Microprocessors and Interfacing", id: "ECOM F241", credits: 4),
+  Mastercourselist(
+    title: "Discrete Structures for CS",
+    id: "ECOM F222",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Microprocessors and Interfacing",
+    id: "ECOM F241",
+    credits: 4,
+  ),
   Mastercourselist(title: "Control Systems", id: "ECOM F242", credits: 3),
   Mastercourselist(title: "Signals & Systems", id: "ECOM F243", credits: 3),
-  Mastercourselist(title: "Microelectronic Circuits", id: "ECOM F244", credits: 3),
-  Mastercourselist(title: "Analog & Digital VLSI Design", id: "ECOM F313", credits: 3),
-  Mastercourselist(title: "Real Time Operating Systems", id: "ECOM F321", credits: 4),
+  Mastercourselist(
+    title: "Microelectronic Circuits",
+    id: "ECOM F244",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Analog & Digital VLSI Design",
+    id: "ECOM F313",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Real Time Operating Systems",
+    id: "ECOM F321",
+    credits: 4,
+  ),
   Mastercourselist(title: "Computer Architecture", id: "ECOM F342", credits: 4),
-  Mastercourselist(title: "Communication Networks", id: "ECOM F343", credits: 3),
+  Mastercourselist(
+    title: "Communication Networks",
+    id: "ECOM F343",
+    credits: 3,
+  ),
   Mastercourselist(title: "Network Programming", id: "ECOM F462", credits: 3),
-
-
-  Mastercourselist(title: "Fundamentals of Nanoscience and Nanotechnology", id: "SNS F211", credits: 3),
+  Mastercourselist(
+    title: "Fundamentals of Nanoscience and Nanotechnology",
+    id: "SNS F211",
+    credits: 3,
+  ),
   Mastercourselist(title: "Basic Electronics", id: "SNS F212", credits: 3),
-  Mastercourselist(title: "Material Science of Solid State Devices", id: "SNS F213", credits: 3),
+  Mastercourselist(
+    title: "Material Science of Solid State Devices",
+    id: "SNS F213",
+    credits: 3,
+  ),
   Mastercourselist(title: "Chemistry at Nanoscale", id: "SNS F241", credits: 3),
   Mastercourselist(title: "Electronic Devices", id: "SNS F242", credits: 3),
-  Mastercourselist(title: "Materials & Nanoscale Characterization", id: "SNS F243", credits: 3),
-  Mastercourselist(title: "Semiconductor Thin Film Technology", id: "SNS F311", credits: 3),
+  Mastercourselist(
+    title: "Materials & Nanoscale Characterization",
+    id: "SNS F243",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Semiconductor Thin Film Technology",
+    id: "SNS F311",
+    credits: 3,
+  ),
   Mastercourselist(title: "Molecular Simulations", id: "SNS F312", credits: 3),
-  Mastercourselist(title: "Instrumental Methods of Analysis", id: "SNS F313", credits: 3),
-  Mastercourselist(title: "Principles of Nanobiotechnology", id: "SNS F341", credits: 3),
-  Mastercourselist(title: "Principles of Nanophotonics and Devices", id: "SNS F342", credits: 3),
-  Mastercourselist(title: "Advanced Nanofabrication", id: "SNS F343", credits: 3),
+  Mastercourselist(
+    title: "Instrumental Methods of Analysis",
+    id: "SNS F313",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Principles of Nanobiotechnology",
+    id: "SNS F341",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Principles of Nanophotonics and Devices",
+    id: "SNS F342",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Advanced Nanofabrication",
+    id: "SNS F343",
+    credits: 3,
+  ),
 ];
+
+Future<List<Mastercourselist>> fetchData() async {
+  final url =
+      'https://raw.githubusercontent.com/Srijen-Raja/CGPA_Calculator/refs/heads/Srijen-Raja-json-test/lib/masterlist.json';
+  try {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonList = jsonDecode(response.body);
+      print("Data Fetched");
+      var fetchedlist= jsonList
+          .map<Mastercourselist>(
+            (json) => Mastercourselist(
+              title: json['title'],
+              id: json['id'],
+              credits: json['credits'],
+            ),
+          )
+          .toList();
+      await convertAndSaveToJsonFile(fetchedlist);
+      return fetchedlist;
+    } else {
+      print('Failed to load data: ${response.statusCode}');
+      return mcourselist;
+    }
+  } catch (e) {
+    print('Error fetching data: $e');
+    return mcourselist;
+  }
+}
+
+Future<void> convertAndSaveToJsonFile(List<Mastercourselist> mcourselist) async {
+  List<Map<String, dynamic>> jsonList = mcourselist.map((course) => course.toJson()).toList();
+  String jsonString = jsonEncode(jsonList);
+  final file = File('mcourselist.json');
+  await file.writeAsString(jsonString);
+}
+
+Future<List<Mastercourselist>> loadMcourselistFromFile() async {
+  final file = File('mcourselist.json');
+  if (await file.exists()) {
+    String jsonString = await file.readAsString();
+    List jsonList = jsonDecode(jsonString);
+    return jsonList.map((json) => Mastercourselist(
+      title: json['title'],
+      id: json['id'],
+      credits: json['credits'],
+    )).toList();
+  } else {
+    return fetchData();
+  }
+}

@@ -3,6 +3,9 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io';
 
 Future<void> basicStartup() async {
   var settingsBox = await Hive.openBox('settingsBox');
@@ -611,3 +614,4 @@ final List<String> degreelist = [
   "AJ",
 ];
 final List<String> campuslist = ["Pilani", "Goa", "Hyd"];
+
