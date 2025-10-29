@@ -3425,14 +3425,13 @@ Future<String> _getFilePath() async {
 }
 
 Future<List<Mastercourselist>> fetchData() async {
-  print("___________________");
   final url =
       'https://raw.githubusercontent.com/Srijen-Raja/CGPA_Calculator/refs/heads/master/lib/mcourselist.json';
   try {
     final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
       final List<dynamic> jsonList = jsonDecode(response.body);
-      print("Data Fetched");
+      //print("Data Fetched");
       var fetchedlist= jsonList
           .map<Mastercourselist>(
             (json) => Mastercourselist(
@@ -3445,11 +3444,11 @@ Future<List<Mastercourselist>> fetchData() async {
       await convertAndSaveToJsonFile(fetchedlist);
       return fetchedlist;
     } else {
-      print('Failed to load data: ${response.statusCode}');
+      //print('Failed to load data: ${response.statusCode}');
       return mcourselist;
     }
   } catch (e) {
-    print('Error fetching data: $e');
+    //print('Error fetching data: $e');
     return mcourselist;
   }
 }
