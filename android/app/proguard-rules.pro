@@ -5,6 +5,11 @@
 -keep class io.flutter.view.**  { *; }
 -keep class io.flutter.plugins.**  { *; }
 -keep class io.flutter.embedding.**  { *; }
+-keep class io.flutter.plugins.pathprovider.** { *; }
+-keep class io.flutter.plugins.** { *; }
+-keep class androidx.** { *; }
+-keep class android.** { *; }
+
 # This is generated automatically by the Android Gradle plugin.
 # It is the correct solution for "Missing classes detected" errors from Play Core.
 -dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication
