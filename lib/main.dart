@@ -159,21 +159,23 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     });
   }
+
   List<Course> get items =>
       Hive.box<Course>('coursesBox').values
           .where(
             (course) =>
-                course.sem == currentsem &&
-                (course.discipline ==
-                        ((selecteddiscipline.substring(0, 2) != "--")
-                            ? selecteddiscipline.substring(0, 2)
-                            : selecteddiscipline.substring(2, 4)) ||
-                    course.discipline ==
-                        ((selecteddiscipline.substring(0, 2) != "--")
-                            ? selecteddiscipline.substring(2, 4)
-                            : "ccccc")),
-          )
+        course.sem == currentsem &&
+            (course.discipline ==
+                ((selecteddiscipline.substring(0, 2) != "--")
+                    ? selecteddiscipline.substring(0, 2)
+                    : selecteddiscipline.substring(2, 4)) ||
+                course.discipline ==
+                    ((selecteddiscipline.substring(0, 2) != "--")
+                        ? selecteddiscipline.substring(2, 4)
+                        : "ccccc")),
+      )
           .toList();
+
   bool _isCardOpen = false;
   bool _isClosing = false;
   bool _isClosingCourse = false;
@@ -420,6 +422,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+
     List<Course> sitems = items.toList();
     sort(sitems);
     setdis();
@@ -1204,10 +1207,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       if (selectedprofile != 3)
                         Row(
                           children: [
-                            SizedBox(width: wid * 0.04),
+
+                            Spacer(flex: 1,),
                             SizedBox(
                               height: hei * 0.05,
-                              width: wid * 0.54,
+                              width: wid * 0.53,
                               child: OutlinedButton(
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(color: thm.bordcolor),
@@ -1229,7 +1233,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                               ),
                             ),
-                            SizedBox(width: wid * 0.03),
+                            Spacer(flex: 1,),
                             Transform.scale(
                               scale: 1,
                               child: Theme(
@@ -1246,7 +1250,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                 ),
                                 child: DropdownMenu(
-                                  width: wid * 0.36,
+                                  width: wid * 0.32,
                                   onSelected: (value) {
                                     setState(() {
                                       currentsort = value!;
@@ -1353,7 +1357,37 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                               ),
                             ),
-                            SizedBox(width: wid * 0.02),
+                            IconButton(onPressed: ()async{
+                              final sitemsAsMaps = sitems.map((course) => {
+                                'credits': course.credits,
+                                'name': course.title,
+                                'grade': (selectedprofile==1)?course.grade1:course.grade2,
+                              }).toList();
+                              var imgpath = await saveDataAsImage(sitemsAsMaps);
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    "$imgpath",
+                                    style: TextStyle(
+                                      fontFamily:
+                                      "Montserrat",
+                                      fontWeight:
+                                      FontWeight
+                                          .normal,
+                                      fontSize:
+                                      16,
+                                    ),
+                                  ),
+                                  duration:
+                                  Duration(
+                                    seconds:
+                                    3,
+                                  ),
+                                ),
+                              );
+                            }, icon: Icon(Icons.save_alt_outlined)),
                           ],
                         ),
                       SizedBox(height: hei * 0.01),
