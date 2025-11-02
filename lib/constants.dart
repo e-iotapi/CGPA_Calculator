@@ -57,7 +57,7 @@ List<Constants> themes = [
     theme: "Blue",
     backcolor: Color(0xFF01011C),
     butcolor: Color(0xFF0A0A44),
-    bordcolor: Color(0xFFFFFFFF),
+    bordcolor: Color(0xFF9D9C9C),
     //cardcolor: Color(0xFF1D2121),
     cardcolor: Color(0xFF010125),
     //textcolor: Color(0xD2C4571C),
