@@ -8,9 +8,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'dart:io';
- import 'dart:html' as html;
 
 import 'package:path_provider/path_provider.dart';
+
+ import 'dart:html' as html;
+void saveImageWeb(Uint8List bytes, String filename) {
+  final blob = html.Blob([bytes], 'image/png');
+  final url = html.Url.createObjectUrlFromBlob(blob);
+  final anchor = html.AnchorElement(href: url)
+    ..download = filename
+    ..style.display = 'none';
+  html.document.body!.append(anchor);
+  anchor.click();
+  anchor.remove();
+  html.Url.revokeObjectUrl(url);
+}
 
 Future<void> basicStartup() async {
   var settingsBox = await Hive.openBox('settingsBox');
@@ -751,18 +763,6 @@ Future<String> saveDataAsImage(List<Map<String, dynamic>> data) async {
     }
   }
   return "Could not Save";
-}
-
-void saveImageWeb(Uint8List bytes, String filename) {
-  final blob = html.Blob([bytes], 'image/png');
-  final url = html.Url.createObjectUrlFromBlob(blob);
-  final anchor = html.AnchorElement(href: url)
-    ..download = filename
-    ..style.display = 'none';
-  html.document.body!.append(anchor);
-  anchor.click();
-  anchor.remove();
-  html.Url.revokeObjectUrl(url);
 }
 
 Future<bool> requestAllStoragePermissions() async {

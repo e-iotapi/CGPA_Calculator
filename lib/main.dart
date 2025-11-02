@@ -1211,7 +1211,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             Spacer(flex: 1,),
                             SizedBox(
                               height: hei * 0.05,
-                              width: wid * 0.52,
+                              width: wid * 0.50,
                               child: OutlinedButton(
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(color: thm.bordcolor),
@@ -1233,6 +1233,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                               ),
                             ),
+                            SizedBox(width: 2),
                             Spacer(flex: 1,),
                             Transform.scale(
                               scale: 1,
@@ -1357,7 +1358,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                               ),
                             ),
-                                Transform.scale(scale: 1.2,
+                                Transform.scale(scale: 1.4,
                             child: FilledButton(
                                 style: FilledButton.styleFrom(backgroundColor: thm.backcolor,
                                     shape: CircleBorder()
@@ -1392,8 +1393,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                 ),
                               );
-                            }, child: Icon(Icons.save_alt_outlined,color: Colors.white,))),
-                          SizedBox(width: 4,),
+                            }, child: Icon(Icons.save_alt_outlined,color: thm.textcolor,))),
                           ],
                         ),
                       SizedBox(height: hei * 0.01),
