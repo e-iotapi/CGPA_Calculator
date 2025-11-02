@@ -1211,7 +1211,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             Spacer(flex: 1,),
                             SizedBox(
                               height: hei * 0.05,
-                              width: wid * 0.53,
+                              width: wid * 0.52,
                               child: OutlinedButton(
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(color: thm.bordcolor),
@@ -1250,7 +1250,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                 ),
                                 child: DropdownMenu(
-                                  width: wid * 0.32,
+                                  width: wid * 0.31,
                                   onSelected: (value) {
                                     setState(() {
                                       currentsort = value!;
@@ -1357,7 +1357,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                               ),
                             ),
-                            IconButton(onPressed: ()async{
+                                Transform.scale(scale: 1.2,
+                            child: FilledButton(
+                                style: FilledButton.styleFrom(backgroundColor: thm.backcolor,
+                                    shape: CircleBorder()
+                                ),
+                                onPressed: ()async{
                               final sitemsAsMaps = sitems.map((course) => {
                                 'credits': course.credits,
                                 'name': course.title,
@@ -1387,7 +1392,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                 ),
                               );
-                            }, icon: Icon(Icons.save_alt_outlined)),
+                            }, child: Icon(Icons.save_alt_outlined,color: Colors.white,))),
+                          SizedBox(width: 4,),
                           ],
                         ),
                       SizedBox(height: hei * 0.01),
