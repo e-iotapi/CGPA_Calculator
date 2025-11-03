@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'dart:io';
-
 import 'package:path_provider/path_provider.dart';
 
  import 'dart:html' as html;
@@ -632,7 +631,15 @@ final List<String> degreelist = [
 ];
 final List<String> campuslist = ["Pilani", "Goa", "Hyd"];
 
-Future<String> saveDataAsImage(List<Map<String, dynamic>> data) async {
+Future<String> saveDataAsImage(
+    List<Map<String, dynamic>> data, {
+      required String semester,
+      required int thisSemCredits,
+      required int totalCredits,
+      required double gpa,
+      required double cgpa,
+    }) async
+{
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
 
@@ -641,10 +648,14 @@ Future<String> saveDataAsImage(List<Map<String, dynamic>> data) async {
   final double headerHeight = 56 * scale;
   final double rowHeight = 40 * scale;
   final int numberOfRows = data.length;
-  final double height = headerHeight + numberOfRows * rowHeight;
-  final double borderRadius = 14 * scale;
+
+  // Height reserved for summary info on top
+  final double infoHeight = 150 * scale;
+  final double height = infoHeight + headerHeight + numberOfRows * rowHeight;
+  final double borderRadius = 16 * scale;
   final List<double> colWidths = [100 * scale, 400 * scale, 70 * scale];
 
+  // Shadow for card
   final shadowPaint = Paint()
     ..color = Color(0x11000000)
     ..maskFilter = MaskFilter.blur(BlurStyle.normal, 12 * scale);
@@ -656,40 +667,87 @@ Future<String> saveDataAsImage(List<Map<String, dynamic>> data) async {
     shadowPaint,
   );
 
+  // Card background
   final cardPaint = Paint()..color = Color(0xFFF4F7FA);
   canvas.drawRRect(
     RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, width, height),
+      Rect.fromLTWH(0, 0, width, height-2),
       Radius.circular(borderRadius),
     ),
     cardPaint,
   );
 
+  // Draw top info background
+  final infoBackgroundPaint = Paint()..color = Color(0xFFF3E8FE);
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, width, infoHeight),
+      Radius.circular(borderRadius),
+    ),
+    infoBackgroundPaint,
+  );
+
+  // Text painter for drawing text
+  final textPainter = TextPainter(
+    textDirection: TextDirection.ltr,
+    textAlign: TextAlign.left,
+  );
+
+  // Function to draw summary text lines with vertical spacing
+  double yOffset = 20 * scale;
+  double xOffset = 20 * scale;
+  void drawInfoText(String text, double y, double x) {
+    textPainter.text = TextSpan(
+      text: text,
+      style: TextStyle(
+        fontSize: 26 * scale,
+        color: Color(0xFF2D3E50),
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(x, y));
+  }
+
+  // Draw the additional details on top
+  yOffset=width*0.37;
+  drawInfoText("Semester: $semester", xOffset, yOffset);
+  yOffset=25*scale;
+  xOffset += 42 * scale;
+  drawInfoText("SGPA: ${gpa.toStringAsFixed(2)}", xOffset,yOffset);
+  yOffset=width*0.82-40*scale;
+  drawInfoText("CGPA: ${cgpa.toStringAsFixed(2)}", xOffset,yOffset);
+  yOffset=25*scale;
+  xOffset += 42 * scale;
+  drawInfoText("Credits: $thisSemCredits",xOffset, yOffset);
+  yOffset=width*0.82-40*scale;
+  drawInfoText("Credits: $totalCredits", xOffset,yOffset);
+
+  //drawInfoText("GPA: ${gpa.toStringAsFixed(2)}  CGPA: ${cgpa.toStringAsFixed(2)}",xOffset, yOffset);
+
+  // Draw header gradient bar below info section
   final headerGradient = Paint()
     ..shader = ui.Gradient.linear(
-      Offset(0, 0), Offset(width, 0),
-      [Color(0xFF4C74FF), Color(0xFF73C2FB)],
+      Offset(3, infoHeight + 3), Offset(width - 8, infoHeight + 3),
+      [Color(0xB3C51499), Color(0xB34B02B0)],
     );
   canvas.drawRRect(
     RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, width, headerHeight),
+      Rect.fromLTWH(5, infoHeight + 8, width - 10, headerHeight - 16),
       Radius.circular(borderRadius),
     ),
     headerGradient,
   );
 
-  final textPainter = TextPainter(
-    textDirection: TextDirection.ltr,
-    textAlign: TextAlign.left,
-  );
-  double x = 0, y = 0;
+  // Draw header text
+  double x = 0, y = infoHeight;
   final headers = ['Credits', 'Course', 'Grade'];
   for (int i = 0; i < headers.length; i++) {
     textPainter.text = TextSpan(
       text: headers[i],
       style: TextStyle(
         fontWeight: FontWeight.w600,
-        fontSize: 22 * scale,
+        fontSize: 21 * scale,
         color: Color(0xFFFFFFFF),
         letterSpacing: 1.35 * scale,
       ),
@@ -705,11 +763,12 @@ Future<String> saveDataAsImage(List<Map<String, dynamic>> data) async {
     x = 0;
     final bool even = rowIdx % 2 == 0;
 
-    final rowPaint = Paint()..color = even ? Color(0xFFFFFFFF) : Color(0xFFF1F6FF);
+    final rowPaint = Paint()..color = even ? Color(0xFFFFFFFF) : Color(
+        0xFFE9DFEF);
     canvas.drawRect(Rect.fromLTWH(0, y, width, rowHeight), rowPaint);
 
     final borderPaint = Paint()
-      ..color = Color(0xFFE5E5E5)
+      ..color = Color(0xFFC7C6C6)
       ..strokeWidth = 2.0 * scale;
     canvas.drawLine(Offset(0, y), Offset(width, y), borderPaint);
 
@@ -744,26 +803,36 @@ Future<String> saveDataAsImage(List<Map<String, dynamic>> data) async {
   final headerBorderPaint = Paint()
     ..color = Color(0xFFB6C2CD)
     ..strokeWidth = 3.0 * scale;
-  canvas.drawLine(Offset(0, headerHeight), Offset(width, headerHeight), headerBorderPaint);
+  canvas.drawLine(Offset(0, infoHeight + headerHeight), Offset(width, infoHeight + headerHeight), headerBorderPaint);
 
+  // End recording, create image, and save as before
   final picture = recorder.endRecording();
   final img = await picture.toImage(width.toInt(), height.toInt());
   final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
   final pngBytes = byteData!.buffer.asUint8List();
-
   if (await requestAllStoragePermissions()) {
     if (kIsWeb) {
       saveImageWeb(pngBytes, "cgpa.png");
       return "Saved as Image";
-    } else if(Platform.isAndroid){
+    } else if (Platform.isAndroid) {
       String downloadsPath = '/storage/emulated/0/Download';
-      File file = File('$downloadsPath/cgpa.png');
+      File file = File('$downloadsPath/gradesheet $semester.png');
+      if(await file.exists()){
+        for(int i=1;i<100;i++) {
+          file = File('$downloadsPath/gradesheet $semester ($i).png');
+          print("A");
+          if (!await file.exists()) {
+            break;
+          }
+        }
+      }
       await file.writeAsBytes(pngBytes);
       return file.path;
     }
   }
   return "Could not Save";
 }
+
 
 Future<bool> requestAllStoragePermissions() async {
   // Try traditional Storage permission
@@ -782,6 +851,7 @@ Future<bool> requestAllStoragePermissions() async {
     var media = await Permission.photos.request();
     if (media.isGranted) return true;
   }
+
   // If none are granted, permissions are denied!
   return false;
 }

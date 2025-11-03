@@ -1369,7 +1369,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 'name': course.title,
                                 'grade': (selectedprofile==1)?course.grade1:course.grade2,
                               }).toList();
-                              var imgpath = await saveDataAsImage(sitemsAsMaps);
+                              var imgpath = await saveDataAsImage(sitemsAsMaps, semester: currentsem, thisSemCredits: (selectedprofile==1)?scred1:scred2,totalCredits: (selectedprofile==1)?ccred1:ccred2,gpa: sgcalc(currentsem),cgpa: cgcalc());
                               ScaffoldMessenger.of(
                                 context,
                               ).showSnackBar(
