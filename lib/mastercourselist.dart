@@ -3440,14 +3440,16 @@ Future<List<Mastercourselist>> fetchData() async {
             (json) => Mastercourselist(
               title: json['title'],
               id: json['id'],
-              credits: json['credits'],
+              credits: (json['credits'] is int)
+                  ? (json['credits'] as int).toDouble()
+                  : (json['credits'] as double),
             ),
           )
           .toList();
       await convertAndSaveToJsonFile(fetchedlist);
       return fetchedlist;
     } else {
-     // print('Failed to load data: ${response.statusCode}');
+      //print('Failed to load data: ${response.statusCode}');
       return mcourselist;
     }
   } catch (e) {
