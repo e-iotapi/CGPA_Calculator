@@ -1971,7 +1971,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                       ),
                                                       child: Center(
                                                         child: Text(
-                                                          "    $credits1    ",
+                                                          "    $credits1    ".replaceAll('.0', ''),
                                                           style: TextStyle(
                                                             fontWeight:
                                                                 FontWeight
@@ -2663,7 +2663,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                 right: 0,
                                               ),
                                               height: hei * 0.08,
-                                              width: wid * 0.65,
+                                              width: wid * 0.62,
                                               decoration: BoxDecoration(
                                                 border: Border.all(
                                                   color: thm.bordcolor,
@@ -2706,7 +2706,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                               ),
                                               child: Center(
                                                 child: Text(
-                                                  "    $credits1    ",
+                                                  "    $credits1    ".replaceAll('.0', ''),
                                                   style: TextStyle(
                                                     fontWeight:
                                                         FontWeight.normal,
