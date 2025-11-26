@@ -114,6 +114,33 @@ class _MyHomePageState extends State<MyHomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if(!kIsWeb) {
         mcourselist = await fetchData();
+        // showDialog(
+        //   context: context,
+        //   barrierDismissible: true,
+        //   builder:
+        //       (context) => AlertDialog(
+        //     backgroundColor: thm.backcolor,
+        //     title: Text(
+        //       'Data Fetched',
+        //       style: TextStyle(color: thm.textcolor),
+        //     ),
+        //     content: Text(
+        //       'Data Fetched',
+        //       style: TextStyle(color: thm.textcolor),
+        //     ),
+        //     actions: [
+        //       TextButton(
+        //         onPressed: () async {
+        //           Navigator.of(context).pop();
+        //         },
+        //         child: Text(
+        //           'Ok',
+        //           style: TextStyle(color: thm.highcolor),
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // );
       }
       if (!kIsWeb) {
         if (Platform.isAndroid) {
