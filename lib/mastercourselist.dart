@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -7,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 class Mastercourselist {
   final String title;
   final String id;
-  final int credits;
+  final double credits;
 
   Mastercourselist({
     required this.title,
@@ -42,11 +43,13 @@ List<Mastercourselist> mcourselist = [
     id: "CHEM F101",
     credits: 3,
   ),
-  Mastercourselist(title: "Social Conduct", id: "BITS F101", credits: 1),
+  Mastercourselist(title: "Social Conduct", id: "BITS F101", credits: 0.5),
+  Mastercourselist(title: "Social Conduct", id: "BITS F10l", credits: 0.5),
+  Mastercourselist(title: "Physical Well-being and Creativity", id: "BITS K10l", credits: 0.5),
   Mastercourselist(
     title: "Physical Well-being and Creativity",
     id: "BITS K101",
-    credits: 1,
+    credits: 0.5,
   ),
   Mastercourselist(
     title: "Engineering Design and Prototyping",
@@ -3470,7 +3473,8 @@ Future<List<Mastercourselist>> loadMcourselistFromFile() async {
     return jsonList.map((json) => Mastercourselist(
       title: json['title'],
       id: json['id'],
-      credits: json['credits'],
+      credits: (json['credits'] as num).toDouble(),
+
     )).toList();
   } else {
     return fetchData();

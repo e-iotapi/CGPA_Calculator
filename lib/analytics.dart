@@ -28,8 +28,8 @@ class Analytics extends StatefulWidget {
   State<Analytics> createState() => _AnalyticsState();
 }
 
-int creds(String s, List<Course> si) {
-  int sum = 0;
+double creds(String s, List<Course> si) {
+  double sum = 0;
   for (int i = 0; i < si.length; i++) {
     if (si[i].elective == s && (si[i].grade1 > 0 || si[i].grade1 == -3)) {
       sum += si[i].credits;
@@ -168,7 +168,7 @@ class _AnalyticsState extends State<Analytics> {
                       children: [
                         Spacer(flex: 1),
                         Text(
-                          (selecteddiscipline != "----") ? "$ccred1 / 144" : "",
+                          (selecteddiscipline != "----") ? "$ccred1 / 144".replaceAll('.0', '') : "",
                           style: TextStyle(
                             color:
                                 thm
@@ -281,7 +281,7 @@ class _AnalyticsState extends State<Analytics> {
                                     creds(
                                           "CDC2",
                                           widget.sitemslist,
-                                        ).toString() +
+                                        ).toString().replaceAll('.0', '') +
                                         "/" +
                                         creditsforcourses[selecteddiscipline
                                                 .substring((2))]![1]
@@ -397,7 +397,7 @@ class _AnalyticsState extends State<Analytics> {
                                     creds(
                                           "Disciplinary Elective2",
                                           widget.sitemslist,
-                                        ).toString() +
+                                        ).toString().replaceAll('.0', '') +
                                         "/" +
                                         creditsforcourses[selecteddiscipline
                                                 .substring((2))]![3]
@@ -521,7 +521,7 @@ class _AnalyticsState extends State<Analytics> {
                                     creds(
                                           "CDC1",
                                           widget.sitemslist,
-                                        ).toString() +((!selecteddiscipline.startsWith("B-"))?(
+                                        ).toString().replaceAll('.0', '') +((!selecteddiscipline.startsWith("B-"))?(
                                         "/" +
                                             creditsforcourses[selecteddiscipline
                                                 .substring(0, 2)]![1]
@@ -636,7 +636,7 @@ class _AnalyticsState extends State<Analytics> {
                                     creds(
                                           "Disciplinary Elective1",
                                           widget.sitemslist,
-                                        ).toString() +((!selecteddiscipline.startsWith("B-"))?(
+                                        ).toString().replaceAll('.0', '') +((!selecteddiscipline.startsWith("B-"))?(
                                         "/" +
                                             creditsforcourses[selecteddiscipline
                                                 .substring(0, 2)]![3]
@@ -758,7 +758,7 @@ class _AnalyticsState extends State<Analytics> {
                                         creds(
                                               "Humanity Elective",
                                               widget.sitemslist,
-                                            ).toString() +
+                                            ).toString().replaceAll('.0', '') +
                                             "/8  ",
                                         style: TextStyle(
                                           color:
@@ -867,7 +867,7 @@ class _AnalyticsState extends State<Analytics> {
                                     creds(
                                           "Open Elective",
                                           widget.sitemslist,
-                                        ).toString() + ((selecteddiscipline.startsWith("B"))?"  ":
+                                        ).toString().replaceAll('.0', '') + ((selecteddiscipline.startsWith("B"))?"  ":
                                         "/15  "),
                                     style: TextStyle(
                                       color:

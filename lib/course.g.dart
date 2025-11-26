@@ -1,5 +1,4 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
-
 part of 'course.dart';
 
 // **************************************************************************
@@ -23,8 +22,8 @@ class CourseAdapter extends TypeAdapter<Course> {
       grade1: fields[3] as int,
       grade2: fields[4] as int,
       discipline: fields[5] as String,
-      credits: fields[2] as int,
-      elective: fields[7] as String,
+      credits: (fields[2] as num).toDouble(),
+      elective: fields[7] == null ? 'CDC' : fields[7] as String,
     );
   }
 

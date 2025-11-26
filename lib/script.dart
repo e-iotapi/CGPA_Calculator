@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -8,7 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'dart:io';
+import 'package:flutter_media_store/flutter_media_store.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:saver_gallery/saver_gallery.dart';
 
  import 'dart:html' as html;
 void saveImageWeb(Uint8List bytes, String filename) {
@@ -533,10 +537,10 @@ int selectedprofile = 1;
 int selectedgrade = 10;
 String selectedelective = "None";
 String currentsem = "1 - 1"; // store
-int scred1 = 0;
-int scred2 = 0;
-int ccred1 = 0;
-int ccred2 = 0;
+double scred1 = 0;
+double scred2 = 0;
+double ccred1 = 0;
+double ccred2 = 0;
 String profile1n = "Actual";
 String profile2n = "Expected";
 
@@ -634,8 +638,8 @@ final List<String> campuslist = ["Pilani", "Goa", "Hyd"];
 Future<String> saveDataAsImage(
     List<Map<String, dynamic>> data, {
       required String semester,
-      required int thisSemCredits,
-      required int totalCredits,
+      required double thisSemCredits,
+      required double totalCredits,
       required double gpa,
       required double cgpa,
     }) async
@@ -775,7 +779,7 @@ Future<String> saveDataAsImage(
     final cellTexts = [
       row['credits'].toString(),
       row['name'],
-      (row['grade'] > 0) ? gradecalc(row['grade']) : "CLR",
+      (row['grade'] > -4) ? gradecalc(row['grade']):"",// :  (row['grade'] == -2) ? "GD":"CLR",
     ];
     for (int i = 0; i < cellTexts.length; i++) {
       textPainter.text = TextSpan(
@@ -810,24 +814,47 @@ Future<String> saveDataAsImage(
   final img = await picture.toImage(width.toInt(), height.toInt());
   final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
   final pngBytes = byteData!.buffer.asUint8List();
-  if (await requestAllStoragePermissions()) {
+  if (true) {
     if (kIsWeb) {
-      saveImageWeb(pngBytes, "cgpa.png");
+      saveImageWeb(pngBytes, "Gradesheet.png");
       return "Saved as Image";
     } else if (Platform.isAndroid) {
-      String downloadsPath = '/storage/emulated/0/Download';
-      File file = File('$downloadsPath/gradesheet $semester.png');
-      if(await file.exists()){
-        for(int i=1;i<100;i++) {
-          file = File('$downloadsPath/gradesheet $semester ($i).png');
-          print("A");
-          if (!await file.exists()) {
-            break;
-          }
-        }
+      //   String downloadsPath = '/storage/emulated/0/Download';
+      //   File file = File('$downloadsPath/Gradesheet.png');
+      //   if(await file.exists()){
+      //     for(int i=1;i<100;i++) {
+      //       file = File('$downloadsPath/Gradesheet($i).png');
+      //       print("A");
+      //       if (!await file.exists()) {
+      //         break;
+      //       }
+      //     }
+      //   }
+      //   await file.writeAsBytes(pngBytes);
+      //   return file.path;
+      bool permissionGranted = await requestAllStoragePermissions();
+      if (!permissionGranted) {
+        return "Storage permission denied";
       }
-      await file.writeAsBytes(pngBytes);
-      return file.path;
+
+      try {
+        final result = await SaverGallery.saveImage(
+          pngBytes,
+          quality: 100,
+          androidRelativePath: "Pictures/CGPA Calculator", fileName: "Gradesheet.png", skipIfExists: false,
+        );
+
+        if (result.isSuccess) {
+          //print('File saved: Pictures/CGPA Calculator/Gradesheet.png');
+          return "Saved at: Pictures/CGPA Calculator/Gradesheet.png";
+        } else {
+          //print('Error saving file: ${result.errorMessage}');
+          return "Could not save";
+        }
+      } catch (e) {
+       // print('Exception saving file: $e');
+        return "Could not save";
+      }
     }
   }
   return "Could not Save";
@@ -840,16 +867,20 @@ Future<bool> requestAllStoragePermissions() async {
     return true;
   }
   if(Platform.isAndroid) {
-    var storage = await Permission.storage.request();
-    if (storage.isGranted) return true;
+    var status = await Permission.photos.request();
 
-    // Try Manage External Storage (Android 11+)
-    var manage = await Permission.manageExternalStorage.request();
-    if (manage.isGranted) return true;
+    if (status.isGranted) {
+      return true;
+    }
 
-    // Try Media Images Write (Android 13+)
-    var media = await Permission.photos.request();
-    if (media.isGranted) return true;
+    if (status.isPermanentlyDenied) {
+      // Show a dialog to open app settings
+      await openAppSettings();
+      return false;
+    }
+
+    // If denied (but not permanently)
+    return false;
   }
 
   // If none are granted, permissions are denied!

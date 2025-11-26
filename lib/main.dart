@@ -194,7 +194,7 @@ class _MyHomePageState extends State<MyHomePage> {
             orElse: () => Mastercourselist(id: '', title: '', credits: 0),
           )
           .title;
-  int credits1 =
+  double credits1 =
       mcourselist
           .firstWhere(
             (course) => course.id == ("$addcourse $addcourseid"),
@@ -216,8 +216,8 @@ class _MyHomePageState extends State<MyHomePage> {
           (course.discipline == selecteddiscipline.substring(0, 2) ||
               course.discipline == selecteddiscipline.substring(2, 4)),
     );
-    int dontCount = 0;
-    int s1 = 0;
+    double dontCount = 0;
+    double s1 = 0;
     if (selectedprofile == 1) {
       for (Course i in allCourses) {
         s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
@@ -225,7 +225,7 @@ class _MyHomePageState extends State<MyHomePage> {
           dontCount += i.credits;
         }
       }
-      int sum = 0;
+      double sum = 0;
       for (Course i in allCourses) {
         sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
       }
@@ -239,7 +239,7 @@ class _MyHomePageState extends State<MyHomePage> {
           dontCount += i.credits;
         }
       }
-      int sum = 0;
+      double sum = 0;
       for (Course i in allCourses) {
         sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
       }
@@ -258,8 +258,8 @@ class _MyHomePageState extends State<MyHomePage> {
           (course.discipline == selecteddiscipline.substring(0, 2) ||
               course.discipline == selecteddiscipline.substring(2, 4)),
     );
-    int dontCount = 0;
-    int s1 = 0;
+    double dontCount = 0;
+    double s1 = 0;
     String ans = "";
     for (Course i in allCourses) {
       s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
@@ -267,7 +267,7 @@ class _MyHomePageState extends State<MyHomePage> {
         dontCount += i.credits;
       }
     }
-    int sum = 0;
+    double sum = 0;
     for (Course i in allCourses) {
       sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
     }
@@ -300,8 +300,8 @@ class _MyHomePageState extends State<MyHomePage> {
           (course.discipline == selecteddiscipline.substring(0, 2) ||
               course.discipline == selecteddiscipline.substring(2, 4)),
     );
-    int dontCount = 0;
-    int s1 = 0;
+    double dontCount = 0;
+    double s1 = 0;
     if (selectedprofile == 1) {
       for (Course i in allCourses) {
         s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
@@ -309,7 +309,7 @@ class _MyHomePageState extends State<MyHomePage> {
           dontCount += i.credits;
         }
       }
-      int sum = 0;
+      double sum = 0;
       for (Course i in allCourses) {
         sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
       }
@@ -323,7 +323,7 @@ class _MyHomePageState extends State<MyHomePage> {
           dontCount += i.credits;
         }
       }
-      int sum = 0;
+      double sum = 0;
       for (Course i in allCourses) {
         sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
       }
@@ -341,15 +341,15 @@ class _MyHomePageState extends State<MyHomePage> {
               course.discipline == selecteddiscipline.substring(2, 4)),
     );
     String ans = "";
-    int dontCount = 0;
-    int s1 = 0;
+    double dontCount = 0;
+    double s1 = 0;
     for (Course i in allCourses) {
       s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
       if (i.grade1 == -3) {
         dontCount += i.credits;
       }
     }
-    int sum = 0;
+    double sum = 0;
     for (Course i in allCourses) {
       sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
     }
@@ -920,7 +920,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                         Text(
                                                           ("$scred1" != "0")
-                                                              ? "$scred1"
+                                                              ? "$scred1".replaceAll('.0', '')
                                                               : "-",
                                                           style: TextStyle(
                                                             fontFamily:
@@ -950,7 +950,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                         Text(
                                                           ("$ccred1" != "0")
-                                                              ? "$ccred1"
+                                                              ? "$ccred1".replaceAll('.0', '')
                                                               : "-",
                                                           style: TextStyle(
                                                             fontFamily:
@@ -1001,7 +1001,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                         Text(
                                                           ("$scred2" != "0")
-                                                              ? "$scred2"
+                                                              ? "$scred2".replaceAll('.0', '')
                                                               : "-",
                                                           style: TextStyle(
                                                             fontFamily:
@@ -1031,7 +1031,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                         Text(
                                                           ("$ccred2" != "0")
-                                                              ? "$ccred2"
+                                                              ? "$ccred2".replaceAll('.0', '')
                                                               : "-",
                                                           style: TextStyle(
                                                             fontFamily:
@@ -1118,10 +1118,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                   Text(
                                     (selectedprofile == 1)
-                                        ? "$scred1"
+                                        ? "$scred1".replaceAll('.0', '')
                                         : (selectedprofile == 2)
-                                        ? "$scred2"
-                                        : "$scred1,$scred2",
+                                        ? "$scred2".replaceAll('.0', '')
+                                        : "$scred1,$scred2".replaceAll('.0', ''),
                                     style: TextStyle(
                                       color: thm.textcolor,
                                       fontSize: 22,
@@ -1187,10 +1187,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                   Text(
                                     (selectedprofile == 1)
-                                        ? "$ccred1"
+                                        ? "$ccred1".replaceAll('.0', '')
                                         : (selectedprofile == 2)
-                                        ? "$ccred2"
-                                        : "$ccred1,$ccred2",
+                                        ? "$ccred2".replaceAll('.0', '')
+                                        : "$ccred1,$ccred2".replaceAll('.0', ''),
                                     style: TextStyle(
                                       color: thm.textcolor,
                                       fontSize: 22,
@@ -1497,9 +1497,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                                                           .center,
                                                                   children: [
                                                                     Text(
-                                                                      sitems[index]
-                                                                          .credits
-                                                                          .toString(),
+                                                        sitems[index]
+                                                            .credits.toString().replaceAll('.0', ''),
                                                                       style: TextStyle(
                                                                         fontSize:
                                                                             21.5,
