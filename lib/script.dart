@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
@@ -48,6 +49,7 @@ Future<void> basicStartup() async {
   currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
   profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
   profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
+  await Hive.openBox<Course>('offshootBox');
 }
 
 Future<void> copyGrades() async{
@@ -395,10 +397,75 @@ Future<void> setdis() async {
   await settingsBox.put('degree_selected', true);
 }
 
+List<String> compareOffshoot(List<Course> of){
+  int O1=0,O2=0;
+  double c1=0,c2=0;
+  int co1=0,co2=0;
+  for(int i =0;i<of.length;i++){
+    O2+=(of[i].grade2>0)?of[i].grade2:0;
+    O1+=(of[i].grade1>0)?of[i].grade1:0;
+    c1+=(of[i].grade1>0)?of[i].credits:0;
+    c2+=(of[i].grade2>0)?of[i].credits:0;
+    co1+=(of[i].grade1>0 || of[i].grade1==-3)?1:0;
+    co2+=(of[i].grade2>0 || of[i].grade2==-3)?1:0;
+
+  }
+  return [O1.toString(),c1.toString(),O2.toString(),c2.toString(),co1.toString(),co2.toString()];
+}
+
+void sort(List<Course> sitems, String cs) {
+  if (selectedprofile == 1) {
+    if (cs == "Sort by Credits(Asc)") {
+      sitems.sort((a, b) => a.credits.compareTo(b.credits));
+    } else if (cs == "Sort by Credits(Des)") {
+      sitems.sort((a, b) => b.credits.compareTo(a.credits));
+    } else if (cs == "Sort by Grades(Des)") {
+      sitems.sort((a, b) => b.grade1.compareTo(a.grade1));
+    } else if (cs == "Sort by Grades(Asc)") {
+      sitems.sort((a, b) => a.grade1.compareTo(b.grade1));
+    }
+  } else if (selectedprofile == 2) {
+    if (cs == "Sort by Credits(Asc)") {
+      sitems.sort((a, b) => a.credits.compareTo(b.credits));
+    } else if (cs == "Sort by Credits(Des)") {
+      sitems.sort((a, b) => b.credits.compareTo(a.credits));
+    } else if (cs == "Sort by Grades(Des)") {
+      sitems.sort((a, b) => b.grade2.compareTo(a.grade2));
+    } else if (cs == "Sort by Grades(Asc)") {
+      sitems.sort((a, b) => a.grade2.compareTo(b.grade2));
+    }
+  }
+}
+
+void sorto(List<Course> offshootList, String cs) {
+  if (selectedprofile == 1) {
+    if (cs == "Sort by Credits(Asc)") {
+      offshootList.sort((a, b) => a.credits.compareTo(b.credits));
+    } else if (cs == "Sort by Credits(Des)") {
+      offshootList.sort((a, b) => b.credits.compareTo(a.credits));
+    } else if (cs == "Sort by Grades(Des)") {
+      offshootList.sort((a, b) => b.grade1.compareTo(a.grade1));
+    } else if (cs == "Sort by Grades(Asc)") {
+      offshootList.sort((a, b) => a.grade1.compareTo(b.grade1));
+    }
+  } else if (selectedprofile == 2) {
+    if (cs == "Sort by Credits(Asc)") {
+      offshootList.sort((a, b) => a.credits.compareTo(b.credits));
+    } else if (cs == "Sort by Credits(Des)") {
+      offshootList.sort((a, b) => b.credits.compareTo(a.credits));
+    } else if (cs == "Sort by Grades(Des)") {
+      offshootList.sort((a, b) => b.grade2.compareTo(a.grade2));
+    } else if (cs == "Sort by Grades(Asc)") {
+      offshootList.sort((a, b) => a.grade2.compareTo(b.grade2));
+    }
+  }
+}
+
 Future<void> setsort() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('currentsort', currentsort);
 }
+
 
 Future<void> settheme() async {
   var settingsBox = await Hive.openBox('settingsBox');
@@ -424,6 +491,14 @@ Future<void> removeCourseById(String targetId) async {
     await box.compact();
   } catch (e) {}
 }
+Future<void> removeOffshootCourseById(String targetId) async {
+  try {
+    var box = Hive.box<Course>('offshootBox');
+    await box.delete(targetId);
+    await box.flush();
+    await box.compact();
+  } catch (e) {}
+}
 
 Future<void> addCourse(Course course) async {
   try {
@@ -436,6 +511,14 @@ Future<void> addCourse(Course course) async {
 Future<void> addOrUpdateCourse(Course course) async {
   try {
     var box = Hive.box<Course>('coursesBox');
+    await box.put(course.id, course);
+    await box.flush();
+  } catch (e) {}
+}
+
+Future<void> addOrUpdateCourseOffshoot(Course course) async {
+  try {
+    var box = Hive.box<Course>('offshootBox');
     await box.put(course.id, course);
     await box.flush();
   } catch (e) {}
@@ -642,6 +725,7 @@ Future<String> saveDataAsImage(
       required double totalCredits,
       required double gpa,
       required double cgpa,
+      required bool isOffshoot,
     }) async
 {
   final recorder = ui.PictureRecorder();
@@ -714,18 +798,33 @@ Future<String> saveDataAsImage(
   }
 
   // Draw the additional details on top
-  yOffset=width*0.37;
-  drawInfoText("Semester: $semester", xOffset, yOffset);
-  yOffset=25*scale;
-  xOffset += 42 * scale;
-  drawInfoText("SGPA: ${gpa.toStringAsFixed(2)}", xOffset,yOffset);
-  yOffset=width*0.82-40*scale;
-  drawInfoText("CGPA: ${cgpa.toStringAsFixed(2)}", xOffset,yOffset);
-  yOffset=25*scale;
-  xOffset += 42 * scale;
-  drawInfoText("Credits: $thisSemCredits",xOffset, yOffset);
-  yOffset=width*0.82-40*scale;
-  drawInfoText("Credits: $totalCredits", xOffset,yOffset);
+  yOffset=width*0.45;
+  if(isOffshoot){
+    drawInfoText("Minor", xOffset, yOffset);
+    yOffset=25*scale;
+    xOffset += 42 * scale;
+    drawInfoText("Offshoot: ${gpa.toStringAsFixed(2)}", xOffset,yOffset);
+    yOffset=width*0.82-40*scale;
+    //drawInfoText("CGPA: ${cgpa.toStringAsFixed(2)}", xOffset,yOffset);
+    yOffset=25*scale;
+    xOffset += 42 * scale;
+    drawInfoText("Credits: $thisSemCredits",xOffset, yOffset);
+    yOffset=width*0.82-40*scale;
+    //drawInfoText("Credits: $totalCredits", xOffset,yOffset);
+  }else{
+    drawInfoText("Semester: $semester", xOffset, yOffset);
+    yOffset=25*scale;
+    xOffset += 42 * scale;
+    drawInfoText("SGPA: ${gpa.toStringAsFixed(2)}", xOffset,yOffset);
+    yOffset=width*0.82-40*scale;
+    drawInfoText("CGPA: ${cgpa.toStringAsFixed(2)}", xOffset,yOffset);
+    yOffset=25*scale;
+    xOffset += 42 * scale;
+    drawInfoText("Credits: $thisSemCredits",xOffset, yOffset);
+    yOffset=width*0.82-40*scale;
+    drawInfoText("Credits: $totalCredits", xOffset,yOffset);
+  }
+
 
   //drawInfoText("GPA: ${gpa.toStringAsFixed(2)}  CGPA: ${cgpa.toStringAsFixed(2)}",xOffset, yOffset);
 

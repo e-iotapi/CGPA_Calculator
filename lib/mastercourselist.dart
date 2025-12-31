@@ -3248,7 +3248,7 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(
     title: "FPGA Based System Design Laboratory",
     id: "EEE F348",
-    credits: 2,
+    credits: 3,
   ),
   Mastercourselist(title: "Lab Project", id: "EEE F366", credits: 3),
   Mastercourselist(title: "Lab Project", id: "EEE F367", credits: 3),

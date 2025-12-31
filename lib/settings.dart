@@ -62,6 +62,7 @@ class _SettingsState extends State<Settings> {
                   Text('2) Play Store Updates will show up as Prompts',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('3) Bugs / New course requests can be sent from the app itself',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('4) Updated BITS K101 and BITS F101 to 0.5 credits. Delete and add these courses or use reset to update.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                  Text('5) Minor Offshoot calculator is added to semester dropdown.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
 
                 ],),
                 actions: <Widget>[

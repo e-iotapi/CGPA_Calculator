@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cgpa_calculator/offshoot.dart';
 import 'package:path/path.dart' as p;
 import 'package:cgpa_calculator/analytics.dart';
 import 'dart:html' as html;
@@ -39,41 +40,41 @@ void main() async {
   Hive.registerAdapter(CourseAdapter());
   //await Hive.openBox<Course>('coursesBox');
   await basicStartup();
-  if(!kIsWeb) {
+  if (!kIsWeb) {
     mcourselist = await loadMcourselistFromFile();
   }
-    //await initializeCourses();
-    //await Future.delayed(Duration(milliseconds: 40));
-    if (!kIsWeb) {
-      if (defaultTargetPlatform == TargetPlatform.windows) {
-        final maxwindowsscreen = await screenRetriever.getPrimaryDisplay();
-        final maxwindowsheight = maxwindowsscreen.size.height.toDouble();
-        await windowManager.ensureInitialized();
-        //await windowManager.setAspectRatio(9.5 / 18);
-        //await windowManager.setMaximumSize(Size(maxwindowsheight * 9.5 / 18, maxwindowsheight));
-        //await windowManager.setMinimumSize(Size(720 * 9.5 / 18, 720));
-        //await windowManager.setAsFrameless();
-        WindowOptions windowOptions = WindowOptions(
-          size: Size(maxwindowsheight * 9.5 / 18, maxwindowsheight),
-          //center: true,
-          //backgroundColor: themes.firstWhere((t) => t.theme == selected_theme).backcolor,
-          skipTaskbar: false,
-          titleBarStyle: TitleBarStyle.normal,
-        );
+  //await initializeCourses();
+  //await Future.delayed(Duration(milliseconds: 40));
+  if (!kIsWeb) {
+    if (defaultTargetPlatform == TargetPlatform.windows) {
+      final maxwindowsscreen = await screenRetriever.getPrimaryDisplay();
+      final maxwindowsheight = maxwindowsscreen.size.height.toDouble();
+      await windowManager.ensureInitialized();
+      //await windowManager.setAspectRatio(9.5 / 18);
+      //await windowManager.setMaximumSize(Size(maxwindowsheight * 9.5 / 18, maxwindowsheight));
+      //await windowManager.setMinimumSize(Size(720 * 9.5 / 18, 720));
+      //await windowManager.setAsFrameless();
+      WindowOptions windowOptions = WindowOptions(
+        size: Size(maxwindowsheight * 9.5 / 18, maxwindowsheight),
+        //center: true,
+        //backgroundColor: themes.firstWhere((t) => t.theme == selected_theme).backcolor,
+        skipTaskbar: false,
+        titleBarStyle: TitleBarStyle.normal,
+      );
 
-        windowManager.waitUntilReadyToShow(windowOptions, () async {
-          await windowManager.show();
-          await windowManager.focus();
-        });
-      }
+      windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
     }
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]).then((_) {
-      runApp(MyApp());
-    });
   }
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]).then((_) {
+    runApp(MyApp());
+  });
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -107,40 +108,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  bool _showFab =true;
+  int _dropdownResetKey = 0;
+  bool _showFab = true;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if(!kIsWeb) {
+      if (!kIsWeb) {
         mcourselist = await fetchData();
-        showDialog(
-          context: context,
-          barrierDismissible: true,
-          builder:
-              (context) => AlertDialog(
-            backgroundColor: thm.backcolor,
-            title: Text(
-              'Data Fetched',
-              style: TextStyle(color: thm.textcolor),
-            ),
-            content: Text(
-              'Data Fetched',
-              style: TextStyle(color: thm.textcolor),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () async {
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  'Ok',
-                  style: TextStyle(color: thm.highcolor),
-                ),
-              ),
-            ],
-          ),
-        );
       }
       if (!kIsWeb) {
         if (Platform.isAndroid) {
@@ -191,16 +166,16 @@ class _MyHomePageState extends State<MyHomePage> {
       Hive.box<Course>('coursesBox').values
           .where(
             (course) =>
-        course.sem == currentsem &&
-            (course.discipline ==
-                ((selecteddiscipline.substring(0, 2) != "--")
-                    ? selecteddiscipline.substring(0, 2)
-                    : selecteddiscipline.substring(2, 4)) ||
-                course.discipline ==
-                    ((selecteddiscipline.substring(0, 2) != "--")
-                        ? selecteddiscipline.substring(2, 4)
-                        : "ccccc")),
-      )
+                course.sem == currentsem &&
+                (course.discipline ==
+                        ((selecteddiscipline.substring(0, 2) != "--")
+                            ? selecteddiscipline.substring(0, 2)
+                            : selecteddiscipline.substring(2, 4)) ||
+                    course.discipline ==
+                        ((selecteddiscipline.substring(0, 2) != "--")
+                            ? selecteddiscipline.substring(2, 4)
+                            : "ccccc")),
+          )
           .toList();
 
   bool _isCardOpen = false;
@@ -229,13 +204,16 @@ class _MyHomePageState extends State<MyHomePage> {
           )
           .credits;
 
-  void setfab(){
+  void setfab() {
     _showFab = true;
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _showFab = false);
-      else _showFab =false;
+      if (mounted)
+        setState(() => _showFab = false);
+      else
+        _showFab = false;
     });
   }
+
   double sgcalc(String s) {
     var allCourses = Hive.box<Course>('coursesBox').values.where(
       (course) =>
@@ -403,29 +381,7 @@ class _MyHomePageState extends State<MyHomePage> {
             : "0");
   }
 
-  void sort(List<Course> sitems) {
-    if (selectedprofile == 1) {
-      if (currentsort == "Sort by Credits(Asc)") {
-        sitems.sort((a, b) => a.credits.compareTo(b.credits));
-      } else if (currentsort == "Sort by Credits(Des)") {
-        sitems.sort((a, b) => b.credits.compareTo(a.credits));
-      } else if (currentsort == "Sort by Grades(Des)") {
-        sitems.sort((a, b) => b.grade1.compareTo(a.grade1));
-      } else if (currentsort == "Sort by Grades(Asc)") {
-        sitems.sort((a, b) => a.grade1.compareTo(b.grade1));
-      }
-    } else if (selectedprofile == 2) {
-      if (currentsort == "Sort by Credits(Asc)") {
-        sitems.sort((a, b) => a.credits.compareTo(b.credits));
-      } else if (currentsort == "Sort by Credits(Des)") {
-        sitems.sort((a, b) => b.credits.compareTo(a.credits));
-      } else if (currentsort == "Sort by Grades(Des)") {
-        sitems.sort((a, b) => b.grade2.compareTo(a.grade2));
-      } else if (currentsort == "Sort by Grades(Asc)") {
-        sitems.sort((a, b) => a.grade2.compareTo(b.grade2));
-      }
-    }
-  }
+
 
   void electiveSetter() {
     if (addcourse == "HSS" ||
@@ -449,9 +405,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-
     List<Course> sitems = items.toList();
-    sort(sitems);
+    sort(sitems,currentsort);
     setdis();
     setsort();
     setsem();
@@ -545,14 +500,27 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: DropdownMenu(
                               enableSearch: false,
                               enableFilter: false,
+                              key: ValueKey(_dropdownResetKey),
                               initialSelection: currentsem,
                               onSelected: (String? value) {
+                                if(value=="Off"){
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => Offshoot(),
+                                    ),
+                                  ).then((_) {
+                                    setState(() {
+                                      // Force dropdown reset
+                                      _dropdownResetKey++;
+                                    });
+                                  });;
+                                }else{
                                 setState(() {
                                   currentsem = value!;
                                   sgpa = sgcalc(value);
                                   cgpa = cgcalc();
                                 });
-                              },
+                              }},
                               textAlign: TextAlign.center,
                               textStyle: TextStyle(
                                 fontSize: 18,
@@ -599,7 +567,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                         ),
                                       )
-                                      .toList() +
+                                      .toList()  +
                                   ((selecteddiscipline.startsWith("B"))
                                       ? [
                                         DropdownMenuEntry(
@@ -633,7 +601,17 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                         ),
                                       ]
-                                      : []),
+                                      : [])+[
+                                    DropdownMenuEntry(
+                                      value: "Off",
+                                      label: "Offshoot",
+                                      style: MenuItemButton.styleFrom(
+                                        textStyle: TextStyle(
+                                          fontFamily: 'Montserrat',
+                                        ),
+                                        foregroundColor: thm.textcolor,
+                                      ),
+                                    ),],
                             ),
                           ),
                           Spacer(flex: 1),
@@ -947,7 +925,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                         Text(
                                                           ("$scred1" != "0")
-                                                              ? "$scred1".replaceAll('.0', '')
+                                                              ? "$scred1"
+                                                                  .replaceAll(
+                                                                    '.0',
+                                                                    '',
+                                                                  )
                                                               : "-",
                                                           style: TextStyle(
                                                             fontFamily:
@@ -977,7 +959,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                         Text(
                                                           ("$ccred1" != "0")
-                                                              ? "$ccred1".replaceAll('.0', '')
+                                                              ? "$ccred1"
+                                                                  .replaceAll(
+                                                                    '.0',
+                                                                    '',
+                                                                  )
                                                               : "-",
                                                           style: TextStyle(
                                                             fontFamily:
@@ -1028,7 +1014,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                         Text(
                                                           ("$scred2" != "0")
-                                                              ? "$scred2".replaceAll('.0', '')
+                                                              ? "$scred2"
+                                                                  .replaceAll(
+                                                                    '.0',
+                                                                    '',
+                                                                  )
                                                               : "-",
                                                           style: TextStyle(
                                                             fontFamily:
@@ -1058,7 +1048,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         ),
                                                         Text(
                                                           ("$ccred2" != "0")
-                                                              ? "$ccred2".replaceAll('.0', '')
+                                                              ? "$ccred2"
+                                                                  .replaceAll(
+                                                                    '.0',
+                                                                    '',
+                                                                  )
                                                               : "-",
                                                           style: TextStyle(
                                                             fontFamily:
@@ -1148,7 +1142,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                         ? "$scred1".replaceAll('.0', '')
                                         : (selectedprofile == 2)
                                         ? "$scred2".replaceAll('.0', '')
-                                        : "$scred1,$scred2".replaceAll('.0', ''),
+                                        : "$scred1,$scred2".replaceAll(
+                                          '.0',
+                                          '',
+                                        ),
                                     style: TextStyle(
                                       color: thm.textcolor,
                                       fontSize: 22,
@@ -1217,7 +1214,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                         ? "$ccred1".replaceAll('.0', '')
                                         : (selectedprofile == 2)
                                         ? "$ccred2".replaceAll('.0', '')
-                                        : "$ccred1,$ccred2".replaceAll('.0', ''),
+                                        : "$ccred1,$ccred2".replaceAll(
+                                          '.0',
+                                          '',
+                                        ),
                                     style: TextStyle(
                                       color: thm.textcolor,
                                       fontSize: 22,
@@ -1230,12 +1230,13 @@ class _MyHomePageState extends State<MyHomePage> {
                             ],
                           ),
                         ),
+
                       SizedBox(height: hei * 0.01),
+                     // SizedBox(height: 4),
                       if (selectedprofile != 3)
                         Row(
                           children: [
-
-                            Spacer(flex: 1,),
+                            Spacer(flex: 1),
                             SizedBox(
                               height: hei * 0.05,
                               width: wid * 0.50,
@@ -1261,7 +1262,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                             ),
                             SizedBox(width: 2),
-                            Spacer(flex: 1,),
+                            Spacer(flex: 1),
                             Transform.scale(
                               scale: 1,
                               child: Theme(
@@ -1282,7 +1283,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   onSelected: (value) {
                                     setState(() {
                                       currentsort = value!;
-                                      sort(sitems);
+                                      sort(sitems,currentsort);
                                     });
                                   },
                                   initialSelection: currentsort,
@@ -1385,42 +1386,62 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                               ),
                             ),
-                                Transform.scale(scale: 1.4,
-                            child: FilledButton(
-                                style: FilledButton.styleFrom(backgroundColor: thm.backcolor,
-                                    shape: CircleBorder()
+                            Transform.scale(
+                              scale: 1.4,
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: thm.backcolor,
+                                  shape: CircleBorder(),
                                 ),
-                                onPressed: ()async{
-                              final sitemsAsMaps = sitems.map((course) => {
-                                'credits': course.credits,
-                                'name': course.title,
-                                'grade': (selectedprofile==1)?course.grade1:course.grade2,
-                              }).toList();
-                              var imgpath = await saveDataAsImage(sitemsAsMaps, semester: currentsem, thisSemCredits: (selectedprofile==1)?scred1:scred2,totalCredits: (selectedprofile==1)?ccred1:ccred2,gpa: sgcalc(currentsem),cgpa: cgcalc());
-                              ScaffoldMessenger.of(
-                                context,
-                              ).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    "$imgpath",
-                                    style: TextStyle(
-                                      fontFamily:
-                                      "Montserrat",
-                                      fontWeight:
-                                      FontWeight
-                                          .normal,
-                                      fontSize:
-                                      16,
+                                onPressed: () async {
+                                  final sitemsAsMaps =
+                                      sitems
+                                          .map(
+                                            (course) => {
+                                              'credits': course.credits,
+                                              'name': course.title,
+                                              'grade':
+                                                  (selectedprofile == 1)
+                                                      ? course.grade1
+                                                      : course.grade2,
+                                            },
+                                          )
+                                          .toList();
+                                  var imgpath = await saveDataAsImage(
+                                    isOffshoot: false,
+                                    sitemsAsMaps,
+                                    semester: currentsem,
+                                    thisSemCredits:
+                                        (selectedprofile == 1)
+                                            ? scred1
+                                            : scred2,
+                                    totalCredits:
+                                        (selectedprofile == 1)
+                                            ? ccred1
+                                            : ccred2,
+                                    gpa: sgcalc(currentsem),
+                                    cgpa: cgcalc(),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        "$imgpath",
+                                        style: TextStyle(
+                                          fontFamily: "Montserrat",
+                                          fontWeight: FontWeight.normal,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      duration: Duration(seconds: 3),
                                     ),
-                                  ),
-                                  duration:
-                                  Duration(
-                                    seconds:
-                                    3,
-                                  ),
+                                  );
+                                },
+                                child: Icon(
+                                  Icons.save_alt_outlined,
+                                  color: thm.textcolor,
                                 ),
-                              );
-                            }, child: Icon(Icons.save_alt_outlined,color: thm.textcolor,))),
+                              ),
+                            ),
                           ],
                         ),
                       SizedBox(height: hei * 0.01),
@@ -1524,8 +1545,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                                                           .center,
                                                                   children: [
                                                                     Text(
-                                                        sitems[index]
-                                                            .credits.toString().replaceAll('.0', ''),
+                                                                      sitems[index]
+                                                                          .credits
+                                                                          .toString()
+                                                                          .replaceAll(
+                                                                            '.0',
+                                                                            '',
+                                                                          ),
                                                                       style: TextStyle(
                                                                         fontSize:
                                                                             21.5,
@@ -1831,7 +1857,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             opacity: !_isClosingCourse ? 0.6 : 0.0,
                             duration: Duration(milliseconds: 100),
                             child: GestureDetector(
-                              onTap: () async{
+                              onTap: () async {
                                 setState(() {
                                   addcourse = "AN";
                                   addcourseid = "F311";
@@ -1851,12 +1877,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                           )
                                           .toList();
                                   dropdownid.sort((a, b) => a.compareTo(b));
-                                  _isClosingCourse=true;
+                                  _isClosingCourse = true;
                                 });
                                 Future.delayed(Duration(milliseconds: 100));
                                 setState(() {
                                   _isCourseCardOpen = false;
-                                  _isClosingCourse=false;
+                                  _isClosingCourse = false;
                                 });
                               },
                               child: Container(
@@ -1998,7 +2024,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                                       ),
                                                       child: Center(
                                                         child: Text(
-                                                          "    $credits1    ".replaceAll('.0', ''),
+                                                          "    $credits1    "
+                                                              .replaceAll(
+                                                                '.0',
+                                                                '',
+                                                              ),
                                                           style: TextStyle(
                                                             fontWeight:
                                                                 FontWeight
@@ -2133,13 +2163,70 @@ class _MyHomePageState extends State<MyHomePage> {
                                                               if (selectedprofile ==
                                                                   1) {
                                                                 await addOrUpdateCourse(
-                                                                  Course( elective: tempcourse .elective, title: tempcourse .title, sem: currentsem, id: "$addcourse $addcourseid", discipline: tempcourse .discipline, grade1: selectedgrade, grade2: tempcourse .grade2, credits: tempcourse .credits, ), );
+                                                                  Course(
+                                                                    elective:
+                                                                        tempcourse
+                                                                            .elective,
+                                                                    title:
+                                                                        tempcourse
+                                                                            .title,
+                                                                    sem:
+                                                                        currentsem,
+                                                                    id:
+                                                                        "$addcourse $addcourseid",
+                                                                    discipline:
+                                                                        tempcourse
+                                                                            .discipline,
+                                                                    grade1:
+                                                                        selectedgrade,
+                                                                    grade2:
+                                                                        tempcourse
+                                                                            .grade2,
+                                                                    credits:
+                                                                        tempcourse
+                                                                            .credits,
+                                                                  ),
+                                                                );
                                                                 selectedelective =
                                                                     "None";
                                                               } else if (selectedprofile ==
                                                                   2) {
                                                                 await addOrUpdateCourse(
-                                                                  Course( elective: tempcourse .elective, title: tempcourse .title, sem: currentsem, id: "$addcourse $addcourseid", discipline: ((selecteddiscipline.substring( 0, 2, ) != "--") ? selecteddiscipline.substring( 0, 2, ) : selecteddiscipline.substring( 2, 4, )), grade1: tempcourse .grade1, grade2: selectedgrade, credits: tempcourse .credits, ), );
+                                                                  Course(
+                                                                    elective:
+                                                                        tempcourse
+                                                                            .elective,
+                                                                    title:
+                                                                        tempcourse
+                                                                            .title,
+                                                                    sem:
+                                                                        currentsem,
+                                                                    id:
+                                                                        "$addcourse $addcourseid",
+                                                                    discipline:
+                                                                        ((selecteddiscipline.substring(
+                                                                                  0,
+                                                                                  2,
+                                                                                ) !=
+                                                                                "--")
+                                                                            ? selecteddiscipline.substring(
+                                                                              0,
+                                                                              2,
+                                                                            )
+                                                                            : selecteddiscipline.substring(
+                                                                              2,
+                                                                              4,
+                                                                            )),
+                                                                    grade1:
+                                                                        tempcourse
+                                                                            .grade1,
+                                                                    grade2:
+                                                                        selectedgrade,
+                                                                    credits:
+                                                                        tempcourse
+                                                                            .credits,
+                                                                  ),
+                                                                );
                                                                 selectedelective =
                                                                     "None";
                                                               }
@@ -2180,20 +2267,39 @@ class _MyHomePageState extends State<MyHomePage> {
                                                               addcourseid =
                                                                   "F311";
                                                               electiveSetter();
-                                                              dropdownid = mcourselist .where( ( course, ) => course.id.startsWith( "AN" + ' ', ), ) .map( ( course, ) => course.id.replaceFirst( "AN" + ' ', '', ), ) .toList();
+                                                              dropdownid =
+                                                                  mcourselist
+                                                                      .where(
+                                                                        (
+                                                                          course,
+                                                                        ) => course.id.startsWith(
+                                                                          "AN" +
+                                                                              ' ',
+                                                                        ),
+                                                                      )
+                                                                      .map(
+                                                                        (
+                                                                          course,
+                                                                        ) => course.id.replaceFirst(
+                                                                          "AN" +
+                                                                              ' ',
+                                                                          '',
+                                                                        ),
+                                                                      )
+                                                                      .toList();
                                                               dropdownid.sort(
                                                                 (a, b) =>
                                                                     a.compareTo(
                                                                       b,
                                                                     ),
                                                               );
-                                                              sort(sitems);
+                                                              sort(sitems,currentsort);
                                                               _isCourseCardOpen =
                                                                   false;
                                                               _isGradeChanged =
                                                                   false;
                                                             } else {
-                                                              sort(sitems);
+                                                              sort(sitems,currentsort);
                                                               _isCourseCardOpen =
                                                                   false;
                                                             }
@@ -2217,7 +2323,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                               width: wid * 0.8,
                                               child: Row(
                                                 children: [
-
                                                   Spacer(flex: 1),
                                                   Container(
                                                     height: double.infinity,
@@ -2257,12 +2362,35 @@ class _MyHomePageState extends State<MyHomePage> {
                                                           addcourse = "AN";
                                                           addcourseid = "F311";
                                                           electiveSetter();
-                                                          dropdownid = mcourselist .where( ( course, ) => course .id .startsWith( "AN" + ' ', ), ) .map( ( course, ) => course .id .replaceFirst( "AN" + ' ', '', ), ) .toList();
+                                                          dropdownid =
+                                                              mcourselist
+                                                                  .where(
+                                                                    (
+                                                                      course,
+                                                                    ) => course
+                                                                        .id
+                                                                        .startsWith(
+                                                                          "AN" +
+                                                                              ' ',
+                                                                        ),
+                                                                  )
+                                                                  .map(
+                                                                    (
+                                                                      course,
+                                                                    ) => course
+                                                                        .id
+                                                                        .replaceFirst(
+                                                                          "AN" +
+                                                                              ' ',
+                                                                          '',
+                                                                        ),
+                                                                  )
+                                                                  .toList();
                                                           dropdownid.sort(
                                                             (a, b) =>
                                                                 a.compareTo(b),
                                                           );
-                                                          sort(sitems);
+                                                          sort(sitems,currentsort);
                                                           _isCourseCardOpen =
                                                               false;
                                                         });
@@ -2284,8 +2412,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ],
                       )
-                      : SizedBox.shrink(
-                    key: ValueKey("closed"),),
+                      : SizedBox.shrink(key: ValueKey("closed")),
             ),
             AnimatedSwitcher(
               duration: Duration(milliseconds: 400),
@@ -2296,10 +2423,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       ? Stack(
                         children: [
                           AnimatedOpacity(
-                            opacity: _isClosing ? 0.0:0.6,
+                            opacity: _isClosing ? 0.0 : 0.6,
                             duration: Duration(milliseconds: 500),
                             child: GestureDetector(
-                              onTap: () async{
+                              onTap: () async {
                                 setState(() {
                                   addcourse = "AN";
                                   addcourseid = "F311";
@@ -2324,7 +2451,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Future.delayed(Duration(milliseconds: 500));
                                 setState(() {
                                   _isClosing = false;
-                                  _isCardOpen=false;
+                                  _isCardOpen = false;
                                 });
                               },
                               child: Container(
@@ -2336,7 +2463,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           Center(
                             child: AnimatedScale(
-                              scale: _isClosing ? 0: 1.0,
+                              scale: _isClosing ? 0 : 1.0,
                               duration: Duration(milliseconds: 100),
                               curve: Curves.easeOut,
                               child: Card(
@@ -2659,7 +2786,30 @@ class _MyHomePageState extends State<MyHomePage> {
                                                                 " ",
                                                               )[0];
                                                           electiveSetter();
-                                                          dropdownid = mcourselist .where( ( course, ) => course .id .startsWith( addcourse + ' ', ), ) .map( ( course, ) => course .id .replaceFirst( addcourse + ' ', '', ), ) .toList();
+                                                          dropdownid =
+                                                              mcourselist
+                                                                  .where(
+                                                                    (
+                                                                      course,
+                                                                    ) => course
+                                                                        .id
+                                                                        .startsWith(
+                                                                          addcourse +
+                                                                              ' ',
+                                                                        ),
+                                                                  )
+                                                                  .map(
+                                                                    (
+                                                                      course,
+                                                                    ) => course
+                                                                        .id
+                                                                        .replaceFirst(
+                                                                          addcourse +
+                                                                              ' ',
+                                                                          '',
+                                                                        ),
+                                                                  )
+                                                                  .toList();
                                                           dropdownid.sort(
                                                             (a, b) =>
                                                                 a.compareTo(b),
@@ -2733,7 +2883,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                               ),
                                               child: Center(
                                                 child: Text(
-                                                  "    $credits1    ".replaceAll('.0', ''),
+                                                  "    $credits1    "
+                                                      .replaceAll('.0', ''),
                                                   style: TextStyle(
                                                     fontWeight:
                                                         FontWeight.normal,
@@ -3090,14 +3241,78 @@ class _MyHomePageState extends State<MyHomePage> {
                                                       if (selectedprofile ==
                                                           1) {
                                                         addOrUpdateCourse(
-                                                          Course( elective: selectedelective, title: tempcourse .title, sem: currentsem, id: "$addcourse $addcourseid", discipline: ((selecteddiscipline .substring( 0, 2, ) != "--") ? selecteddiscipline .substring( 0, 2, ) : selecteddiscipline .substring( 2, 4, )), grade1: selectedgrade, grade2: -2, credits: tempcourse .credits, ),
+                                                          Course(
+                                                            elective:
+                                                                selectedelective,
+                                                            title:
+                                                                tempcourse
+                                                                    .title,
+                                                            sem: currentsem,
+                                                            id:
+                                                                "$addcourse $addcourseid",
+                                                            discipline:
+                                                                ((selecteddiscipline
+                                                                            .substring(
+                                                                              0,
+                                                                              2,
+                                                                            ) !=
+                                                                        "--")
+                                                                    ? selecteddiscipline
+                                                                        .substring(
+                                                                          0,
+                                                                          2,
+                                                                        )
+                                                                    : selecteddiscipline
+                                                                        .substring(
+                                                                          2,
+                                                                          4,
+                                                                        )),
+                                                            grade1:
+                                                                selectedgrade,
+                                                            grade2: -2,
+                                                            credits:
+                                                                tempcourse
+                                                                    .credits,
+                                                          ),
                                                         );
                                                         selectedelective =
                                                             "None";
                                                       } else if (selectedprofile ==
                                                           2) {
                                                         addOrUpdateCourse(
-                                                          Course( elective: selectedelective, title: tempcourse .title, sem: currentsem, id: "$addcourse $addcourseid", discipline: ((selecteddiscipline .substring( 0, 2, ) != "--") ? selecteddiscipline .substring( 0, 2, ) : selecteddiscipline .substring( 2, 4, )), grade1: -2, grade2: selectedgrade, credits: tempcourse .credits, ),
+                                                          Course(
+                                                            elective:
+                                                                selectedelective,
+                                                            title:
+                                                                tempcourse
+                                                                    .title,
+                                                            sem: currentsem,
+                                                            id:
+                                                                "$addcourse $addcourseid",
+                                                            discipline:
+                                                                ((selecteddiscipline
+                                                                            .substring(
+                                                                              0,
+                                                                              2,
+                                                                            ) !=
+                                                                        "--")
+                                                                    ? selecteddiscipline
+                                                                        .substring(
+                                                                          0,
+                                                                          2,
+                                                                        )
+                                                                    : selecteddiscipline
+                                                                        .substring(
+                                                                          2,
+                                                                          4,
+                                                                        )),
+                                                            grade1: -2,
+                                                            grade2:
+                                                                selectedgrade,
+                                                            credits:
+                                                                tempcourse
+                                                                    .credits,
+                                                          ),
                                                         );
                                                         selectedelective =
                                                             "None";
@@ -3111,24 +3326,51 @@ class _MyHomePageState extends State<MyHomePage> {
                                                       addcourse = "AN";
                                                       addcourseid = "F311";
                                                       electiveSetter();
-                                                      dropdownid = mcourselist .where( ( course, ) => course.id .startsWith( "AN" + ' ', ), ) .map( ( course, ) => course.id .replaceFirst( "AN" + ' ', '', ), ) .toList();
+                                                      dropdownid =
+                                                          mcourselist
+                                                              .where(
+                                                                (
+                                                                  course,
+                                                                ) => course.id
+                                                                    .startsWith(
+                                                                      "AN" +
+                                                                          ' ',
+                                                                    ),
+                                                              )
+                                                              .map(
+                                                                (
+                                                                  course,
+                                                                ) => course.id
+                                                                    .replaceFirst(
+                                                                      "AN" +
+                                                                          ' ',
+                                                                      '',
+                                                                    ),
+                                                              )
+                                                              .toList();
                                                       dropdownid.sort(
                                                         (a, b) =>
                                                             a.compareTo(b),
                                                       );
-                                                      sort(sitems);
+                                                      sort(sitems,currentsort);
                                                     }
                                                   });
                                                   setState(() {
-                                                    _isClosing = true; // Start close animation
+                                                    _isClosing =
+                                                        true; // Start close animation
                                                   });
-                                                  Future.delayed(const Duration(milliseconds: 500), () {
-                                                    if (!mounted) return;
-                                                    setState(() {
-                                                      _isCardOpen = false;
-                                                      _isClosing = false;
-                                                    });
-                                                  });
+                                                  Future.delayed(
+                                                    const Duration(
+                                                      milliseconds: 500,
+                                                    ),
+                                                    () {
+                                                      if (!mounted) return;
+                                                      setState(() {
+                                                        _isCardOpen = false;
+                                                        _isClosing = false;
+                                                      });
+                                                    },
+                                                  );
                                                 },
                                               ),
                                             ),
@@ -3144,7 +3386,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ],
                       )
-                      : SizedBox.shrink(key: ValueKey('closed'),),
+                      : SizedBox.shrink(key: ValueKey('closed')),
             ),
             AnimatedSwitcher(
               duration: Duration(milliseconds: 400),
@@ -3584,19 +3826,39 @@ class _MyHomePageState extends State<MyHomePage> {
                                                   if (_isDisciplineChanged) {
                                                     await setdis();
                                                     await initializeCourses();
-                                                    sort(sitems);
+                                                    sort(sitems,currentsort);
                                                     setState(() {
                                                       selectedgrade = 10;
                                                       addcourse = "AN";
                                                       addcourseid = "F311";
                                                       electiveSetter();
                                                       dropdownid =
-                                                          mcourselist .where( ( course, ) => course.id .startsWith( "AN" + ' ', ), ) .map( ( course, ) => course.id .replaceFirst( "AN" + ' ', '', ), ) .toList();
+                                                          mcourselist
+                                                              .where(
+                                                                (
+                                                                  course,
+                                                                ) => course.id
+                                                                    .startsWith(
+                                                                      "AN" +
+                                                                          ' ',
+                                                                    ),
+                                                              )
+                                                              .map(
+                                                                (
+                                                                  course,
+                                                                ) => course.id
+                                                                    .replaceFirst(
+                                                                      "AN" +
+                                                                          ' ',
+                                                                      '',
+                                                                    ),
+                                                              )
+                                                              .toList();
                                                       dropdownid.sort(
                                                         (a, b) =>
                                                             a.compareTo(b),
                                                       );
-                                                      sort(sitems);
+                                                      sort(sitems,currentsort);
                                                       degree_selected = true;
                                                     });
                                                     _isDisciplineChanged =
@@ -3661,8 +3923,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   _isrightswipe = false;
                 }
                 selectedprofile = index + 1;
-                if(selectedprofile==2){
-                  _showFab=true;
+                if (selectedprofile == 2) {
+                  _showFab = true;
                   setfab();
                 }
               });
@@ -3694,38 +3956,37 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
         ),
-        floatingActionButton:AnimatedSwitcher(
-                  duration: Duration(milliseconds: 100),
-                  switchInCurve:
-                      Curves.easeOut,
-                  switchOutCurve:
-                      Curves.easeIn,
-                  transitionBuilder: (child, animation) {
-                    final tween = Tween<Offset>(
-                      begin: const Offset(0, 0.3),
-                      end: Offset.zero,
-                    ).chain(CurveTween(curve: Curves.easeOut));
-                    return SlideTransition(
-                      position: animation.drive(tween),
-                      child: child,
-                    );
-                  },
-                  child:
-                  (selectedprofile == 2 && _showFab)
-                      ? FloatingActionButton(
+        floatingActionButton: AnimatedSwitcher(
+          duration: Duration(milliseconds: 100),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) {
+            final tween = Tween<Offset>(
+              begin: const Offset(0, 0.3),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeOut));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          child:
+              (selectedprofile == 2 && _showFab)
+                  ? FloatingActionButton(
                     key: const ValueKey("Button"),
                     elevation: 10,
-                    backgroundColor: (selected_theme=="Black" || selected_theme=="Blue")?thm.sepcolor:thm.backcolor,
-                    onPressed: ()async{
+                    backgroundColor:
+                        (selected_theme == "Black" || selected_theme == "Blue")
+                            ? thm.sepcolor
+                            : thm.backcolor,
+                    onPressed: () async {
                       await copyGrades();
-                      setState(() {
-
-                      });
+                      setState(() {});
                     },
-                    child: Icon(Icons.copy,color: thm.textcolor,
-                  ))
-                      : SizedBox.shrink(),
-                )
+                    child: Icon(Icons.copy, color: thm.textcolor),
+                  )
+                  : SizedBox.shrink(),
+        ),
       ),
     );
   }
