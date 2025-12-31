@@ -12,6 +12,8 @@ Automatic Course Lists: Courses are automatically added based on your selected d
 
 Compare CGPA Scenarios: Plan your academic goals by comparing your potential CGPA across two different grade profiles.
 
+Minor Offshoot Calculator: Plan your minor by viewing and comparing different grade scenarios.
+
 Smart Sorting: Easily organize and view your courses sorted by grades or credits to better understand your performance.
 
 Multiple Themes: Personalize your experience by choosing from a variety of themes to suit your style.
