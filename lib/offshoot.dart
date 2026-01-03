@@ -162,7 +162,7 @@ class _OffshootState extends State<Offshoot> {
             children: [
               if(selectedprofileo!=3)
                 Row(children: [
-                  Padding(padding: EdgeInsets.only(left: 15),child:
+                  Padding(padding: EdgeInsets.only(left: 15,top: 10,bottom: 8),child:
                 Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,7 +189,7 @@ class _OffshootState extends State<Offshoot> {
                     ),),
                   ],
                 ),),
-                  Padding(padding: EdgeInsets.only(left: 18),child:
+                  Padding(padding: EdgeInsets.only(left: 18,top: 10,bottom: 8),child:
                   Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,6 +416,8 @@ class _OffshootState extends State<Offshoot> {
                     ),
                   ],
                 ),
+              if (selectedprofileo != 3)
+                SizedBox(height: 5,),
               if (selectedprofileo == 3)
                 Row(
                   children: [
@@ -424,7 +426,7 @@ class _OffshootState extends State<Offshoot> {
                         color: thm.cardcolor,
                         margin: EdgeInsets.symmetric(
                           horizontal: 12,
-                          vertical: 6,
+                          vertical: 10,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -432,7 +434,7 @@ class _OffshootState extends State<Offshoot> {
                         child: Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: 16,
-                            vertical: 12,
+                            vertical: 16,
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
