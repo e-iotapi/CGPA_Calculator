@@ -970,7 +970,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Electrical Sciences", sem: "1 - 2", id: "EEE F111", discipline: "A1", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Computer Programming", sem: "1 - 2", id: "CS F111", discipline: "A1", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "A1", grade1: -2, grade2: -2, credits: 1,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "A1", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "A1", grade1: -2, grade2: -2, credits: 2,),
 
 
  Course(elective: "CDCN", title: "Multivariable Calculus", sem: "1 - 1", id: "MATH F101", discipline: "A2", grade1: -2, grade2: -2, credits: 3,),
@@ -987,7 +987,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Electrical Sciences", sem: "1 - 2", id: "EEE F111", discipline: "A2", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Computer Programming", sem: "1 - 2", id: "CS F111", discipline: "A2", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "A2", grade1: -2, grade2: -2, credits: 1,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "A2", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "A2", grade1: -2, grade2: -2, credits: 2,),
 
 
  Course(elective: "CDCN", title: "Multivariable Calculus", sem: "1 - 1", id: "MATH F101", discipline: "A3", grade1: -2, grade2: -2, credits: 3,),
@@ -1004,7 +1004,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Electrical Sciences", sem: "1 - 2", id: "EEE F111", discipline: "A3", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Computer Programming", sem: "1 - 2", id: "CS F111", discipline: "A3", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "A3", grade1: -2, grade2: -2, credits: 1,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "A3", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "A3", grade1: -2, grade2: -2, credits: 2,),
 
 
  Course(elective: "CDCN", title: "Multivariable Calculus", sem: "1 - 1", id: "MATH F101", discipline: "A4", grade1: -2, grade2: -2, credits: 3,),
@@ -1021,7 +1021,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Electrical Sciences", sem: "1 - 2", id: "EEE F111", discipline: "A4", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Computer Programming", sem: "1 - 2", id: "CS F111", discipline: "A4", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "A4", grade1: -2, grade2: -2, credits: 1,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "A4", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "A4", grade1: -2, grade2: -2, credits: 2,),
 
 
  Course(elective: "CDCN", title: "Multivariable Calculus", sem: "1 - 1", id: "MATH F101", discipline: "A7", grade1: -2, grade2: -2, credits: 3,),
@@ -1038,7 +1038,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Electrical Sciences", sem: "1 - 2", id: "EEE F111", discipline: "A7", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Computer Programming", sem: "1 - 2", id: "CS F111", discipline: "A7", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "A7", grade1: -2, grade2: -2, credits: 1,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "A7", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "A7", grade1: -2, grade2: -2, credits: 2,),
 
 
  Course(elective: "CDCN", title: "Multivariable Calculus", sem: "1 - 1", id: "MATH F101", discipline: "A8", grade1: -2, grade2: -2, credits: 3,),
@@ -1055,7 +1055,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Electrical Sciences", sem: "1 - 2", id: "EEE F111", discipline: "A8", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Computer Programming", sem: "1 - 2", id: "CS F111", discipline: "A8", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "A8", grade1: -2, grade2: -2, credits: 1,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "A8", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "A8", grade1: -2, grade2: -2, credits: 2,),
 
 
  Course(elective: "CDCN", title: "Multivariable Calculus", sem: "1 - 1", id: "MATH F101", discipline: "AA", grade1: -2, grade2: -2, credits: 3,),
@@ -1072,7 +1072,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Electrical Sciences", sem: "1 - 2", id: "EEE F111", discipline: "AA", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Computer Programming", sem: "1 - 2", id: "CS F111", discipline: "AA", grade1: -2, grade2: -2, credits: 4,),
  Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "AA", grade1: -2, grade2: -2, credits: 1,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "AA", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "AA", grade1: -2, grade2: -2, credits: 2,),
 
 
 
@@ -1086,7 +1086,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 1", id: "BITS F101", discipline: "B1", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Physical Well-being and Creativity", sem: "1 - 2", id: "BITS K10l", discipline: "B1", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 2", id: "BITS F10l", discipline: "B1", grade1: -2, grade2: -2, credits: 0.5,),Course(elective: "CDCN", title: "Linear Algebra and Complex Variables", sem: "1 - 2", id: "MATH F102", discipline: "B1", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "B1", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "B1", grade1: -2, grade2: -2, credits: 2,),
  Course(elective: "CDCN", title: "Thermodynamics", sem: "1 - 2", id: "BITS F111", discipline: "B1", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Introduction to Biological Sciences", sem: "1 - 2", id: "BIO F101", discipline: "B1", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Engineering Design and Prototyping", sem: "1 - 2", id: "BITS F103", discipline: "B1", grade1: -2, grade2: -2, credits: 4,),
@@ -1102,7 +1102,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 1", id: "BITS F101", discipline: "B2", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Physical Well-being and Creativity", sem: "1 - 2", id: "BITS K10l", discipline: "B2", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 2", id: "BITS F10l", discipline: "B2", grade1: -2, grade2: -2, credits: 0.5,),Course(elective: "CDCN", title: "Linear Algebra and Complex Variables", sem: "1 - 2", id: "MATH F102", discipline: "B2", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "B2", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "B2", grade1: -2, grade2: -2, credits: 2,),
  Course(elective: "CDCN", title: "Thermodynamics", sem: "1 - 2", id: "BITS F111", discipline: "B2", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Introduction to Biological Sciences", sem: "1 - 2", id: "BIO F101", discipline: "B2", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Engineering Design and Prototyping", sem: "1 - 2", id: "BITS F103", discipline: "B2", grade1: -2, grade2: -2, credits: 4,),
@@ -1118,7 +1118,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 1", id: "BITS F101", discipline: "B3", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Physical Well-being and Creativity", sem: "1 - 2", id: "BITS K10l", discipline: "B3", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 2", id: "BITS F10l", discipline: "B3", grade1: -2, grade2: -2, credits: 0.5,),Course(elective: "CDCN", title: "Linear Algebra and Complex Variables", sem: "1 - 2", id: "MATH F102", discipline: "B3", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "B3", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "B3", grade1: -2, grade2: -2, credits: 2,),
  Course(elective: "CDCN", title: "Thermodynamics", sem: "1 - 2", id: "BITS F111", discipline: "B3", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Introduction to Biological Sciences", sem: "1 - 2", id: "BIO F101", discipline: "B3", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Engineering Design and Prototyping", sem: "1 - 2", id: "BITS F103", discipline: "B3", grade1: -2, grade2: -2, credits: 4,),
@@ -1134,7 +1134,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 1", id: "BITS F101", discipline: "B4", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Physical Well-being and Creativity", sem: "1 - 2", id: "BITS K10l", discipline: "B4", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 2", id: "BITS F10l", discipline: "B4", grade1: -2, grade2: -2, credits: 0.5,),Course(elective: "CDCN", title: "Linear Algebra and Complex Variables", sem: "1 - 2", id: "MATH F102", discipline: "B4", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "B4", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "B4", grade1: -2, grade2: -2, credits: 2,),
  Course(elective: "CDCN", title: "Thermodynamics", sem: "1 - 2", id: "BITS F111", discipline: "B4", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Introduction to Biological Sciences", sem: "1 - 2", id: "BIO F101", discipline: "B4", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Engineering Design and Prototyping", sem: "1 - 2", id: "BITS F103", discipline: "B4", grade1: -2, grade2: -2, credits: 4,),
@@ -1150,7 +1150,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 1", id: "BITS F101", discipline: "B5", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Physical Well-being and Creativity", sem: "1 - 2", id: "BITS K10l", discipline: "B5", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 2", id: "BITS F10l", discipline: "B5", grade1: -2, grade2: -2, credits: 0.5,),Course(elective: "CDCN", title: "Linear Algebra and Complex Variables", sem: "1 - 2", id: "MATH F102", discipline: "B5", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "B5", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "B5", grade1: -2, grade2: -2, credits: 2,),
  Course(elective: "CDCN", title: "Thermodynamics", sem: "1 - 2", id: "BITS F111", discipline: "B5", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Introduction to Biological Sciences", sem: "1 - 2", id: "BIO F101", discipline: "B5", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Engineering Design and Prototyping", sem: "1 - 2", id: "BITS F103", discipline: "B5", grade1: -2, grade2: -2, credits: 4,),
@@ -1166,7 +1166,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 1", id: "BITS F101", discipline: "B7", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Physical Well-being and Creativity", sem: "1 - 2", id: "BITS K10l", discipline: "B7", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 2", id: "BITS F10l", discipline: "B7", grade1: -2, grade2: -2, credits: 0.5,),Course(elective: "CDCN", title: "Linear Algebra and Complex Variables", sem: "1 - 2", id: "MATH F102", discipline: "B7", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "B7", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "B7", grade1: -2, grade2: -2, credits: 2,),
  Course(elective: "CDCN", title: "Thermodynamics", sem: "1 - 2", id: "BITS F111", discipline: "B7", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Introduction to Biological Sciences", sem: "1 - 2", id: "BIO F101", discipline: "B7", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Engineering Design and Prototyping", sem: "1 - 2", id: "BITS F103", discipline: "B7", grade1: -2, grade2: -2, credits: 4,),
@@ -1182,7 +1182,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 1", id: "BITS F101", discipline: "AD", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Physical Well-being and Creativity", sem: "1 - 2", id: "BITS K10l", discipline: "AD", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 2", id: "BITS F10l", discipline: "AD", grade1: -2, grade2: -2, credits: 0.5,),Course(elective: "CDCN", title: "Linear Algebra and Complex Variables", sem: "1 - 2", id: "MATH F102", discipline: "AD", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "AD", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "AD", grade1: -2, grade2: -2, credits: 2,),
  Course(elective: "CDCN", title: "Thermodynamics", sem: "1 - 2", id: "BITS F111", discipline: "AD", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Introduction to Biological Sciences", sem: "1 - 2", id: "BIO F101", discipline: "AD", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Engineering Design and Prototyping", sem: "1 - 2", id: "BITS F103", discipline: "AD", grade1: -2, grade2: -2, credits: 4,),
@@ -1199,7 +1199,7 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 1", id: "BITS F101", discipline: "AJ", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Physical Well-being and Creativity", sem: "1 - 2", id: "BITS K10l", discipline: "AJ", grade1: -2, grade2: -2, credits: 0.5,),
  Course(elective: "CDCN", title: "Social Conduct", sem: "1 - 2", id: "BITS F10l", discipline: "AJ", grade1: -2, grade2: -2, credits: 0.5,),Course(elective: "CDCN", title: "Linear Algebra and Complex Variables", sem: "1 - 2", id: "MATH F102", discipline: "AJ", grade1: -2, grade2: -2, credits: 3,),
- Course(elective: "CDCN", title: "Technical Report Writing", sem: "1 - 2", id: "BITS F112", discipline: "AJ", grade1: -2, grade2: -2, credits: 2,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "AJ", grade1: -2, grade2: -2, credits: 2,),
  Course(elective: "CDCN", title: "Thermodynamics", sem: "1 - 2", id: "BITS F111", discipline: "AJ", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Introduction to Biological Sciences", sem: "1 - 2", id: "BIO F101", discipline: "AJ", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Engineering Design and Prototyping", sem: "1 - 2", id: "BITS F103", discipline: "AJ", grade1: -2, grade2: -2, credits: 4,),
@@ -1222,6 +1222,9 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Anatomy Physio and Hygiene", sem: "1 - 2", id: "PHA F214", discipline: "A5", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Pharmaceutical Formulations 1", sem: "1 - 2", id: "PHA F216", discipline: "A5", grade1: -2, grade2: -2, credits: 3,),
  Course(elective: "CDCN", title: "Gen Maths 2", sem: "1 - 2", id: "MATH F114", discipline: "A5", grade1: -2, grade2: -2, credits: 3,),
+ Course(elective: "CDCN", title: "Innovation and Design Thinking", sem: "1 - 2", id: "BITS F102", discipline: "A5", grade1: -2, grade2: -2, credits: 1,),
+ Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "A5", grade1: -2, grade2: -2, credits: 2,),
+
 ]; //25 or higher
 
 List<Course> goaCourseList = [];

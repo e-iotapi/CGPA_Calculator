@@ -1745,6 +1745,7 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Introductory Psychology", id: "GS F232", credits: 3),
+  Mastercourselist(title: "Understanding Self and Society", id: "HSS F101", credits: 2),
   Mastercourselist(title: "Ocean Humanities", id: "HSS F386", credits: 3),
   Mastercourselist(title: "Gandhi in Literature", id: "HSS F388", credits: 3),
   Mastercourselist(title: "Public Policy", id: "GS F233", credits: 3),
