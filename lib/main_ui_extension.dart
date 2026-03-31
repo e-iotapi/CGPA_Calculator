@@ -940,36 +940,31 @@ extension MainUiExtension on _MyHomePageState {
                     });
                   },
                   child: AnimatedSwitcher(
-                    duration: Duration(milliseconds: 350),
+                    duration: const Duration(milliseconds: 300),
                     transitionBuilder: (
                       Widget child,
                       Animation<double> animation,
                     ) {
-                      final slideAnimation = Tween<Offset>(
-                        begin: Offset(
-                          (!_isrightswipe)
-                              ? (MediaQuery.of(context).size.width > wid)
-                                  ? -0.15
-                                  : -1.0
-                              : (MediaQuery.of(context).size.width > wid)
-                              ? 0.15
-                              : 1.0,
-                          0.0,
+                      return SlideTransition(
+                        position: Tween<Offset>(
+                          begin: Offset(
+                            (!_isrightswipe)
+                                ? (MediaQuery.of(context).size.width > wid)
+                                    ? -0.10
+                                    : -1.0
+                                : (MediaQuery.of(context).size.width > wid)
+                                ? 0.10
+                                : 1.0,
+                            0.0,
+                          ),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeInOut,
+                          ),
                         ),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutQuart,
-                        ),
-                      );
-
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: slideAnimation,
-                          child: child,
-                        ),
+                        child: child,
                       );
                     },
                     child: NotificationListener<ScrollNotification>(
@@ -1321,98 +1316,62 @@ extension MainUiExtension on _MyHomePageState {
                                                     padding: EdgeInsets.only(
                                                       left: wid * 0.035,
                                                     ),
-                                                    child: AnimatedSwitcher(
-                                                      duration: const Duration(
-                                                        milliseconds: 500,
+                                                    child: Text(
+                                                      (selectedprofile == 1)
+                                                          ? gradecalc(
+                                                            sitems[index]
+                                                                .grade1,
+                                                          )
+                                                          : (selectedprofile ==
+                                                              2)
+                                                          ? gradecalc(
+                                                            sitems[index]
+                                                                .grade2,
+                                                          )
+                                                          : "-3",
+                                                      style: TextStyle(
+                                                        fontSize:
+                                                            (gradecalc(
+                                                                      (selectedprofile ==
+                                                                              1)
+                                                                          ? sitems[index].grade1
+                                                                          : (selectedprofile ==
+                                                                              2)
+                                                                          ? sitems[index].grade2
+                                                                          : -3,
+                                                                    ) ==
+                                                                    "CLR")
+                                                                ? 16
+                                                                : (gradecalc(
+                                                                          (selectedprofile ==
+                                                                                  1)
+                                                                              ? sitems[index].grade1
+                                                                              : (selectedprofile ==
+                                                                                  2)
+                                                                              ? sitems[index].grade2
+                                                                              : -3,
+                                                                        ) ==
+                                                                        "NC" ||
+                                                                    gradecalc(
+                                                                          (selectedprofile ==
+                                                                                  1)
+                                                                              ? sitems[index].grade1
+                                                                              : (selectedprofile ==
+                                                                                  2)
+                                                                              ? sitems[index].grade2
+                                                                              : -3,
+                                                                        ) ==
+                                                                        "GD")
+                                                                ? 18
+                                                                : 20,
+                                                        fontFamily:
+                                                            "Montserrat",
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: thm.highcolor,
                                                       ),
-                                                      switchInCurve:
-                                                          Curves.easeOutBack,
-                                                      switchOutCurve:
-                                                          Curves.easeInBack,
-                                                      transitionBuilder: (
-                                                        Widget child,
-                                                        Animation<double>
-                                                        animation,
-                                                      ) {
-                                                        return ScaleTransition(
-                                                          scale: animation,
-                                                          child: FadeTransition(
-                                                            opacity: animation,
-                                                            child: child,
-                                                          ),
-                                                        );
-                                                      },
-                                                      child: Text(
-                                                        key: ValueKey<String>(
-                                                          (selectedprofile == 1)
-                                                              ? gradecalc(
-                                                                sitems[index]
-                                                                    .grade1,
-                                                              )
-                                                              : (selectedprofile ==
-                                                                  2)
-                                                              ? gradecalc(
-                                                                sitems[index]
-                                                                    .grade2,
-                                                              )
-                                                              : "-3",
-                                                        ),
-                                                        (selectedprofile == 1)
-                                                            ? gradecalc(
-                                                              sitems[index]
-                                                                  .grade1,
-                                                            )
-                                                            : (selectedprofile ==
-                                                                2)
-                                                            ? gradecalc(
-                                                              sitems[index]
-                                                                  .grade2,
-                                                            )
-                                                            : "-3",
-                                                        style: TextStyle(
-                                                          fontSize:
-                                                              (gradecalc(
-                                                                        (selectedprofile ==
-                                                                                1)
-                                                                            ? sitems[index].grade1
-                                                                            : (selectedprofile ==
-                                                                                2)
-                                                                            ? sitems[index].grade2
-                                                                            : -3,
-                                                                      ) ==
-                                                                      "CLR")
-                                                                  ? 16
-                                                                  : (gradecalc(
-                                                                            (selectedprofile ==
-                                                                                    1)
-                                                                                ? sitems[index].grade1
-                                                                                : (selectedprofile ==
-                                                                                    2)
-                                                                                ? sitems[index].grade2
-                                                                                : -3,
-                                                                          ) ==
-                                                                          "NC" ||
-                                                                      gradecalc(
-                                                                            (selectedprofile ==
-                                                                                    1)
-                                                                                ? sitems[index].grade1
-                                                                                : (selectedprofile ==
-                                                                                    2)
-                                                                                ? sitems[index].grade2
-                                                                                : -3,
-                                                                          ) ==
-                                                                          "GD")
-                                                                  ? 18
-                                                                  : 20,
-                                                          fontFamily:
-                                                              "Montserrat",
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: thm.highcolor,
-                                                        ),
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                      ),
+                                                      textAlign:
+                                                          TextAlign.center,
                                                     ),
                                                   ),
                                                 ],
