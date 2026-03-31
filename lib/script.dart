@@ -516,6 +516,27 @@ Future<void> addOrUpdateCourse(Course course) async {
   } catch (e) {}
 }
 
+Future<void> clearSemesterGrades(String sem, int profile) async {
+  try {
+    var box = Hive.box<Course>('coursesBox');
+    List<Course> courses = box.values.where((c) => c.sem == sem).toList();
+    for (var course in courses) {
+      Course updatedCourse = Course(
+        title: course.title,
+        sem: course.sem,
+        id: course.id,
+        grade1: (profile == 1) ? -2 : course.grade1,
+        grade2: (profile == 2) ? -2 : course.grade2,
+        discipline: course.discipline,
+        credits: course.credits,
+        elective: course.elective,
+      );
+      await box.put(updatedCourse.id, updatedCourse);
+    }
+    await box.flush();
+  } catch (e) {}
+}
+
 Future<void> addOrUpdateCourseOffshoot(Course course) async {
   try {
     var box = Hive.box<Course>('offshootBox');
@@ -608,6 +629,195 @@ void setnavcolor() {
 }
 
 
+
+double sgcalc(String s) {
+  var allCourses = Hive.box<Course>('coursesBox').values.where(
+    (course) =>
+        course.sem == s &&
+        (course.discipline == selecteddiscipline.substring(0, 2) ||
+            course.discipline == selecteddiscipline.substring(2, 4)),
+  );
+  double dontCount = 0;
+  double s1 = 0;
+  if (selectedprofile == 1) {
+    for (Course i in allCourses) {
+      s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
+      if (i.grade1 == -3) {
+        dontCount += i.credits;
+      }
+    }
+    double sum = 0;
+    for (Course i in allCourses) {
+      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
+    }
+    return ((s1 - dontCount) != 0)
+        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
+        : 0;
+  } else if (selectedprofile == 2) {
+    for (Course i in allCourses) {
+      s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
+      if (i.grade2 == -3) {
+        dontCount += i.credits;
+      }
+    }
+    double sum = 0;
+    for (Course i in allCourses) {
+      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
+    }
+    return ((s1 - dontCount) != 0)
+        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
+        : 0;
+  } else {
+    return -3.0;
+  }
+}
+
+String sgcomp(String s) {
+  var allCourses = Hive.box<Course>('coursesBox').values.where(
+    (course) =>
+        course.sem == currentsem &&
+        (course.discipline == selecteddiscipline.substring(0, 2) ||
+            course.discipline == selecteddiscipline.substring(2, 4)),
+  );
+  double dontCount = 0;
+  double s1 = 0;
+  String ans = "";
+  for (Course i in allCourses) {
+    s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
+    if (i.grade1 == -3) {
+      dontCount += i.credits;
+    }
+  }
+  double sum = 0;
+  for (Course i in allCourses) {
+    sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
+  }
+  ans =
+      ((s1 - dontCount) != 0)
+          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
+          : "0";
+  ans += ' ';
+  s1 = 0;
+  dontCount = 0;
+  for (Course i in allCourses) {
+    s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
+    if (i.grade2 == -3) {
+      dontCount += i.credits;
+    }
+  }
+  sum = 0;
+  for (Course i in allCourses) {
+    sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
+  }
+  return ans +
+      (((s1 - dontCount) != 0)
+          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
+          : "0");
+}
+
+double cgcalc() {
+  var allCourses = Hive.box<Course>('coursesBox').values.where(
+    (course) =>
+        (course.discipline == selecteddiscipline.substring(0, 2) ||
+            course.discipline == selecteddiscipline.substring(2, 4)),
+  );
+  double dontCount = 0;
+  double s1 = 0;
+  if (selectedprofile == 1) {
+    for (Course i in allCourses) {
+      s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
+      if (i.grade1 == -3) {
+        dontCount += i.credits;
+      }
+    }
+    double sum = 0;
+    for (Course i in allCourses) {
+      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
+    }
+    return ((s1 - dontCount) != 0)
+        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
+        : 0;
+  } else if (selectedprofile == 2) {
+    for (Course i in allCourses) {
+      s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
+      if (i.grade2 == -3) {
+        dontCount += i.credits;
+      }
+    }
+    double sum = 0;
+    for (Course i in allCourses) {
+      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
+    }
+    return ((s1 - dontCount) != 0)
+        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
+        : 0;
+  }
+  return -3.0;
+}
+
+String cgcomp() {
+  var allCourses = Hive.box<Course>('coursesBox').values.where(
+    (course) =>
+        (course.discipline == selecteddiscipline.substring(0, 2) ||
+            course.discipline == selecteddiscipline.substring(2, 4)),
+  );
+  String ans = "";
+  double dontCount = 0;
+  double s1 = 0;
+  for (Course i in allCourses) {
+    s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
+    if (i.grade1 == -3) {
+      dontCount += i.credits;
+    }
+  }
+  double sum = 0;
+  for (Course i in allCourses) {
+    sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
+  }
+  ans =
+      ((s1 - dontCount) != 0)
+          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
+          : "0";
+  ans += " ";
+  s1 = 0;
+  dontCount = 0;
+  for (Course i in allCourses) {
+    s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
+    if (i.grade2 == -3) {
+      dontCount += i.credits;
+    }
+  }
+  sum = 0;
+  for (Course i in allCourses) {
+    sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
+  }
+  return ans +
+      (((s1 - dontCount) != 0)
+          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
+          : "0");
+}
+
+
+
+void electiveSetter() {
+  if (addcourse == "HSS" ||
+      addcourse == "GS" ||
+      huel.contains(addcourse + " " + addcourseid)) {
+    selectedelective = "Humanity Elective";
+  } else if (del[selecteddiscipline.substring(2, 4)]!.contains(
+    addcourse + " " + addcourseid,
+  )) {
+    selectedelective = "Disciplinary Elective2";
+  } else if (del[selecteddiscipline.substring(0, 2)]!.contains(
+    addcourse + " " + addcourseid,
+  )) {
+    selectedelective = "Disciplinary Elective1";
+  } else if (nonelist.contains(addcourse + " " + addcourseid)) {
+    selectedelective = "CDCN";
+  } else {
+    selectedelective = "Open Elective";
+  }
+}
 
 var thm = themes.firstWhere((x) => x.theme == selected_theme);
 double sgpa = 0.00;
