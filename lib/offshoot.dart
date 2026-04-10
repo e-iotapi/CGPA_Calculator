@@ -63,6 +63,14 @@ class _OffshootState extends State<Offshoot> {
   double _credits = 0;
   int _courses = 0;
   int selectedprofileo = 1;
+
+  // Grade picker overlay state
+  OverlayEntry? _gradeOverlayEntry;
+  OverlayEntry? _gradeBarrierEntry;
+  FixedExtentScrollController? _gradeScrollController;
+  ValueNotifier<int> _gradeIndexNotifier = ValueNotifier(0);
+  double _initialY = 0;
+  int _initialItemIndex = 0;
   String name1 =
       mcourselist
           .firstWhere(
@@ -732,7 +740,187 @@ class _OffshootState extends State<Offshoot> {
                                         : null,
                                 trailing:
                                     (selectedprofileo != 3)
-                                        ? Stack(
+                                        ? Listener(
+                                            onPointerDown: (_) {
+                                              if (_gradeOverlayEntry != null) {
+                                                _gradeOverlayEntry!.remove();
+                                                _gradeOverlayEntry = null;
+                                              }
+                                              if (_gradeScrollController != null) {
+                                                _gradeScrollController!.dispose();
+                                                _gradeScrollController = null;
+                                              }
+                                            },
+                                            child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onLongPressStart: (details) {
+                                            int currentGrade =
+                                                selectedprofileo == 1
+                                                    ? offshootList[index].grade1
+                                                    : offshootList[index].grade2;
+                                            String currentGradeStr = gradecalc(currentGrade);
+                                            _initialItemIndex = grades.indexOf(currentGradeStr);
+                                            if (_initialItemIndex == -1 && currentGradeStr == "–")
+                                              _initialItemIndex = grades.indexOf("GD");
+                                            if (_initialItemIndex == -1) _initialItemIndex = 0;
+
+                                            _gradeIndexNotifier.value = _initialItemIndex;
+                                            _gradeScrollController = FixedExtentScrollController(
+                                              initialItem: _initialItemIndex,
+                                            );
+                                            _initialY = details.globalPosition.dy;
+
+                                            _gradeOverlayEntry = OverlayEntry(
+                                              builder: (context) {
+                                                return Positioned(
+                                                  left: details.globalPosition.dx - 60,
+                                                  top: details.globalPosition.dy - 125,
+                                                  child: Material(
+                                                    color: Colors.transparent,
+                                                    child: Container(
+                                                      width: 120,
+                                                      height: 250,
+                                                      decoration: BoxDecoration(
+                                                        color: thm.cardcolor,
+                                                        borderRadius: BorderRadius.circular(15),
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.black26,
+                                                            blurRadius: 10,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      child: ListWheelScrollView.useDelegate(
+                                                        controller: _gradeScrollController,
+                                                        itemExtent: 45,
+                                                        physics: NeverScrollableScrollPhysics(),
+                                                        childDelegate: ListWheelChildBuilderDelegate(
+                                                          childCount: grades.length,
+                                                          builder: (context, i) {
+                                                            return ValueListenableBuilder<int>(
+                                                              valueListenable: _gradeIndexNotifier,
+                                                              builder: (context, selected, _) {
+                                                                bool isSelected = i == selected;
+                                                                return Center(
+                                                                  child: Text(
+                                                                    grades[i],
+                                                                    style: TextStyle(
+                                                                      color: isSelected
+                                                                          ? thm.highcolor
+                                                                          : thm.textcolor.withOpacity(0.5),
+                                                                      fontSize: isSelected ? 24 : 18,
+                                                                      fontWeight: isSelected
+                                                                          ? FontWeight.bold
+                                                                          : FontWeight.normal,
+                                                                      fontFamily: 'Montserrat',
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              },
+                                                            );
+                                                          },
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            );
+                                            void dismissGradePicker() {
+                                              if (_gradeBarrierEntry != null) {
+                                                _gradeBarrierEntry!.remove();
+                                                _gradeBarrierEntry = null;
+                                              }
+                                              if (_gradeOverlayEntry != null) {
+                                                _gradeOverlayEntry!.remove();
+                                                _gradeOverlayEntry = null;
+                                              }
+                                              if (_gradeScrollController != null) {
+                                                _gradeScrollController!.dispose();
+                                                _gradeScrollController = null;
+                                              }
+                                            }
+                                            _gradeBarrierEntry = OverlayEntry(
+                                              builder: (_) => Positioned.fill(
+                                                child: Listener(
+                                                  behavior: HitTestBehavior.translucent,
+                                                  onPointerDown: (_) => dismissGradePicker(),
+                                                ),
+                                              ),
+                                            );
+                                            Overlay.of(context).insertAll([
+                                              _gradeBarrierEntry!,
+                                              _gradeOverlayEntry!,
+                                            ]);
+                                          },
+                                          onLongPressMoveUpdate: (details) {
+                                            if (_gradeScrollController != null) {
+                                              double deltaY =
+                                                  details.globalPosition.dy - _initialY;
+                                              double targetOffset =
+                                                  (_initialItemIndex * 45.0) - deltaY;
+                                              double maxOffset = (grades.length - 1) * 45.0;
+                                              targetOffset = targetOffset.clamp(0.0, maxOffset);
+
+                                              if (_gradeScrollController!.hasClients) {
+                                                _gradeScrollController!.jumpTo(targetOffset);
+                                              }
+
+                                              int newIndex =
+                                                  (targetOffset / 45.0).round().clamp(
+                                                    0, grades.length - 1);
+                                              if (_gradeIndexNotifier.value != newIndex) {
+                                                _gradeIndexNotifier.value = newIndex;
+                                              }
+                                            }
+                                          },
+                                          onLongPressEnd: (details) async {
+                                            if (_gradeBarrierEntry != null) {
+                                              _gradeBarrierEntry!.remove();
+                                              _gradeBarrierEntry = null;
+                                            }
+                                            if (_gradeOverlayEntry != null) {
+                                              _gradeOverlayEntry!.remove();
+                                              _gradeOverlayEntry = null;
+                                            }
+                                            if (_gradeScrollController != null) {
+                                              _gradeScrollController!.dispose();
+                                              _gradeScrollController = null;
+                                            }
+                                            int finalIndex = _gradeIndexNotifier.value;
+                                            int newGrade = reversegradecalc(grades[finalIndex]);
+                                            Course newCourse = Course(
+                                              elective: offshootList[index].elective,
+                                              title: offshootList[index].title,
+                                              sem: offshootList[index].sem,
+                                              id: offshootList[index].id,
+                                              discipline: offshootList[index].discipline,
+                                              grade1: selectedprofileo == 1
+                                                  ? newGrade
+                                                  : offshootList[index].grade1,
+                                              grade2: selectedprofileo == 2
+                                                  ? newGrade
+                                                  : offshootList[index].grade2,
+                                              credits: offshootList[index].credits,
+                                            );
+                                            await addOrUpdateCourseOffshoot(newCourse);
+                                            setState(() {});
+                                          },
+                                          onLongPressCancel: () {
+                                            if (_gradeBarrierEntry != null) {
+                                              _gradeBarrierEntry!.remove();
+                                              _gradeBarrierEntry = null;
+                                            }
+                                            if (_gradeOverlayEntry != null) {
+                                              _gradeOverlayEntry!.remove();
+                                              _gradeOverlayEntry = null;
+                                            }
+                                            if (_gradeScrollController != null) {
+                                              _gradeScrollController!.dispose();
+                                              _gradeScrollController = null;
+                                            }
+                                          },
+                                          child: Stack(
                                           alignment: Alignment.center,
                                           children: [
                                             Padding(
@@ -810,6 +998,8 @@ class _OffshootState extends State<Offshoot> {
                                               ),
                                             ),
                                           ],
+                                        ),
+                                        ),
                                         )
                                         : SizedBox(
                                           width: wid * 0.220,

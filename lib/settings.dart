@@ -63,7 +63,7 @@ class _SettingsState extends State<Settings> {
                   Text('3) Bugs / New course requests can be sent from the app itself',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('4) Updated BITS K101 and BITS F101 to 0.5 credits. Delete and add these courses or use reset to update.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('5) Minor Offshoot calculator is added to semester dropdown.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
-                  Text('6) Grades can now be scrolled to change.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                  Text('6) Hold on grade to change quickly.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('7) Reload and hold the page to clear grades.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
 
                 ],),
@@ -345,6 +345,7 @@ class _SettingsState extends State<Settings> {
                       height: MediaQuery.of(context).size.height * 0.05,
                       width: 100,
                       child: FloatingActionButton(
+                        heroTag: 'settings_reset_btn',
                         key: ValueKey("Reset"),
                         elevation: 1,
                         focusElevation: 0,
@@ -470,6 +471,7 @@ class _SettingsState extends State<Settings> {
                     height: MediaQuery.of(context).size.height * 0.05,
                     width: MediaQuery.of(context).size.width * 0.90,
                     child: FloatingActionButton(
+                      heroTag: 'settings_profile_btn',
                       key: ValueKey("profile"),
                       elevation: 1,
                       focusElevation: 0,
@@ -505,6 +507,7 @@ class _SettingsState extends State<Settings> {
                 height: MediaQuery.of(context).size.height * 0.05,
                 width: MediaQuery.of(context).size.width * 0.90,
                 child: FloatingActionButton(
+                  heroTag: 'settings_report_btn',
                   key: ValueKey("report"),
                   elevation: 1,
                   focusElevation: 0,
@@ -532,6 +535,7 @@ class _SettingsState extends State<Settings> {
           height: MediaQuery.of(context).size.height * 0.05,
           width: MediaQuery.of(context).size.width * 0.90,
           child: FloatingActionButton(
+            heroTag: 'settings_review_btn',
             key: ValueKey("report"),
             elevation: 1,
             focusElevation: 0,
@@ -737,6 +741,7 @@ class _SettingsState extends State<Settings> {
                                                 ).size.width *
                                                 0.8,
                                             child: FloatingActionButton(
+                                              heroTag: 'settings_update_profile_btn',
                                               backgroundColor: thm.butcolor,
                                               child: Text(
                                                 "Update Profile",

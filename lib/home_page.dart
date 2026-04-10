@@ -34,6 +34,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int _dropdownResetKey = 0;
   bool _showFab = true;
   int _pullSession = 0;
+  final ValueNotifier<double> pullOverscrollNotifier = ValueNotifier(0.0);
   @override
   void initState() {
     super.initState();
@@ -42,7 +43,7 @@ class _MyHomePageState extends State<MyHomePage> {
         mcourselist = await fetchData();
       }
       if (!kIsWeb) {
-        if ( Platform.isAndroid) {
+        if (Platform.isAndroid) {
           final updateInfo = await InAppUpdate.checkForUpdate();
           if (updateInfo.updateAvailability ==
               UpdateAvailability.updateAvailable) {
@@ -141,7 +142,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     List<Course> sitems = items.toList();
-    sort(sitems,currentsort);
+    sort(sitems, currentsort);
     setdis();
     setsort();
     setsem();
@@ -221,9 +222,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                             ),
                           ),
-                          Center(
-                            child: buildAddCourseDialog(wid, hei, sitems),
-                          ),
+                          Center(child: buildAddCourseDialog(wid, hei, sitems)),
                         ],
                       )
                       : SizedBox.shrink(),

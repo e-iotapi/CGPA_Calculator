@@ -17,11 +17,7 @@ class Mastercourselist {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'id': id,
-      'credits': credits,
-    };
+    return {'title': title, 'id': id, 'credits': credits};
   }
 }
 
@@ -45,7 +41,11 @@ List<Mastercourselist> mcourselist = [
   ),
   Mastercourselist(title: "Social Conduct", id: "BITS F101", credits: 0.5),
   Mastercourselist(title: "Social Conduct", id: "BITS F10l", credits: 0.5),
-  Mastercourselist(title: "Physical Well-being and Creativity", id: "BITS K10l", credits: 0.5),
+  Mastercourselist(
+    title: "Physical Well-being and Creativity",
+    id: "BITS K10l",
+    credits: 0.5,
+  ),
   Mastercourselist(
     title: "Physical Well-being and Creativity",
     id: "BITS K101",
@@ -107,7 +107,11 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Workshop Practice", id: "ME F112", credits: 2),
   Mastercourselist(title: "Chemistry Laboratory", id: "CHEM F110", credits: 1),
   Mastercourselist(title: "Physics Laboratory", id: "PHY F110", credits: 1),
-  Mastercourselist(title: "Principles of Aerodynamics",id: "AN F311",credits: 3,),
+  Mastercourselist(
+    title: "Principles of Aerodynamics",
+    id: "AN F311",
+    credits: 3,
+  ),
   Mastercourselist(title: "Aircraft Propulsion", id: "AN F312", credits: 3),
   Mastercourselist(
     title: "Flight Mechanics and Controls",
@@ -691,7 +695,11 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "CE F491", credits: 3),
-  Mastercourselist(title: "Bioethics and Biosafety",id: "BITS F467",credits: 3,),
+  Mastercourselist(
+    title: "Bioethics and Biosafety",
+    id: "BITS F467",
+    credits: 3,
+  ),
   Mastercourselist(title: "Introduction to MEMS", id: "BITS F415", credits: 4),
   Mastercourselist(
     title: "Introduction to Nanoscience",
@@ -1019,7 +1027,11 @@ List<Mastercourselist> mcourselist = [
     id: "BITS G517",
     credits: 3,
   ),
-  Mastercourselist(title: "Chemical Process Calculations",id: "CHE F211",credits: 3,),
+  Mastercourselist(
+    title: "Chemical Process Calculations",
+    id: "CHE F211",
+    credits: 3,
+  ),
   Mastercourselist(title: "Fluid Mechanics", id: "CHE F212", credits: 3),
   Mastercourselist(
     title: "Chemical Engineering Thermodynamics",
@@ -1500,7 +1512,11 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "ECE F491", credits: 3),
-  Mastercourselist(title: "Principles of Economics",id: "ECON F211",credits: 3,),
+  Mastercourselist(
+    title: "Principles of Economics",
+    id: "ECON F211",
+    credits: 3,
+  ),
   Mastercourselist(
     title: "Fundamentals of Finance and Accounts",
     id: "ECON F212",
@@ -1719,7 +1735,11 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "FIN F491", credits: 3),
-  Mastercourselist(title: "Modern Political Concepts",id: "GS F211",credits: 3,),
+  Mastercourselist(
+    title: "Modern Political Concepts",
+    id: "GS F211",
+    credits: 3,
+  ),
   Mastercourselist(
     title: "Environment, Development & Climate Change",
     id: "GS F212",
@@ -1745,7 +1765,11 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Introductory Psychology", id: "GS F232", credits: 3),
-  Mastercourselist(title: "Understanding Self and Society", id: "HSS F101", credits: 2),
+  Mastercourselist(
+    title: "Understanding Self and Society",
+    id: "HSS F101",
+    credits: 2,
+  ),
   Mastercourselist(title: "Ocean Humanities", id: "HSS F386", credits: 3),
   Mastercourselist(title: "Gandhi in Literature", id: "HSS F388", credits: 3),
   Mastercourselist(title: "Public Policy", id: "GS F233", credits: 3),
@@ -2246,7 +2270,11 @@ List<Mastercourselist> mcourselist = [
     id: "INSTR G611",
     credits: 5,
   ),
-  Mastercourselist(title: "Data Structures and Algorithms",id: "IS F211",credits: 4,),
+  Mastercourselist(
+    title: "Data Structures and Algorithms",
+    id: "IS F211",
+    credits: 4,
+  ),
   Mastercourselist(
     title: "Object Oriented Programming",
     id: "IS F213",
@@ -2291,7 +2319,11 @@ List<Mastercourselist> mcourselist = [
   Mastercourselist(title: "Operating Systems", id: "IS F372", credits: 3),
   Mastercourselist(title: "Network Programming", id: "IS F462", credits: 3),
   Mastercourselist(title: "Special Project", id: "IS F491", credits: 3),
-  Mastercourselist(title: "Linear Algebra and Applications",id: "MAC F211",credits: 3,),
+  Mastercourselist(
+    title: "Linear Algebra and Applications",
+    id: "MAC F211",
+    credits: 3,
+  ),
   Mastercourselist(
     title: "Object Oriented Programming",
     id: "MAC F212",
@@ -2848,7 +2880,11 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
   Mastercourselist(title: "Special Projects", id: "MF F491", credits: 3),
-  Mastercourselist(title: "Principles of Management",id: "MGTS F211",credits: 3,),
+  Mastercourselist(
+    title: "Principles of Management",
+    id: "MGTS F211",
+    credits: 3,
+  ),
   Mastercourselist(title: "Marketing", id: "MGTS F311", credits: 3),
   Mastercourselist(
     title: "Product and Brand Management",
@@ -2870,7 +2906,11 @@ List<Mastercourselist> mcourselist = [
     id: "MGTS F433",
     credits: 3,
   ),
-  Mastercourselist(title: "Materials Characterisation",id: "MST F331",credits: 4,),
+  Mastercourselist(
+    title: "Materials Characterisation",
+    id: "MST F331",
+    credits: 4,
+  ),
   Mastercourselist(title: "Materials Processing", id: "MST F332", credits: 3),
   Mastercourselist(
     title: "Introduction to Biomaterials",
@@ -2902,9 +2942,17 @@ List<Mastercourselist> mcourselist = [
   ),
   Mastercourselist(title: "Advanced Composites", id: "MST G522", credits: 5),
   Mastercourselist(title: "Mechantronics", id: "MSE G511", credits: 5),
-  Mastercourselist(title: "Material Characterization Techniques",id: "MST G521",credits: 5,),
+  Mastercourselist(
+    title: "Material Characterization Techniques",
+    id: "MST G521",
+    credits: 5,
+  ),
   Mastercourselist(title: "Advanced Composites", id: "MST G522", credits: 5),
-  Mastercourselist(title: "Pharmaceutical Analysis",id: "PHA F211",credits: 3,),
+  Mastercourselist(
+    title: "Pharmaceutical Analysis",
+    id: "PHA F211",
+    credits: 3,
+  ),
   Mastercourselist(title: "Dispensing Pharmacy", id: "PHA F212", credits: 3),
   Mastercourselist(title: "MicroBiology", id: "PHA F213", credits: 3),
   Mastercourselist(
@@ -3221,7 +3269,6 @@ List<Mastercourselist> mcourselist = [
     id: "EEE F246",
     credits: 2,
   ),
-  Mastercourselist(title: "Study Project", id: "EEE F266", credits: 3),
   Mastercourselist(title: "Communication Systems", id: "EEE F311", credits: 3),
   Mastercourselist(title: "Power Systems", id: "EEE F312", credits: 3),
   Mastercourselist(
@@ -3436,17 +3483,19 @@ Future<List<Mastercourselist>> fetchData() async {
     if (response.statusCode == 200) {
       final List<dynamic> jsonList = jsonDecode(response.body);
       //print("Data Fetched");
-      var fetchedlist= jsonList
-          .map<Mastercourselist>(
-            (json) => Mastercourselist(
-              title: json['title'],
-              id: json['id'],
-              credits: (json['credits'] is int)
-                  ? (json['credits'] as int).toDouble()
-                  : (json['credits'] as double),
-            ),
-          )
-          .toList();
+      var fetchedlist =
+          jsonList
+              .map<Mastercourselist>(
+                (json) => Mastercourselist(
+                  title: json['title'],
+                  id: json['id'],
+                  credits:
+                      (json['credits'] is int)
+                          ? (json['credits'] as int).toDouble()
+                          : (json['credits'] as double),
+                ),
+              )
+              .toList();
       await convertAndSaveToJsonFile(fetchedlist);
       return fetchedlist;
     } else {
@@ -3459,8 +3508,11 @@ Future<List<Mastercourselist>> fetchData() async {
   }
 }
 
-Future<void> convertAndSaveToJsonFile(List<Mastercourselist> mcourselist) async {
-  List<Map<String, dynamic>> jsonList = mcourselist.map((course) => course.toJson()).toList();
+Future<void> convertAndSaveToJsonFile(
+  List<Mastercourselist> mcourselist,
+) async {
+  List<Map<String, dynamic>> jsonList =
+      mcourselist.map((course) => course.toJson()).toList();
   String jsonString = jsonEncode(jsonList);
   final path = await _getFilePath();
   final file = File(path);
@@ -3473,12 +3525,15 @@ Future<List<Mastercourselist>> loadMcourselistFromFile() async {
   if (await file.exists()) {
     String jsonString = await file.readAsString();
     List jsonList = jsonDecode(jsonString);
-    return jsonList.map((json) => Mastercourselist(
-      title: json['title'],
-      id: json['id'],
-      credits: (json['credits'] as num).toDouble(),
-
-    )).toList();
+    return jsonList
+        .map(
+          (json) => Mastercourselist(
+            title: json['title'],
+            id: json['id'],
+            credits: (json['credits'] as num).toDouble(),
+          ),
+        )
+        .toList();
   } else {
     return fetchData();
   }
