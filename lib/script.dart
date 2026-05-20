@@ -15,17 +15,17 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:saver_gallery/saver_gallery.dart';
 
- import 'dart:html' as html;
+ // import 'dart:html' as html;
 void saveImageWeb(Uint8List bytes, String filename) {
-  final blob = html.Blob([bytes], 'image/png');
-  final url = html.Url.createObjectUrlFromBlob(blob);
-  final anchor = html.AnchorElement(href: url)
-    ..download = filename
-    ..style.display = 'none';
-  html.document.body!.append(anchor);
-  anchor.click();
-  anchor.remove();
-  html.Url.revokeObjectUrl(url);
+  // final blob = html.Blob([bytes], 'image/png');
+  // final url = html.Url.createObjectUrlFromBlob(blob);
+  // final anchor = html.AnchorElement(href: url)
+  //   ..download = filename
+  //   ..style.display = 'none';
+  // html.document.body!.append(anchor);
+  // anchor.click();
+  // anchor.remove();
+  // html.Url.revokeObjectUrl(url);
 }
 
 Future<void> basicStartup() async {

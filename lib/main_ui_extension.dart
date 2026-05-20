@@ -180,84 +180,8 @@ extension MainUiExtension on _MyHomePageState {
                             fontSize: 14,
                           ),
                           ),
-                          onPressed: () async {
-                            final ua = html.window.navigator
-                                .userAgent.toLowerCase();
-                            if (ua.contains('android')) {
-                              await launchUrl(
-                                Uri.parse(
-                                    'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
-                              );
-                            }
-                            else {
-                              try {
-                                js.context.callMethod(
-                                    'promptInstall');
-                              }
-                              catch (e) {
-                                if (ua.contains('ios') ||
-                                    ua.contains('ipad') ||
-                                    ua.contains('iphone')) {
-                                  ScaffoldMessenger
-                                      .of(context)
-                                      .showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        "Click on Share => Add to Home Screen => Add",
-                                        style: TextStyle(
-                                          fontFamily: "Montserrat",
-                                          fontWeight: FontWeight
-                                              .normal,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      duration: Duration(
-                                          seconds: 4),
-                                    ),
-                                  );
-                                }
-                                else if (ua.contains('win') ||
-                                    ua.contains('mac') ||
-                                    ua.contains('linux')) {
-                                  ScaffoldMessenger
-                                      .of(context)
-                                      .showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        "Click on Settings => Cast, Save and Share => Install Page as app",
-                                        style: TextStyle(
-                                          fontFamily: "Montserrat",
-                                          fontWeight: FontWeight
-                                              .normal,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      duration: Duration(
-                                          seconds: 4),
-                                    ),
-                                  );
-                                }
-                                else {
-                                  ScaffoldMessenger
-                                      .of(context)
-                                      .showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        "Click on Share => Add to Home Screen => Add",
-                                        style: TextStyle(
-                                          fontFamily: "Montserrat",
-                                          fontWeight: FontWeight
-                                              .normal,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      duration: Duration(
-                                          seconds: 4),
-                                    ),
-                                  );
-                                }
-                              }
-                            }
+                          onPressed: () {
+                            PwaHelper.promptInstall(context, thm);
                           }
                       ),),
                       Transform(
