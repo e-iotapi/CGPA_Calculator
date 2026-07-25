@@ -676,7 +676,7 @@
   },
   {
     "title": "FPGA Based System Design",
-    "id": "EEE F313",
+    "id": "EEE F314",
     "credits": 3
   },
   {
@@ -2257,11 +2257,6 @@
   {
     "title": "Microelectronic Circuits",
     "id": "ECE F244",
-    "credits": 3
-  },
-  {
-    "title": "FGPA Lab",
-    "id": "EEE F314",
     "credits": 3
   },
   {
