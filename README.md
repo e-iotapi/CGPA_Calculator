@@ -33,10 +33,13 @@ https://cgpa-calculator-bits.vercel.app/, (50+ Users in Web)
 
 ## About this fork
 
+Maintained by **Siddharth Mishra** — siddhu.cms@gmail.com · [github.com/e-iotapi](https://github.com/e-iotapi)
+
 This is a **web-only fork** of [Srijen-Raja/CGPA_Calculator](https://github.com/Srijen-Raja/CGPA_Calculator),
 originally created by **Srijen Raja** (srijenapps@gmail.com) and licensed under the
-Apache License 2.0. The original `LICENSE` is retained unchanged. All credit for the
-calculator itself belongs to the original author.
+Apache License 2.0. The original `LICENSE` is retained unchanged. Credit for the
+underlying calculator belongs to the original author; the sync, auth and web-deployment
+work in this fork is by the maintainer above.
 
 ### What's different
 

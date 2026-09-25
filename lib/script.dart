@@ -1,5 +1,8 @@
 // import 'dart:ffi';
+import 'dart:convert';
+import 'dart:js_interop';
 import 'dart:ui' as ui;
+import 'package:web/web.dart' as web;
 import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -8,17 +11,80 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 
- // import 'dart:html' as html;
-void saveImageWeb(Uint8List bytes, String filename) {
-  // final blob = html.Blob([bytes], 'image/png');
-  // final url = html.Url.createObjectUrlFromBlob(blob);
-  // final anchor = html.AnchorElement(href: url)
-  //   ..download = filename
-  //   ..style.display = 'none';
-  // html.document.body!.append(anchor);
-  // anchor.click();
-  // anchor.remove();
-  // html.Url.revokeObjectUrl(url);
+/// Triggers a browser download of [bytes] as [filename].
+void _downloadBytes(List<int> bytes, String filename, String mime) {
+  final blob = web.Blob(
+    [Uint8List.fromList(bytes).toJS].toJS,
+    web.BlobPropertyBag(type: mime),
+  );
+  final url = web.URL.createObjectURL(blob);
+  final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  web.document.body!.append(anchor);
+  anchor.click();
+  anchor.remove();
+  web.URL.revokeObjectURL(url);
+}
+
+void saveImageWeb(Uint8List bytes, String filename) =>
+    _downloadBytes(bytes, filename, 'image/png');
+
+String _csvCell(Object? v) {
+  final s = v?.toString() ?? '';
+  return RegExp(r'[",\n\r]').hasMatch(s)
+      ? '"${s.replaceAll('"', '""')}"'
+      : s;
+}
+
+/// Builds a CSV of every saved course, both grade profiles included.
+String buildGradesCsv() {
+  final courses = Hive.box<Course>('coursesBox').values.toList()
+    ..sort((a, b) {
+      final c = a.sem.compareTo(b.sem);
+      return c != 0 ? c : a.id.compareTo(b.id);
+    });
+
+  final rows = <List<Object?>>[
+    [
+      'Course ID',
+      'Title',
+      'Credits',
+      'Semester',
+      'Discipline',
+      'Type',
+      '$profile1n Grade',
+      '$profile1n Points',
+      '$profile2n Grade',
+      '$profile2n Points',
+    ],
+    for (final c in courses)
+      [
+        c.id,
+        c.title,
+        c.credits,
+        c.sem,
+        c.discipline,
+        c.elective,
+        gradecalc(c.grade1),
+        c.grade1 < 0 ? '' : c.grade1,
+        gradecalc(c.grade2),
+        c.grade2 < 0 ? '' : c.grade2,
+      ],
+  ];
+
+  return rows.map((r) => r.map(_csvCell).join(',')).join('\r\n');
+}
+
+/// Downloads the course list as a .csv file. Returns the filename used.
+String exportGradesCsv() {
+  final name =
+      'CGPA_Grades_${DateTime.now().toIso8601String().split("T").first}.csv';
+  // BOM so Excel opens UTF-8 correctly.
+  final bytes = <int>[0xEF, 0xBB, 0xBF, ...utf8.encode(buildGradesCsv())];
+  _downloadBytes(bytes, name, 'text/csv;charset=utf-8');
+  return name;
 }
 
 Future<void> basicStartup() async {
