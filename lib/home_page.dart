@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:cgpa_calculator/offshoot.dart';
+import 'package:cgpa_calculator/offshoot_calc.dart';
 import 'package:cgpa_calculator/analytics.dart';
 import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -16,6 +16,7 @@ import 'package:cgpa_calculator/constants.dart';
 import 'dart:math';
 part 'overlays_extension.dart';
 part 'main_ui_extension.dart';
+part 'offshoot_panel_extension.dart';
 //html and js imports and uses to be removed for android build
 
 class MyHomePage extends StatefulWidget {
@@ -217,6 +218,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 icon: Icon(Icons.comment_bank_outlined),
                 label: "Compare",
               ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.workspace_premium_outlined),
+                label: "Offshoot",
+              ),
             ],
             selectedLabelStyle: TextStyle(
               fontFamily: 'Montserrat',
@@ -254,6 +259,47 @@ class _MyHomePageState extends State<MyHomePage> {
                             ? thm.sepcolor
                             : thm.backcolor,
                     onPressed: () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder:
+                            (ctx) => AlertDialog(
+                              backgroundColor: thm.backcolor,
+                              title: Text(
+                                'Import from $profile1n?',
+                                style: TextStyle(
+                                  color: thm.textcolor,
+                                  fontFamily: 'Montserrat',
+                                ),
+                              ),
+                              content: Text(
+                                'Every $profile1n grade, in all semesters, will '
+                                'be copied over your $profile2n grades. '
+                                'This cannot be undone.',
+                                style: TextStyle(
+                                  color: thm.textcolor,
+                                  fontSize: 14,
+                                  fontFamily: 'Montserrat',
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(false),
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(color: thm.textcolor),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(true),
+                                  child: Text(
+                                    'Import',
+                                    style: TextStyle(color: thm.highcolor),
+                                  ),
+                                ),
+                              ],
+                            ),
+                      );
+                      if (ok != true) return;
                       await copyGrades();
                       setState(() {});
                     },
