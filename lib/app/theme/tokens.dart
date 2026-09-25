@@ -48,7 +48,7 @@ abstract final class Motion {
 /// Type scale. Colourless: callers add colour from the palette with
 /// `copyWith(color: …)`.
 abstract final class TypeScale {
-  static const family = 'Montserrat';
+  static const family = 'MontserratFull';
 
   /// Large numbers on stat cards.
   static const display = TextStyle(
