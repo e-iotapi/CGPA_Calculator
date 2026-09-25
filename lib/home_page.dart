@@ -18,6 +18,7 @@ import 'dart:math';
 part 'overlays_extension.dart';
 part 'main_ui_extension.dart';
 part 'offshoot_panel_extension.dart';
+
 //html and js imports and uses to be removed for android build
 
 class MyHomePage extends StatefulWidget {
@@ -117,28 +118,7 @@ class _MyHomePageState extends State<MyHomePage> {
             .credits;
     sgpa = sgcalc(currentsem);
     cgpa = cgcalc();
-    scred1 = 0;
-    scred2 = 0;
-    ccred1 = 0;
-    ccred2 = 0;
-    for (Course i in Hive.box<Course>('coursesBox').values.where(
-      (course) =>
-          (course.discipline == selecteddiscipline.substring(0, 2) ||
-              course.discipline == selecteddiscipline.substring(2, 4)) &&
-          course.sem == currentsem,
-    )) {
-      scred1 += (i.grade1 < 0 && !(i.grade1 == -3)) ? 0 : i.credits;
-      scred2 += (i.grade2 < 0 && !(i.grade2 == -3)) ? 0 : i.credits;
-    }
-
-    for (Course i in Hive.box<Course>('coursesBox').values.where(
-      (course) =>
-          (course.discipline == selecteddiscipline.substring(0, 2) ||
-              course.discipline == selecteddiscipline.substring(2, 4)),
-    )) {
-      ccred1 += (i.grade1 < 0 && !(i.grade1 == -3)) ? 0 : i.credits;
-      ccred2 += (i.grade2 < 0 && !(i.grade2 == -3)) ? 0 : i.credits;
-    }
+    creditTotals();
     var wid = MediaQuery.of(context).size.width;
     var hei = MediaQuery.of(context).size.height;
     if (kIsWeb && hei < wid) {

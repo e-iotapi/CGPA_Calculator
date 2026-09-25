@@ -5,11 +5,15 @@ import 'dart:ui' as ui;
 import 'package:web/web.dart' as web;
 import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/constants.dart';
+import 'package:cgpa_calculator/core/grading/cgpa.dart';
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
+
+export 'package:cgpa_calculator/core/grading/grade_scale.dart';
 
 /// Triggers a browser download of [bytes] as [filename].
 void _downloadBytes(List<int> bytes, String filename, String mime) {
@@ -620,38 +624,6 @@ Future<void> addOrUpdateCourseOffshoot(Course course) async {
   } catch (e) {}
 }
 
-String gradecalc(int s) {
-  return (s == 10)
-      ? "A"
-      : (s == 9)
-      ? "A-"
-      : (s == 8)
-      ? "B"
-      : (s == 7)
-      ? "B-"
-      : (s == 6)
-      ? "C"
-      : (s == 5)
-      ? "C-"
-      : (s == 4)
-      ? "D"
-      : (s == 2)
-      ? "E"
-      : (s == -1)
-      ? "NC"
-      : (s == -2)
-      ? "CLR"
-      : (s == -3)
-      ? "GD"
-      : (s == -6)
-      ? "RC"
-      : (s == -7)
-      ? "W"
-      : (s == -5)
-      ? "–"
-      : "?";
-}
-
 String electiveFinder(String s) {
   if (s == "CDC2") {
     return selecteddiscipline.substring(2, 4) + " " + "CDC";
@@ -672,36 +644,6 @@ String electiveFinder(String s) {
   }
 }
 
-int reversegradecalc(String s) {
-  return (s == "A")
-      ? 10
-      : (s == "A-")
-      ? 9
-      : (s == "B")
-      ? 8
-      : (s == "B-")
-      ? 7
-      : (s == "C")
-      ? 6
-      : (s == "C-")
-      ? 5
-      : (s == "D")
-      ? 4
-      : (s == "E")
-      ? 2
-      : (s == "NC")
-      ? -1
-      : (s == "CLR" || s=="")
-      ? -2
-      : (s == "GD")
-      ? -3
-      : (s == "RC")
-      ? -6
-      : (s == "W")
-      ? -7
-      : -100;
-}
-
 void setnavcolor() {
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle.light.copyWith(
@@ -713,174 +655,52 @@ void setnavcolor() {
 
 
 
+// GPA maths lives in core/grading/cgpa.dart. These keep the old names and the
+// globals for screens that have not been rebuilt yet.
+
+GpaTally _semTally(String sem, Profile p) => semesterTally(
+  Hive.box<Course>('coursesBox').values,
+  sem: sem,
+  discipline: selecteddiscipline,
+  profile: p,
+);
+
+GpaTally _cumTally(Profile p) => cumulativeTally(
+  Hive.box<Course>('coursesBox').values,
+  discipline: selecteddiscipline,
+  profile: p,
+);
+
+/// SGPA of [s] for the selected profile, rounded; -3.0 if no profile.
 double sgcalc(String s) {
-  var allCourses = Hive.box<Course>('coursesBox').values.where(
-    (course) =>
-        course.sem == s &&
-        (course.discipline == selecteddiscipline.substring(0, 2) ||
-            course.discipline == selecteddiscipline.substring(2, 4)),
-  );
-  double dontCount = 0;
-  double s1 = 0;
-  if (selectedprofile == 1) {
-    for (Course i in allCourses) {
-      s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
-      if (i.grade1 == -3) {
-        dontCount += i.credits;
-      }
-    }
-    double sum = 0;
-    for (Course i in allCourses) {
-      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
-    }
-    return ((s1 - dontCount) != 0)
-        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
-        : 0;
-  } else if (selectedprofile == 2) {
-    for (Course i in allCourses) {
-      s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
-      if (i.grade2 == -3) {
-        dontCount += i.credits;
-      }
-    }
-    double sum = 0;
-    for (Course i in allCourses) {
-      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
-    }
-    return ((s1 - dontCount) != 0)
-        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
-        : 0;
-  } else {
-    return -3.0;
-  }
+  final p = Profile.fromId(selectedprofile);
+  return p == null ? -3.0 : _semTally(s, p).rounded;
 }
 
-String sgcomp(String s) {
-  var allCourses = Hive.box<Course>('coursesBox').values.where(
-    (course) =>
-        course.sem == currentsem &&
-        (course.discipline == selecteddiscipline.substring(0, 2) ||
-            course.discipline == selecteddiscipline.substring(2, 4)),
-  );
-  double dontCount = 0;
-  double s1 = 0;
-  String ans = "";
-  for (Course i in allCourses) {
-    s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
-    if (i.grade1 == -3) {
-      dontCount += i.credits;
-    }
-  }
-  double sum = 0;
-  for (Course i in allCourses) {
-    sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
-  }
-  ans =
-      ((s1 - dontCount) != 0)
-          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
-          : "0";
-  ans += ' ';
-  s1 = 0;
-  dontCount = 0;
-  for (Course i in allCourses) {
-    s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
-    if (i.grade2 == -3) {
-      dontCount += i.credits;
-    }
-  }
-  sum = 0;
-  for (Course i in allCourses) {
-    sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
-  }
-  return ans +
-      (((s1 - dontCount) != 0)
-          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
-          : "0");
-}
+/// "actual expected" SGPA of the current semester. [s] is ignored, as it
+/// always was.
+String sgcomp(String s) =>
+    '${_semTally(currentsem, Profile.actual).fixed} '
+    '${_semTally(currentsem, Profile.expected).fixed}';
 
+/// CGPA for the selected profile, rounded; -3.0 if no profile.
 double cgcalc() {
-  var allCourses = Hive.box<Course>('coursesBox').values.where(
-    (course) =>
-        (course.discipline == selecteddiscipline.substring(0, 2) ||
-            course.discipline == selecteddiscipline.substring(2, 4)),
-  );
-  double dontCount = 0;
-  double s1 = 0;
-  if (selectedprofile == 1) {
-    for (Course i in allCourses) {
-      s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
-      if (i.grade1 == -3) {
-        dontCount += i.credits;
-      }
-    }
-    double sum = 0;
-    for (Course i in allCourses) {
-      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
-    }
-    return ((s1 - dontCount) != 0)
-        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
-        : 0;
-  } else if (selectedprofile == 2) {
-    for (Course i in allCourses) {
-      s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
-      if (i.grade2 == -3) {
-        dontCount += i.credits;
-      }
-    }
-    double sum = 0;
-    for (Course i in allCourses) {
-      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
-    }
-    return ((s1 - dontCount) != 0)
-        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
-        : 0;
-  }
-  return -3.0;
+  final p = Profile.fromId(selectedprofile);
+  return p == null ? -3.0 : _cumTally(p).rounded;
 }
 
-String cgcomp() {
-  var allCourses = Hive.box<Course>('coursesBox').values.where(
-    (course) =>
-        (course.discipline == selecteddiscipline.substring(0, 2) ||
-            course.discipline == selecteddiscipline.substring(2, 4)),
-  );
-  String ans = "";
-  double dontCount = 0;
-  double s1 = 0;
-  for (Course i in allCourses) {
-    s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
-    if (i.grade1 == -3) {
-      dontCount += i.credits;
-    }
-  }
-  double sum = 0;
-  for (Course i in allCourses) {
-    sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
-  }
-  ans =
-      ((s1 - dontCount) != 0)
-          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
-          : "0";
-  ans += " ";
-  s1 = 0;
-  dontCount = 0;
-  for (Course i in allCourses) {
-    s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
-    if (i.grade2 == -3) {
-      dontCount += i.credits;
-    }
-  }
-  sum = 0;
-  for (Course i in allCourses) {
-    sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
-  }
-  return ans +
-      (((s1 - dontCount) != 0)
-          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
-          : "0");
+/// "actual expected" CGPA.
+String cgcomp() =>
+    '${_cumTally(Profile.actual).fixed} ${_cumTally(Profile.expected).fixed}';
+
+/// Credits shown beside the SGPA/CGPA, per profile, into the scred/ccred
+/// globals.
+void creditTotals() {
+  scred1 = _semTally(currentsem, Profile.actual).shownCredits;
+  scred2 = _semTally(currentsem, Profile.expected).shownCredits;
+  ccred1 = _cumTally(Profile.actual).shownCredits;
+  ccred2 = _cumTally(Profile.expected).shownCredits;
 }
-
-
 
 void electiveSetter() {
   if (addcourse == "HSS" ||
