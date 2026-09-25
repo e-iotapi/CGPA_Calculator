@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cgpa_calculator/offshoot_calc.dart';
 import 'package:cgpa_calculator/analytics.dart';
 import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
+import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -186,6 +187,11 @@ class _MyHomePageState extends State<MyHomePage> {
             hoverColor: Colors.grey.withValues(alpha: 0.05),
           ),
           child: BottomNavigationBar(
+            // With 4+ items this defaults to `shifting`, which ignores
+            // backgroundColor and hides unselected labels. Pin it to `fixed`.
+            type: BottomNavigationBarType.fixed,
+            showUnselectedLabels: true,
+            elevation: 0,
             backgroundColor: thm.backcolor,
             selectedItemColor: thm.highcolor,
             unselectedItemColor: thm.unscolor,

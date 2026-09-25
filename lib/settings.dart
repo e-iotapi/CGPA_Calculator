@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -418,7 +419,7 @@ class _SettingsState extends State<Settings> {
       appBar: AppBar(
         iconTheme: IconThemeData(color: thm.textcolor),
         title: Text(
-          "Settings",
+          "Hi, ${firstNameOf(FirebaseAuth.instance.currentUser)}",
           style: TextStyle(
             fontFamily: "Montserrat",
             fontSize: 20,
@@ -446,7 +447,7 @@ class _SettingsState extends State<Settings> {
                   Text('2) Play Store Updates will show up as Prompts',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('3) Bugs / New course requests can be sent from the app itself',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('4) Updated BITS K101 and BITS F101 to 0.5 credits. Delete and add these courses or use reset to update.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
-                  Text('5) Minor Offshoot calculator is added to semester dropdown.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
+                  Text('5) Offshoot is now its own tab at the bottom, next to Compare.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('6) Hold on grade to change quickly.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
                   Text('7) Reload and hold the page to clear grades.',textAlign: TextAlign.center,style: TextStyle(fontFamily: 'Montserrat',color: thm.textcolor)),
 

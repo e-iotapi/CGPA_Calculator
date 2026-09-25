@@ -240,6 +240,25 @@ extension MainUiExtension on _MyHomePageState {
                   ),
                 ],
               ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(20, 2, 20, 6),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    greeting(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.left,
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                      color: thm.textcolor.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+              ),
               if (selectedprofile == 3)
                 Column(
                   children: [
