@@ -111,13 +111,29 @@ Future<void> basicStartup() async {
   await Hive.openBox<Course>('offshootBox');
 }
 
-Future<void> copyGrades() async{
+/// Copies every Actual grade onto the Expected profile, across all semesters.
+/// Writes back under each course's existing key, which may be an int (courses
+/// added via box.add) or the course id — re-keying here would duplicate them.
+Future<void> copyGrades() async {
   final coursesBox = await Hive.openBox<Course>('coursesBox');
-  for(var i in coursesBox.values){
-    if(i.sem==currentsem) {
-      await coursesBox.put(i.id, Course(title: i.title, sem: i.sem, id: i.id, grade1: i.grade1, grade2: i.grade1, discipline: i.discipline, credits: i.credits, elective: i.elective));
-    }
+  for (final k in coursesBox.keys.toList()) {
+    final i = coursesBox.get(k);
+    if (i == null) continue;
+    await coursesBox.put(
+      k,
+      Course(
+        title: i.title,
+        sem: i.sem,
+        id: i.id,
+        grade1: i.grade1,
+        grade2: i.grade1,
+        discipline: i.discipline,
+        credits: i.credits,
+        elective: i.elective,
+      ),
+    );
   }
+  await coursesBox.flush();
 }
 
 Future<void> initializeCourses() async {
@@ -627,6 +643,10 @@ String gradecalc(int s) {
       ? "CLR"
       : (s == -3)
       ? "GD"
+      : (s == -6)
+      ? "RC"
+      : (s == -7)
+      ? "W"
       : (s == -5)
       ? "–"
       : "?";
@@ -675,6 +695,10 @@ int reversegradecalc(String s) {
       ? -2
       : (s == "GD")
       ? -3
+      : (s == "RC")
+      ? -6
+      : (s == "W")
+      ? -7
       : -100;
 }
 
@@ -948,6 +972,8 @@ final List<String> grades = [
   "D",
   "E",
   "NC",
+  "RC",
+  "W",
   "CLR",
   "GD",
   ""
@@ -1147,7 +1173,9 @@ Future<String> saveDataAsImage(
     final cellTexts = [
       row['credits'].toString(),
       row['name'],
-      (row['grade'] > -4) ? gradecalc(row['grade']):"",// :  (row['grade'] == -2) ? "GD":"CLR",
+      (row['grade'] > -4 || row['grade'] == -6 || row['grade'] == -7)
+          ? gradecalc(row['grade'])
+          : "",// :  (row['grade'] == -2) ? "GD":"CLR",
     ];
     for (int i = 0; i < cellTexts.length; i++) {
       textPainter.text = TextSpan(

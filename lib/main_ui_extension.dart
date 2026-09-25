@@ -41,27 +41,11 @@ extension MainUiExtension on _MyHomePageState {
                       key: ValueKey(_dropdownResetKey),
                       initialSelection: currentsem,
                       onSelected: (String? value) {
-                        if (value == "Off") {
-                          Navigator.of(context)
-                              .push(
-                                MaterialPageRoute(
-                                  builder: (context) => Offshoot(),
-                                ),
-                              )
-                              .then((_) {
-                                setState(() {
-                                  // Force dropdown reset
-                                  _dropdownResetKey++;
-                                });
-                              });
-                          ;
-                        } else {
-                          setState(() {
-                            currentsem = value!;
-                            sgpa = sgcalc(value);
-                            cgpa = cgcalc();
-                          });
-                        }
+                        setState(() {
+                          currentsem = value!;
+                          sgpa = sgcalc(value);
+                          cgpa = cgcalc();
+                        });
                       },
                       textAlign: TextAlign.center,
                       textStyle: TextStyle(
@@ -142,16 +126,7 @@ extension MainUiExtension on _MyHomePageState {
                                 ),
                               ]
                               : []) +
-                          [
-                            DropdownMenuEntry(
-                              value: "Off",
-                              label: "Offshoot",
-                              style: MenuItemButton.styleFrom(
-                                textStyle: TextStyle(fontFamily: 'Montserrat'),
-                                foregroundColor: thm.textcolor,
-                              ),
-                            ),
-                          ],
+                          [],
                     ),
                   ),
                   Spacer(flex: 1),
@@ -501,7 +476,7 @@ extension MainUiExtension on _MyHomePageState {
                     ),
                   ],
                 ),
-              if (selectedprofile != 3)
+              if (selectedprofile != 3 && selectedprofile != 4)
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -648,7 +623,7 @@ extension MainUiExtension on _MyHomePageState {
 
               SizedBox(height: hei * 0.01),
               // SizedBox(height: 4),
-              if (selectedprofile != 3)
+              if (selectedprofile != 3 && selectedprofile != 4)
                 Row(
                   children: [
                     Spacer(flex: 1),
@@ -848,12 +823,14 @@ extension MainUiExtension on _MyHomePageState {
                   ],
                 ),
               SizedBox(height: hei * 0.01),
+              if (selectedprofile == 4) buildOffshootUI(wid, hei),
+              if (selectedprofile != 4)
               Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onHorizontalDragEnd: (details) {
                     setState(() {
-                      if (details.primaryVelocity! < 0 && selectedprofile < 3) {
+                      if (details.primaryVelocity! < 0 && selectedprofile < 4) {
                         selectedprofile += 1;
                         _isrightswipe = true;
                       } else if (details.primaryVelocity! > 0 &&
