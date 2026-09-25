@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:js_interop';
 import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,6 +26,151 @@ class _SettingsState extends State<Settings> {
     await FirebaseAuth.instance.signOut();
     await Sync.clearLocal();
     web.window.location.reload();
+  }
+
+  /// Opens a native file picker and returns the chosen file's text, or null
+  /// if the user cancelled.
+  Future<String?> _pickJsonText() {
+    final input =
+        web.document.createElement('input') as web.HTMLInputElement;
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    final done = Completer<String?>();
+
+    input.onchange =
+        ((web.Event _) {
+          final files = input.files;
+          if (files == null || files.length == 0) {
+            if (!done.isCompleted) done.complete(null);
+            return;
+          }
+          final reader = web.FileReader();
+          reader.onload =
+              ((web.Event _) {
+                if (done.isCompleted) return;
+                final r = reader.result;
+                done.complete(r.isA<JSString>() ? (r as JSString).toDart : null);
+              }).toJS;
+          reader.onerror =
+              ((web.Event _) {
+                if (!done.isCompleted) {
+                  done.completeError('Could not read the file');
+                }
+              }).toJS;
+          reader.readAsText(files.item(0)!);
+        }).toJS;
+
+    // Fires when the picker is dismissed without choosing anything.
+    input.addEventListener(
+      'cancel',
+      ((web.Event _) {
+        if (!done.isCompleted) done.complete(null);
+      }).toJS,
+    );
+
+    input.click();
+    return done.future;
+  }
+
+  void _exportCsv() {
+    try {
+      final name = exportGradesCsv();
+      _toast('Downloaded $name');
+    } catch (e) {
+      _toast('Export failed: $e');
+    }
+  }
+
+  Future<void> _importFromFile() async {
+    String? text;
+    try {
+      text = await _pickJsonText();
+    } catch (e) {
+      _toast('Could not read the file: $e');
+      return;
+    }
+    if (text == null) return; // cancelled
+
+    Map<String, int> counts;
+    try {
+      counts = Sync.validate(text);
+    } catch (e) {
+      _toast(
+        e is FormatException ? "That file isn't a grade backup: ${e.message}" : '$e',
+      );
+      return;
+    }
+
+    final summary = [
+      if (counts['coursesBox'] != null) '${counts['coursesBox']} courses',
+      if (counts['settingsBox'] != null) '${counts['settingsBox']} settings',
+      if ((counts['offshootBox'] ?? 0) > 0)
+        '${counts['offshootBox']} offshoot courses',
+    ].join(', ');
+
+    if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: thm.backcolor,
+            title: Text(
+              'Replace your grades?',
+              style: TextStyle(color: thm.textcolor, fontFamily: 'Montserrat'),
+            ),
+            content: Text(
+              'This file contains $summary.\n\n'
+              'Importing replaces everything currently saved to your account. '
+              'This cannot be undone.',
+              style: TextStyle(
+                color: thm.textcolor,
+                fontSize: 14,
+                fontFamily: 'Montserrat',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text('Cancel', style: TextStyle(color: thm.textcolor)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text('Import', style: TextStyle(color: thm.highcolor)),
+              ),
+            ],
+          ),
+    );
+    if (ok != true) return;
+
+    try {
+      await Sync.apply(text);
+      await Sync.push();
+      web.window.location.reload();
+    } catch (e) {
+      _toast('Import failed: $e');
+    }
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: thm.cardcolor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: thm.bordcolor, width: 1),
+        ),
+        content: Text(
+          msg,
+          style: TextStyle(
+            color: thm.textcolor,
+            fontFamily: 'Montserrat',
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _importFromOldSite() async {
@@ -620,6 +767,54 @@ class _SettingsState extends State<Settings> {
                 height: MediaQuery.of(context).size.height * 0.05,
                 width: MediaQuery.of(context).size.width * 0.90,
                 child: FloatingActionButton(
+                  heroTag: 'settings_export_csv_btn',
+                  key: ValueKey("exportcsv"),
+                  elevation: 1,
+                  focusElevation: 0,
+                  hoverElevation: 0,
+                  highlightElevation: 0,
+                  disabledElevation: 0,
+                  backgroundColor: thm.cardcolor,
+                  onPressed: _exportCsv,
+                  child: Text(
+                    "Export grades (.csv)",
+                    style: TextStyle(
+                      fontFamily: "Montserrat",
+                      fontSize: 18,
+                      color: thm.highcolor,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.05,
+                width: MediaQuery.of(context).size.width * 0.90,
+                child: FloatingActionButton(
+                  heroTag: 'settings_import_file_btn',
+                  key: ValueKey("importfile"),
+                  elevation: 1,
+                  focusElevation: 0,
+                  hoverElevation: 0,
+                  highlightElevation: 0,
+                  disabledElevation: 0,
+                  backgroundColor: thm.cardcolor,
+                  onPressed: _importFromFile,
+                  child: Text(
+                    "Import backup file (.json)",
+                    style: TextStyle(
+                      fontFamily: "Montserrat",
+                      fontSize: 18,
+                      color: thm.highcolor,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.05,
+                width: MediaQuery.of(context).size.width * 0.90,
+                child: FloatingActionButton(
                   heroTag: 'settings_import_btn',
                   key: ValueKey("import"),
                   elevation: 1,
@@ -667,19 +862,62 @@ class _SettingsState extends State<Settings> {
               Spacer(flex: 1),
         SizedBox(height: 10),
               Text(
-                "Made by Srijen Raja",
+                "Made by Siddharth Mishra",
                 style: TextStyle(
                   fontSize: 14,
                   fontFamily: 'Montserrat',
                   color: thm.textcolor,
                 ),
               ),
-              Text(
-                "srijenapps@gmail.com",
-                style: TextStyle(
-                  fontSize: 10,
-                  fontFamily: 'Montserrat',
-                  color: thm.textcolor,
+              GestureDetector(
+                onTap:
+                    () => launchUrl(
+                      Uri.parse('mailto:siddhu.cms@gmail.com'),
+                    ),
+                child: Text(
+                  "siddhu.cms@gmail.com",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'Montserrat',
+                    color: thm.textcolor,
+                  ),
+                ),
+              ),
+              SizedBox(height: 4),
+              GestureDetector(
+                onTap:
+                    () => launchUrl(
+                      Uri.parse('https://github.com/e-iotapi'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                child: Text(
+                  "github.com/e-iotapi",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'Montserrat',
+                    decoration: TextDecoration.underline,
+                    decorationColor: thm.highcolor,
+                    color: thm.highcolor,
+                  ),
+                ),
+              ),
+              SizedBox(height: 6),
+              GestureDetector(
+                onTap:
+                    () => launchUrl(
+                      Uri.parse(
+                        'https://github.com/Srijen-Raja/CGPA_Calculator',
+                      ),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                child: Text(
+                  "Based on the CGPA Calculator by Srijen Raja \u00b7 Apache-2.0",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontFamily: 'Montserrat',
+                    color: thm.textcolor.withValues(alpha: 0.55),
+                  ),
                 ),
               ),
               SizedBox(height: MediaQuery.of(context).padding.bottom + 5),

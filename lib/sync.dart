@@ -97,7 +97,10 @@ class Sync {
       final s = await _doc.get();
       final cur = snapshot();
       final String? last = _meta.get('last');
-      if (!s.exists) return push(); // new user: seed from local
+      if (!s.exists) {
+        await push(); // new user: seed from local
+        return;
+      }
       final int rev = s.data()!['rev'];
       if (rev == _meta.get('rev', defaultValue: 0)) {
         if (cur != last) await push();
@@ -139,11 +142,33 @@ class Sync {
     }
   }
 
-  /// Also used by the "Import from old site" dialog.
+  /// Parses a snapshot and checks it actually looks like one, so a stray file
+  /// can't silently wipe every box. Returns {boxName: rowCount} for confirmation.
+  static Map<String, int> validate(String json) {
+    final decoded = jsonDecode(json);
+    if (decoded is! Map) {
+      throw const FormatException('File is not a JSON object');
+    }
+    final counts = <String, int>{
+      for (final n in _boxes)
+        if (decoded[n] is List) n: (decoded[n] as List).length,
+    };
+    if (counts.isEmpty) {
+      throw const FormatException(
+        'No settingsBox, coursesBox or offshootBox found in this file',
+      );
+    }
+    return counts;
+  }
+
+  /// Also used by the "Import" dialogs. Boxes absent from [json] are left
+  /// untouched rather than cleared.
   static Future<void> apply(String json) async {
+    validate(json);
     final data = Map<String, dynamic>.from(jsonDecode(json));
     for (final n in _boxes) {
-      final rows = (data[n] as List?) ?? const [];
+      if (data[n] is! List) continue;
+      final rows = data[n] as List;
       final box = _box(n);
       await box.clear();
       if (n == 'settingsBox') {
