@@ -92,7 +92,7 @@ class _AnalyticsState extends State<Analytics> {
       backgroundColor:
           thm
               .backcolor, //themes[0].backcolor,
-      body: Column(
+      body: SafeArea(child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -918,7 +918,7 @@ class _AnalyticsState extends State<Analytics> {
           ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
         ],
-      ),
+      )),
     );
   }
 }
