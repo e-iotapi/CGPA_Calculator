@@ -8,5 +8,17 @@ service cloud.firestore {
         && request.resource.data.data is string
         && request.resource.data.data.size() < 500000;
     }
+
+    // Bug reports / course requests. Write-only from the app: a signed-in user
+    // can file one under their own uid, but nothing can be read back from the
+    // client. Read them in the Firebase console, which bypasses these rules.
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() < 5000;
+      allow read, update, delete: if false;
+    }
   }
 }

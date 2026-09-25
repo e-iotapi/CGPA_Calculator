@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/sync.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:web/web.dart' as web;
 import 'package:cgpa_calculator/script.dart';
@@ -70,6 +71,165 @@ class _SettingsState extends State<Settings> {
 
     input.click();
     return done.future;
+  }
+
+  Future<void> _submitReport() async {
+    final controller = TextEditingController();
+    String type = 'Bug';
+    const types = ['Bug', 'Missing course', 'Suggestion'];
+
+    final send = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => StatefulBuilder(
+            builder:
+                (ctx, setSheet) => AlertDialog(
+                  backgroundColor: thm.backcolor,
+                  title: Text(
+                    'Report a problem',
+                    style: TextStyle(
+                      color: thm.textcolor,
+                      fontFamily: 'Montserrat',
+                    ),
+                  ),
+                  content: SizedBox(
+                    width: 420,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            for (final t in types)
+                              GestureDetector(
+                                onTap: () => setSheet(() => type = t),
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color:
+                                        type == t
+                                            ? thm.highcolor.withValues(
+                                              alpha: 0.15,
+                                            )
+                                            : null,
+                                    border: Border.all(
+                                      color:
+                                          type == t
+                                              ? thm.highcolor
+                                              : thm.bordcolor,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    t,
+                                    style: TextStyle(
+                                      fontFamily: 'Montserrat',
+                                      fontSize: 12,
+                                      color:
+                                          type == t
+                                              ? thm.highcolor
+                                              : thm.textcolor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        SizedBox(height: 14),
+                        TextField(
+                          controller: controller,
+                          maxLines: 5,
+                          maxLength: 2000,
+                          style: TextStyle(
+                            color: thm.textcolor,
+                            fontSize: 13,
+                            fontFamily: 'Montserrat',
+                          ),
+                          decoration: InputDecoration(
+                            hintText:
+                                'What went wrong, or which course is missing?',
+                            hintStyle: TextStyle(
+                              color: thm.textcolor.withValues(alpha: 0.5),
+                              fontSize: 12,
+                              fontFamily: 'Montserrat',
+                            ),
+                            counterStyle: TextStyle(
+                              color: thm.textcolor.withValues(alpha: 0.5),
+                              fontSize: 10,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: thm.bordcolor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: thm.highcolor),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'Sent with your email so a reply is possible.',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontFamily: 'Montserrat',
+                            color: thm.textcolor.withValues(alpha: 0.55),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(color: thm.textcolor),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: Text(
+                        'Send',
+                        style: TextStyle(color: thm.highcolor),
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+    );
+    if (send != true) return;
+
+    final message = controller.text.trim();
+    if (message.isEmpty) {
+      _toast('Nothing to send — the message was empty.');
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _toast('You need to be signed in to send a report.');
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance.collection('reports').add({
+        'uid': user.uid,
+        'email': user.email ?? '',
+        'type': type,
+        'message': message,
+        'discipline': selecteddiscipline,
+        'campus': selectedcampus,
+        'batch': batch,
+        'appVersion': '2.3.1+131',
+        'userAgent': web.window.navigator.userAgent,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      _toast('Thanks — your report was sent.');
+    } catch (e) {
+      _toast('Could not send the report: $e');
+    }
   }
 
   void _exportCsv() {
@@ -747,9 +907,7 @@ class _SettingsState extends State<Settings> {
                       color: thm.highcolor,
                     ),
                   ),
-                    onPressed: () async {
-                      await launchUrl(Uri.parse('https://forms.gle/t852T4DwNzoDN8tH6'));
-                    },
+                    onPressed: _submitReport,
                 ),
               ),
 
