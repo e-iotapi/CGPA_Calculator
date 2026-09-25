@@ -133,9 +133,7 @@ class _SignInAppState extends State<SignInApp>
       title: 'CGPA Calculator',
       scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: thm.highcolor),
-      ),
+      theme: thm.materialTheme,
       home: Scaffold(
         backgroundColor: thm.backcolor,
         body: SafeArea(
@@ -339,9 +337,7 @@ class MyApp extends StatelessWidget {
         );
       },
       title: 'CGPA Calculator',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: thm.highcolor),
-      ),
+      theme: thm.materialTheme,
       home: const MyHomePage(title: 'CGPA CALCULATOR'),
     );
   }
