@@ -14,6 +14,8 @@ import 'package:cgpa_calculator/settings.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/constants.dart';
+import 'package:cgpa_calculator/shared/layout/responsive.dart';
+import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 import 'dart:math';
 part 'overlays_extension.dart';
 part 'main_ui_extension.dart';
@@ -119,179 +121,170 @@ class _MyHomePageState extends State<MyHomePage> {
     sgpa = sgcalc(currentsem);
     cgpa = cgcalc();
     creditTotals();
-    var wid = MediaQuery.of(context).size.width;
-    var hei = MediaQuery.of(context).size.height;
-    if (kIsWeb && hei < wid) {
-      wid = hei * 17.9 / 18;
-    }
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        backgroundColor: thm.backcolor,
-        body: Stack(
-          children: [
-            buildMainUI(wid, hei, sitems),
-            buildCourseDetailSheet(wid, hei, sitems),
-            buildSearchOverlay(wid, hei, sitems),
-            AnimatedSwitcher(
-              duration: Duration(milliseconds: 400),
-              switchInCurve: Curves.easeInOut,
-              switchOutCurve: Curves.easeInOut,
-              child:
-                  !degree_selected
-                      ? Stack(
-                        children: [
-                          AnimatedOpacity(
-                            opacity: !degree_selected ? 0.6 : 0.0,
-                            duration: Duration(milliseconds: 500),
-                            child: GestureDetector(
-                              onTap: () async {},
-                              child: Container(
-                                color: thm.textcolor,
-                                width: double.infinity,
-                                height: double.infinity,
-                              ),
-                            ),
-                          ),
-                          Center(child: buildAddCourseDialog(wid, hei, sitems)),
-                        ],
-                      )
-                      : SizedBox.shrink(),
+    // The current palette is re-injected on every build: settings change the
+    // `thm` global and setState here, but MyApp above never rebuilds.
+    return Theme(
+      data: Theme.of(context).copyWith(extensions: [thm]),
+      child: PopScope(
+        canPop: false,
+        child: ResponsiveScaffold(
+          selectedIndex: selectedprofile - 1,
+          onSelected: (index) {
+            setState(() {
+              if (index + 1 > selectedprofile) {
+                _isrightswipe = true;
+              } else {
+                _isrightswipe = false;
+              }
+              selectedprofile = index + 1;
+              if (selectedprofile == 2) {
+                _showFab = true;
+                setfab();
+              }
+            });
+          },
+          destinations: [
+            NavDestination(icon: Icons.home_outlined, label: profile1n),
+            NavDestination(icon: Icons.bar_chart_rounded, label: profile2n),
+            const NavDestination(
+              icon: Icons.compare_arrows_rounded,
+              label: 'Compare',
+            ),
+            const NavDestination(
+              icon: Icons.workspace_premium_outlined,
+              label: 'Offshoot',
             ),
           ],
-        ),
-        bottomNavigationBar: Theme(
-          data: Theme.of(context).copyWith(
-            splashColor: Colors.grey.withValues(alpha: 0.05),
-            highlightColor: Colors.grey.withValues(alpha: 0.05),
-            hoverColor: Colors.grey.withValues(alpha: 0.05),
-          ),
-          child: BottomNavigationBar(
-            // With 4+ items this defaults to `shifting`, which ignores
-            // backgroundColor and hides unselected labels. Pin it to `fixed`.
-            type: BottomNavigationBarType.fixed,
-            showUnselectedLabels: true,
-            elevation: 0,
-            backgroundColor: thm.backcolor,
-            selectedItemColor: thm.highcolor,
-            unselectedItemColor: thm.unscolor,
-            currentIndex: selectedprofile - 1,
-            onTap: (index) {
-              setState(() {
-                if (index + 1 > selectedprofile) {
-                  _isrightswipe = true;
-                } else {
-                  _isrightswipe = false;
-                }
-                selectedprofile = index + 1;
-                if (selectedprofile == 2) {
-                  _showFab = true;
-                  setfab();
-                }
-              });
+          body: LayoutBuilder(
+            builder: (context, c) {
+              // The legacy screens below size and centre themselves off
+              // MediaQuery's width, assuming they fill the window. Beside the
+              // rail they do not, so they are shown the body's width instead.
+              // Height is left alone until the MediaQuery × n sizing goes.
+              final mq = MediaQuery.of(context);
+              var wid = c.maxWidth;
+              final hei = mq.size.height;
+              if (kIsWeb && hei < wid) {
+                wid = hei * 17.9 / 18;
+              }
+              return MediaQuery(
+                data: mq.copyWith(size: Size(c.maxWidth, hei)),
+                child: Stack(
+                  children: [
+                    buildMainUI(wid, hei, sitems),
+                    buildCourseDetailSheet(wid, hei, sitems),
+                    buildSearchOverlay(wid, hei, sitems),
+                    AnimatedSwitcher(
+                      duration: Duration(milliseconds: 400),
+                      switchInCurve: Curves.easeInOut,
+                      switchOutCurve: Curves.easeInOut,
+                      child:
+                          !degree_selected
+                              ? Stack(
+                                children: [
+                                  AnimatedOpacity(
+                                    opacity: !degree_selected ? 0.6 : 0.0,
+                                    duration: Duration(milliseconds: 500),
+                                    child: GestureDetector(
+                                      onTap: () async {},
+                                      child: Container(
+                                        color: thm.textcolor,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                      ),
+                                    ),
+                                  ),
+                                  Center(
+                                    child: buildAddCourseDialog(
+                                      wid,
+                                      hei,
+                                      sitems,
+                                    ),
+                                  ),
+                                ],
+                              )
+                              : SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              );
             },
-
-            items: [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.account_box_outlined),
-                label: profile1n,
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.account_box_outlined),
-                label: profile2n,
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.comment_bank_outlined),
-                label: "Compare",
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.workspace_premium_outlined),
-                label: "Offshoot",
-              ),
-            ],
-            selectedLabelStyle: TextStyle(
-              fontFamily: 'Montserrat',
-              fontWeight: FontWeight.bold,
-              fontSize: 10,
-            ),
-            unselectedLabelStyle: TextStyle(
-              fontFamily: 'Montserrat',
-              fontWeight: FontWeight.normal,
-              fontSize: 8,
-            ),
           ),
-        ),
-        floatingActionButton: AnimatedSwitcher(
-          duration: Duration(milliseconds: 100),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          transitionBuilder: (child, animation) {
-            final tween = Tween<Offset>(
-              begin: const Offset(0, 0.3),
-              end: Offset.zero,
-            ).chain(CurveTween(curve: Curves.easeOut));
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-          child:
-              (selectedprofile == 2 && _showFab)
-                  ? FloatingActionButton(
-                    key: const ValueKey("Button"),
-                    elevation: 10,
-                    backgroundColor:
-                        (selected_theme == "Black" || selected_theme == "Blue")
-                            ? thm.sepcolor
-                            : thm.backcolor,
-                    onPressed: () async {
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder:
-                            (ctx) => AlertDialog(
-                              backgroundColor: thm.backcolor,
-                              title: Text(
-                                'Import from $profile1n?',
-                                style: TextStyle(
-                                  color: thm.textcolor,
-                                  fontFamily: 'Montserrat',
-                                ),
-                              ),
-                              content: Text(
-                                'Every $profile1n grade, in all semesters, will '
-                                'be copied over your $profile2n grades. '
-                                'This cannot be undone.',
-                                style: TextStyle(
-                                  color: thm.textcolor,
-                                  fontSize: 14,
-                                  fontFamily: 'Montserrat',
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(false),
-                                  child: Text(
-                                    'Cancel',
-                                    style: TextStyle(color: thm.textcolor),
+          floatingActionButton: AnimatedSwitcher(
+            duration: Duration(milliseconds: 100),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) {
+              final tween = Tween<Offset>(
+                begin: const Offset(0, 0.3),
+                end: Offset.zero,
+              ).chain(CurveTween(curve: Curves.easeOut));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+            child:
+                (selectedprofile == 2 && _showFab)
+                    ? FloatingActionButton(
+                      key: const ValueKey("Button"),
+                      elevation: 10,
+                      backgroundColor:
+                          (selected_theme == "Black" ||
+                                  selected_theme == "Blue")
+                              ? thm.sepcolor
+                              : thm.backcolor,
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder:
+                              (ctx) => AlertDialog(
+                                backgroundColor: thm.backcolor,
+                                title: Text(
+                                  'Import from $profile1n?',
+                                  style: TextStyle(
+                                    color: thm.textcolor,
+                                    fontFamily: 'Montserrat',
                                   ),
                                 ),
-                                TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: Text(
-                                    'Import',
-                                    style: TextStyle(color: thm.highcolor),
+                                content: Text(
+                                  'Every $profile1n grade, in all semesters, will '
+                                  'be copied over your $profile2n grades. '
+                                  'This cannot be undone.',
+                                  style: TextStyle(
+                                    color: thm.textcolor,
+                                    fontSize: 14,
+                                    fontFamily: 'Montserrat',
                                   ),
                                 ),
-                              ],
-                            ),
-                      );
-                      if (ok != true) return;
-                      await copyGrades();
-                      setState(() {});
-                    },
-                    child: Icon(Icons.copy, color: thm.textcolor),
-                  )
-                  : SizedBox.shrink(),
+                                actions: [
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.of(ctx).pop(false),
+                                    child: Text(
+                                      'Cancel',
+                                      style: TextStyle(color: thm.textcolor),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.of(ctx).pop(true),
+                                    child: Text(
+                                      'Import',
+                                      style: TextStyle(color: thm.highcolor),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                        );
+                        if (ok != true) return;
+                        await copyGrades();
+                        setState(() {});
+                      },
+                      child: Icon(Icons.copy, color: thm.textcolor),
+                    )
+                    : SizedBox.shrink(),
+          ),
         ),
       ),
     );

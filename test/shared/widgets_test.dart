@@ -82,4 +82,13 @@ void main() {
     await t.tap(find.bySemanticsLabel('Export gradesheet'));
     expect(taps, 1);
   });
+
+  testWidgets('a labelled pill hugs its label instead of stretching', (
+    t,
+  ) async {
+    await t.pumpWidget(
+      _host(Wrap(children: [PillButton(label: '4 - 1', onPressed: () {})])),
+    );
+    expect(t.getSize(find.byType(PillButton)).width, lessThan(120));
+  });
 }

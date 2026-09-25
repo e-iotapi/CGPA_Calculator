@@ -464,7 +464,7 @@ class _SettingsState extends State<Settings> {
         ]
       ),
       backgroundColor: thm.backcolor, //themes[0].backcolor,
-      body: Stack(
+      body: SafeArea(child: Stack(
         children: [
           Column(
             children: [
@@ -1318,7 +1318,7 @@ class _SettingsState extends State<Settings> {
                     : SizedBox.shrink(),
           ),
         ],
-      ),
+      )),
     );
   }
 }

@@ -62,10 +62,11 @@ class PillButton extends StatelessWidget {
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         ),
       );
+      // No `alignment` here: with one, the Container grows to the full width
+      // it is offered instead of hugging the label.
       content = Container(
         height: height,
         padding: const EdgeInsets.symmetric(horizontal: 15),
-        alignment: Alignment.center,
         child: Row(
           mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
