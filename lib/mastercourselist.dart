@@ -1,9 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 
 class Mastercourselist {
   final String title;
@@ -3470,11 +3467,6 @@ List<Mastercourselist> mcourselist = [
   ),
 ];
 
-Future<String> _getFilePath() async {
-  final directory = await getApplicationDocumentsDirectory();
-  return '${directory.path}/mcourselist.json';
-}
-
 Future<List<Mastercourselist>> fetchData() async {
   final url =
       'https://raw.githubusercontent.com/Srijen-Raja/CGPA_Calculator/refs/heads/master/lib/mcourselist.json';
@@ -3496,7 +3488,6 @@ Future<List<Mastercourselist>> fetchData() async {
                 ),
               )
               .toList();
-      await convertAndSaveToJsonFile(fetchedlist);
       return fetchedlist;
     } else {
       //print('Failed to load data: ${response.statusCode}');
@@ -3505,36 +3496,5 @@ Future<List<Mastercourselist>> fetchData() async {
   } catch (e) {
     //print('Error fetching data: $e');
     return mcourselist;
-  }
-}
-
-Future<void> convertAndSaveToJsonFile(
-  List<Mastercourselist> mcourselist,
-) async {
-  List<Map<String, dynamic>> jsonList =
-      mcourselist.map((course) => course.toJson()).toList();
-  String jsonString = jsonEncode(jsonList);
-  final path = await _getFilePath();
-  final file = File(path);
-  await file.writeAsString(jsonString);
-}
-
-Future<List<Mastercourselist>> loadMcourselistFromFile() async {
-  final path = await _getFilePath();
-  final file = File(path);
-  if (await file.exists()) {
-    String jsonString = await file.readAsString();
-    List jsonList = jsonDecode(jsonString);
-    return jsonList
-        .map(
-          (json) => Mastercourselist(
-            title: json['title'],
-            id: json['id'],
-            credits: (json['credits'] as num).toDouble(),
-          ),
-        )
-        .toList();
-  } else {
-    return fetchData();
   }
 }
