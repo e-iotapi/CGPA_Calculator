@@ -1,9 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
+
+    // Only verified BITS Pilani campus accounts. The app checks this too, but
+    // a client-side check is bypassable — this is the real enforcement.
+    function isBits() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && request.auth.token.email.matches(
+             '(?i)^[^@]+@(goa|pilani|dubai|hyderabad)[.]bits-pilani[.]ac[.]in$');
+    }
+
     match /users/{uid} {
-      allow read, delete: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null && request.auth.uid == uid
+      allow read, delete: if isBits() && request.auth.uid == uid;
+      allow create, update: if isBits() && request.auth.uid == uid
         && request.resource.data.rev is int
         && request.resource.data.data is string
         && request.resource.data.data.size() < 500000;
@@ -13,7 +24,7 @@ service cloud.firestore {
     // can file one under their own uid, but nothing can be read back from the
     // client. Read them in the Firebase console, which bypasses these rules.
     match /reports/{reportId} {
-      allow create: if request.auth != null
+      allow create: if isBits()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.message is string
         && request.resource.data.message.size() > 0
