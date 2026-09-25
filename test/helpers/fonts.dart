@@ -12,6 +12,12 @@ Future<void> loadAppFonts() async {
   }
 
   await load('Montserrat', 'fonts/Montserrat-SemiBold.ttf');
+  final full = FontLoader('MontserratFull');
+  for (final w in ['Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold']) {
+    final bytes = File('fonts/Montserrat-$w.ttf').readAsBytesSync();
+    full.addFont(Future.value(ByteData.sublistView(bytes)));
+  }
+  await full.load();
   // flutter_tester lives at <root>/bin/cache/artifacts/engine/<platform>/.
   final flutterRoot =
       Platform.environment['FLUTTER_ROOT'] ??
