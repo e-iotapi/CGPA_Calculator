@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/material.dart';
@@ -782,34 +783,8 @@ final List<String> depts = [
   "PHY",
   "SNS",
 ];
-final List<String> grades = [
-  "A",
-  "A-",
-  "B",
-  "B-",
-  "C",
-  "C-",
-  "D",
-  "E",
-  "NC",
-  "RC",
-  "W",
-  "CLR",
-  "GD",
-  ""
-];
-final List<String> sems = [
-  "1 - 1",
-  "1 - 2",
-  "2 - 1",
-  "2 - 2",
-  "PS 1",
-  "3 - 1",
-  "3 - 2",
-  "ST 1",
-  "4 - 1",
-  "4 - 2",
-];
+final List<String> grades = pickerGrades;
+final List<String> sems = baseSemesters;
 final List<String> degreelist = [
   "B1",
   "B2",

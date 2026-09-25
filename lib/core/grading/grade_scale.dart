@@ -45,3 +45,21 @@ String gradecalc(int s) => _letters[s] ?? '?';
 /// Letter → stored value. An empty string means cleared.
 int reversegradecalc(String s) =>
     s == '' ? GradeCode.clr : gradeValues[s] ?? GradeCode.unknown;
+
+/// Order of the grade picker. "" is how a cleared grade is picked.
+const pickerGrades = [
+  'A',
+  'A-',
+  'B',
+  'B-',
+  'C',
+  'C-',
+  'D',
+  'E',
+  'NC',
+  'RC',
+  'W',
+  'CLR',
+  'GD',
+  '',
+];
