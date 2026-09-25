@@ -1,11 +1,12 @@
 import 'package:cgpa_calculator/constants.dart';
+import 'package:cgpa_calculator/sync.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:web/web.dart' as web;
 import 'package:cgpa_calculator/script.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:io';
-import 'package:in_app_review/in_app_review.dart';
 
 class Settings extends StatefulWidget {
   const Settings({super.key});
@@ -18,6 +19,82 @@ String selectdual = selecteddiscipline.substring(0, 2);
 String selecengg = selecteddiscipline.substring(2, 4);
 
 class _SettingsState extends State<Settings> {
+  Future<void> _signOut() async {
+    await Sync.stop();
+    await FirebaseAuth.instance.signOut();
+    await Sync.clearLocal();
+    web.window.location.reload();
+  }
+
+  Future<void> _importFromOldSite() async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: thm.backcolor,
+            title: Text(
+              'Import from old site',
+              style: TextStyle(color: thm.textcolor, fontFamily: 'Montserrat'),
+            ),
+            content: SizedBox(
+              width: 420,
+              child: TextField(
+                controller: controller,
+                maxLines: 8,
+                style: TextStyle(
+                  color: thm.textcolor,
+                  fontSize: 12,
+                  fontFamily: 'Montserrat',
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Paste the JSON copied from the old site',
+                  hintStyle: TextStyle(
+                    color: thm.textcolor.withValues(alpha: 0.5),
+                    fontSize: 12,
+                    fontFamily: 'Montserrat',
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: thm.bordcolor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: thm.highcolor),
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text('Cancel', style: TextStyle(color: thm.textcolor)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text('Import', style: TextStyle(color: thm.highcolor)),
+              ),
+            ],
+          ),
+    );
+    if (confirmed != true) return;
+    try {
+      await Sync.apply(controller.text);
+      await Sync.push();
+      web.window.location.reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: thm.cardcolor,
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            'Import failed: $e',
+            style: TextStyle(color: thm.textcolor, fontFamily: 'Montserrat'),
+          ),
+        ),
+      );
+    }
+  }
+
   final TextEditingController myController1 = TextEditingController(
     text: profile1n,
   );
@@ -529,43 +606,66 @@ class _SettingsState extends State<Settings> {
                 ),
               ),
 
-              Spacer(flex: 1),
-        if(!kIsWeb && Platform.isAndroid)
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.05,
-          width: MediaQuery.of(context).size.width * 0.90,
-          child: FloatingActionButton(
-            heroTag: 'settings_review_btn',
-            key: ValueKey("report"),
-            elevation: 1,
-            focusElevation: 0,
-            hoverElevation: 0,
-            highlightElevation: 0,
-            disabledElevation: 0,
-            backgroundColor: thm.cardcolor,
-            child: Text(
-              "Write a Review",
-              style: TextStyle(
-                fontFamily: "Montserrat",
-                fontSize: 18,
-                color: thm.highcolor,
+              SizedBox(height: 14),
+              Text(
+                FirebaseAuth.instance.currentUser?.email ?? "Not signed in",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontFamily: 'Montserrat',
+                  color: thm.textcolor.withValues(alpha: 0.7),
+                ),
               ),
-            ),
-              onPressed: ()async {
-                final InAppReview inAppReview = InAppReview.instance;
-                if (await inAppReview.isAvailable()) {
-                  await inAppReview.requestReview();
-                }
-                else{
-                  await launchUrl(
-                    Uri.parse(
-                        'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator'),
-                  );
-                }
-              }
-          ),
-        ),
               SizedBox(height: 10),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.05,
+                width: MediaQuery.of(context).size.width * 0.90,
+                child: FloatingActionButton(
+                  heroTag: 'settings_import_btn',
+                  key: ValueKey("import"),
+                  elevation: 1,
+                  focusElevation: 0,
+                  hoverElevation: 0,
+                  highlightElevation: 0,
+                  disabledElevation: 0,
+                  backgroundColor: thm.cardcolor,
+                  onPressed: _importFromOldSite,
+                  child: Text(
+                    "Import from old site",
+                    style: TextStyle(
+                      fontFamily: "Montserrat",
+                      fontSize: 18,
+                      color: thm.highcolor,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.05,
+                width: MediaQuery.of(context).size.width * 0.90,
+                child: FloatingActionButton(
+                  heroTag: 'settings_signout_btn',
+                  key: ValueKey("signout"),
+                  elevation: 1,
+                  focusElevation: 0,
+                  hoverElevation: 0,
+                  highlightElevation: 0,
+                  disabledElevation: 0,
+                  backgroundColor: thm.cardcolor,
+                  onPressed: _signOut,
+                  child: Text(
+                    "Sign out",
+                    style: TextStyle(
+                      fontFamily: "Montserrat",
+                      fontSize: 18,
+                      color: thm.highcolor,
+                    ),
+                  ),
+                ),
+              ),
+
+              Spacer(flex: 1),
+        SizedBox(height: 10),
               Text(
                 "Made by Srijen Raja",
                 style: TextStyle(

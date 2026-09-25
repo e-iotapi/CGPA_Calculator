@@ -1,80 +1,167 @@
-import 'dart:io';
-import 'package:cgpa_calculator/offshoot.dart';
-import 'package:path/path.dart' as p;
-import 'package:cgpa_calculator/analytics.dart';
-// import 'dart:html' as html;
-// import 'dart:js' as js;
 import 'package:cgpa_calculator/course.dart';
-import 'package:flutter/foundation.dart';
+import 'package:cgpa_calculator/firebase_options.dart';
+import 'package:cgpa_calculator/home_page.dart';
+import 'package:cgpa_calculator/script.dart';
+import 'package:cgpa_calculator/sync.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:marquee/marquee.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:screen_retriever/screen_retriever.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:cgpa_calculator/settings.dart';
-import 'package:cgpa_calculator/script.dart';
-import 'package:cgpa_calculator/mastercourselist.dart';
-import 'package:cgpa_calculator/constants.dart';
-import 'dart:math';
-import 'package:in_app_update/in_app_update.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:cgpa_calculator/home_page.dart';
-
-//html and js imports and uses to be removed for android build
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (!kIsWeb) {
-    String hivePath;
-    if (Platform.isWindows) {
-      final exePath = Platform.resolvedExecutable;
-      final exeDir = p.dirname(exePath);
-      hivePath = p.join(exeDir, 'Hive');
-      await Hive.initFlutter(hivePath);
-    } else {
-      await Hive.initFlutter();
-    }
-  } else {
-    await Hive.initFlutter();
-  }
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Hive.initFlutter();
   Hive.registerAdapter(CourseAdapter());
-  //await Hive.openBox<Course>('coursesBox');
-  await basicStartup();
-  if (!kIsWeb) {
-    mcourselist = await loadMcourselistFromFile();
+  await Sync.openBoxes();
+  final user = await FirebaseAuth.instance.authStateChanges().first;
+  if (user == null) {
+    runApp(const SignInApp());
+  } else {
+    await startApp(user);
   }
-  //await initializeCourses();
-  //await Future.delayed(Duration(milliseconds: 40));
-  if (!kIsWeb) {
-    if (defaultTargetPlatform == TargetPlatform.windows) {
-      final maxwindowsscreen = await screenRetriever.getPrimaryDisplay();
-      final maxwindowsheight = maxwindowsscreen.size.height.toDouble();
-      await windowManager.ensureInitialized();
-      //await windowManager.setAspectRatio(9.5 / 18);
-      //await windowManager.setMaximumSize(Size(maxwindowsheight * 9.5 / 18, maxwindowsheight));
-      //await windowManager.setMinimumSize(Size(720 * 9.5 / 18, 720));
-      //await windowManager.setAsFrameless();
-      WindowOptions windowOptions = WindowOptions(
-        size: Size(maxwindowsheight * 9.5 / 18, maxwindowsheight),
-        //center: true,
-        //backgroundColor: themes.firstWhere((t) => t.theme == selected_theme).backcolor,
-        skipTaskbar: false,
-        titleBarStyle: TitleBarStyle.normal,
-      );
+}
 
-      windowManager.waitUntilReadyToShow(windowOptions, () async {
-        await windowManager.show();
-        await windowManager.focus();
-      });
-    }
-  }
-  SystemChrome.setPreferredOrientations([
+/// Pulls the user's data down before basicStartup() reads settings into globals.
+Future<void> startApp(User user) async {
+  await Sync.init(user.uid);
+  await basicStartup();
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]).then((_) {
-    runApp(MyApp());
-  });
+  ]);
+  runApp(MyApp());
+}
+
+class SignInApp extends StatefulWidget {
+  const SignInApp({super.key});
+
+  @override
+  State<SignInApp> createState() => _SignInAppState();
+}
+
+class _SignInAppState extends State<SignInApp> {
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+  bool _busy = false;
+
+  Future<void> _signIn() async {
+    setState(() => _busy = true);
+    try {
+      final cred = await FirebaseAuth.instance.signInWithPopup(
+        GoogleAuthProvider(),
+      );
+      final user = cred.user;
+      if (user == null) throw FirebaseAuthException(code: 'no-user');
+      await startApp(user); // replaces this app with the real one
+      return;
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _messengerKey.currentState?.showSnackBar(
+        SnackBar(
+          backgroundColor: thm.cardcolor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: thm.bordcolor, width: 1),
+          ),
+          content: Text(
+            'Sign-in failed: ${e is FirebaseAuthException ? (e.message ?? e.code) : e}',
+            style: TextStyle(
+              fontFamily: 'Montserrat',
+              fontSize: 14,
+              color: thm.textcolor,
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'CGPA Calculator',
+      scaffoldMessengerKey: _messengerKey,
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: thm.highcolor),
+      ),
+      home: Scaffold(
+        backgroundColor: thm.backcolor,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'CGPA CALCULATOR',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: thm.textcolor,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Sign in to save your grades and pick them up on any device.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 14,
+                      color: thm.textcolor.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 36),
+                  SizedBox(
+                    height: 52,
+                    width: double.infinity,
+                    child: FloatingActionButton.extended(
+                      heroTag: 'google_sign_in',
+                      backgroundColor: thm.cardcolor,
+                      elevation: 1,
+                      focusElevation: 0,
+                      hoverElevation: 0,
+                      highlightElevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: thm.bordcolor, width: 1),
+                      ),
+                      onPressed: _busy ? null : _signIn,
+                      label:
+                          _busy
+                              ? SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: thm.highcolor,
+                                ),
+                              )
+                              : Text(
+                                'Sign in with Google',
+                                style: TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontSize: 17,
+                                  color: thm.highcolor,
+                                ),
+                              ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -99,4 +186,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

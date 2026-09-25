@@ -29,8 +29,6 @@ extension MainUiExtension on _MyHomePageState {
           ),
           child: Column(
             children: <Widget>[
-              if (!kIsWeb)
-                if (Platform.isAndroid) SizedBox(height: 40),
               Row(
                 children: [
                   SizedBox(width: 20),

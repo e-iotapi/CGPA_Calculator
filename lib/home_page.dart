@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:async';
 import 'package:cgpa_calculator/offshoot.dart';
 import 'package:cgpa_calculator/analytics.dart';
@@ -15,8 +14,6 @@ import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/constants.dart';
 import 'dart:math';
-import 'package:in_app_update/in_app_update.dart';
-import 'package:url_launcher/url_launcher.dart';
 part 'overlays_extension.dart';
 part 'main_ui_extension.dart';
 //html and js imports and uses to be removed for android build
@@ -37,53 +34,6 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!kIsWeb) {
-        mcourselist = await fetchData();
-      }
-      if (!kIsWeb) {
-        if (Platform.isAndroid) {
-          final updateInfo = await InAppUpdate.checkForUpdate();
-          if (updateInfo.updateAvailability ==
-              UpdateAvailability.updateAvailable) {
-            if (mounted) {
-              showDialog(
-                context: context,
-                barrierDismissible: true,
-                builder:
-                    (context) => AlertDialog(
-                      backgroundColor: thm.backcolor,
-                      title: Text(
-                        'Update Available',
-                        style: TextStyle(color: thm.textcolor),
-                      ),
-                      content: Text(
-                        'An Update is Available. Update now?',
-                        style: TextStyle(color: thm.textcolor),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () async {
-                            Navigator.of(context).pop();
-                            await launchUrl(
-                              Uri.parse(
-                                'https://play.google.com/store/apps/details?id=com.srijen.cgpa_calculator',
-                              ),
-                            );
-                          },
-                          child: Text(
-                            'Update',
-                            style: TextStyle(color: thm.highcolor),
-                          ),
-                        ),
-                      ],
-                    ),
-              );
-            }
-          }
-        }
-      }
-    });
   }
 
   List<Course> get items =>
