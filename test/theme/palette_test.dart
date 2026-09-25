@@ -13,7 +13,18 @@ void main() {
     );
   });
 
-  for (final old in legacy.themes) {
+  test('White and Black are the redesign palettes, under their old names', () {
+    final white = AppPalette.named.firstWhere((p) => p.name == 'White');
+    final black = AppPalette.named.firstWhere((p) => p.name == 'Black');
+    expect(white.hero, AppPalette.light.hero);
+    expect(white.background, AppPalette.light.background);
+    expect(black.hero, AppPalette.dark.hero);
+    expect(black.background, AppPalette.dark.background);
+  });
+
+  for (final old in legacy.themes.where(
+    (t) => t.theme != 'White' && t.theme != 'Black',
+  )) {
     test('${old.theme} keeps all nine colours', () {
       final p = AppPalette.named.firstWhere((p) => p.name == old.theme);
       expect(p.backcolor, old.backcolor);

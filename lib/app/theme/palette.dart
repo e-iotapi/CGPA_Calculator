@@ -147,6 +147,31 @@ class AppPalette extends ThemeExtension<AppPalette> {
   static AppPalette of(BuildContext context) =>
       Theme.of(context).extension<AppPalette>() ?? light;
 
+  /// This palette under another name.
+  AppPalette renamed(String newName) => AppPalette(
+    name: newName,
+    background: background,
+    surface: surface,
+    surfaceRaised: surfaceRaised,
+    surfaceSunken: surfaceSunken,
+    text: text,
+    textMuted: textMuted,
+    divider: divider,
+    border: border,
+    outline: outline,
+    accent: accent,
+    icon: icon,
+    inverse: inverse,
+    onInverse: onInverse,
+    hero: hero,
+    onHero: onHero,
+    onHeroMuted: onHeroMuted,
+    navBackground: navBackground,
+    navIcon: navIcon,
+    ahead: ahead,
+    behind: behind,
+  );
+
   @override
   AppPalette copyWith() => this;
 
@@ -216,32 +241,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
     behind: Color(0xFFE0A272),
   );
 
-  /// The user-selectable themes, unchanged from the original `constants.dart`.
+  /// The user-selectable themes. White and Black are the redesign; the rest
+  /// are unchanged from the original `constants.dart`.
   static final List<AppPalette> named = [
-    AppPalette.legacy(
-      theme: "White",
-      backcolor: Color(0xFFFCF5FD),
-      butcolor: Color(0xFFF3EEFC),
-      bordcolor: Color(0xFF000000),
-      cardcolor: Color(0xFFFCF2FD),
-      textcolor: Colors.black87,
-      sepcolor: Colors.black38,
-      highcolor: Colors.deepPurple,
-      unscolor: Color(0xA6463E4D),
-      iconcolor: Color(0xEA222122),
-    ),
-    AppPalette.legacy(
-      theme: "Black",
-      backcolor: Color(0xFF0D0D0D),
-      butcolor: Color(0xFF19191C),
-      bordcolor: Color(0xE5DAD7D7),
-      cardcolor: Color(0xFF141414),
-      textcolor: Color(0xFFB6BABE),
-      sepcolor: Color(0xFF3B383B),
-      highcolor: Colors.deepPurple,
-      unscolor: Colors.white38,
-      iconcolor: Colors.white38,
-    ),
+    // White and Black were the original light and dark themes; they now
+    // carry the redesign's palettes under their old names, so a saved
+    // selection keeps working.
+    light.renamed('White'),
+    dark.renamed('Black'),
     AppPalette.legacy(
       theme: "Blue",
       backcolor: Color(0xFF01011C),
