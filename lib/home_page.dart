@@ -14,6 +14,10 @@ import 'package:cgpa_calculator/settings.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/constants.dart';
+import 'package:cgpa_calculator/core/models/semesters.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/features/semester/semester_controller.dart';
+import 'package:cgpa_calculator/features/semester/semester_page.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 import 'dart:math';
@@ -171,7 +175,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 data: mq.copyWith(size: Size(c.maxWidth, hei)),
                 child: Stack(
                   children: [
-                    buildMainUI(wid, hei, sitems),
+                    _semesterView(sitems, wid, hei),
                     buildCourseDetailSheet(wid, hei, sitems),
                     buildSearchOverlay(wid, hei, sitems),
                     AnimatedSwitcher(
@@ -288,5 +292,166 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
     );
+  }
+
+  Widget _semesterView(List<Course> sitems, double wid, double hei) {
+    final parts = greeting().split(', ');
+    return SemesterView(
+      data: SemesterData.from(
+        allCourses: Hive.box<Course>('coursesBox').values,
+        visible: sitems,
+        sem: currentsem,
+        semesters: semestersFor(selecteddiscipline),
+        discipline: selecteddiscipline,
+        mode: SemesterMode.fromProfileId(selectedprofile),
+        sort: CourseSort.fromKey(currentsort),
+        profileNames: (profile1n, profile2n),
+      ),
+      greeting: parts.first,
+      name: parts.skip(1).join(', '),
+      slideFromRight: _isrightswipe,
+      onSemesterSelected:
+          (s) => setState(() {
+            currentsem = s;
+            sgpa = sgcalc(s);
+            cgpa = cgcalc();
+          }),
+      onSortSelected: (s) => setState(() => currentsort = s.key),
+      onExport: () => _exportSemester(sitems),
+      onAddCourse:
+          () => setState(() {
+            _isSearched = false;
+            _isCardOpen = true;
+          }),
+      onCourseTap:
+          (c, i) => setState(() {
+            tapid = i;
+            addcourse = c.id.split(" ")[0];
+            addcourseid = c.id.split(" ")[1];
+            _isCourseCardOpen = true;
+          }),
+      onGradePicked: (c, g) async {
+        await saveCourse(withGrade(c, selectedprofile, g));
+        setState(() {});
+      },
+      onClearRequested: _confirmClearSemester,
+      onSwipe:
+          (delta) => setState(() {
+            final next = selectedprofile + delta;
+            if (next < 1 || next > 4) return;
+            _isrightswipe = delta > 0;
+            selectedprofile = next;
+          }),
+      onOpenAnalytics:
+          () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (context) => Analytics())),
+      onOpenSettings: _openSettings,
+      onInstall: kIsWeb ? () => PwaHelper.promptInstall(context, thm) : null,
+      offshoot: selectedprofile == 4 ? buildOffshootUI(wid, hei) : null,
+    );
+  }
+
+  Future<void> _openSettings() async {
+    erase = 0;
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (context) => Settings()))
+        .then((value) async {
+          selected_theme = selected_theme;
+          thm = themes.firstWhere((theme) => theme.theme == selected_theme);
+          profile1n = profile1n;
+          profile2n = profile2n;
+          currentsem = currentsem;
+          batch = batch;
+          selecteddiscipline = selecteddiscipline;
+          await setdis();
+          await initializeCourses();
+          setnavcolor();
+          setState(() {
+            thm = themes.firstWhere((theme) => theme.theme == selected_theme);
+          });
+        });
+  }
+
+  Future<void> _exportSemester(List<Course> sitems) async {
+    final sitemsAsMaps =
+        sitems
+            .map(
+              (course) => {
+                'credits': course.credits,
+                'name': course.title,
+                'grade': (selectedprofile == 1) ? course.grade1 : course.grade2,
+              },
+            )
+            .toList();
+    var imgpath = await saveDataAsImage(
+      isOffshoot: false,
+      sitemsAsMaps,
+      semester: currentsem,
+      thisSemCredits: (selectedprofile == 1) ? scred1 : scred2,
+      totalCredits: (selectedprofile == 1) ? ccred1 : ccred2,
+      gpa: sgcalc(currentsem),
+      cgpa: cgcalc(),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          imgpath,
+          style: TextStyle(
+            fontFamily: "Montserrat",
+            fontWeight: FontWeight.normal,
+            fontSize: 16,
+          ),
+        ),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _confirmClearSemester() async {
+    final clear = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: thm.backcolor,
+            title: Text(
+              "Clear Grades",
+              style: TextStyle(fontFamily: "Montserrat", color: thm.textcolor),
+            ),
+            content: Text(
+              "Are you sure you want to clear all grades for this semester?",
+              style: TextStyle(fontFamily: "Montserrat", color: thm.textcolor),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(
+                  "Cancel",
+                  style: TextStyle(
+                    fontFamily: "Montserrat",
+                    color: thm.textcolor,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(
+                  "Clear",
+                  style: TextStyle(
+                    fontFamily: "Montserrat",
+                    color: thm.highcolor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+    if (clear != true) return;
+    await clearSemesterGrades(currentsem, selectedprofile);
+    setState(() {
+      sgpa = sgcalc(currentsem);
+      cgpa = cgcalc();
+    });
   }
 }
