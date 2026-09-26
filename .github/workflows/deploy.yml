@@ -14,11 +14,19 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build web --release
-      # Built here and uploaded directly, so it uses none of Pages' build quota.
-      # No 404.html in build/web, so Pages serves index.html for unknown paths.
+      - run: flutter build web --release --base-href /calculator/
+      # The landing page at /, the app under /calculator/ (ARCHITECTURE.md §7).
+      # Installs from before the move registered a service worker at the
+      # root; Flutter's own worker is the self-unregistering one, so a copy
+      # there retires them.
+      - run: |
+          mkdir site
+          cp -r landing/. site/
+          cp -r web/icons web/favicon.png site/
+          cp -r build/web site/calculator
+          cp build/web/flutter_service_worker.js site/
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy build/web --project-name=pointer-bits-pilani --branch=master
+          command: pages deploy site --project-name=pointer-bits-pilani --branch=master

@@ -1,9 +1,9 @@
 {
     "name": "Pointer — CGPA Calculator for BITS",
     "short_name": "Pointer",
-    "start_url": ".",
+    "start_url": "/calculator/",
     "id": "/",
-    "scope": "/",
+    "scope": "/calculator/",
     "display": "standalone",
     "background_color": "#F2F2EF",
     "theme_color": "#F2F2EF",
