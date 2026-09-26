@@ -17,7 +17,7 @@ import '../helpers/fonts.dart';
 const _grades = {
   'ECON F315': 10,
   'FIN F414': 10,
-  'BITS F493': 10,
+  'ECON F355': 10,
   'ECON F212': 9,
   'ECON F354': 8,
   'ECON F412': 7,
@@ -94,7 +94,7 @@ void main() {
             ..._grades,
             'ECON F315': GradeCode.nc,
             'FIN F414': GradeCode.rc,
-            'BITS F493': null,
+            'ECON F355': null,
           },
         ),
         50,
@@ -140,6 +140,26 @@ void main() {
       expect(loadOffshootScore().total, 47);
       await toggleOffshootExcluded('ECON F412');
       expect(offshootExcluded, isEmpty);
+    });
+
+    test('a grade under a cross-listed code counts', () async {
+      final box = Hive.box<Course>(coursesBoxName);
+      final key = box.keys.firstWhere((k) => box.get(k)!.id == 'ECON F355');
+      await box.put(
+        key,
+        Course(
+          title: 'Business Analysis and Valuation',
+          id: 'BITS F493',
+          credits: 3,
+          grade1: 10,
+          grade2: GradeCode.clr,
+          discipline: 'B3',
+          sem: '4 - 1',
+          elective: 'Open Elective',
+        ),
+      );
+      expect(offshootGradeFor('ECON F355'), 10);
+      expect(loadOffshootScore().total, 47);
     });
 
     test('a corrupt denominator falls back to 50', () async {

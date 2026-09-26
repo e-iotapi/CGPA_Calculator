@@ -33,15 +33,39 @@ Future<void> setStatsPlan(Map<String, double> plan) =>
     _settings.put('stats_plan', jsonEncode(plan));
 
 /// Elective requirements from the last imported performance sheet.
-ElectiveNeeds? get electiveNeeds {
-  final raw = _settings.get('elective_needs');
+DegreeNeeds? get degreeNeeds {
+  final raw = _settings.get('degree_needs');
   if (raw is! String || raw.isEmpty) return null;
   try {
-    return ElectiveNeeds.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    return DegreeNeeds.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   } catch (_) {
     return null;
   }
 }
 
-Future<void> setElectiveNeeds(ElectiveNeeds n) =>
-    _settings.put('elective_needs', jsonEncode(n.toJson()));
+Future<void> setDegreeNeeds(DegreeNeeds n) =>
+    _settings.put('degree_needs', jsonEncode(n.toJson()));
+
+/// The total credits [degree] needs, as the student set it; null when unset
+/// or set under another degree.
+int? degreeTotalFor(String degree) {
+  final raw = _settings.get('degree_total');
+  if (raw is! String || raw.isEmpty) return null;
+  try {
+    final m = jsonDecode(raw) as Map<String, dynamic>;
+    return m['degree'] == degree && m['total'] is int
+        ? m['total'] as int
+        : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Null clears it.
+Future<void> setDegreeTotal(String degree, int? total) =>
+    total == null
+        ? _settings.delete('degree_total')
+        : _settings.put(
+          'degree_total',
+          jsonEncode({'degree': degree, 'total': total}),
+        );

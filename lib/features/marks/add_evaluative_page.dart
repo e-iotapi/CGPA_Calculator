@@ -165,7 +165,8 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
         const SizedBox(height: Space.md),
         AppTextField(
           controller: _weight,
-          label: widget.weighted ? 'Weight of the course' : 'Marks it is worth',
+          label:
+              widget.weighted ? 'Weight of the component' : 'Marks it is worth',
           suffix: widget.weighted ? '%' : 'marks',
           number: true,
           onChanged: (_) => setState(() {}),

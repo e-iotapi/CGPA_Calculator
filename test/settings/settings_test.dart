@@ -55,7 +55,7 @@ void main() {
       expect(disciplineLabel('--', dual: true), 'None');
       expect(disciplineLabel('B-', dual: true), 'Other');
       expect(disciplineLabel('--', dual: false), 'Other');
-      expect(disciplineOptions(dual: false).first, ('A1', 'A1'));
+      expect(disciplineOptions(dual: false).first, ('A1', 'B.E. Chemical (A1)'));
     });
   });
 
@@ -89,6 +89,8 @@ void main() {
       onEmail: () => taps.add('email'),
       onGithub: () => taps.add('github'),
       onInstall: () => taps.add('install'),
+      campus: 'Goa',
+      onPickCampus: () => taps.add('campus'),
     );
 
     Future<void> pump(Size size, {double scale = 1, bool dark = false}) async {
@@ -123,8 +125,10 @@ void main() {
     expect(t.takeException(), isNull, reason: '200%');
 
     await pump(const Size(390, 844));
-    expect(find.text('A7'), findsOneWidget);
-    expect(find.text('B3'), findsOneWidget);
+    // Codes carry their names; campus is readable.
+    expect(find.text('B.E. Computer Science (A7)'), findsOneWidget);
+    expect(find.text('M.Sc. Economics (B3)'), findsOneWidget);
+    expect(find.text('Goa'), findsOneWidget);
     expect(find.text('2024'), findsOneWidget);
     await t.tap(find.text('Discipline'));
     await t.tap(find.text('Dark'));

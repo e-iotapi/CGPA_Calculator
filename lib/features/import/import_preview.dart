@@ -43,7 +43,9 @@ class ImportPreview extends StatelessWidget {
     final p = AppPalette.of(context);
     final muted = TypeScale.caption.copyWith(color: p.textMuted, height: 1.4);
     String n(int k, String one, String many) => '$k ${k == 1 ? one : many}';
-    String need(String tag) => switch (sheet.needs[tag]) {
+    final needs = {'CDC': sheet.cdc, ...sheet.needs};
+    final units = needs.values.fold(0, (s, n) => s + (n?.units ?? 0));
+    String need(String tag) => switch (needs[tag]) {
       (courses: 0, units: 0) || null => '$tag none',
       final r => '$tag ${n(r.courses, 'course', 'courses')}, ${r.units} units',
     };
@@ -66,8 +68,8 @@ class ImportPreview extends StatelessWidget {
             'cleared until results: ${plan.running.join(', ')}',
       if (plan.unchanged > 0) '${plan.unchanged} already up to date',
       if (newNeeds)
-        'Degree page set to your sheet\'s electives: '
-            '${['HEL', 'DEL', 'EL'].map(need).join(' · ')}',
+        'Degree page set from your sheet: $units units in all. '
+            '${['CDC', 'HEL', 'DEL', 'EL'].map(need).join(' · ')}',
     ];
 
     final after = plan.cgpaAfter?.toStringAsFixed(2);

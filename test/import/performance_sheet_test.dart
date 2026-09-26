@@ -71,6 +71,19 @@ class _Sheet {
     y += 11;
   }
 
+  /// A pending line: up to two courses, each code split in two items the
+  /// way the pending section prints it.
+  void pendingLine(List<(String, String, String, String)> courses) {
+    for (final (i, (dept, no, title, units)) in courses.indexed) {
+      final x = 20 + i * 253.0;
+      text(x, dept);
+      text(x + 20, no);
+      text(x + 54, title);
+      text(x + 210, units);
+    }
+    y += 9.3;
+  }
+
   PerformanceSheet parse() => parsePerformanceSheet(
     items,
     pageWidth: 612,
@@ -138,6 +151,12 @@ _Sheet _sample() {
   s.text(23.4, 'Pending Courses (To be eligible for graduation)');
   s.y += 20;
   s.band('FIRST SEMESTER 2026-2027', [_r('CS F303', 'COMPUTER NETWORKS', 'A')]);
+  s.pendingLine([('CS', 'F363', 'COMPILER CONSTRUCTION', '3.0')]);
+  s.pendingLine([
+    ('BITS', 'F412', 'PRACTICE SCHOOL II', '20.0'),
+    ('BITS', 'F421T', 'THESIS', '16.0'),
+  ]);
+  s.pendingLine([('BITS', 'F413', 'PRACTICE SCHOOL II', '20.0')]);
   // The pending section's own counts are what is left, not what is required.
   s.needs('Count of Electives', ['2', '3', '0']);
   return s;
@@ -214,7 +233,27 @@ void main() {
         'DEL': (courses: 10, units: 30),
         'EL': (courses: 0, units: 0),
       });
-      expect(sheet.electiveNeeds('B3A7')!.del, (courses: 10, units: 30));
+      expect(sheet.degreeNeeds('B3A7')!.del, (courses: 10, units: 30));
+    });
+
+    test('reads pending courses, codes split or whole', () {
+      expect(sheet.pending.map((p) => p.id), [
+        'CS F303',
+        'CS F363',
+        'BITS F412',
+        'BITS F421T',
+        'BITS F413',
+      ]);
+      expect(sheet.pending[1].title, 'COMPILER CONSTRUCTION');
+      expect(sheet.pending[2].units, 20);
+    });
+
+    test('core needs: untagged courses, pending ones, and one PS II', () {
+      // Taken, untagged: MATH F111 3, ME F112 2, CS F111 4, BITS F225 3,
+      // MATH F211 3, BITS F221 5, ECON F212 3 (the retake), CS F213 4.
+      // Pending: CS F303 3, CS F363 3. PS II 20; the thesis is not added.
+      expect(sheet.cdc, (courses: 11, units: 53));
+      expect(sheet.degreeNeeds('B3A7')!.cdc, sheet.cdc);
     });
 
     test('pending courses are left out', () {
@@ -266,9 +305,16 @@ void main() {
 
     test('added courses take the master title and the sheet tag', () {
       expect(after('GS F211')!.elective, Elective.humanity.tag);
-      expect(after('ECON F354')!.elective, startsWith('Disciplinary'));
+      expect(after('ECON F354')!.elective, Elective.del1.tag);
       expect(after('CS F213')!.grade1, GradeCode.clr);
       expect(after('CS F213')!.title, isNot('OBJECT ORIENTED PROG'));
+    });
+
+    test('untagged courses are core, in the half that offers them', () {
+      expect(after('CS F213')!.elective, Elective.cdc2.tag);
+      expect(after('BITS F225')!.elective, 'CDCN');
+      // Stored as core already: keeps its half.
+      expect(after('CS F111')!.elective, 'CDC');
     });
 
     test('an unknown grade is reported and left ungraded', () {
@@ -300,7 +346,9 @@ void main() {
     }, discipline: 'B3A7');
 
     test('removes what the sheet does not list and clears guesses', () {
-      expect(plan.dropped, containsAll(['ME F110 (1 - 1)', 'X F999 (1 - 2)']));
+      // ME F110 is ME F112 renumbered: replaced, not dropped.
+      expect(plan.dropped, contains('X F999 (1 - 2)'));
+      expect(plan.dropped, isNot(contains('ME F110 (1 - 1)')));
       expect(plan.remove, containsAll(['ME F110', 'X F999']));
       expect(
         [1, 2].where(plan.remove.contains),

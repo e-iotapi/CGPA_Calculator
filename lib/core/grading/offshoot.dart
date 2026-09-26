@@ -18,7 +18,8 @@ const List<OffshootCourse> offshootCourses = [
   OffshootCourse('ECON F315', 'Financial Management'),
   OffshootCourse('ECON F354', 'Derivatives and Risk Management'),
   OffshootCourse('ECON F412', 'Security Analysis and Portfolio Management'),
-  OffshootCourse('BITS F493', 'Business Analysis and Valuation'),
+  // Cross-listed as BITS F493; the course graph links the two.
+  OffshootCourse('ECON F355', 'Business Analysis and Valuation'),
   OffshootCourse('FIN F414', 'Financial Risk Analytics and Risk Management'),
 ];
 
