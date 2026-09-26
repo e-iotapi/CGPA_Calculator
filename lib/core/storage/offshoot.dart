@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/core/grading/offshoot.dart';
+import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:hive/hive.dart';
@@ -31,10 +32,15 @@ Future<void> setOffshootOutOf(int v) async =>
     _settings.put('offshoot_outof', v);
 
 /// The Actual-profile grade for [id], or null if that course isn't in the
-/// user's list at all.
+/// user's list at all. Stored under [id] itself it wins; otherwise any code
+/// the course is cross-listed under ("BITS F493" for "ECON F355") counts.
 int? offshootGradeFor(String id) {
-  for (final c in Hive.box<Course>(coursesBoxName).values) {
+  final held = Hive.box<Course>(coursesBoxName).values;
+  for (final c in held) {
     if (c.id == id) return c.grade1;
+  }
+  for (final c in held) {
+    if (courseGraph.same(c.id, id)) return c.grade1;
   }
   return null;
 }
