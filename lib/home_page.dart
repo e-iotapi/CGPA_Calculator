@@ -6,7 +6,6 @@ import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
-import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
@@ -380,14 +379,12 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       onOpenSettings: _openSettings,
       onToggleTheme:
-          () => setState(() {
-            selected_theme = thm.isDark ? 'White' : 'Black';
-            thm = themes.firstWhere((t) => t.theme == selected_theme);
-          }),
-      onInstall:
-          kIsWeb && !PwaHelper.isStandalone
-              ? () => PwaHelper.promptInstall(context, thm)
-              : null,
+          () => switchTheme(
+            !thm.isDark,
+            then: () {
+              if (mounted) setState(() {});
+            },
+          ),
       offshoot:
           selectedprofile == 4
               ? OffshootPanel(

@@ -69,17 +69,13 @@
       deferredPrompt = e;
     });
 
-    window.promptInstall = function() {  // <-- Attach here explicitly!
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-
-        deferredPrompt.userChoice.then(() => {
-          deferredPrompt = null;
-        });
-        console.log('promptInstall called'); // Add console log to confirm call
-      } else {
-        console.log('No deferredPrompt available');
-      }
+    // True when the browser's install prompt was shown; false when it has
+    // none to offer, so the app shows its own home-screen steps instead.
+    window.promptInstall = function() {
+      if (!deferredPrompt) return false;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+      return true;
     };
   </script>
 

@@ -1,4 +1,3 @@
-import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
@@ -10,6 +9,9 @@ import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cgpa_calculator/features/settings/install_guide.dart';
+import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -59,6 +61,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     Uri.parse('https://github.com/Srijen-Raja/CGPA_Calculator'),
                     mode: LaunchMode.externalApplication,
                   ),
+              onInstall:
+                  kIsWeb && !PwaHelper.isStandalone
+                      ? () => _install(context)
+                      : null,
               onEmail:
                   () => launchUrl(Uri.parse('mailto:siddhu.cms@gmail.com')),
               onGithub:
@@ -201,18 +207,20 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _setTheme(bool dark) async {
-    final name = dark ? 'Black' : 'White';
-    if (name == selected_theme) return;
-    await ThemeReveal.run(() {
-      selected_theme = name;
-      thm = themes.firstWhere((t) => t.theme == selected_theme);
-      setnavcolor();
-      themeVersion.value++;
-      if (mounted) setState(() {});
-    });
-    await settheme();
+  /// The browser's own prompt where it has one; otherwise, and always on
+  /// iOS, the home-screen steps.
+  Future<void> _install(BuildContext context) async {
+    final platform = PwaHelper.platform;
+    if (platform != InstallPlatform.ios && PwaHelper.tryNativePrompt()) return;
+    await showInstallGuide(context, platform);
   }
+
+  Future<void> _setTheme(bool dark) => switchTheme(
+    dark,
+    then: () {
+      if (mounted) setState(() {});
+    },
+  );
 
   Future<void> _renameProfile(BuildContext context, int i) async {
     final controller = TextEditingController(
