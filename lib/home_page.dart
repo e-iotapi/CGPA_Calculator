@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:cgpa_calculator/core/models/course_names.dart';
-import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
@@ -14,7 +13,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
-import 'package:marquee/marquee.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/script.dart';
@@ -63,14 +61,11 @@ class _MyHomePageState extends State<MyHomePage> {
           )
           .toList();
 
-  bool _isCardOpen = false;
-  bool _isClosing = false;
   bool _isClosingCourse = false;
   bool _isGradeChanged = false;
   bool _isDisciplineChanged = false;
   bool _isCourseCardOpen = false;
   bool _isrightswipe = true;
-  bool _isSearched = false;
   TextEditingController _batchController1 = TextEditingController(
     text: batch.toString(),
   );
@@ -180,7 +175,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: [
                     _semesterView(sitems, wid, hei),
                     buildCourseDetailSheet(wid, hei, sitems),
-                    buildSearchOverlay(wid, hei, sitems),
                     AnimatedSwitcher(
                       duration: Duration(milliseconds: 400),
                       switchInCurve: Curves.easeInOut,
@@ -330,11 +324,6 @@ class _MyHomePageState extends State<MyHomePage> {
           profile:
               SemesterMode.fromProfileId(selectedprofile).profile ??
               Profile.actual,
-          onManual:
-              () => setState(() {
-                _isSearched = false;
-                _isCardOpen = true;
-              }),
         );
         if (c == null) return;
         await addOrUpdateCourse(c);
