@@ -1,4 +1,3 @@
-// import 'dart:ffi';
 import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
@@ -9,8 +8,8 @@ import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/core/storage/seed.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
@@ -76,18 +75,13 @@ String exportGradesCsv() {
   return name;
 }
 
-Future<void> basicStartup() async {
-  var settingsBox = await Hive.openBox('settingsBox');
-  await Hive.openBox<Course>('coursesBox');
+/// Reads the saved settings into the globals.
+void _loadSettings(Box settingsBox) {
   selecteddiscipline = settingsBox.get(
     'selecteddiscipline',
     defaultValue: selecteddiscipline,
   );
   batch = settingsBox.get('batch', defaultValue: 24);
-  selectedcampus = settingsBox.get(
-    'selectedcampus',
-    defaultValue: selectedcampus,
-  );
   // Saved names from the removed colour themes fall back to White or Black.
   selected_theme = AppPalette.resolveName(
     settingsBox.get('selected_theme', defaultValue: selected_theme),
@@ -97,6 +91,12 @@ Future<void> basicStartup() async {
   currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
   profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
   profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
+}
+
+Future<void> basicStartup() async {
+  var settingsBox = await Hive.openBox('settingsBox');
+  await Hive.openBox<Course>('coursesBox');
+  _loadSettings(settingsBox);
   await Hive.openBox<Course>('offshootBox');
 }
 
@@ -128,329 +128,28 @@ Future<void> copyGrades() async {
 Future<void> initializeCourses() async {
   var settingsBox = await Hive.openBox('settingsBox');
   final coursesBox = await Hive.openBox<Course>('coursesBox');
-  selecteddiscipline = settingsBox.get(
-    'selecteddiscipline',
-    defaultValue: selecteddiscipline,
-  );
-  batch = settingsBox.get('batch', defaultValue: 24);
-  selectedcampus = settingsBox.get(
-    'selectedcampus',
-    defaultValue: selectedcampus,
-  );
-  // Saved names from the removed colour themes fall back to White or Black.
-  selected_theme = AppPalette.resolveName(
-    settingsBox.get('selected_theme', defaultValue: selected_theme),
-  );
-  degree_selected = settingsBox.get('degree_selected', defaultValue: false);
-  currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
-  currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
-  profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
-  profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
+  _loadSettings(settingsBox);
+  final rows = chartRows(batch);
   if (erase == 1) {
     await coursesBox.clear();
-    String tempsem = "";
-    List<String> tempaddedcourses = [];
-    for (var course
-    in ((batch < 25)
-        ? (selectedcampus == "Hyd")
-        ? hydCourseList
-        : (selectedcampus == "Goa")
-        ? goaCourseList
-        : pilaniCourseList
-        : (selectedcampus == "Hyd")
-        ? hydCourseListNew
-        : (selectedcampus == "Goa")
-        ? goaCourseListNew
-        : pilaniCourseListNew)) {
-      if (course.discipline ==
-          ((selecteddiscipline.substring(0, 2) != "--")
-              ? selecteddiscipline.substring(0, 2)
-              : selecteddiscipline.substring(2, 4))) {
-        await coursesBox.put(course.id, course);
-        tempaddedcourses.add(course.title);
-      }
-      if (course.discipline ==
-          ((selecteddiscipline.substring(0, 2) != "--")
-              ? selecteddiscipline.substring(2, 4)
-              : "cccc")) {
-        if (course.elective == Elective.cdc2.tag &&
-            !tempaddedcourses.contains(course.title)) {
-          if (selecteddiscipline == "B5AA" ||
-              selecteddiscipline == "B5A3" ||
-              selecteddiscipline == "B5A8" ||
-              selecteddiscipline == "B2AA" ||
-              selecteddiscipline == "B2A3" ||
-              selecteddiscipline == "B2A8" ||
-              selecteddiscipline == "B4AD") {
-            if ((course.title == "Algebra I" ||
-                course.title == "Discrete Mathematics" ||
-                course.title == "Elementary Real Analysis" ||
-                course.title == "Numerical Analysis" ||
-                course.title == "Electromagnetic Theory")) {
-            } else {
-              tempsem = course.sem;
-              tempsem =
-                  (int.parse(tempsem.substring(0, 1)) + 1).toString() +
-                      tempsem.substring(1, 5);
-              //print(tempsem);
-              Course Course1 = Course(
-                title: course.title,
-                sem: tempsem,
-                id: course.id,
-                grade1: course.grade1,
-                grade2: course.grade2,
-                discipline: course.discipline,
-                credits: course.credits,
-                elective: course.elective,
-              );
-              try {
-                await coursesBox.put(Course1.id, Course1);
-                //print('Stored modified course with id: ${course.id}');
-              } catch (e) {
-                //print('Error storing course: $e');
-              }
-            }
-          } else {
-            tempsem = course.sem;
-            tempsem =
-                (int.parse(tempsem.substring(0, 1)) + 1).toString() +
-                    tempsem.substring(1, 5);
-            //print(tempsem);
-            Course Course1 = Course(
-              title: course.title,
-              sem: tempsem,
-              id: course.id,
-              grade1: course.grade1,
-              grade2: course.grade2,
-              discipline: course.discipline,
-              credits: course.credits,
-              elective: course.elective,
-            );
-            try {
-              await coursesBox.put(Course1.id, Course1);
-              //print('Stored modified course with id: ${course.id}');
-            } catch (e) {
-              //print('Error storing course: $e');
-            }
-          }
-        }
-      }
+    for (final c in seedCourses(selecteddiscipline, rows)) {
+      await coursesBox.put(c.id, c);
     }
-    //print("All keys in coursesBox: ${coursesBox.keys}");
     setsort();
   } else if (erase == 0) {
-    if (degree_selected == true) {
-      if (!coursesBox.values.any(
-            (course) =>
-        course.discipline ==
-            ((selecteddiscipline.startsWith("B"))
-                ? selecteddiscipline.substring(0, 2)
-                : selecteddiscipline.substring(2, 4)) ||
-            course.discipline ==
-                ((selecteddiscipline.startsWith("B"))
-                    ? selecteddiscipline.substring(2, 4)
-                    : "ccccc"),
-      )) {
-        String tempsem = "";
-        for (var course
-        in ((batch < 25)
-            ? (selectedcampus == "Hyd")
-            ? hydCourseList
-            : (selectedcampus == "Goa")
-            ? goaCourseList
-            : pilaniCourseList
-            : (selectedcampus == "Hyd")
-            ? hydCourseListNew
-            : (selectedcampus == "Goa")
-            ? goaCourseListNew
-            : pilaniCourseListNew)) {
-          if (course.discipline ==
-              ((selecteddiscipline.substring(0, 2) != "--")
-                  ? selecteddiscipline.substring(0, 2)
-                  : selecteddiscipline.substring(2, 4))) {
-            await coursesBox.put(course.id, course);
-          }
-          if (course.discipline ==
-              ((selecteddiscipline.substring(0, 2) != "--")
-                  ? selecteddiscipline.substring(2, 4)
-                  : "cccc")) {
-            if (selecteddiscipline == "B5AA" ||
-                selecteddiscipline == "B5A3" ||
-                selecteddiscipline == "B5A8" ||
-                selecteddiscipline == "B4AD") {
-              if ((course.title == "Algebra I" ||
-                  course.title == "Discrete Mathematics" ||
-                  course.title == "Elementary Real Analysis" ||
-                  course.title == "Numerical Analysis" ||
-                  course.title == "Electromagnetic Theory")) {
-              } else {
-                if (course.elective == Elective.cdc2.tag) {
-                  tempsem = course.sem;
-                  tempsem =
-                      (int.parse(tempsem.substring(0, 1)) + 1).toString() +
-                          tempsem.substring(1, 5);
-                  //print(tempsem);
-                  Course Course1 = Course(
-                    title: course.title,
-                    sem: tempsem,
-                    id: course.id,
-                    grade1: course.grade1,
-                    grade2: course.grade2,
-                    discipline: course.discipline,
-                    credits: course.credits,
-                    elective: course.elective,
-                  );
-
-                  try {
-                    await coursesBox.put(Course1.id, Course1);
-                    //print('Stored modified course with id: ${course.id}');
-                  } catch (e) {
-                    //print('Error storing course: $e');
-                  }
-                }
-              }
-            } else {
-              if (course.elective == Elective.cdc2.tag) {
-                tempsem = course.sem;
-                tempsem =
-                    (int.parse(tempsem.substring(0, 1)) + 1).toString() +
-                        tempsem.substring(1, 5);
-                //print(tempsem);
-                Course Course1 = Course(
-                  title: course.title,
-                  sem: tempsem,
-                  id: course.id,
-                  grade1: course.grade1,
-                  grade2: course.grade2,
-                  discipline: course.discipline,
-                  credits: course.credits,
-                  elective: course.elective,
-                );
-
-                try {
-                  await coursesBox.put(Course1.id, Course1);
-                  //print('Stored modified course with id: ${course.id}');
-                } catch (e) {
-                  //print('Error storing course: $e');
-                }
-              }
-            }
-          }
-          //print("All keys in coursesBox: ${coursesBox.keys}");
-          setsort();
-        }
+    if (degree_selected && needsSeed(selecteddiscipline, coursesBox.values)) {
+      for (final c in seedCourses(selecteddiscipline, rows)) {
+        await coursesBox.put(c.id, c);
       }
+      setsort();
     }
   } else if (erase == 2) {
-    final keysToDelete = [];
-    final tempcourses = [];
-    for (final entry in coursesBox.toMap().entries) {
-      final key = entry.key;
-      final item = entry.value;
-      if (item.discipline.startsWith("B")) {
-        tempcourses.add(item.title);
-      }
-      if (item.discipline.startsWith("A") &&
-          item.elective == Elective.cdc2.tag &&
-          !item.sem.startsWith("1")) {
-        if (selecteddiscipline.startsWith("B") && !item.sem.startsWith("1")) {
-          keysToDelete.add(key);
-        } else if (!selecteddiscipline.startsWith("B")) {
-          keysToDelete.add(key);
-        }
-      }
-    }
-    if (keysToDelete.isNotEmpty) {
-      await coursesBox.deleteAll(keysToDelete);
-    }
-    String tempsem = "";
-    for (var course
-    in ((batch < 25)
-        ? (selectedcampus == "Hyd")
-        ? hydCourseList
-        : (selectedcampus == "Goa")
-        ? goaCourseList
-        : pilaniCourseList
-        : (selectedcampus == "Hyd")
-        ? hydCourseListNew
-        : (selectedcampus == "Goa")
-        ? goaCourseListNew
-        : pilaniCourseListNew)) {
-      //print("0");
-      if (course.discipline == selecteddiscipline.substring(2, 4)) {
-        //print("A");
-        if (!tempcourses.contains(course.title)) {
-          //print("B");
-          if (selecteddiscipline == "B5AA" ||
-              selecteddiscipline == "B5A3" ||
-              selecteddiscipline == "B5A8" ||
-              selecteddiscipline == "B4AD") {
-            //print("C");
-            if (!(course.title == "Algebra I" ||
-                course.title == "Discrete Mathematics" ||
-                course.title == "Elementary Real Analysis" ||
-                course.title == "Numerical Analysis" ||
-                course.title == "Electromagnetic Theory")) {
-              // print("D");
-              if (course.elective == Elective.cdc2.tag &&
-                  selecteddiscipline.startsWith("B")) {
-                tempsem = course.sem;
-                tempsem =
-                    (int.parse(tempsem.substring(0, 1)) + 1).toString() +
-                        tempsem.substring(1, 5);
-                //print(tempsem);
-                Course Course1 = Course(
-                  title: course.title,
-                  sem: tempsem,
-                  id: course.id,
-                  grade1: course.grade1,
-                  grade2: course.grade2,
-                  discipline: course.discipline,
-                  credits: course.credits,
-                  elective: course.elective,
-                );
-                try {
-                  await coursesBox.put(Course1.id, Course1);
-                  //print('Stored modified course with id: ${course.id}');
-                } catch (e) {
-                  //print('Error storing course: $e');
-                }
-              }
-            }
-          } else {
-            if (course.elective == Elective.cdc2.tag &&
-                selecteddiscipline.startsWith("B")) {
-              tempsem = course.sem;
-              tempsem =
-                  (int.parse(tempsem.substring(0, 1)) + 1).toString() +
-                      tempsem.substring(1, 5);
-              //print(tempsem);
-              Course Course1 = Course(
-                title: course.title,
-                sem: tempsem,
-                id: course.id,
-                grade1: course.grade1,
-                grade2: course.grade2,
-                discipline: course.discipline,
-                credits: course.credits,
-                elective: course.elective,
-              );
-              try {
-                await coursesBox.put(Course1.id, Course1);
-              } catch (e) {
-                //print('Error storing course: $e');
-              }
-            }
-          }
-        }
-      } else if (selecteddiscipline.startsWith("--")) {
-        //print("abc");
-        await coursesBox.put(course.id, course);
-      }
-      //await coursesBox.put(course.id, course);
+    final plan = reseedSecondHalf(selecteddiscipline, coursesBox.toMap(), rows);
+    await coursesBox.deleteAll(plan.drop);
+    for (final c in plan.add) {
+      await coursesBox.put(c.id, c);
     }
   }
-  //print("All keys in coursesBox: ${coursesBox.keys}");
   await placeDualPracticeSchool(coursesBox, selecteddiscipline);
 }
 
@@ -458,7 +157,6 @@ Future<void> setdis() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('batch', batch);
   await settingsBox.put('selecteddiscipline', selecteddiscipline);
-  await settingsBox.put('selectedcampus', selectedcampus);
   await settingsBox.put('degree_selected', true);
 }
 
@@ -596,7 +294,6 @@ String selecteddiscipline = "----"; //store
 /// them.
 String selectdual = selecteddiscipline.substring(0, 2);
 String selecengg = selecteddiscipline.substring(2, 4);
-String selectedcampus = "Hyd";
 int selectedprofile = 1;
 String currentsem = "1 - 1"; // store
 double scred1 = 0;
@@ -659,7 +356,6 @@ final List<String> degreelist = [
   "AD",
   "AJ",
 ];
-final List<String> campuslist = ["Pilani", "Goa", "Hyd"];
 
 Future<String> saveDataAsImage(
     List<Map<String, dynamic>> data, {
@@ -748,12 +444,10 @@ Future<String> saveDataAsImage(
     xOffset += 42 * scale;
     drawInfoText("Offshoot: ${gpa.toStringAsFixed(2)}", xOffset,yOffset);
     yOffset=width*0.82-40*scale;
-    //drawInfoText("CGPA: ${cgpa.toStringAsFixed(2)}", xOffset,yOffset);
     yOffset=25*scale;
     xOffset += 42 * scale;
     drawInfoText("Credits: $thisSemCredits",xOffset, yOffset);
     yOffset=width*0.82-40*scale;
-    //drawInfoText("Credits: $totalCredits", xOffset,yOffset);
   }else{
     drawInfoText("Semester: $semester", xOffset, yOffset);
     yOffset=25*scale;
@@ -769,7 +463,6 @@ Future<String> saveDataAsImage(
   }
 
 
-  //drawInfoText("GPA: ${gpa.toStringAsFixed(2)}  CGPA: ${cgpa.toStringAsFixed(2)}",xOffset, yOffset);
 
   // Draw header gradient bar below info section
   final headerGradient = Paint()

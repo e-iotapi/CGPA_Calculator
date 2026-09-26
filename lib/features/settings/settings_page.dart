@@ -466,7 +466,6 @@ class _SettingsPageState extends State<SettingsPage> {
         'type': type,
         'message': message,
         'discipline': selecteddiscipline,
-        'campus': selectedcampus,
         'batch': batch,
         'appVersion': '2.3.1+131',
         'userAgent': userAgent(),

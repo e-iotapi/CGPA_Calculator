@@ -25,8 +25,6 @@ import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 part 'overlays_extension.dart';
 
-//html and js imports and uses to be removed for android build
-
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
   final String title;

@@ -1338,10 +1338,6 @@ Course(title: "Network Programming", sem: "3 - 2", elective: "CDC2", discipline:
  Course(elective: "CDCN", title: "Understanding Self and Society", sem: "1 - 2", id: "HSS F101", discipline: "AC", grade1: -2, grade2: -2, credits: 2,),
 ]; //25 or higher
 
-List<Course> goaCourseList = [];
-List<Course> pilaniCourseList = [];
-List<Course> goaCourseListNew = [];
-List<Course> pilaniCourseListNew = [];
 var del = {
  "--" : [],
  "A1" : ["BIO G671", "BIOT F245", "BIOT F344", "BITS F415", "BITS F416", "BITS F417", "BITS F418", "BITS F429", "CHE F315", "CHE F411", "CHE F412", "CHE F413", "CHE F414", "CHE F415", "CHE F416", "CHE F417", "CHE F418", "CHE F419", "CHE F421", "CHE F422", "CHE F423", "CHE F424", "CHE F433", "CHE F471", "CHE F497", "CHE F498", "CHE G511", "CHE G512", "CHE G513", "CHE G522", "CHE G523", "CHE G524", "CHE G526", "CHE G527", "CHE G528", "CHE G529", "CHE G532", "CHE G533", "CHE G551", "CHE G552", "CHE G554", "CHE G556", "CHE G557", "CHE G558", "CHE G568", "CHE G613", "CHE G614", "CHE G616", "CHE G617", "CHE G618", "CHE G619", "CHE G620", "CHE G622", "CHE G641", "CHEM F325", "ME F323", "MST G521"],
