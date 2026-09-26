@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cgpa_calculator/core/storage/seed.dart';
+import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/import/import_plan.dart';
 import 'package:cgpa_calculator/features/import/performance_sheet.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,5 +30,16 @@ void main() {
       '${plan.cgpaAfter} vs ${sheet.cgpa}',
     );
     expect(plan.cgpaAfter, sheet.cgpa);
+
+    // Data that already disagrees with the sheet still lands on its CGPA.
+    Course graded(String id) =>
+        seeded.firstWhere((c) => c.id == id).withGrade(1, 10);
+    final messy = <dynamic, Course>{
+      for (final c in seeded) c.id: c,
+      'ME F110': graded('ME F110'),
+      99: graded('CS F111'),
+      'CS F303': graded('CS F303'),
+    };
+    expect(planImport(sheet, messy, discipline: d).cgpaAfter, sheet.cgpa);
   }, skip: file.existsSync() ? false : 'no local performance sheet');
 }

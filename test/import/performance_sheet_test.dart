@@ -242,6 +242,41 @@ void main() {
     });
   });
 
+  group('planImport on data that disagrees with the sheet', () {
+    final sheet = _sample().parse();
+    final plan = planImport(sheet, <dynamic, Course>{
+      // Graded under the chart's old code; the sheet has ME F112.
+      'ME F110': _stored('ME F110', '1 - 1', 10, title: 'Workshop Practice'),
+      // Graded, but never taken that semester.
+      'X F999': _stored('X F999', '1 - 2', 4),
+      // Same course twice, both graded.
+      1: _stored('CS F111', '1 - 2', 9),
+      2: _stored('CS F111', '1 - 2', 9),
+      // A guess for a semester still to come.
+      'CS F303': _stored('CS F303', '4 - 2', 10),
+      // Still running, with a guessed Actual grade.
+      'CS F213': _stored('CS F213', '3 - 1', 8),
+    }, discipline: 'B3A7');
+
+    test('removes what the sheet does not list and clears guesses', () {
+      expect(plan.dropped, containsAll(['ME F110 (1 - 1)', 'X F999 (1 - 2)']));
+      expect(plan.remove, containsAll(['ME F110', 'X F999']));
+      expect(
+        [1, 2].where(plan.remove.contains),
+        hasLength(1),
+        reason: 'one CS F111 stays, the duplicate goes',
+      );
+      expect(plan.cleared, ['CS F303 (4 - 2)']);
+      expect(plan.put['CS F303']!.grade1, GradeCode.clr);
+      expect(plan.running, ['CS F213']);
+    });
+
+    test('the CGPA comes out as the sheet\'s own courses give', () {
+      final fromSheet = planImport(sheet, const {}, discipline: 'B3A7');
+      expect(plan.cgpaAfter, fromSheet.cgpaAfter);
+    });
+  });
+
   group('ImportPreview', () {
     final sheet = _sample().parse();
     final plan = planImport(sheet, const {}, discipline: 'B3A7');

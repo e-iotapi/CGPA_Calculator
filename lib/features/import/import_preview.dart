@@ -47,6 +47,9 @@ class ImportPreview extends StatelessWidget {
       if (plan.renumbered > 0)
         '${n(plan.renumbered, 'course', 'courses')} renamed to the code on '
             'your sheet',
+      if (plan.running.isNotEmpty)
+        '${n(plan.running.length, 'running course', 'running courses')} '
+            'cleared until results: ${plan.running.join(', ')}',
       if (plan.unchanged > 0) '${plan.unchanged} already up to date',
     ];
 
@@ -120,6 +123,23 @@ class ImportPreview extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+            ],
+            if (plan.dropped.isNotEmpty) ...[
+              const FieldLabel('Removed: not on your sheet'),
+              Text(
+                '${plan.dropped.join(', ')}. Your sheet lists every course '
+                'you took in these semesters, so these would count twice or '
+                'not at all.',
+                style: muted,
+              ),
+            ],
+            if (plan.cleared.isNotEmpty) ...[
+              const FieldLabel('Actual grade cleared'),
+              Text(
+                '${plan.cleared.join(', ')}. These semesters have not happened '
+                'yet; the courses stay, and Expected keeps its grades.',
+                style: muted,
               ),
             ],
             if (plan.unknownGrades.isNotEmpty) ...[
