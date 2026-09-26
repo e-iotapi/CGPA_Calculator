@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'package:cgpa_calculator/core/grading/minor_progress.dart';
+import 'package:cgpa_calculator/core/storage/minor.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/offshoot/minor_panel.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
 import 'package:cgpa_calculator/auth_util.dart';
@@ -399,16 +402,35 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
       offshoot:
           selectedprofile == 4
-              ? OffshootPanel(
-                score: loadOffshootScore(),
-                onToggleCourse: (id) async {
-                  await toggleOffshootExcluded(id);
-                  setState(() {});
-                },
-                onOutOfSelected: (v) async {
-                  await setOffshootOutOf(v);
-                  setState(() {});
-                },
+              ? OffshootTab(
+                showMinor: offshootShowsMinor,
+                onShowMinor: setOffshootShowsMinor,
+                offshoot: OffshootPanel(
+                  score: loadOffshootScore(),
+                  onToggleCourse: (id) async {
+                    await toggleOffshootExcluded(id);
+                    setState(() {});
+                  },
+                  onOutOfSelected: (v) async {
+                    await setOffshootOutOf(v);
+                    setState(() {});
+                  },
+                ),
+                minor: MinorPanel(
+                  progress: switch (chosenMinor) {
+                    final m? => minorProgress(
+                      m,
+                      allCourses(),
+                      selecteddiscipline,
+                    ),
+                    null => null,
+                  },
+                  discipline: selecteddiscipline,
+                  onChoose: (m) async {
+                    await setChosenMinor(m);
+                    setState(() {});
+                  },
+                ),
               )
               : null,
     );
