@@ -228,7 +228,7 @@ void main() {
       await _pump(
         t,
         _data(SemesterMode.offshoot),
-        offshoot: const Expanded(child: Text('offshoot panel')),
+        offshoot: const Text('offshoot panel'),
       );
       expect(find.text('offshoot panel'), findsOneWidget);
       expect(find.byType(StatCard), findsNothing);

@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:cgpa_calculator/offshoot_calc.dart';
+import 'package:cgpa_calculator/core/storage/offshoot.dart';
+import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/analytics.dart';
 import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
 import 'package:cgpa_calculator/auth_util.dart';
@@ -20,10 +21,7 @@ import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
-import 'dart:math';
 part 'overlays_extension.dart';
-part 'main_ui_extension.dart';
-part 'offshoot_panel_extension.dart';
 
 //html and js imports and uses to be removed for android build
 
@@ -36,10 +34,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _dropdownResetKey = 0;
   bool _showFab = true;
-  int _pullSession = 0;
-  final ValueNotifier<double> pullOverscrollNotifier = ValueNotifier(0.0);
   @override
   void initState() {
     super.initState();
@@ -353,7 +348,20 @@ class _MyHomePageState extends State<MyHomePage> {
             thm = themes.firstWhere((t) => t.theme == selected_theme);
           }),
       onInstall: kIsWeb ? () => PwaHelper.promptInstall(context, thm) : null,
-      offshoot: selectedprofile == 4 ? buildOffshootUI(wid, hei) : null,
+      offshoot:
+          selectedprofile == 4
+              ? OffshootPanel(
+                score: loadOffshootScore(),
+                onToggleCourse: (id) async {
+                  await toggleOffshootExcluded(id);
+                  setState(() {});
+                },
+                onOutOfSelected: (v) async {
+                  await setOffshootOutOf(v);
+                  setState(() {});
+                },
+              )
+              : null,
     );
   }
 

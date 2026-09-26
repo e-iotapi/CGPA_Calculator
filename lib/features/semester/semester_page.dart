@@ -66,8 +66,8 @@ class SemesterView extends StatefulWidget {
   /// Null hides the install button.
   final VoidCallback? onInstall;
 
-  /// Shown in place of the stats and course list on the offshoot tab. Must be
-  /// a flex child (the legacy panel is an [Expanded]).
+  /// Shown in place of the stats and course list on the offshoot tab, filling
+  /// the space below the header.
   final Widget? offshoot;
   final bool slideFromRight;
 
@@ -164,9 +164,9 @@ class _SemesterViewState extends State<SemesterView> {
           Space.gutter,
           Space.sm,
         ),
-        child: _header(),
+        child: _header(eyebrow: 'Finance offshoot', title: 'Your total'),
       ),
-      widget.offshoot!,
+      Expanded(child: widget.offshoot!),
     ],
   );
 
@@ -270,7 +270,8 @@ class _SemesterViewState extends State<SemesterView> {
     );
   }
 
-  Widget _header() {
+  /// Greeting and name, or [eyebrow] and [title] in their place.
+  Widget _header({String? eyebrow, String? title}) {
     final p = AppPalette.of(context);
     // Three 46px buttons leave a 320px phone too little room for the name.
     final btn =
@@ -281,21 +282,25 @@ class _SemesterViewState extends State<SemesterView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.greeting,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.caption.copyWith(
-                  fontSize: 12.5,
-                  color: p.textMuted,
-                ),
-              ),
-              // Shrinks rather than truncating when the header is crowded.
+              // Both lines shrink rather than truncate when the header is
+              // crowded.
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  widget.name,
+                  eyebrow ?? widget.greeting,
+                  maxLines: 1,
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 12.5,
+                    color: p.textMuted,
+                  ),
+                ),
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  title ?? widget.name,
                   maxLines: 1,
                   style: TypeScale.title.copyWith(color: p.text),
                 ),
