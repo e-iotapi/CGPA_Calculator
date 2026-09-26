@@ -169,7 +169,8 @@ class _MyHomePageState extends State<MyHomePage> {
               var wid = c.maxWidth;
               final hei = mq.size.height;
               if (kIsWeb && hei < wid) {
-                wid = hei * 17.9 / 18;
+                // Landscape browser: keep the phone layout readable.
+                wid = wid.clamp(0, 600).toDouble();
               }
               return MediaQuery(
                 data: mq.copyWith(size: Size(c.maxWidth, hei)),
