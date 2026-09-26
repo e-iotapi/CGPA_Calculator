@@ -1,6 +1,7 @@
 // import 'dart:ffi';
 import 'dart:convert';
 import 'dart:ui' as ui;
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/constants.dart';
@@ -775,6 +776,21 @@ final List<String> depts = [
 ];
 final List<String> grades = pickerGrades;
 final List<String> sems = baseSemesters;
+/// Switches light or dark under the circle reveal and saves it. [then]
+/// runs with the change, while the old screen still covers it.
+Future<void> switchTheme(bool dark, {VoidCallback? then}) async {
+  final name = dark ? 'Black' : 'White';
+  if (name == selected_theme) return;
+  await ThemeReveal.run(() {
+    selected_theme = name;
+    thm = themes.firstWhere((t) => t.theme == selected_theme);
+    setnavcolor();
+    themeVersion.value++;
+    then?.call();
+  });
+  await settheme();
+}
+
 /// Bumped when [thm] changes, so the app rebuilds with the new theme.
 final themeVersion = ValueNotifier(0);
 

@@ -120,7 +120,6 @@ void main() {
                     onOpenCalendar: () {},
                     onOpenSettings: () {},
                     onToggleTheme: () {},
-                    onInstall: () {},
                     offshoot:
                         mode == SemesterMode.offshoot
                             ? OffshootPanel(
