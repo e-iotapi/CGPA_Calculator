@@ -114,7 +114,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                       ),
                                                 ),
                                                 dropdownMenuEntries:
-                                                    degreelist
+                                                    offeredDegrees
                                                         .where(
                                                           (id) => id.startsWith(
                                                             "B",
@@ -242,7 +242,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                       ),
                                                 ),
                                                 dropdownMenuEntries:
-                                                    degreelist
+                                                    offeredDegrees
                                                         .where(
                                                           (id) => id.startsWith(
                                                             "A",
