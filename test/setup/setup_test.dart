@@ -177,6 +177,23 @@ void main() {
       expect(find.text('Not a batch year'), findsNothing);
     });
 
+    testWidgets('a BITS address fixes campus and batch: nothing to change', (
+      t,
+    ) async {
+      await _pump(
+        t,
+        DegreeSetupPage(
+          email: 'f20230123@goa.bits-pilani.ac.in',
+          onDone: () {},
+        ),
+      );
+      expect(find.text('FROM YOUR SIGN-IN'), findsOneWidget);
+      expect(find.text('Change'), findsNothing);
+      expect(find.text('Hyderabad'), findsNothing, reason: 'no campus pills');
+      expect(find.text('Batch year'), findsNothing);
+      expect(find.text('2023 batch'), findsOneWidget);
+    });
+
     testWidgets('a higher degree is not asked single or dual', (t) async {
       await _pump(
         t,
