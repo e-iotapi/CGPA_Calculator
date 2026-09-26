@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
@@ -64,3 +65,24 @@ Future<String?> pickTextFile(String accept) {
 void reloadPage() => web.window.location.reload();
 
 String userAgent() => web.window.navigator.userAgent;
+
+bool isStandalone() =>
+    web.window.matchMedia('(display-mode: standalone)').matches ||
+    // iOS Safari's own flag for a home-screen app.
+    (web.window.navigator as JSObject)
+            .getProperty<JSAny?>('standalone'.toJS)
+            ?.dartify() ==
+        true;
+
+bool hasTouch() => web.window.navigator.maxTouchPoints > 0;
+
+/// Calls window.promptInstall from index.html, which holds the deferred
+/// beforeinstallprompt event.
+bool promptInstall() {
+  try {
+    return globalContext.callMethod<JSAny?>('promptInstall'.toJS)?.dartify() ==
+        true;
+  } catch (_) {
+    return false;
+  }
+}

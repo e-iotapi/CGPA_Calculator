@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
+import 'package:cgpa_calculator/features/semester/widgets/semester_pills.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
 import 'package:cgpa_calculator/shared/widgets/stat_card.dart';
 import 'package:flutter/material.dart';
@@ -270,6 +271,71 @@ void main() {
         await _pump(t, _data(mode), textScale: 2);
         expect(t.takeException(), isNull, reason: '$mode 200%');
       }
+    });
+  });
+
+  group('SemesterPills', () {
+    Future<void> pump(WidgetTester t, List<String> sems) async {
+      t.view.physicalSize = const Size(320, 640);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          home: Scaffold(
+            body: SemesterPills(
+              semesters: sems,
+              selected: sems.first,
+              onSelected: (_) {},
+            ),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+    }
+
+    bool enabled(WidgetTester t, IconData icon) =>
+        t
+            .widget<InkWell>(
+              find.ancestor(
+                of: find.byIcon(icon),
+                matching: find.byType(InkWell),
+              ),
+            )
+            .onTap !=
+        null;
+
+    testWidgets('arrows page an overflowing strip, dimmed at each end', (
+      t,
+    ) async {
+      await pump(t, [
+        for (var y = 1; y <= 5; y++)
+          for (final h in [1, 2]) '$y - $h',
+      ]);
+      const left = Icons.chevron_left_rounded,
+          right = Icons.chevron_right_rounded;
+      expect(enabled(t, left), isFalse);
+      expect(enabled(t, right), isTrue);
+      final list = find.byType(Scrollable);
+      double offset() => t.state<ScrollableState>(list).position.pixels;
+      await t.tap(find.byIcon(right));
+      await t.pumpAndSettle();
+      expect(offset(), greaterThan(0));
+      expect(enabled(t, left), isTrue);
+      for (var i = 0; i < 10 && enabled(t, right); i++) {
+        await t.tap(find.byIcon(right));
+        await t.pumpAndSettle();
+      }
+      expect(enabled(t, right), isFalse);
+      await t.tap(find.byIcon(left));
+      await t.pumpAndSettle();
+      expect(enabled(t, right), isTrue);
+    });
+
+    testWidgets('no arrows when every semester fits', (t) async {
+      await pump(t, ['1 - 1', '1 - 2']);
+      expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
+      expect(find.byIcon(Icons.chevron_left_rounded), findsNothing);
     });
   });
 

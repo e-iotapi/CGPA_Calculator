@@ -152,16 +152,6 @@ class SignInView extends StatelessWidget {
                                   color: p.textMuted,
                                 ),
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Based on the CGPA Calculator by Srijen Raja · '
-                                'Apache-2.0',
-                                textAlign: TextAlign.center,
-                                style: TypeScale.caption.copyWith(
-                                  fontSize: 9.5,
-                                  color: p.textMuted.withValues(alpha: 0.8),
-                                ),
-                              ),
                             ],
                           ),
                         ),

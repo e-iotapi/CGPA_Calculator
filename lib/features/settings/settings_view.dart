@@ -26,7 +26,6 @@ class SettingsView extends StatelessWidget {
     required this.onReport,
     required this.onReset,
     required this.onSignOut,
-    this.onCredits,
     this.onEmail,
     this.onInstall,
     this.onGithub,
@@ -58,7 +57,6 @@ class SettingsView extends StatelessWidget {
   final VoidCallback onReport;
   final VoidCallback onReset;
   final VoidCallback onSignOut;
-  final VoidCallback? onCredits;
   final VoidCallback? onEmail;
 
   /// Null hides the row: not on the web, or already installed.
@@ -241,22 +239,14 @@ class SettingsView extends StatelessWidget {
                         ),
                   ],
                 ),
-                Semantics(
-                  link: onCredits != null,
-                  child: InkWell(
-                    onTap: onCredits,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: Space.sm),
-                      child: Text(
-                        'Pointer by Siddharth Mishra · based on the CGPA '
-                        'Calculator by Srijen Raja · Apache-2.0',
-                        textAlign: TextAlign.center,
-                        style: TypeScale.caption.copyWith(
-                          fontSize: 10,
-                          color: p.textMuted,
-                        ),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: Space.sm),
+                  child: Text(
+                    'Pointer by Siddharth Mishra',
+                    textAlign: TextAlign.center,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 10,
+                      color: p.textMuted,
                     ),
                   ),
                 ),
