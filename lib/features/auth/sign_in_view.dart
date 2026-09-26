@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/pointer_mark.dart';
 import 'package:flutter/material.dart';
 
@@ -23,7 +24,7 @@ class SignInView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    Widget feature(IconData icon, String text) => Padding(
+    Widget feature(IconData icon, String text, {bool mint = false}) => Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
         children: [
@@ -31,10 +32,10 @@ class SignInView extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: p.surface,
+              color: mint ? p.hero : p.surface,
               borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(icon, size: 16, color: p.text),
+            child: Icon(icon, size: 16, color: mint ? p.onHero : p.text),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -136,7 +137,36 @@ class SignInView extends StatelessWidget {
                                       Icons.workspace_premium_outlined,
                                       'Offshoot scored out of 50 or 60, best 5 of 6',
                                     ),
+                                    feature(
+                                      Icons.upload_file_rounded,
+                                      'Import every past semester from your '
+                                      'ERP sheet',
+                                      mint: true,
+                                    ),
                                   ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              DashedOutline(
+                                color: p.textMuted,
+                                radius: 16,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    14,
+                                    11,
+                                    14,
+                                    11,
+                                  ),
+                                  child: Text(
+                                    'Already a few semesters in? Sign in, then '
+                                    'drop your ERP performance sheet — it is '
+                                    'read on your device and never uploaded.',
+                                    style: TypeScale.caption.copyWith(
+                                      fontSize: 12,
+                                      height: 1.5,
+                                      color: p.textMuted,
+                                    ),
+                                  ),
                                 ),
                               ),
                               const Spacer(),

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/seed.dart';
@@ -82,6 +83,7 @@ void _loadSettings(Box settingsBox) {
     defaultValue: selecteddiscipline,
   );
   batch = settingsBox.get('batch', defaultValue: 24);
+  campus = Campus.named(settingsBox.get('campus') as String?);
   // Saved names from the removed colour themes fall back to White or Black.
   selected_theme = AppPalette.resolveName(
     settingsBox.get('selected_theme', defaultValue: selected_theme),
@@ -145,6 +147,7 @@ Future<void> setdis() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('batch', batch);
   await settingsBox.put('selecteddiscipline', selecteddiscipline);
+  if (campus != null) await settingsBox.put('campus', campus!.name);
   await settingsBox.put('degree_selected', true);
 }
 
@@ -299,6 +302,9 @@ List<String> get profileNames => [profile1n, profile2n, ...moreProfileNames];
 String currentsort = "Sort by Credits(Asc)"; //store
 String selected_theme = "White";
 bool degree_selected = false;
+
+/// Read from the sign-in address at setup, or chosen; null until known.
+Campus? campus;
 int erase = 0;
 final List<String> grades = pickerGrades;
 final List<String> sems = baseSemesters;
