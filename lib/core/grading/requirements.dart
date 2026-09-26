@@ -21,6 +21,50 @@ class Requirement {
   final int delCredits;
 }
 
+/// A count of courses and of units.
+typedef Need = ({int courses, int units});
+
+/// What a performance sheet says one degree needs, per elective tag. The
+/// sheet's DEL is both halves of a dual degree together.
+class ElectiveNeeds {
+  const ElectiveNeeds({required this.degree, this.hel, this.del, this.el});
+
+  /// The discipline these are for, e.g. "B3A7"; ignored under another.
+  final String degree;
+  final Need? hel, del, el;
+
+  Map<String, Object> toJson() => {
+    'degree': degree,
+    for (final (k, n) in [('HEL', hel), ('DEL', del), ('EL', el)])
+      if (n != null) k: [n.courses, n.units],
+  };
+
+  static ElectiveNeeds? fromJson(Map<String, dynamic> m) {
+    if (m['degree'] is! String) return null;
+    Need? need(String k) => switch (m[k]) {
+      [final num c, final num u] => (courses: c.toInt(), units: u.toInt()),
+      _ => null,
+    };
+    return ElectiveNeeds(
+      degree: m['degree'] as String,
+      hel: need('HEL'),
+      del: need('DEL'),
+      el: need('EL'),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ElectiveNeeds &&
+      other.degree == degree &&
+      other.hel == hel &&
+      other.del == del &&
+      other.el == el;
+
+  @override
+  int get hashCode => Object.hash(degree, hel, del, el);
+}
+
 /// Reference data, per discipline half ("A7", "B3"…).
 const Map<String, Requirement> requirements = {
   'AD': Requirement(15, 48, 4, 12),
@@ -72,8 +116,13 @@ class AuditCategory {
     required this.credits,
     this.requiredCourses,
     this.requiredCredits,
+    this.also,
   });
   final Elective category;
+
+  /// A second category counted in the same card: a dual degree's two
+  /// disciplinary electives, when the sheet gives only their total.
+  final Elective? also;
 
   /// "CDC (A7)", "Humanity Electives"…
   final String label;
@@ -101,7 +150,12 @@ class DegreeAudit {
 
 /// The audit for [discipline] ("B3A7", "--A7", "----" for none), in the order
 /// the old analytics page showed it. Empty when no discipline is chosen.
-DegreeAudit degreeAudit(Iterable<Course> all, String discipline) {
+/// [needs] from the student's own sheet win over the reference data.
+DegreeAudit degreeAudit(
+  Iterable<Course> all,
+  String discipline, {
+  ElectiveNeeds? needs,
+}) {
   if (discipline == '----') return const DegreeAudit(0, []);
   final first = discipline.substring(0, 2);
   final second = discipline.substring(2, 4);
@@ -115,19 +169,46 @@ DegreeAudit degreeAudit(Iterable<Course> all, String discipline) {
           )
           .toList();
   final noReq = discipline.startsWith('B-');
+  final sheet = needs?.degree == discipline ? needs : null;
 
-  AuditCategory card(Elective e, String label, {int? courses, int? credits}) =>
-      AuditCategory(
-        category: e,
-        label: label,
-        courses: earnedCourses(e, mine),
-        credits: earnedCredits(e, mine),
-        requiredCourses: courses,
-        requiredCredits: credits,
-      );
+  // A need of nothing at all shows the totals alone.
+  AuditCategory card(Elective e, String label, Need? need, {Elective? also}) {
+    final set = need != null && (need.courses > 0 || need.units > 0);
+    return AuditCategory(
+      category: e,
+      label: label,
+      courses:
+          earnedCourses(e, mine) +
+          (also == null ? 0 : earnedCourses(also, mine)),
+      credits:
+          earnedCredits(e, mine) +
+          (also == null ? 0 : earnedCredits(also, mine)),
+      requiredCourses: set ? need.courses : null,
+      requiredCredits: set ? need.units : null,
+      also: also,
+    );
+  }
+
+  Need? cdc(Requirement? r) =>
+      r == null ? null : (courses: r.cdcCourses, units: r.cdcCredits);
+  Need? del(Requirement? r) =>
+      r == null ? null : (courses: r.delCourses, units: r.delCredits);
 
   final a = requirements[second];
-  final b = requirements[first];
+  final b = noReq ? null : requirements[first];
+  final hasA = second.startsWith('A'), hasB = discipline.startsWith('B');
+  final sheetDel = sheet?.del;
+  final aDel = del(a), bDel = del(b);
+  // A dual's sheet gives one DEL total. It keeps the per-degree split when the
+  // reference data adds up to it, and becomes one card when it does not.
+  final merge =
+      sheetDel != null &&
+      hasA &&
+      hasB &&
+      !(aDel != null &&
+          bDel != null &&
+          aDel.courses + bDel.courses == sheetDel.courses &&
+          aDel.units + bDel.units == sheetDel.units);
   return DegreeAudit(
     cumulativeTally(
       all,
@@ -135,38 +216,41 @@ DegreeAudit degreeAudit(Iterable<Course> all, String discipline) {
       profile: Profile.actual,
     ).shownCredits,
     [
-      if (second.startsWith('A')) ...[
-        card(
-          Elective.cdc2,
-          'CDC ($second)',
-          courses: a?.cdcCourses,
-          credits: a?.cdcCredits,
-        ),
+      if (hasA) ...[
+        card(Elective.cdc2, 'CDC ($second)', cdc(a)),
+        if (!merge)
+          card(
+            Elective.del2,
+            'Disciplinary Electives ($second)',
+            hasB ? aDel : sheetDel ?? aDel,
+          ),
+      ],
+      if (hasB) ...[
+        card(Elective.cdc1, 'CDC ($first)', cdc(b)),
+        if (!merge)
+          card(
+            Elective.del1,
+            'Disciplinary Electives ($first)',
+            hasA || noReq ? bDel : sheetDel ?? bDel,
+          ),
+      ],
+      if (merge)
         card(
           Elective.del2,
-          'Disciplinary Electives ($second)',
-          courses: a?.delCourses,
-          credits: a?.delCredits,
+          'Disciplinary Electives',
+          sheetDel,
+          also: Elective.del1,
         ),
-      ],
-      if (discipline.startsWith('B')) ...[
-        card(
-          Elective.cdc1,
-          'CDC ($first)',
-          courses: noReq ? null : b?.cdcCourses,
-          credits: noReq ? null : b?.cdcCredits,
-        ),
-        card(
-          Elective.del1,
-          'Disciplinary Electives ($first)',
-          courses: noReq ? null : b?.delCourses,
-          credits: noReq ? null : b?.delCredits,
-        ),
-      ],
-      card(Elective.humanity, 'Humanity Electives', courses: 3, credits: 8),
-      discipline.startsWith('B')
-          ? card(Elective.open, 'Open Electives')
-          : card(Elective.open, 'Open Electives', courses: 5, credits: 15),
+      card(
+        Elective.humanity,
+        'Humanity Electives',
+        sheet?.hel ?? (courses: 3, units: 8),
+      ),
+      card(
+        Elective.open,
+        'Open Electives',
+        sheet?.el ?? (hasB ? null : (courses: 5, units: 15)),
+      ),
     ],
   );
 }

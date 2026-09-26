@@ -124,6 +124,7 @@ class DegreeView extends StatelessWidget {
   }
 
   String _short(AuditCategory c) => switch (c.category) {
+    _ when c.also != null => 'DEl',
     Elective.cdc1 || Elective.cdc2 => 'core',
     Elective.del1 => 'DEl 1',
     Elective.del2 => 'DEl 2',

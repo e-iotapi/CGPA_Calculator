@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/core/storage/stats.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/import/import_plan.dart';
 import 'package:cgpa_calculator/features/import/import_preview.dart';
@@ -395,7 +396,17 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     final box = Hive.box<Course>(coursesBoxName);
     final plan = planImport(sheet, box.toMap(), discipline: selecteddiscipline);
-    if (!await showImportPreview(context, sheet: sheet, plan: plan)) return;
+    final needs = sheet.electiveNeeds(selecteddiscipline);
+    final newNeeds = needs != null && needs != electiveNeeds;
+    if (!await showImportPreview(
+      context,
+      sheet: sheet,
+      plan: plan,
+      newNeeds: newNeeds,
+    )) {
+      return;
+    }
+    if (newNeeds) await setElectiveNeeds(needs);
     await box.deleteAll(plan.remove);
     await box.putAll(plan.put);
     for (final c in plan.add) {

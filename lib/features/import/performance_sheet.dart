@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/grading/requirements.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 
 /// One text item on a page. [y] grows downward.
@@ -75,6 +76,7 @@ class PerformanceSheet {
     this.studentId,
     this.cgpa,
     this.unplaced = const [],
+    this.needs = const {},
   });
 
   /// Completed and registered courses, oldest first, retaken attempts
@@ -86,6 +88,21 @@ class PerformanceSheet {
   /// Section headings that match no semester the app has, e.g. a summer
   /// term after the first year.
   final List<String> unplaced;
+
+  /// Electives the degree requires, by tag (HEL, DEL, EL), from the sheet's
+  /// "Count of … Required, Completed" lines.
+  final Map<String, Need> needs;
+
+  /// [needs] for [degree], or null when the sheet has none.
+  ElectiveNeeds? electiveNeeds(String degree) =>
+      needs.isEmpty
+          ? null
+          : ElectiveNeeds(
+            degree: degree,
+            hel: needs['HEL'],
+            del: needs['DEL'],
+            el: needs['EL'],
+          );
 
   /// 2023B3A70802G → 23.
   int? get batch => switch (studentId) {
@@ -109,6 +126,7 @@ final _summer = RegExp(r'^SUMMER TERM (\d{4})-\d{4}$');
 final _code = RegExp(r'^([A-Z]{2,5})\s+([A-Z]\d{3}[A-Z]?)$');
 final _units = RegExp(r'^\d+(\.\d+)?$');
 const _tags = {'HEL', 'DEL', 'EL'};
+final _needs = RegExp(r'^Count of (Electives|Units) Required');
 
 /// The app semester for a heading, or null when there is none.
 String? _semFor(String heading, int batchYear, String discipline) {
@@ -166,6 +184,38 @@ PerformanceSheet parsePerformanceSheet(
             .nonNulls
             .firstOrNull;
   }
+
+  // "Count of Electives Required, Completed  HEL 3 1  DEL 10 7  EL 0 1": the
+  // first number after each tag is what the degree requires.
+  final required = <String, Map<String, int>>{};
+  for (final label in live) {
+    final kind = _needs.firstMatch(label.text.trim())?.group(1);
+    if (kind == null) continue;
+    final line =
+        live
+            .where(
+              (i) =>
+                  i.page == label.page &&
+                  (i.y - label.y).abs() < 3 &&
+                  i.x > label.x,
+            )
+            .toList()
+          ..sort((a, b) => a.x.compareTo(b.x));
+    String? tag;
+    for (final i in line) {
+      final t = i.text.trim();
+      if (_tags.contains(t)) {
+        tag = t;
+      } else if (tag != null && double.tryParse(t) != null) {
+        required.putIfAbsent(tag, () => {})[kind] = double.parse(t).round();
+        tag = null;
+      }
+    }
+  }
+  final needs = {
+    for (final MapEntry(key: tag, value: n) in required.entries)
+      tag: (courses: n['Electives'] ?? 0, units: n['Units'] ?? 0),
+  };
 
   final rows = <SheetRow>[];
   final unplaced = <String>{};
@@ -254,6 +304,7 @@ PerformanceSheet parsePerformanceSheet(
     studentId: id,
     cgpa: cgpa,
     unplaced: unplaced.toList(),
+    needs: needs,
   );
 }
 
