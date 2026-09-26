@@ -45,3 +45,27 @@ DegreeNeeds? get degreeNeeds {
 
 Future<void> setDegreeNeeds(DegreeNeeds n) =>
     _settings.put('degree_needs', jsonEncode(n.toJson()));
+
+/// The total credits [degree] needs, as the student set it; null when unset
+/// or set under another degree.
+int? degreeTotalFor(String degree) {
+  final raw = _settings.get('degree_total');
+  if (raw is! String || raw.isEmpty) return null;
+  try {
+    final m = jsonDecode(raw) as Map<String, dynamic>;
+    return m['degree'] == degree && m['total'] is int
+        ? m['total'] as int
+        : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Null clears it.
+Future<void> setDegreeTotal(String degree, int? total) =>
+    total == null
+        ? _settings.delete('degree_total')
+        : _settings.put(
+          'degree_total',
+          jsonEncode({'degree': degree, 'total': total}),
+        );

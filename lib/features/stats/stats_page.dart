@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/features/stats/widgets/progression_view.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 enum StatsView { progression, degree }
 
@@ -34,7 +35,66 @@ class _StatsPageState extends State<StatsPage> {
     target: _target,
     plan: _plan,
     needs: degreeNeeds,
+    totalSet: degreeTotalFor(widget.discipline),
   );
+
+  Future<void> _editTotal() async {
+    final data = _data;
+    final shown = data.audit.totalCredits + data.degreeLeft;
+    final controller = TextEditingController(text: shown.round().toString());
+    int? read() => int.tryParse(controller.text.trim());
+    final result = await showDialog<(int?,)>(
+      context: context,
+      builder:
+          (c) => AlertDialog(
+            title: const Text('Credits your degree needs'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pointer works this out from your courses or your ERP '
+                  'sheet. If yours is different, set it here.',
+                ),
+                const SizedBox(height: Space.md),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    suffixText: 'credits',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) {
+                    if ((read() ?? 0) > 0) Navigator.pop(c, (read(),));
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              if (data.totalSet != null)
+                TextButton(
+                  onPressed: () => Navigator.pop(c, (null,)),
+                  child: const Text('Use Pointer\'s'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(c),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  if ((read() ?? 0) > 0) Navigator.pop(c, (read(),));
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+    );
+    if (result == null || !mounted) return;
+    await setDegreeTotal(widget.discipline, result.$1);
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +111,7 @@ class _StatsPageState extends State<StatsPage> {
         setStatsPlan(_plan);
       },
       onBack: () => Navigator.of(context).maybePop(),
+      onEditTotal: _editTotal,
     );
   }
 }
@@ -65,6 +126,7 @@ class StatsScreen extends StatelessWidget {
     required this.onTargetChanged,
     required this.onPlanChanged,
     required this.onBack,
+    this.onEditTotal,
   });
 
   final StatsData data;
@@ -73,6 +135,7 @@ class StatsScreen extends StatelessWidget {
   final ValueChanged<double> onTargetChanged;
   final void Function(String sem, double sgpa) onPlanChanged;
   final VoidCallback onBack;
+  final VoidCallback? onEditTotal;
 
   String get _halves {
     final d = data.discipline;
@@ -166,7 +229,7 @@ class StatsScreen extends StatelessWidget {
                 Expanded(
                   child:
                       degree
-                          ? DegreeView(data: data)
+                          ? DegreeView(data: data, onEditTotal: onEditTotal)
                           : ProgressionView(
                             data: data,
                             onTargetChanged: onTargetChanged,
