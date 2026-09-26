@@ -28,6 +28,7 @@ class SettingsView extends StatelessWidget {
     required this.onSignOut,
     this.onCredits,
     this.onEmail,
+    this.onInstall,
     this.onGithub,
   });
 
@@ -59,6 +60,9 @@ class SettingsView extends StatelessWidget {
   final VoidCallback onSignOut;
   final VoidCallback? onCredits;
   final VoidCallback? onEmail;
+
+  /// Null hides the row: not on the web, or already installed.
+  final VoidCallback? onInstall;
   final VoidCallback? onGithub;
 
   @override
@@ -166,6 +170,17 @@ class SettingsView extends StatelessWidget {
                     onTap: () => onRenameProfile(2),
                   ),
                 ]),
+                if (onInstall != null) ...[
+                  _SectionLabel('APP'),
+                  _Group([
+                    _Item(
+                      icon: Icons.install_mobile_rounded,
+                      label: 'Install app',
+                      value: 'Home screen',
+                      onTap: onInstall!,
+                    ),
+                  ]),
+                ],
                 _SectionLabel('YOUR DATA'),
                 _Group([
                   _Item(

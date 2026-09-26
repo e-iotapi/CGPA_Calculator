@@ -83,6 +83,7 @@ void main() {
       onSignOut: () => taps.add('signout'),
       onEmail: () => taps.add('email'),
       onGithub: () => taps.add('github'),
+      onInstall: () => taps.add('install'),
     );
 
     Future<void> pump(Size size, {double scale = 1, bool dark = false}) async {
@@ -123,9 +124,13 @@ void main() {
     await t.tap(find.text('Discipline'));
     await t.tap(find.text('Dark'));
     await t.tap(find.text('Profile 2'));
+    await t.scrollUntilVisible(find.text('Install app'), 200);
+    await t.tap(find.text('Install app'));
     await t.scrollUntilVisible(find.text('Reset courses'), 200);
+    await t.drag(find.byType(Scrollable).first, const Offset(0, -300));
+    await t.pumpAndSettle();
     await t.tap(find.text('Reset courses'));
-    expect(taps, ['discipline', 'theme true', 'profile 2', 'reset']);
+    expect(taps, ['discipline', 'theme true', 'profile 2', 'install', 'reset']);
 
     final shots = Platform.environment['SHOTS_DIR'];
     if (shots != null) {
