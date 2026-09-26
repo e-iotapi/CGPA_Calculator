@@ -22,6 +22,7 @@ class SettingsView extends StatelessWidget {
     required this.onExport,
     required this.onImportBackup,
     required this.onImportOld,
+    this.onImportErp,
     required this.onReport,
     required this.onReset,
     required this.onSignOut,
@@ -54,6 +55,9 @@ class SettingsView extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback onImportBackup;
   final VoidCallback onImportOld;
+
+  /// Imports grades from the ERP performance sheet PDF; web only.
+  final VoidCallback? onImportErp;
   final VoidCallback onReport;
   final VoidCallback onReset;
   final VoidCallback onSignOut;
@@ -193,6 +197,14 @@ class SettingsView extends StatelessWidget {
                     chevron: false,
                     onTap: onImportBackup,
                   ),
+                  if (onImportErp != null)
+                    _Item(
+                      icon: Icons.school_outlined,
+                      label: 'Import grades from ERP',
+                      value: '.pdf',
+                      chevron: false,
+                      onTap: onImportErp!,
+                    ),
                   _Item(
                     icon: Icons.content_paste_rounded,
                     label: 'Import from old site',

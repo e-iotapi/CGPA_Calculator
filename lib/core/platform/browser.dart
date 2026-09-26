@@ -74,3 +74,8 @@ InstallTarget parseInstallTarget(String ua, {bool touch = false}) {
 /// Opens the browser's own install prompt. False when it has none to offer
 /// (Safari, Firefox, or a prompt already used or dismissed).
 bool promptInstall() => impl.promptInstall();
+
+/// Opens a PDF picker and returns the chosen file's text with positions (see
+/// window.pickPdfText in index.html), or null if nothing was picked. Throws
+/// a String when the file cannot be read.
+Future<String?> pickPdfText() => impl.pickPdfText();

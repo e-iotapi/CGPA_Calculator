@@ -86,3 +86,12 @@ bool promptInstall() {
     return false;
   }
 }
+
+/// Calls window.pickPdfText from index.html.
+Future<String?> pickPdfText() async {
+  final result =
+      await globalContext
+          .callMethod<JSPromise<JSString?>>('pickPdfText'.toJS)
+          .toDart;
+  return result?.toDart;
+}

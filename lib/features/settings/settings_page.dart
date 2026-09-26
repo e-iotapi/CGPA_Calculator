@@ -2,6 +2,11 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/features/import/import_plan.dart';
+import 'package:cgpa_calculator/features/import/import_preview.dart';
+import 'package:cgpa_calculator/features/import/performance_sheet.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
 import 'package:cgpa_calculator/script.dart';
@@ -11,6 +16,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cgpa_calculator/features/settings/install_guide.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Settings. Discipline changes only set [erase]; the home screen applies
@@ -50,6 +56,7 @@ class _SettingsPageState extends State<SettingsPage> {
               onExport: () => _exportCsv(context),
               onImportBackup: () => _importFromFile(context),
               onImportOld: () => _importFromOldSite(context),
+              onImportErp: kIsWeb ? () => _importFromErp(context) : null,
               onReport: () => _submitReport(context),
               onReset: () => _reset(context),
               onSignOut: _signOut,
@@ -337,6 +344,65 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       if (context.mounted) _toast(context, 'Import failed: $e');
     }
+  }
+
+  /// Reads the ERP performance sheet PDF, shows what it changes, then sets
+  /// Actual grades from it.
+  Future<void> _importFromErp(BuildContext context) async {
+    final String? json;
+    try {
+      json = await pickPdfText();
+    } catch (_) {
+      if (context.mounted) {
+        _toast(context, 'Could not read that PDF. Is it the one from ERP?');
+      }
+      return;
+    }
+    if (json == null || !context.mounted) return;
+    final (:width, :items) = pdfTextFromJson(json);
+    final sheet = parsePerformanceSheet(
+      items,
+      pageWidth: width,
+      batch: batch,
+      discipline: selecteddiscipline,
+    );
+    if (sheet.rows.isEmpty) {
+      _toast(context, 'No courses found. Use the Performance Sheet from ERP.');
+      return;
+    }
+    final d = sheet.discipline, b = sheet.batch;
+    if ((d != null && d != selecteddiscipline) || (b != null && b != batch)) {
+      await showDialog<void>(
+        context: context,
+        builder:
+            (c) => AlertDialog(
+              title: const Text('Set your degree first'),
+              content: Text(
+                'This sheet is for ${d ?? selecteddiscipline}, '
+                '20${b ?? batch} batch. Pointer is set to '
+                '$selecteddiscipline, 20$batch. Change your degree and batch '
+                'above, then import again.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(c),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+      );
+      return;
+    }
+    final box = Hive.box<Course>(coursesBoxName);
+    final plan = planImport(sheet, box.toMap(), discipline: selecteddiscipline);
+    if (!await showImportPreview(context, sheet: sheet, plan: plan)) return;
+    await box.deleteAll(plan.remove);
+    await box.putAll(plan.put);
+    for (final c in plan.add) {
+      await box.add(c);
+    }
+    await box.flush();
+    if (context.mounted) _toast(context, 'Imported from your ERP sheet');
   }
 
   Future<void> _importFromOldSite(BuildContext context) async {
