@@ -6,23 +6,28 @@ import 'package:cgpa_calculator/course.dart';
 /// Forecasting on the Actual profile. Exact arithmetic on the same tally the
 /// home screen uses (§2.1) — no fitted curves.
 
-/// Courses still to earn: ungraded (CLR), plus any NC with no later passing
-/// or pending attempt under the same code — an NC has to be repeated.
+/// Courses still to earn: ungraded (CLR) or Ongoing, plus any NC with no
+/// later passing or pending attempt under the same code — an NC has to be
+/// repeated.
 List<Course> outstandingCourses(Iterable<Course> all, String discipline) {
   final mine = all.where((c) => inDiscipline(c, discipline)).toList();
   final covered = {
     for (final c in mine)
-      if (c.grade1 > 0 || c.grade1 == GradeCode.gd || c.grade1 == GradeCode.clr)
+      if (c.grade1 > 0 || c.grade1 == GradeCode.gd || _pending(c))
         normalizeCourseId(c.id),
   };
   return [
     for (final c in mine)
-      if (c.grade1 == GradeCode.clr ||
+      if (_pending(c) ||
           (c.grade1 == GradeCode.nc &&
               !covered.contains(normalizeCourseId(c.id))))
         c,
   ];
 }
+
+/// Still to be graded: blank, or in progress.
+bool _pending(Course c) =>
+    c.grade1 == GradeCode.clr || c.grade1 == GradeCode.ongoing;
 
 double remainingCredits(Iterable<Course> all, String discipline) =>
     outstandingCourses(all, discipline).fold(0.0, (s, c) => s + c.credits);
@@ -35,7 +40,7 @@ List<({String sem, double credits})> futureSemesters(
 ) {
   final bySem = <String, double>{};
   for (final c in all) {
-    if (c.grade1 == GradeCode.clr && inDiscipline(c, discipline)) {
+    if (_pending(c) && inDiscipline(c, discipline)) {
       bySem[c.sem] = (bySem[c.sem] ?? 0) + c.credits;
     }
   }

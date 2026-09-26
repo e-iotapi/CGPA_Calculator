@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cgpa_calculator/core/grading/minor_progress.dart';
 import 'package:cgpa_calculator/core/storage/minor.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
+import 'package:cgpa_calculator/core/storage/course_order.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
@@ -289,6 +290,10 @@ class _MyHomePageState extends State<MyHomePage> {
             cgpa = cgcalc();
           }),
       onSortSelected: (s) => setState(() => currentsort = s.key),
+      onReorder: (order) async {
+        await setCourseOrder(currentsem, [for (final c in order) c.id]);
+        if (mounted) setState(() => currentsort = CourseSort.custom.key);
+      },
       onExport: () => _exportSemester(sitems),
       onAddCourse: () async {
         final c = await showAddCourseSheet(
@@ -302,6 +307,7 @@ class _MyHomePageState extends State<MyHomePage> {
         );
         if (c == null) return;
         await addOrUpdateCourse(c);
+        await seedDefaultComponents(c.id, c.title);
         if (mounted) {
           setState(() {
             sgpa = sgcalc(currentsem);

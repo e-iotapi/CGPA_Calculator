@@ -18,6 +18,11 @@ import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+// For a record in the format written before averages existed.
+// ignore: implementation_imports
+import 'package:hive/src/binary/binary_reader_impl.dart';
+// ignore: implementation_imports
+import 'package:hive/src/binary/binary_writer_impl.dart';
 
 import '../helpers/fonts.dart';
 
@@ -116,16 +121,96 @@ void main() {
       expect(contribution(k), closeTo((6 + 8) / (10 + 20) * 20, 1e-9));
     });
 
-    test('ungraded parts never count, even inside best-of', () {
-      final e = Evaluative(
+    test('a blank part scores zero once any part has a mark', () {
+      final all = Evaluative(
+        courseId: 'X',
+        name: 'Quiz',
+        weight: 45,
+        parts: [_p('a', 11.26, 20), _p('b', null, 25)],
+      );
+      // 11.26 / 45, not 11.26 / 20.
+      expect(contribution(all), closeTo(11.26, 1e-9));
+      // Best-of drops the blank first.
+      final best = Evaluative(
         courseId: 'X',
         name: 'Quiz',
         weight: 10,
         countBest: 2,
-        parts: [_p('a', 5, 10), _p('b', null, 10), _p('c', null, 10)],
+        parts: [_p('a', 5, 10), _p('b', null, 10), _p('c', 8, 10)],
       );
-      expect(countedParts(e).length, 1);
-      expect(contribution(e), 5);
+      expect(countedParts(best).map((p) => p.name), ['c', 'a']);
+      expect(droppedParts(best).single.name, 'b');
+      expect(contribution(best), closeTo(6.5, 1e-9));
+    });
+
+    test('an evaluative with no marks at all stays ungraded', () {
+      final e = Evaluative(
+        courseId: 'X',
+        name: 'Quiz',
+        weight: 10,
+        parts: [_p('a', null, 10), _p('b', null, 10)],
+      );
+      expect(isGraded(e), isFalse);
+      expect(contribution(e), isNull);
+      expect(droppedParts(e), isEmpty);
+      final s = MarksSummary([e], CourseConfig(courseId: 'X'));
+      expect((s.secured, s.gradedWeight), (0.0, 0.0));
+    });
+
+    test('averages: typed beats derived, derived is the parts summed', () {
+      final e = Evaluative(
+        courseId: 'X',
+        name: 'Quiz',
+        weight: 10,
+        parts: [
+          _p('a', 7, 10)..average = 6,
+          _p('b', 9, 10)..average = 7.5,
+          _p('c', null, 10),
+        ],
+      );
+      expect(componentAverage(e), (value: 13.5, derived: true));
+      // Your marks over the same parts: 16 against 13.5.
+      expect(componentDelta(e), closeTo(2.5, 1e-9));
+      e.average = 20;
+      expect(componentAverage(e), (value: 20.0, derived: false));
+      expect(componentDelta(e), closeTo(-4, 1e-9));
+      expect(resolve(null, () => null), isNull);
+    });
+
+    test('duplicate copies structure, never marks, and bumps the number', () {
+      final e = Evaluative(
+        courseId: 'X',
+        name: 'Quiz 1',
+        weight: 10,
+        countBest: 1,
+        average: 5,
+        parts: [
+          EvalPart(name: 'Lab 9', marks: 4, outOf: 5, date: '2026-09-01'),
+        ],
+      );
+      final d = duplicateEvaluative(e);
+      expect(d.name, 'Quiz 2');
+      expect((d.weight, d.countBest, d.average), (10.0, 1, null));
+      expect(d.parts.single.name, 'Lab 9');
+      expect(d.parts.single.outOf, 5);
+      expect(d.parts.single.marks, isNull);
+      expect(d.parts.single.date, isNull);
+      expect(nextName('Midsem'), 'Midsem 2');
+      expect(nextName('Lab 9'), 'Lab 10');
+    });
+
+    test('default components skip projects, PS, theses and seminars', () {
+      expect(takesDefaultComponents('Operating Systems'), isTrue);
+      for (final t in [
+        'Design Project',
+        'Practice School II',
+        'Thesis',
+        'Seminar',
+        'Study Project',
+        'Reading Course',
+      ]) {
+        expect(takesDefaultComponents(t), isFalse, reason: t);
+      }
     });
 
     test('class delta is yours − average, and absent when unset', () {
@@ -162,6 +247,71 @@ void main() {
     tearDown(() async {
       await Hive.deleteFromDisk();
       await dir.delete(recursive: true);
+    });
+
+    test('averages survive the box, a reopen and sync', () async {
+      final e = Evaluative(
+        courseId: 'X',
+        name: 'Quiz',
+        weight: 10,
+        average: 12,
+        parts: [_p('a', 7, 10)..average = 6.5, _p('b', null, 10)],
+      );
+      final key = await saveEvaluative(e);
+      await Hive.box(marksBoxName).close();
+      await Hive.openBox(marksBoxName);
+      Evaluative back() => evaluativesFor('X').single.$2;
+      expect(back().average, 12);
+      expect(back().parts.map((p) => p.average), [6.5, null]);
+
+      final snap = Sync.snapshot();
+      await Hive.box(marksBoxName).clear();
+      await Sync.apply(snap);
+      expect(back().average, 12);
+      expect(back().parts.first.average, 6.5);
+      expect(evaluativesFor('X').single.$1, key);
+    });
+
+    test('a record saved before averages existed still reads', () {
+      final registry = Hive as TypeRegistry;
+      final w =
+          BinaryWriterImpl(registry)
+            ..writeString('X')
+            ..writeString('Midsem')
+            ..writeDouble(30)
+            ..writeList([EvalPart(name: '', marks: 20, outOf: 60)])
+            ..writeInt(0);
+      final e = EvaluativeAdapter().read(
+        BinaryReaderImpl(w.toBytes(), registry),
+      );
+      expect((e.name, e.weight, e.average), ('Midsem', 30.0, null));
+      expect(e.parts.single.marks, 20);
+    });
+
+    test('default components are seeded once, never over data', () async {
+      await seedDefaultComponents('CS F212', 'Database Systems');
+      expect(
+        evaluativesFor('CS F212').map((e) => e.$2.name),
+        defaultComponents,
+      );
+      expect(evaluativesFor('CS F212').every((e) => e.$2.weight == 0), isTrue);
+      await seedDefaultComponents('CS F212', 'Database Systems');
+      expect(evaluativesFor('CS F212'), hasLength(4));
+
+      await saveConfig(CourseConfig(courseId: 'CS F213'));
+      await seedDefaultComponents('CS F213', 'Object Oriented Programming');
+      expect(evaluativesFor('CS F213'), isEmpty);
+      await seedDefaultComponents('BITS F421T', 'Thesis');
+      expect(evaluativesFor('BITS F421T'), isEmpty);
+    });
+
+    test('Ongoing survives a sync round trip', () async {
+      final courses = Hive.box<Course>('coursesBox');
+      await courses.put('x', _os.withGrade(1, GradeCode.ongoing));
+      final snap = Sync.snapshot();
+      await courses.clear();
+      await Sync.apply(snap);
+      expect(courses.get('x')!.grade1, GradeCode.ongoing);
     });
 
     test(
@@ -374,6 +524,39 @@ void main() {
           });
         }
       }
+    });
+    testWidgets('averages live on the Marks page; duplicate copies a card', (
+      t,
+    ) async {
+      await t.runAsync(() async {
+        await saveEvaluative(
+          Evaluative(
+            courseId: 'CS F372',
+            name: 'Quiz 1',
+            weight: 10,
+            parts: [_p('a', 7, 10)..average = 6, _p('b', 8, 10)..average = 7],
+          ),
+        );
+        await saveConfig(CourseConfig(courseId: 'CS F372', classAverage: 5));
+      });
+      await pump(t, MarksPage(course: _os), const Size(390, 844));
+      expect(find.text('Course average'), findsOneWidget);
+      expect(find.text('Component average'), findsOneWidget);
+      // Derived from the parts, shown as the hint and marked as such.
+      expect(find.text('from parts'), findsOneWidget);
+      expect(find.text('2.00 ahead'), findsOneWidget);
+
+      await t.runAsync(() async {
+        await t.tap(find.byTooltip('Duplicate Quiz 1'));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await t.pumpAndSettle();
+      expect(find.text('Quiz 2'), findsOneWidget);
+      final copy = evaluativesFor('CS F372').last.$2;
+      expect(copy.parts.every((p) => p.marks == null), isTrue);
+
+      await pump(t, CourseSetupPage(course: _os), const Size(390, 844));
+      expect(find.text('Class average'), findsNothing);
     });
   });
 

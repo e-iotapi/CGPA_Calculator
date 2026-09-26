@@ -203,6 +203,26 @@ void main() {
       expect(find.textContaining('still being built'), findsOneWidget);
     });
 
+    testWidgets('setup ends with the install offer, unless installed', (
+      t,
+    ) async {
+      await _pump(t, ErpImportPage(onDone: () {}, installable: true));
+      await t.scrollUntilVisible(find.text('Install'), 200);
+      expect(find.text('Keep Pointer on your home screen'), findsOneWidget);
+      await _pump(t, ErpImportPage(onDone: () {}, installable: false));
+      expect(find.text('Keep Pointer on your home screen'), findsNothing);
+      // Settings' import is not the end of setup.
+      await _pump(t, const ErpImportPage(installable: true));
+      expect(find.text('Keep Pointer on your home screen'), findsNothing);
+      await _pump(
+        t,
+        ErpImportPage(onDone: () {}, installable: true),
+        size: const Size(320, 640),
+        scale: 2,
+      );
+      expect(t.takeException(), isNull);
+    });
+
     testWidgets('fits 320, 768, 1440 and 200% text', (t) async {
       for (final (size, scale) in const [
         (Size(320, 640), 1.0),

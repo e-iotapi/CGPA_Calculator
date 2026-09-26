@@ -82,21 +82,29 @@
     // page; null if nothing was picked. pdf.js loads only when this runs, and
     // the file never leaves the browser.
     window.pickPdfText = function() {
+      function log(stage) { console.info('[Pointer import] ' + stage); }
       return new Promise(function(resolve, reject) {
         var input = document.createElement('input');
         input.type = 'file';
         input.accept = 'application/pdf,.pdf';
-        input.addEventListener('cancel', function() { resolve(null); });
+        input.addEventListener('cancel', function() {
+          log('picker cancelled');
+          resolve(null);
+        });
         input.onchange = async function() {
           var file = input.files && input.files[0];
-          if (!file) { resolve(null); return; }
+          if (!file) { log('no file'); resolve(null); return; }
+          log('picked ' + file.size + ' bytes');
+          var doc = null;
           try {
             var base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/';
             var pdfjs = await import(base + 'pdf.min.mjs');
             pdfjs.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.mjs';
-            var doc = await pdfjs.getDocument({
+            log('pdf.js loaded');
+            doc = await pdfjs.getDocument({
               data: new Uint8Array(await file.arrayBuffer()),
             }).promise;
+            log('opened, ' + doc.numPages + ' pages');
             var items = [], width = 0;
             for (var p = 1; p <= doc.numPages; p++) {
               var page = await doc.getPage(p);
@@ -108,15 +116,64 @@
                 items.push([p, it.transform[4], vp.height - it.transform[5],
                   it.width, it.str]);
               }
+              page.cleanup();
             }
+            log('read ' + items.length + ' text items');
             resolve(JSON.stringify({width: width, items: items}));
           } catch (e) {
+            log('failed: ' + ((e && e.message) || e));
             reject(String((e && e.message) || e));
+          } finally {
+            // A phone has little headroom: let the bytes, the worker and the
+            // input go as soon as the text is out.
+            if (doc) doc.destroy();
+            input.value = '';
+            input.onchange = null;
+            file = null;
           }
         };
         input.click();
       });
     };
+
+    // Chromium on Android can drop the canvas's GL context while the file
+    // picker has the app in the background: the engine lives on, nothing
+    // paints, and the screen stays black. Reload when that happens, and ask
+    // for a fresh frame whenever the app comes back.
+    (function() {
+      var lost = false;
+      function onLost(e) {
+        console.warn('[Pointer] WebGL context lost');
+        lost = true;
+        if (document.visibilityState === 'visible') reloadOnce();
+      }
+      function reloadOnce() {
+        var last = Number(sessionStorage.getItem('ptr-gl-reload') || 0);
+        if (Date.now() - last < 10000) return;
+        sessionStorage.setItem('ptr-gl-reload', String(Date.now()));
+        location.reload();
+      }
+      function hook(root) {
+        root.querySelectorAll('*').forEach(function(el) {
+          if (el.tagName === 'CANVAS' && !el.dataset.ptrHooked) {
+            el.dataset.ptrHooked = '1';
+            el.addEventListener('webglcontextlost', onLost);
+          }
+          if (el.shadowRoot) hook(el.shadowRoot);
+        });
+      }
+      window.addEventListener('flutter-first-frame', function() {
+        hook(document);
+        new MutationObserver(function() { hook(document); })
+          .observe(document.body, {childList: true, subtree: true});
+      });
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState !== 'visible') return;
+        if (lost) { reloadOnce(); return; }
+        hook(document);
+        window.dispatchEvent(new Event('resize'));
+      });
+    })();
   </script>
 
 

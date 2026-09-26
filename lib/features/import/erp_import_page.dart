@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/import/import_plan.dart';
 import 'package:cgpa_calculator/features/import/import_preview.dart';
 import 'package:cgpa_calculator/features/import/performance_sheet.dart';
+import 'package:cgpa_calculator/features/settings/install_guide.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
@@ -29,20 +30,36 @@ final erpMyAcademics = Uri.parse(
 /// Import from the ERP performance sheet: step 2 of setup, and the page the
 /// Settings row opens. One implementation for both.
 class ErpImportPage extends StatefulWidget {
-  const ErpImportPage({super.key, this.onDone});
+  const ErpImportPage({super.key, this.onDone, this.installable});
 
   /// Set during setup: called once grades are in, or skipped. Without it
   /// the page is Settings' and pops when done.
   final VoidCallback? onDone;
 
+  /// Whether to offer installing; by default, in a browser tab that is not
+  /// the installed app already.
+  final bool? installable;
+
   @override
   State<ErpImportPage> createState() => _ErpImportPageState();
 }
 
+/// A marked line per import stage, so a failure on a phone can be read off
+/// chrome://inspect rather than guessed at.
+void importLog(String stage) => debugPrint('[Pointer import] $stage');
+
 class _ErpImportPageState extends State<ErpImportPage> {
   var _busy = false;
 
+  /// What went wrong last time, shown on the page itself.
+  String? _error;
+
   bool get _setup => widget.onDone != null;
+
+  /// At the end of setup, after it has done something, never at first
+  /// launch; and never inside the installed app.
+  bool get _offerInstall =>
+      _setup && (widget.installable ?? (kIsWeb && !isStandalone()));
 
   void _toast(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -54,11 +71,26 @@ class _ErpImportPageState extends State<ErpImportPage> {
       _setup ? widget.onDone!() : Navigator.of(context).maybePop();
 
   Future<void> _choose() async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       if (await _import() && mounted) {
+        importLog('saved');
         _toast('Imported from your ERP sheet');
         _finish();
+      }
+    } catch (e, st) {
+      // No failure may leave a blank screen: the page stays, and says so.
+      importLog('failed: $e\n$st');
+      if (mounted) {
+        setState(
+          () =>
+              _error =
+                  'Something went wrong reading that sheet, and nothing was '
+                  'changed. Try again, or enter grades by hand. ($e)',
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -67,15 +99,21 @@ class _ErpImportPageState extends State<ErpImportPage> {
 
   /// True once the sheet's grades are saved.
   Future<bool> _import() async {
-    final String? json;
+    importLog('picking');
+    String? json;
     try {
       json = await pickPdfText();
-    } catch (_) {
+    } catch (e) {
+      importLog('pdf unreadable: $e');
       if (mounted) _toast('Could not read that PDF. Is it the one from ERP?');
       return false;
     }
     if (json == null || !mounted) return false;
+    importLog('read ${json.length} chars');
     final (:width, :items) = pdfTextFromJson(json);
+    // The text is parsed from here on; let the raw copy go.
+    json = null;
+    importLog('parsing ${items.length} items');
     var sheet = parsePerformanceSheet(
       items,
       pageWidth: width,
@@ -99,8 +137,10 @@ class _ErpImportPageState extends State<ErpImportPage> {
       );
     }
     if (!mounted) return false;
+    importLog('parsed ${sheet.rows.length} rows; planning');
     final box = Hive.box<Course>(coursesBoxName);
     final plan = planImport(sheet, box.toMap(), discipline: selecteddiscipline);
+    importLog('previewing');
     final needs = sheet.degreeNeeds(selecteddiscipline);
     final newNeeds = needs != null && needs != degreeNeeds;
     if (!await showImportPreview(
@@ -111,6 +151,7 @@ class _ErpImportPageState extends State<ErpImportPage> {
     )) {
       return false;
     }
+    importLog('applying');
     if (newNeeds) await setDegreeNeeds(needs);
     await box.deleteAll(plan.remove);
     await box.putAll(plan.put);
@@ -340,6 +381,40 @@ class _ErpImportPageState extends State<ErpImportPage> {
                   ),
                 ]),
                 const SizedBox(height: Space.md),
+                if (_error != null) ...[
+                  Semantics(
+                    liveRegion: true,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+                      decoration: BoxDecoration(
+                        color: p.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: p.behind),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.error_outline_rounded,
+                            size: 17,
+                            color: p.behind,
+                          ),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: body.copyWith(
+                                fontSize: 11.5,
+                                color: p.text,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Space.md),
+                ],
                 _ChooseZone(
                   busy: _busy,
                   onTap: kIsWeb && !_busy ? _choose : null,
@@ -382,6 +457,10 @@ class _ErpImportPageState extends State<ErpImportPage> {
                     const SizedBox(height: 5),
                   ],
                 ]),
+                if (_offerInstall) ...[
+                  const SizedBox(height: Space.md),
+                  _InstallStrip(onInstall: () => offerInstall(context)),
+                ],
                 if (_setup) ...[
                   const SizedBox(height: Space.lg),
                   // A plain link: most first-years have nothing to import.
@@ -410,6 +489,68 @@ class _ErpImportPageState extends State<ErpImportPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Keep Pointer on the home screen: one tap where the browser can prompt,
+/// its own steps where it cannot.
+class _InstallStrip extends StatelessWidget {
+  const _InstallStrip({required this.onInstall});
+
+  final VoidCallback onInstall;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 11, 10, 11),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.install_mobile_rounded, size: 20, color: p.text),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Keep Pointer on your home screen',
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: p.text,
+                  ),
+                ),
+                Text(
+                  'Opens like an app, and works offline.',
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 10.5,
+                    color: p.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Space.sm),
+          FilledButton(
+            onPressed: onInstall,
+            style: FilledButton.styleFrom(
+              backgroundColor: p.inverse,
+              foregroundColor: p.onInverse,
+              minimumSize: const Size(64, 40),
+              shape: const StadiumBorder(),
+            ),
+            child: Text(
+              'Install',
+              style: TypeScale.button.copyWith(fontSize: 12.5),
+            ),
+          ),
+        ],
       ),
     );
   }

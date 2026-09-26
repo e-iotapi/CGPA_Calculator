@@ -1,11 +1,18 @@
 import 'package:hive/hive.dart';
 
 // Hive typeIds 1–3; Course is 0. Adapters are written by hand so no build
-// step is needed. Field numbers are permanent — add, never renumber.
+// step is needed. Field numbers are permanent — add, never renumber. Later
+// fields go at the end of an Evaluative and are read only when present.
 
 /// One marked piece of an evaluative, e.g. "CPU Scheduling" 8 / 10.
 class EvalPart {
-  EvalPart({required this.name, this.marks, required this.outOf, this.date});
+  EvalPart({
+    required this.name,
+    this.marks,
+    required this.outOf,
+    this.date,
+    this.average,
+  });
 
   /// "" for a single-mark evaluative.
   String name;
@@ -17,11 +24,18 @@ class EvalPart {
   /// ISO-8601 date string ("2026-09-26"), never a DateTime (§2.3).
   String? date;
 
+  /// The class average for this part, on its own scale.
+  double? average;
+
+  /// The same part, unmarked: structure and out-of, never the marks.
+  EvalPart blank() => EvalPart(name: name, outOf: outOf);
+
   Map<String, dynamic> toJson() => {
     'n': name,
     'm': marks,
     'o': outOf,
     'd': date,
+    if (average != null) 'a': average,
   };
 
   static EvalPart fromJson(Map m) => EvalPart(
@@ -29,6 +43,7 @@ class EvalPart {
     marks: (m['m'] as num?)?.toDouble(),
     outOf: (m['o'] as num).toDouble(),
     date: m['d'] as String?,
+    average: (m['a'] as num?)?.toDouble(),
   );
 }
 
@@ -40,6 +55,7 @@ class Evaluative {
     required this.weight,
     required this.parts,
     this.countBest = 0,
+    this.average,
   });
 
   String courseId;
@@ -54,6 +70,10 @@ class Evaluative {
   /// 0 = every part counts, else the best N.
   int countBest;
 
+  /// The class average for the whole component, as typed; on the
+  /// component's own scale (the sum of its parts' out-of).
+  double? average;
+
   Map<String, dynamic> toJson() => {
     't': 'eval',
     'c': courseId,
@@ -61,6 +81,7 @@ class Evaluative {
     'w': weight,
     'p': [for (final p in parts) p.toJson()],
     'b': countBest,
+    if (average != null) 'a': average,
   };
 
   static Evaluative fromJson(Map m) => Evaluative(
@@ -69,6 +90,7 @@ class Evaluative {
     weight: (m['w'] as num).toDouble(),
     parts: [for (final p in m['p'] as List) EvalPart.fromJson(p as Map)],
     countBest: (m['b'] as num?)?.toInt() ?? 0,
+    average: (m['a'] as num?)?.toDouble(),
   );
 }
 
@@ -123,13 +145,25 @@ class EvaluativeAdapter extends TypeAdapter<Evaluative> {
   @override
   final int typeId = 1;
   @override
-  Evaluative read(BinaryReader r) => Evaluative(
-    courseId: r.readString(),
-    name: r.readString(),
-    weight: r.readDouble(),
-    parts: r.readList().cast<EvalPart>(),
-    countBest: r.readInt(),
-  );
+  Evaluative read(BinaryReader r) {
+    final e = Evaluative(
+      courseId: r.readString(),
+      name: r.readString(),
+      weight: r.readDouble(),
+      parts: r.readList().cast<EvalPart>(),
+      countBest: r.readInt(),
+    );
+    // Averages came later: an older record simply ends here.
+    if (r.availableBytes > 0) {
+      e.average = (r.read() as num?)?.toDouble();
+      final partAverages = r.readList();
+      for (final (i, a) in partAverages.indexed) {
+        if (i < e.parts.length) e.parts[i].average = (a as num?)?.toDouble();
+      }
+    }
+    return e;
+  }
+
   @override
   void write(BinaryWriter w, Evaluative e) {
     w
@@ -137,7 +171,9 @@ class EvaluativeAdapter extends TypeAdapter<Evaluative> {
       ..writeString(e.name)
       ..writeDouble(e.weight)
       ..writeList(e.parts)
-      ..writeInt(e.countBest);
+      ..writeInt(e.countBest)
+      ..write(e.average)
+      ..writeList([for (final p in e.parts) p.average]);
   }
 }
 

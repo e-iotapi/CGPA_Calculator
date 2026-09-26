@@ -5,7 +5,7 @@ import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:flutter/material.dart';
 
-/// All twelve grades as a six-column grid of pills. Tapping the selected one
+/// Every grade and Ongoing as a six-column grid of pills. Tapping the selected one
 /// clears it back to "not graded yet".
 class GradeGrid extends StatelessWidget {
   const GradeGrid({super.key, required this.value, required this.onChanged});
@@ -16,6 +16,7 @@ class GradeGrid extends StatelessWidget {
   static final _grades = [
     for (final g in letterGrades) (g.replaceAll('-', '−'), reversegradecalc(g)),
     for (final (g, _) in specialGrades) (g, reversegradecalc(g)),
+    ('Ongoing', GradeCode.ongoing),
   ];
 
   @override
@@ -62,7 +63,12 @@ class GradeGrid extends StatelessWidget {
               children: [
                 for (var i = r; i < r + 6; i++) ...[
                   if (i > r) const SizedBox(width: 5),
-                  Expanded(child: pill(_grades[i].$1, _grades[i].$2)),
+                  Expanded(
+                    child:
+                        i < _grades.length
+                            ? pill(_grades[i].$1, _grades[i].$2)
+                            : const SizedBox(),
+                  ),
                 ],
               ],
             ),

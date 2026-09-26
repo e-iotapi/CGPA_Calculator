@@ -520,7 +520,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
           borderRadius: BorderRadius.circular(16),
           onTap: () => setState(() => _grade = value),
           child: ConstrainedBox(
-            // 31px pills in 36px rows: all thirteen wrap into four short
+            // 31px pills in 36px rows: all fourteen wrap into four short
             // rows, so the card fits above the action bar.
             constraints: const BoxConstraints(minHeight: 36),
             child: Center(
@@ -529,7 +529,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               // to the full row. The Center below sizes it to its text.
               child: Container(
                 height: 31,
-                padding: const EdgeInsets.symmetric(horizontal: 11),
+                padding: const EdgeInsets.symmetric(horizontal: 9),
                 decoration: BoxDecoration(
                   color:
                       on
@@ -614,6 +614,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
                 pill(g.replaceAll('-', '−'), reversegradecalc(g)),
               for (final (g, _) in specialGrades)
                 pill(g, reversegradecalc(g), quiet: true),
+              pill('Ongoing', GradeCode.ongoing, quiet: true),
               pill('Not yet', GradeCode.clr, quiet: true),
             ],
           ),
