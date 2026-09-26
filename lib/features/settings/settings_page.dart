@@ -396,8 +396,8 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     final box = Hive.box<Course>(coursesBoxName);
     final plan = planImport(sheet, box.toMap(), discipline: selecteddiscipline);
-    final needs = sheet.electiveNeeds(selecteddiscipline);
-    final newNeeds = needs != null && needs != electiveNeeds;
+    final needs = sheet.degreeNeeds(selecteddiscipline);
+    final newNeeds = needs != null && needs != degreeNeeds;
     if (!await showImportPreview(
       context,
       sheet: sheet,
@@ -406,7 +406,7 @@ class _SettingsPageState extends State<SettingsPage> {
     )) {
       return;
     }
-    if (newNeeds) await setElectiveNeeds(needs);
+    if (newNeeds) await setDegreeNeeds(needs);
     await box.deleteAll(plan.remove);
     await box.putAll(plan.put);
     for (final c in plan.add) {

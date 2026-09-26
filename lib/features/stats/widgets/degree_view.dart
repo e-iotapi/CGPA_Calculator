@@ -28,7 +28,7 @@ class DegreeView extends StatelessWidget {
         ),
       );
     }
-    final total = a.totalCredits + data.remaining;
+    final total = a.totalCredits + data.degreeLeft;
     final pct = (data.degreeShare * 100).round();
     final toClear = [
       for (final c in a.categories)
@@ -52,7 +52,7 @@ class DegreeView extends StatelessWidget {
         Semantics(
           label:
               'Credits earned ${formatCredits(a.totalCredits)} of '
-              '${formatCredits(total)}, ${formatCredits(data.remaining)} left',
+              '${formatCredits(total)}, ${formatCredits(data.degreeLeft)} left',
           excludeSemantics: true,
           child: Container(
             padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
@@ -99,7 +99,7 @@ class DegreeView extends StatelessWidget {
                 ),
                 const SizedBox(height: 9),
                 Text(
-                  '${formatCredits(data.remaining)} credits left',
+                  '${formatCredits(data.degreeLeft)} credits left',
                   style: TypeScale.caption.copyWith(
                     fontSize: 10.5,
                     color: p.onHeroMuted,
@@ -124,7 +124,6 @@ class DegreeView extends StatelessWidget {
   }
 
   String _short(AuditCategory c) => switch (c.category) {
-    _ when c.also != null => 'DEl',
     Elective.cdc1 || Elective.cdc2 => 'core',
     Elective.del1 => 'DEl 1',
     Elective.del2 => 'DEl 2',

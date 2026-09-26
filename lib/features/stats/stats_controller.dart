@@ -32,7 +32,7 @@ class StatsData {
     required String discipline,
     double? target,
     Map<String, double> plan = const {},
-    ElectiveNeeds? needs,
+    DegreeNeeds? needs,
   }) {
     final order = semestersFor(discipline);
     final done = cumulativeTally(
@@ -107,9 +107,13 @@ class StatsData {
     for (final p in planned) (sem: p.sem, cgpa: p.cgpaAfter),
   ];
 
-  /// Credits earned (as the home screen counts them) over earned + remaining.
+  /// Credits the degree still needs: from the sheet's requirements when
+  /// imported, else the ungraded courses held.
+  double get degreeLeft => audit.creditsLeft ?? remaining;
+
+  /// Credits earned (as the home screen counts them) over earned + left.
   double get degreeShare {
-    final total = audit.totalCredits + remaining;
+    final total = audit.totalCredits + degreeLeft;
     return total == 0 ? 0 : audit.totalCredits / total;
   }
 

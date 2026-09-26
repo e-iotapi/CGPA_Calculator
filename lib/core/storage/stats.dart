@@ -33,15 +33,15 @@ Future<void> setStatsPlan(Map<String, double> plan) =>
     _settings.put('stats_plan', jsonEncode(plan));
 
 /// Elective requirements from the last imported performance sheet.
-ElectiveNeeds? get electiveNeeds {
-  final raw = _settings.get('elective_needs');
+DegreeNeeds? get degreeNeeds {
+  final raw = _settings.get('degree_needs');
   if (raw is! String || raw.isEmpty) return null;
   try {
-    return ElectiveNeeds.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    return DegreeNeeds.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   } catch (_) {
     return null;
   }
 }
 
-Future<void> setElectiveNeeds(ElectiveNeeds n) =>
-    _settings.put('elective_needs', jsonEncode(n.toJson()));
+Future<void> setDegreeNeeds(DegreeNeeds n) =>
+    _settings.put('degree_needs', jsonEncode(n.toJson()));
