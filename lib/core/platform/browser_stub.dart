@@ -8,6 +8,6 @@ String userAgent() => 'vm';
 
 bool isStandalone() => false;
 
-String platformName() => 'desktop';
+bool hasTouch() => false;
 
 bool promptInstall() => false;
