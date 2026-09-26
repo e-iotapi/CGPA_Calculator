@@ -14,8 +14,9 @@ class GradeScrubber extends StatefulWidget {
     this.onTap,
   });
 
-  /// A plain tap. Handled here so it never reaches a tappable parent.
-  final VoidCallback? onTap;
+  /// A plain tap. Handled here so it never reaches a tappable parent; gets
+  /// the chip's context, to anchor the grade menu.
+  final void Function(BuildContext anchor)? onTap;
 
   /// The stored grade value.
   final int grade;
@@ -137,7 +138,7 @@ class _GradeScrubberState extends State<GradeScrubber> {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
+      onTap: widget.onTap == null ? null : () => widget.onTap!(context),
       onLongPressStart: _open,
       onLongPressMoveUpdate: _move,
       onLongPressEnd: (_) {
