@@ -315,6 +315,7 @@ class _CategoryCardState extends State<_CategoryCard> {
           if (_open)
             _Members(
               courses: c.members,
+              spilled: c.spilled,
               discipline: widget.discipline,
               onAssign: widget.onAssign,
             ),
@@ -439,9 +440,19 @@ class _Members extends StatelessWidget {
     required this.courses,
     required this.discipline,
     required this.onAssign,
+    this.spilled = const [],
   });
 
   final List<Course> courses;
+
+  /// HELs and DELs past their own requirement, counted here instead.
+  final List<Course> spilled;
+
+  /// "extra HEL": a course past its own requirement, counted as open.
+  String _extra(Course c) => switch (auditCategory(c, discipline)) {
+    Elective.humanity => 'extra HEL',
+    _ => 'extra DEL',
+  };
   final String discipline;
   final AssignCourse? onAssign;
 
@@ -482,6 +493,7 @@ class _Members extends StatelessWidget {
                 ),
                 const SizedBox(width: Space.sm),
                 Text(
+                  '${spilled.contains(c) ? '${_extra(c)} · ' : ''}'
                   '${formatCredits(c.credits)} cr · '
                   '${c.grade1 == GradeCode.ongoing ? 'ongoing' : gradecalc(c.grade1)}',
                   style: TypeScale.caption.copyWith(
