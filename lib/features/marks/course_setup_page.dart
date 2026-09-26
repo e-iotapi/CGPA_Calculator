@@ -12,7 +12,8 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 
-/// How a course is marked, what it is shown out of, and the class average.
+/// How a course is marked and what it is shown out of. The class average is
+/// entered where marks are read, on the Marks page.
 class CourseSetupPage extends StatefulWidget {
   const CourseSetupPage({super.key, required this.course});
 
@@ -36,15 +37,11 @@ class _CourseSetupPageState extends State<CourseSetupPage> {
   late final _custom = TextEditingController(
     text: [100.0, 200.0, 300.0].contains(_outOf) ? '' : marks2(_outOf),
   );
-  late final _avg = TextEditingController(
-    text: _saved.classAverage == null ? '' : marks2(_saved.classAverage!),
-  );
 
   @override
   void dispose() {
     _total.dispose();
     _custom.dispose();
-    _avg.dispose();
     super.dispose();
   }
 
@@ -55,7 +52,8 @@ class _CourseSetupPageState extends State<CourseSetupPage> {
     weighted: _weighted,
     courseTotal: _weighted ? 100 : (double.tryParse(_total.text) ?? _assigned),
     displayOutOf: _outOf,
-    classAverage: double.tryParse(_avg.text),
+    // Entered on the Marks page now; kept as it was.
+    classAverage: _saved.classAverage,
   );
 
   Future<void> _save() async {
@@ -68,7 +66,6 @@ class _CourseSetupPageState extends State<CourseSetupPage> {
     final p = AppPalette.of(context);
     final muted = TypeScale.caption.copyWith(color: p.textMuted, height: 1.4);
     final s = MarksSummary(_evals, _draft);
-    final delta = s.classDelta;
     void changed(String _) => setState(() {});
 
     return PageFrame(
@@ -211,31 +208,6 @@ class _CourseSetupPageState extends State<CourseSetupPage> {
             ],
           ),
         ),
-        const FieldLabel('Class average'),
-        AppTextField(
-          controller: _avg,
-          label: 'Class average',
-          hint: 'Optional',
-          number: true,
-          onChanged: changed,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'For the same components you have entered — not the whole course. '
-          'Leave it blank and the comparison simply does not appear.',
-          style: muted,
-        ),
-        if (delta != null) ...[
-          const SizedBox(height: 6),
-          Text(
-            'You are ${deltaWords(delta)} · ${s.secured.toStringAsFixed(2)} '
-            'against ${s.config.classAverage!.toStringAsFixed(2)}',
-            style: TypeScale.body.copyWith(
-              fontSize: 12,
-              color: delta < 0 ? p.behind : p.ahead,
-            ),
-          ),
-        ],
         const SizedBox(height: Space.xl),
         PrimaryButton(label: 'Save setup', onPressed: _save),
       ],
