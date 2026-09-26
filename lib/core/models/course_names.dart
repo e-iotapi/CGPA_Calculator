@@ -33,3 +33,12 @@ const courseTitleAliases = {
 /// The title to show for a course stored as [id] / [title].
 String displayTitle(String id, String title) =>
     courseTitleAliases[normalizeCourseId(id)] ?? title;
+
+/// Ids the catalogue no longer offers. Filled from the published catalogue
+/// once it exists (ARCHITECTURE.md §2); nothing is retired yet. A retired
+/// course keeps counting toward the CGPA and the degree — only Add a course
+/// stops offering it, and every row that shows it says so.
+final Set<String> retiredCourses = {};
+
+bool isRetired(String id) =>
+    retiredCourses.any((r) => sameCourseId(r, id.trim()));

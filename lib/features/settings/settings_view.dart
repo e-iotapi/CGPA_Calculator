@@ -16,9 +16,7 @@ class SettingsView extends StatelessWidget {
     required this.profiles,
     required this.onClose,
     required this.onPickDiscipline,
-    required this.onPickBatch,
     this.campus,
-    this.onPickCampus,
     required this.onTheme,
     required this.onRenameProfile,
     required this.onExport,
@@ -50,11 +48,10 @@ class SettingsView extends StatelessWidget {
 
   /// `dual` picks the first half (the MSc), otherwise the second.
   final ValueChanged<bool> onPickDiscipline;
-  final VoidCallback onPickBatch;
 
-  /// "Goa"; null until known.
+  /// "Goa"; null until known. Read from the sign-in address and final, like
+  /// the batch, so neither row can be tapped (ARCHITECTURE.md §11).
   final String? campus;
-  final VoidCallback? onPickCampus;
   final ValueChanged<bool> onTheme;
 
   /// 1 or 2.
@@ -129,20 +126,14 @@ class SettingsView extends StatelessWidget {
                   _Item(
                     label: 'Batch',
                     value: '20${batch.toString().padLeft(2, '0')}',
-                    onTap: onPickBatch,
                   ),
-                  if (onPickCampus != null)
-                    _Item(
-                      label: 'Campus',
-                      value: campus ?? 'Not set',
-                      onTap: onPickCampus!,
-                    ),
+                  _Item(label: 'Campus', value: campus ?? 'Not set'),
                 ]),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, Space.xs, 4, 0),
                   child: Text(
-                    'Changing a discipline, or moving across the 2025 batch, '
-                    'reloads the course list and clears grades.',
+                    'Changing a discipline reloads the course list and clears '
+                    'grades.',
                     style: TypeScale.caption.copyWith(
                       fontSize: 10.5,
                       color: p.behind,
@@ -421,7 +412,7 @@ class _Group extends StatelessWidget {
 class _Item extends StatelessWidget {
   const _Item({
     required this.label,
-    required this.onTap,
+    this.onTap,
     this.value,
     this.strong = false,
     this.icon,
@@ -437,70 +428,72 @@ class _Item extends StatelessWidget {
   final IconData? icon;
   final Color? swatch;
   final bool chevron;
-  final VoidCallback onTap;
+
+  /// Null for a read-only row: not tappable, and no chevron.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: Sizes.minTouch),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          child: Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 18, color: p.text),
-                const SizedBox(width: 11),
-              ],
-              if (swatch != null) ...[
-                Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: swatch,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+    final row = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 18, color: p.text),
+              const SizedBox(width: 11),
+            ],
+            if (swatch != null) ...[
+              Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: swatch,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(
+              ),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Text(
+                label,
+                style: TypeScale.body.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: p.text,
+                ),
+              ),
+            ),
+            if (value case final v?) ...[
+              const SizedBox(width: Space.sm),
+              // Capped rather than flexed, so it sits at the right edge.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 150),
                 child: Text(
-                  label,
-                  style: TypeScale.body.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: p.text,
+                  v,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
+                    color: strong ? p.accent : p.textMuted,
                   ),
                 ),
               ),
-              if (value case final v?) ...[
-                const SizedBox(width: Space.sm),
-                // Capped rather than flexed, so it sits at the right edge.
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 150),
-                  child: Text(
-                    v,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.caption.copyWith(
-                      fontSize: 12.5,
-                      fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
-                      color: strong ? p.accent : p.textMuted,
-                    ),
-                  ),
-                ),
-              ],
-              if (chevron) ...[
-                const SizedBox(width: Space.xs),
-                Icon(Icons.chevron_right_rounded, size: 18, color: p.textMuted),
-              ],
             ],
-          ),
+            if (chevron && onTap != null) ...[
+              const SizedBox(width: Space.xs),
+              Icon(Icons.chevron_right_rounded, size: 18, color: p.textMuted),
+            ],
+          ],
         ),
       ),
     );
+    return onTap == null
+        ? MergeSemantics(child: row)
+        : InkWell(onTap: onTap, child: row);
   }
 }
 

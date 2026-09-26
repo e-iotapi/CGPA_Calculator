@@ -14,6 +14,7 @@ import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/retired_tag.dart';
 import 'package:flutter/material.dart';
 
 /// One course's marks: the running total, each evaluative, and the class
@@ -64,6 +65,23 @@ class _MarksPageState extends State<MarksPage> {
         ],
       ),
       children: [
+        if (isRetired(c.id))
+          Padding(
+            padding: const EdgeInsets.only(bottom: Space.md),
+            child: Row(
+              children: [
+                const RetiredTag(),
+                const SizedBox(width: Space.sm),
+                Expanded(
+                  child: Text(
+                    'No longer offered. It still counts toward your CGPA and '
+                    'your degree.',
+                    style: TypeScale.caption.copyWith(color: p.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          ),
         _Total(
           s: s,
           grade: grade,

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/marks.dart';
+import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -557,6 +558,37 @@ void main() {
 
       await pump(t, CourseSetupPage(course: _os), const Size(390, 844));
       expect(find.text('Class average'), findsNothing);
+    });
+
+    testWidgets('a retired course says so on its Marks page', (t) async {
+      await loadAppFonts();
+      retiredCourses.add('CS F372');
+      addTearDown(retiredCourses.clear);
+      for (final dark in [false, true]) {
+        await pump(
+          t,
+          RepaintBoundary(
+            child: Theme(
+              data: (dark ? AppPalette.dark : AppPalette.light).materialTheme,
+              child: MarksPage(course: _os),
+            ),
+          ),
+          const Size(390, 844),
+        );
+        expect(find.text('Retired'), findsOneWidget);
+        expect(find.textContaining('still counts'), findsOneWidget);
+        final shots = Platform.environment['SHOTS_DIR'];
+        if (shots == null) continue;
+        await t.runAsync(() async {
+          final img = await captureImage(
+            t.element(find.byType(RepaintBoundary).first),
+          );
+          final png = await img.toByteData(format: ui.ImageByteFormat.png);
+          File(
+            '$shots/retired_marks_${dark ? 'dark' : 'light'}.png',
+          ).writeAsBytesSync(png!.buffer.asUint8List());
+        });
+      }
     });
   });
 

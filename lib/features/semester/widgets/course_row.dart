@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
+import 'package:cgpa_calculator/shared/widgets/retired_tag.dart';
 import 'package:flutter/material.dart';
 
 /// Width of each grade column in compare mode, shared with its header.
@@ -70,6 +71,10 @@ class CourseRow extends StatelessWidget {
                 style: TypeScale.caption.copyWith(color: p.textMuted),
               ),
             ),
+            if (isRetired(course.id)) ...[
+              const SizedBox(width: 6),
+              const RetiredTag(),
+            ],
             if (classDelta case final d?) ...[
               const SizedBox(width: 3),
               // Arrow and word carry it; the colour only reinforces.
