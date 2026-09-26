@@ -22,6 +22,9 @@ class ImportPlan {
     required this.retakes,
     required this.renumbered,
     required this.unknownGrades,
+    required this.dropped,
+    required this.cleared,
+    required this.running,
     required this.cgpaAfter,
   });
 
@@ -48,6 +51,16 @@ class ImportPlan {
 
   /// "CS F211: I", for grades the app has no code for. Left ungraded.
   final List<String> unknownGrades;
+
+  /// "ME F110 (1 - 1)": graded courses not on the sheet, removed from a
+  /// semester it covers.
+  final List<String> dropped;
+
+  /// Courses in semesters still to come whose Actual grade is cleared.
+  final List<String> cleared;
+
+  /// Courses still running whose Actual grade is cleared until results.
+  final List<String> running;
 
   /// Actual CGPA once applied, to hold against the sheet's own.
   final double? cgpaAfter;
@@ -92,6 +105,7 @@ ImportPlan planImport(
   final add = <Course>[];
   final remove = <dynamic>[];
   final unknown = <String>[];
+  final dropped = <String>[], cleared = <String>[], running = <String>[];
   var graded = 0, moved = 0, unchanged = 0, retakes = 0, renumberedCount = 0;
 
   Iterable<MapEntry<dynamic, Course>> free(String id) => stored.entries.where(
@@ -174,7 +188,25 @@ ImportPlan planImport(
       unchanged++;
     } else {
       put[match.key] = next;
-      if (next.grade1 != c.grade1) graded++;
+      if (next.grade1 != c.grade1) {
+        next.grade1 == GradeCode.clr ? running.add(c.id) : graded++;
+      }
+    }
+  }
+
+  // The sheet is the whole record. A graded course it does not list is
+  // removed from a semester the sheet covers, and loses its Actual grade in
+  // one still to come, so the CGPA comes out as the sheet's.
+  final covered = {for (final r in sheet.rows) r.sem};
+  for (final e in stored.entries) {
+    final c = e.value;
+    if (claimed.contains(e.key) || c.grade1 == GradeCode.clr) continue;
+    if (covered.contains(c.sem)) {
+      remove.add(e.key);
+      dropped.add('${c.id} (${c.sem})');
+    } else {
+      put[e.key] = c.withGrade(1, GradeCode.clr);
+      cleared.add('${c.id} (${c.sem})');
     }
   }
 
@@ -194,6 +226,9 @@ ImportPlan planImport(
     retakes: retakes,
     renumbered: renumberedCount,
     unknownGrades: unknown,
+    dropped: dropped,
+    cleared: cleared,
+    running: running,
     cgpaAfter: tally.gradedCredits == 0 ? null : tally.rounded,
   );
 }
