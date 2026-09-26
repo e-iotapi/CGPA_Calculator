@@ -220,6 +220,30 @@ CGPA after 4-1:   7.71  (158 credits shown, 155 denominator, 1195 points)
 Rebuild from `main_ui_extension.dart` into `features/semester/`. Greeting, editorial line, stat cards, semester pills, sort + export, course rows with `Expanded` + `min-width: 0` + ellipsis.
 **Verify:** long titles ellipsize instead of pushing the grade chip off screen.
 
+**Two tap targets per course row.** The row opens Marks; the grade chip opens a grade
+menu and must **not** also open Marks. A nested target inside a tappable row fires both
+handlers unless the inner one stops the event — the chip needs its own `GestureDetector`
+with `behavior: HitTestBehavior.opaque` above the row's `InkWell`. The chip draws at
+46×34 and its tap target must still reach 44px once padding is counted.
+
+The menu splits the scale deliberately: the eight graded values, then `NC` / `RC` / `W` /
+`GD`, which do not behave like grades — RC and W drop the credits from the CGPA entirely,
+GD keeps the credits but not the points (§2.1). The current dropdown hides that, and it
+is exactly where a wrong tap costs someone a believable CGPA, so the menu states it.
+Thirteenth option is "Not graded yet".
+
+**Add a course** — board `AddCourse`. The current sheet offers a department-code
+dropdown, a course-number dropdown *and* a search box: two ways in, neither explained,
+and the title field clips mid-word with no ellipsis. Search becomes the only primary
+path, over code or name; each result shows code, credits and category, and a course
+already held in another semester says so rather than being silently addable twice.
+Selecting one expands it — category stays editable (the same course counts differently
+per discipline), and the grade is the pill row above, not a dropdown. The manual path
+survives as a link for courses outside the master list. The submit button states the
+consequence: *Add to 4 − 1 · SGPA 9.17 → 9.22*.
+**Verify:** a 60-character course title ellipsizes in the result row, the selected card
+and the course row, at 320px.
+
 ### Phase 5 — Offshoot restyle
 `offshoot_calc.dart` → `core/grading/offshoot.dart`, panel into `features/offshoot/`. Logic already correct; this is presentation only.
 **Verify:** still 47/50 and 54/60.
