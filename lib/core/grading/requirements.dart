@@ -74,17 +74,18 @@ class DegreeNeeds {
   int get hashCode => Object.hash(degree, cdc, hel, del, el);
 }
 
-/// The departments whose codes each discipline's own courses carry.
+/// The departments whose codes each discipline's own courses carry. ECOM
+/// courses are disciplinary electives for every electronics programme.
 const departments = <String, Set<String>>{
   'A1': {'CHE'},
   'A2': {'CE'},
-  'A3': {'EEE'},
+  'A3': {'EEE', 'ECOM'},
   'A4': {'ME'},
   'A5': {'PHA'},
   'A7': {'CS'},
-  'A8': {'INSTR'},
+  'A8': {'INSTR', 'ECOM'},
   'A9': {'BIOT'},
-  'AA': {'ECE'},
+  'AA': {'ECE', 'ECOM'},
   'AB': {'MF'},
   'AC': {'ECOM'},
   'AD': {'MAC'},
