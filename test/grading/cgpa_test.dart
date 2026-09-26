@@ -78,7 +78,8 @@ void main() {
             ),
         ];
         const d = 'B3A7';
-        for (final p in Profile.values) {
+        // The original knew only Actual and Expected.
+        for (final p in [Profile.actual, Profile.expected]) {
           final inD = courses.where((c) => inDiscipline(c, d));
           expect(
             cumulativeTally(courses, discipline: d, profile: p).rounded,

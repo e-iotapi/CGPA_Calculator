@@ -24,13 +24,14 @@ class CourseAdapter extends TypeAdapter<Course> {
       discipline: fields[5] as String,
       credits: (fields[2] as num).toDouble(),
       elective: fields[7] == null ? 'CDC' : fields[7] as String,
+      more: fields[8] == null ? {} : (fields[8] as Map).cast<int, int>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Course obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.title)
       ..writeByte(1)
@@ -46,7 +47,9 @@ class CourseAdapter extends TypeAdapter<Course> {
       ..writeByte(6)
       ..write(obj.sem)
       ..writeByte(7)
-      ..write(obj.elective);
+      ..write(obj.elective)
+      ..writeByte(8)
+      ..write(obj.more);
   }
 
   @override

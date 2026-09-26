@@ -24,6 +24,8 @@ class CourseRow extends StatelessWidget {
     this.onTap,
     this.onGradePicked,
     this.classDelta,
+    this.compared = (1, 2),
+    this.onCompareGradePicked,
   });
 
   final Course course;
@@ -35,6 +37,12 @@ class CourseRow extends StatelessWidget {
 
   /// Marks minus the class average; null shows nothing.
   final double? classDelta;
+
+  /// The two profile ids Compare shows.
+  final (int, int) compared;
+
+  /// Called with a profile id and its new grade from a Compare chip.
+  final void Function(int profile, int grade)? onCompareGradePicked;
 
   @override
   Widget build(BuildContext context) {
@@ -92,26 +100,11 @@ class CourseRow extends StatelessWidget {
           Expanded(child: titles),
           const SizedBox(width: Space.md),
           if (compare) ...[
-            SizedBox(width: compareGradeWidth, child: _chip(course.grade1)),
+            SizedBox(width: compareGradeWidth, child: _scrubber(compared.$1)),
             const SizedBox(width: Space.sm),
-            SizedBox(width: compareGradeWidth, child: _chip(course.grade2)),
+            SizedBox(width: compareGradeWidth, child: _scrubber(compared.$2)),
           ] else
-            GradeScrubber(
-              grade: _grade,
-              onPicked: (g) => onGradePicked?.call(g),
-              onTap:
-                  onGradePicked == null
-                      ? null
-                      : (anchor) async {
-                        final g = await showGradeMenu(
-                          anchor,
-                          current: _grade,
-                          title: displayTitle(course.id, course.title),
-                        );
-                        if (g != null) onGradePicked!(g);
-                      },
-              child: _chip(_grade),
-            ),
+            _scrubber(null),
         ],
       ),
     );
@@ -119,6 +112,34 @@ class CourseRow extends StatelessWidget {
 
   int get _grade =>
       mode == SemesterMode.expected ? course.grade2 : course.grade1;
+
+  /// The grade chip, editable by drag or tap. [profile] is a Compare column;
+  /// null is the tab's own profile.
+  Widget _scrubber(int? profile) {
+    final grade = profile == null ? _grade : course.gradeFor(profile);
+    final ValueChanged<int>? picked =
+        profile == null
+            ? onGradePicked
+            : onCompareGradePicked == null
+            ? null
+            : (g) => onCompareGradePicked!(profile, g);
+    return GradeScrubber(
+      grade: grade,
+      onPicked: (g) => picked?.call(g),
+      onTap:
+          picked == null
+              ? null
+              : (anchor) async {
+                final g = await showGradeMenu(
+                  anchor,
+                  current: grade,
+                  title: displayTitle(course.id, course.title),
+                );
+                if (g != null) picked(g);
+              },
+      child: _chip(grade),
+    );
+  }
 
   static Widget _chip(int grade) {
     final ungraded = grade == GradeCode.clr;

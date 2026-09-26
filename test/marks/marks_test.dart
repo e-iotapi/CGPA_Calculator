@@ -184,6 +184,15 @@ void main() {
           'Assignment 0',
         );
         expect(evaluativesFor('CS F372')[2].$2.parts.first.date, '2026-09-08');
+
+        // Grades for the compare-only profiles ride along too.
+        final courses = Hive.box<Course>('coursesBox');
+        await courses.put('x', _os.withGrade(4, 8));
+        final withMore = Sync.snapshot();
+        await courses.clear();
+        await Sync.apply(withMore);
+        expect(courses.get('x')!.gradeFor(4), 8);
+        expect(courses.get('x')!.gradeFor(1), _os.grade1);
       },
     );
 
