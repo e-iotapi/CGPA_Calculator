@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -189,7 +190,7 @@ Future<void> initializeCourses() async {
           ((selecteddiscipline.substring(0, 2) != "--")
               ? selecteddiscipline.substring(2, 4)
               : "cccc")) {
-        if (course.elective == "CDC2" &&
+        if (course.elective == Elective.cdc2.tag &&
             !tempaddedcourses.contains(course.title)) {
           if (selecteddiscipline == "B5AA" ||
               selecteddiscipline == "B5A3" ||
@@ -300,7 +301,7 @@ Future<void> initializeCourses() async {
                   course.title == "Numerical Analysis" ||
                   course.title == "Electromagnetic Theory")) {
               } else {
-                if (course.elective == "CDC2") {
+                if (course.elective == Elective.cdc2.tag) {
                   tempsem = course.sem;
                   tempsem =
                       (int.parse(tempsem.substring(0, 1)) + 1).toString() +
@@ -326,7 +327,7 @@ Future<void> initializeCourses() async {
                 }
               }
             } else {
-              if (course.elective == "CDC2") {
+              if (course.elective == Elective.cdc2.tag) {
                 tempsem = course.sem;
                 tempsem =
                     (int.parse(tempsem.substring(0, 1)) + 1).toString() +
@@ -367,7 +368,7 @@ Future<void> initializeCourses() async {
         tempcourses.add(item.title);
       }
       if (item.discipline.startsWith("A") &&
-          item.elective == "CDC2" &&
+          item.elective == Elective.cdc2.tag &&
           !item.sem.startsWith("1")) {
         if (selecteddiscipline.startsWith("B") && !item.sem.startsWith("1")) {
           keysToDelete.add(key);
@@ -408,7 +409,7 @@ Future<void> initializeCourses() async {
                 course.title == "Numerical Analysis" ||
                 course.title == "Electromagnetic Theory")) {
               // print("D");
-              if (course.elective == "CDC2" &&
+              if (course.elective == Elective.cdc2.tag &&
                   selecteddiscipline.startsWith("B")) {
                 tempsem = course.sem;
                 tempsem =
@@ -434,7 +435,7 @@ Future<void> initializeCourses() async {
               }
             }
           } else {
-            if (course.elective == "CDC2" &&
+            if (course.elective == Elective.cdc2.tag &&
                 selecteddiscipline.startsWith("B")) {
               tempsem = course.sem;
               tempsem =
@@ -626,20 +627,20 @@ Future<void> addOrUpdateCourseOffshoot(Course course) async {
 }
 
 String electiveFinder(String s) {
-  if (s == "CDC2") {
+  if (s == Elective.cdc2.tag) {
     return selecteddiscipline.substring(2, 4) + " " + "CDC";
-  } else if (s == "CDC1") {
+  } else if (s == Elective.cdc1.tag) {
     return selecteddiscipline.substring(0, 2) + " " + "CDC";
   } else if (s == "CDCN") {
     return "None";
-  } else if (s == "Open Elective") {
-    return "Open Elective";
-  } else if (s == "Disciplinary Elective2") {
+  } else if (s == Elective.open.tag) {
+    return Elective.open.tag;
+  } else if (s == Elective.del2.tag) {
     return selecteddiscipline.substring(2, 4) + " " + "Disciplinary Elective";
-  } else if (s == "Disciplinary Elective1") {
+  } else if (s == Elective.del1.tag) {
     return selecteddiscipline.substring(0, 2) + " " + "Disciplinary Elective";
-  } else if (s == "Humanity Elective") {
-    return "Humanity Elective";
+  } else if (s == Elective.humanity.tag) {
+    return Elective.humanity.tag;
   } else {
     return s;
   }
@@ -707,19 +708,19 @@ void electiveSetter() {
   if (addcourse == "HSS" ||
       addcourse == "GS" ||
       huel.contains(addcourse + " " + addcourseid)) {
-    selectedelective = "Humanity Elective";
+    selectedelective = Elective.humanity.tag;
   } else if (del[selecteddiscipline.substring(2, 4)]!.contains(
     addcourse + " " + addcourseid,
   )) {
-    selectedelective = "Disciplinary Elective2";
+    selectedelective = Elective.del2.tag;
   } else if (del[selecteddiscipline.substring(0, 2)]!.contains(
     addcourse + " " + addcourseid,
   )) {
-    selectedelective = "Disciplinary Elective1";
+    selectedelective = Elective.del1.tag;
   } else if (nonelist.contains(addcourse + " " + addcourseid)) {
     selectedelective = "CDCN";
   } else {
-    selectedelective = "Open Elective";
+    selectedelective = Elective.open.tag;
   }
 }
 

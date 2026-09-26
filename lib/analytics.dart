@@ -1,4 +1,6 @@
 import 'package:cgpa_calculator/constants.dart';
+import 'package:cgpa_calculator/core/grading/requirements.dart';
+import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/settings.dart';
 import 'package:flutter/material.dart';
@@ -28,44 +30,25 @@ class Analytics extends StatefulWidget {
   State<Analytics> createState() => _AnalyticsState();
 }
 
-double creds(String s, List<Course> si) {
-  double sum = 0;
-  for (int i = 0; i < si.length; i++) {
-    if (si[i].elective == s && (si[i].grade1 > 0 || si[i].grade1 == -3)) {
-      sum += si[i].credits;
-    }
-  }
-  return sum;
-}
+double creds(String s, List<Course> si) =>
+    earnedCredits(Elective.fromTag(s)!, si);
 
 class _AnalyticsState extends State<Analytics> {
-  var creditsforcourses = {
-    'AD': [15, 48, 4, 12], //cdc course,cdc credits, del course,del credits
-    'AA': [14, 48, 4, 12],
-    'AB': [15, 48, 4, 12],
-    'AC': [14, 48, 4, 12],
-    'AJ': [14, 48, 4, 12],
-    'A1': [15, 45, 5, 15],
-    'A2': [17, 57, 4, 12],
-    'A3': [15, 49, 4, 12],
-    'A4': [16, 56, 4, 12],
-    'A5': [16, 48, 4, 12],
-    'A7': [14, 48, 4, 12],
-    'A8': [14, 48, 4, 12],
-    'A9': [13, 43, 5, 15],
-    'B1': [14, 44, 5, 15],
-    'B2': [12, 37, 5, 15],
-    'B3': [14, 42, 6, 18],
-    'B4': [14, 42, 5, 15],
-    'B5': [15, 45, 4, 15],
-    'B7': [15, 45, 5, 15],
-    'B-': [0,0,0,0],
+  // Reference data lives in core/grading/requirements.dart.
+  final creditsforcourses = {
+    for (final e in requirements.entries)
+      e.key: [
+        e.value.cdcCourses,
+        e.value.cdcCredits,
+        e.value.delCourses,
+        e.value.delCredits,
+      ],
   };
   @override
   Widget build(BuildContext context) {
     //print(((MediaQuery.of(context).size.height -max((40+min(MediaQuery.of(context).size.width * 0.28,100)),100)) > 3*MediaQuery.of(context).size.width*0.50 )?20:(MediaQuery.of(context).size.height*0.78 -(40+min(MediaQuery.of(context).size.width * 0.28,100)))/3);
-    // print(widget.sitemslist.where((Course) => Course.elective == "CDC1" && (Course.grade1 > 0 || Course.grade1==-3),).length.toString());
-    // `print`(widget.sitemslist.where((Course) => Course.elective == "CDC2" && (Course.grade1 > 0 || Course.grade1==-3),).length.toString());
+    // print(widget.sitemslist.where((Course) => Course.elective == Elective.cdc1.tag && (Course.grade1 > 0 || Course.grade1==-3),).length.toString());
+    // `print`(widget.sitemslist.where((Course) => Course.elective == Elective.cdc2.tag && (Course.grade1 > 0 || Course.grade1==-3),).length.toString());
     var thm = themes.firstWhere((theme) => theme.theme == selected_theme);
     setnavcolor();
     return Scaffold(
@@ -242,7 +225,7 @@ class _AnalyticsState extends State<Analytics> {
                                     widget.sitemslist
                                             .where(
                                               (Course) =>
-                                                  Course.elective == "CDC2" &&
+                                                  Course.elective == Elective.cdc2.tag &&
                                                       (Course.grade1 > 0 || Course.grade1==-3),
                                             )
                                             .length
@@ -279,7 +262,7 @@ class _AnalyticsState extends State<Analytics> {
                                   Spacer(flex: 1),
                                   Text(
                                     creds(
-                                          "CDC2",
+                                          Elective.cdc2.tag,
                                           widget.sitemslist,
                                         ).toString().replaceAll('.0', '') +
                                         "/" +
@@ -358,7 +341,7 @@ class _AnalyticsState extends State<Analytics> {
                                             .where(
                                               (Course) =>
                                                   Course.elective ==
-                                                      "Disciplinary Elective2" &&
+                                                      Elective.del2.tag &&
                                                       (Course.grade1 > 0 || Course.grade1 == -3),
                                             )
                                             .length
@@ -395,7 +378,7 @@ class _AnalyticsState extends State<Analytics> {
                                   Spacer(flex: 1),
                                   Text(
                                     creds(
-                                          "Disciplinary Elective2",
+                                          Elective.del2.tag,
                                           widget.sitemslist,
                                         ).toString().replaceAll('.0', '') +
                                         "/" +
@@ -482,7 +465,7 @@ class _AnalyticsState extends State<Analytics> {
                                     widget.sitemslist
                                             .where(
                                               (Course) =>
-                                                  Course.elective == "CDC1" &&
+                                                  Course.elective == Elective.cdc1.tag &&
                                                       (Course.grade1 > 0 || Course.grade1==-3),
                                             )
                                             .length
@@ -519,7 +502,7 @@ class _AnalyticsState extends State<Analytics> {
                                   Spacer(flex: 1),
                                   Text(
                                     creds(
-                                          "CDC1",
+                                          Elective.cdc1.tag,
                                           widget.sitemslist,
                                         ).toString().replaceAll('.0', '') +((!selecteddiscipline.startsWith("B-"))?(
                                         "/" +
@@ -597,7 +580,7 @@ class _AnalyticsState extends State<Analytics> {
                                             .where(
                                               (Course) =>
                                                   Course.elective ==
-                                                      "Disciplinary Elective1" &&
+                                                      Elective.del1.tag &&
                                                       (Course.grade1 > 0 || Course.grade1==-3),
                                             )
                                             .length
@@ -634,7 +617,7 @@ class _AnalyticsState extends State<Analytics> {
                                   Spacer(flex: 1),
                                   Text(
                                     creds(
-                                          "Disciplinary Elective1",
+                                          Elective.del1.tag,
                                           widget.sitemslist,
                                         ).toString().replaceAll('.0', '') +((!selecteddiscipline.startsWith("B-"))?(
                                         "/" +
@@ -723,7 +706,7 @@ class _AnalyticsState extends State<Analytics> {
                                                 .where(
                                                   (Course) =>
                                                       Course.elective ==
-                                                          "Humanity Elective" &&
+                                                          Elective.humanity.tag &&
                                                           (Course.grade1 > 0 || Course.grade1==-3),
                                                 )
                                                 .length
@@ -756,7 +739,7 @@ class _AnalyticsState extends State<Analytics> {
                                       Spacer(flex: 1),
                                       Text(
                                         creds(
-                                              "Humanity Elective",
+                                              Elective.humanity.tag,
                                               widget.sitemslist,
                                             ).toString().replaceAll('.0', '') +
                                             "/8  ",
@@ -832,7 +815,7 @@ class _AnalyticsState extends State<Analytics> {
                                             .where(
                                               (Course) =>
                                                   Course.elective ==
-                                                      "Open Elective" &&
+                                                      Elective.open.tag &&
                                                       (Course.grade1 > 0 || Course.grade1==-3),
                                             )
                                             .length
@@ -865,7 +848,7 @@ class _AnalyticsState extends State<Analytics> {
                                   Spacer(flex: 1),
                                   Text(
                                     creds(
-                                          "Open Elective",
+                                          Elective.open.tag,
                                           widget.sitemslist,
                                         ).toString().replaceAll('.0', '') + ((selecteddiscipline.startsWith("B"))?"  ":
                                         "/15  "),

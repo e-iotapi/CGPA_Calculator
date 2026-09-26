@@ -1143,7 +1143,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                           ),
                                                     ),
                                                     DropdownMenuEntry(
-                                                      value: "CDC2",
+                                                      value: Elective.cdc2.tag,
                                                       label:
                                                           "CDC (" +
                                                           selecteddiscipline
@@ -1160,8 +1160,8 @@ extension OverlaysExtension on _MyHomePageState {
                                                           ),
                                                     ),
                                                     DropdownMenuEntry(
-                                                      value: "Open Elective",
-                                                      label: "Open Elective",
+                                                      value: Elective.open.tag,
+                                                      label: Elective.open.tag,
                                                       style:
                                                           MenuItemButton.styleFrom(
                                                             textStyle: TextStyle(
@@ -1174,9 +1174,9 @@ extension OverlaysExtension on _MyHomePageState {
                                                     ),
                                                     DropdownMenuEntry(
                                                       value:
-                                                          "Humanity Elective",
+                                                          Elective.humanity.tag,
                                                       label:
-                                                          "Humanity Elective",
+                                                          Elective.humanity.tag,
                                                       style:
                                                           MenuItemButton.styleFrom(
                                                             textStyle: TextStyle(
@@ -1189,7 +1189,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                     ),
                                                     DropdownMenuEntry(
                                                       value:
-                                                          "Disciplinary Elective2",
+                                                          Elective.del2.tag,
                                                       label:
                                                           "Disciplinary Elective (" +
                                                           selecteddiscipline
@@ -1208,7 +1208,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                     if (selecteddiscipline
                                                         .startsWith("B"))
                                                       DropdownMenuEntry(
-                                                        value: "CDC1",
+                                                        value: Elective.cdc1.tag,
                                                         label:
                                                             "CDC (" +
                                                             selecteddiscipline
@@ -1230,7 +1230,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                         .startsWith("B"))
                                                       DropdownMenuEntry(
                                                         value:
-                                                            "Disciplinary Elective1",
+                                                            Elective.del1.tag,
                                                         label:
                                                             "Disciplinary Elective (" +
                                                             selecteddiscipline
