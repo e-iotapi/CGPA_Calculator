@@ -1,24 +1,24 @@
+# The app is deployed to Cloudflare Pages (.github/workflows/deploy.yml,
+# web/_headers). Netlify only sends visitors of the old address there.
 [build]
-  publish = "build/web"
+  publish = "redirect"
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    # MUST be allow-popups, or signInWithPopup silently fails. No COEP header:
-    # the old one was only for the wasm renderer, which dart:html rules out anyway.
-    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
-
-[[headers]]
-  for = "/index.html"
-  [headers.values]
-    Cache-Control = "no-cache"
-
+# Served, not redirected: a browser refuses a service worker update that
+# redirects, so an installed copy would keep running its old worker. This one
+# removes itself and reloads the page, and the reload follows the redirect.
 [[headers]]
   for = "/flutter_service_worker.js"
   [headers.values]
     Cache-Control = "no-cache"
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/flutter_service_worker.js"
+  to = "/flutter_service_worker.js"
   status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "https://pointer-bits-pilani.pages.dev/:splat"
+  status = 301
+  force = true
