@@ -1,0 +1,14 @@
+# Cloudflare Pages response headers.
+
+# MUST be allow-popups, or signInWithPopup silently fails.
+/*
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/flutter_service_worker.js
+  Cache-Control: no-cache

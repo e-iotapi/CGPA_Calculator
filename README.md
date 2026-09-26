@@ -1,7 +1,7 @@
 # Pointer
 
 The CGPA calculator for BITS Pilani, Goa and Hyderabad —
-[cgpa-calculator-bits-goa.netlify.app](https://cgpa-calculator-bits-goa.netlify.app/).
+[pointer-bits-pilani.pages.dev](https://pointer-bits-pilani.pages.dev/).
 
 Maintained by **Siddharth Mishra** — siddhu.cms@gmail.com ·
 [github.com/e-iotapi](https://github.com/e-iotapi)
