@@ -1,11 +1,11 @@
+import 'dart:math' as math;
 import 'dart:async';
-import 'dart:js_interop';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:web/web.dart' as web;
+import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -27,52 +27,12 @@ class _SettingsState extends State<Settings> {
     await Sync.stop();
     await FirebaseAuth.instance.signOut();
     await Sync.clearLocal();
-    web.window.location.reload();
+    reloadPage();
   }
 
   /// Opens a native file picker and returns the chosen file's text, or null
   /// if the user cancelled.
-  Future<String?> _pickJsonText() {
-    final input =
-        web.document.createElement('input') as web.HTMLInputElement;
-    input.type = 'file';
-    input.accept = '.json,application/json';
-    final done = Completer<String?>();
-
-    input.onchange =
-        ((web.Event _) {
-          final files = input.files;
-          if (files == null || files.length == 0) {
-            if (!done.isCompleted) done.complete(null);
-            return;
-          }
-          final reader = web.FileReader();
-          reader.onload =
-              ((web.Event _) {
-                if (done.isCompleted) return;
-                final r = reader.result;
-                done.complete(r.isA<JSString>() ? (r as JSString).toDart : null);
-              }).toJS;
-          reader.onerror =
-              ((web.Event _) {
-                if (!done.isCompleted) {
-                  done.completeError('Could not read the file');
-                }
-              }).toJS;
-          reader.readAsText(files.item(0)!);
-        }).toJS;
-
-    // Fires when the picker is dismissed without choosing anything.
-    input.addEventListener(
-      'cancel',
-      ((web.Event _) {
-        if (!done.isCompleted) done.complete(null);
-      }).toJS,
-    );
-
-    input.click();
-    return done.future;
-  }
+  Future<String?> _pickJsonText() => pickTextFile('.json,application/json');
 
   Future<void> _submitReport() async {
     final controller = TextEditingController();
@@ -224,7 +184,7 @@ class _SettingsState extends State<Settings> {
         'campus': selectedcampus,
         'batch': batch,
         'appVersion': '2.3.1+131',
-        'userAgent': web.window.navigator.userAgent,
+        'userAgent': userAgent(),
         'createdAt': FieldValue.serverTimestamp(),
       });
       _toast('Thanks — your report was sent.');
@@ -306,7 +266,7 @@ class _SettingsState extends State<Settings> {
     try {
       await Sync.apply(text);
       await Sync.push();
-      web.window.location.reload();
+      reloadPage();
     } catch (e) {
       _toast('Import failed: $e');
     }
@@ -387,7 +347,7 @@ class _SettingsState extends State<Settings> {
     try {
       await Sync.apply(controller.text);
       await Sync.push();
-      web.window.location.reload();
+      reloadPage();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -727,7 +687,7 @@ class _SettingsState extends State<Settings> {
                 ),
                 Spacer(flex: 1,),
                     SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.05,
+                      height: 44.0,
                       width: 100,
                       child: FloatingActionButton(
                         heroTag: 'settings_reset_btn',
@@ -777,7 +737,7 @@ class _SettingsState extends State<Settings> {
               SizedBox(height: 25),
               Container(
                 height: 0.5,
-                width: MediaQuery.of(context).size.width * 0.8,
+                width: math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                 color: thm.sepcolor,
               ),
               SizedBox(height: 25),
@@ -853,8 +813,8 @@ class _SettingsState extends State<Settings> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.05,
-                    width: MediaQuery.of(context).size.width * 0.90,
+                    height: 44.0,
+                    width: math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                     child: FloatingActionButton(
                       heroTag: 'settings_profile_btn',
                       key: ValueKey("profile"),
@@ -884,13 +844,13 @@ class _SettingsState extends State<Settings> {
               SizedBox(height: 25),
               Container(
                 height: 0.5,
-                width: MediaQuery.of(context).size.width * 0.8,
+                width: math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                 color: thm.sepcolor,
               ),
               SizedBox(height: 25),
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.05,
-                width: MediaQuery.of(context).size.width * 0.90,
+                height: 44.0,
+                width: math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                 child: FloatingActionButton(
                   heroTag: 'settings_report_btn',
                   key: ValueKey("report"),
@@ -923,8 +883,8 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: 10),
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.05,
-                width: MediaQuery.of(context).size.width * 0.90,
+                height: 44.0,
+                width: math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                 child: FloatingActionButton(
                   heroTag: 'settings_export_csv_btn',
                   key: ValueKey("exportcsv"),
@@ -947,8 +907,8 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: 10),
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.05,
-                width: MediaQuery.of(context).size.width * 0.90,
+                height: 44.0,
+                width: math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                 child: FloatingActionButton(
                   heroTag: 'settings_import_file_btn',
                   key: ValueKey("importfile"),
@@ -971,8 +931,8 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: 10),
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.05,
-                width: MediaQuery.of(context).size.width * 0.90,
+                height: 44.0,
+                width: math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                 child: FloatingActionButton(
                   heroTag: 'settings_import_btn',
                   key: ValueKey("import"),
@@ -995,8 +955,8 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: 10),
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.05,
-                width: MediaQuery.of(context).size.width * 0.90,
+                height: 44.0,
+                width: math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                 child: FloatingActionButton(
                   heroTag: 'settings_signout_btn',
                   key: ValueKey("signout"),
@@ -1126,9 +1086,9 @@ class _SettingsState extends State<Settings> {
                                 padding: const EdgeInsets.all(16.0),
                                 child: SizedBox(
                                   height:
-                                      MediaQuery.of(context).size.height * 0.44,
+                                      372.0,
                                   width:
-                                      MediaQuery.of(context).size.width * 0.85,
+                                      math.min(MediaQuery.sizeOf(context).width - 32, 560.0),
                                   child: Column(
                                     children: [
                                       Row(

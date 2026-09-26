@@ -148,17 +148,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.noScaling),
-          child: child!,
-        );
-      },
       title: 'Pointer',
       theme: thm.materialTheme,
-      home: const MyHomePage(title: 'CGPA CALCULATOR'),
+      home: const MyHomePage(title: 'Pointer'),
     );
   }
 }

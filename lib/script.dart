@@ -1,8 +1,7 @@
 // import 'dart:ffi';
 import 'dart:convert';
-import 'dart:js_interop';
 import 'dart:ui' as ui;
-import 'package:web/web.dart' as web;
+import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
@@ -17,25 +16,8 @@ import 'package:hive/hive.dart';
 
 export 'package:cgpa_calculator/core/grading/grade_scale.dart';
 
-/// Triggers a browser download of [bytes] as [filename].
-void _downloadBytes(List<int> bytes, String filename, String mime) {
-  final blob = web.Blob(
-    [Uint8List.fromList(bytes).toJS].toJS,
-    web.BlobPropertyBag(type: mime),
-  );
-  final url = web.URL.createObjectURL(blob);
-  final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.style.display = 'none';
-  web.document.body!.append(anchor);
-  anchor.click();
-  anchor.remove();
-  web.URL.revokeObjectURL(url);
-}
-
 void saveImageWeb(Uint8List bytes, String filename) =>
-    _downloadBytes(bytes, filename, 'image/png');
+    downloadBytes(bytes, filename, 'image/png');
 
 String _csvCell(Object? v) {
   final s = v?.toString() ?? '';
@@ -89,7 +71,7 @@ String exportGradesCsv() {
       'CGPA_Grades_${DateTime.now().toIso8601String().split("T").first}.csv';
   // BOM so Excel opens UTF-8 correctly.
   final bytes = <int>[0xEF, 0xBB, 0xBF, ...utf8.encode(buildGradesCsv())];
-  _downloadBytes(bytes, name, 'text/csv;charset=utf-8');
+  downloadBytes(bytes, name, 'text/csv;charset=utf-8');
   return name;
 }
 
