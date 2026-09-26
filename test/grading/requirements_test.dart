@@ -209,6 +209,21 @@ void main() {
       expect(of(el('HSS F334', 'Disciplinary Elective1')), Elective.humanity);
     });
 
+    test('ECOM is a DEL for every electronics programme', () {
+      for (final d in ['--A3', '--A8', '--AA', '--AC', 'B3A3', 'B5AA']) {
+        expect(
+          of(el('ECOM F343', 'Disciplinary Elective2'), d),
+          Elective.del2,
+          reason: d,
+        );
+      }
+      // Not for the others: another department's DEL is an open elective.
+      expect(
+        of(el('ECOM F343', 'Disciplinary Elective2'), '--A7'),
+        Elective.open,
+      );
+    });
+
     test('core courses are left alone', () {
       expect(of(el('EEE F111', 'CDC2')), Elective.cdc2);
       expect(of(el('XYZ F101', 'CDCN')), isNull);
