@@ -16,7 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:marquee/marquee.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:cgpa_calculator/settings.dart';
+import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/constants.dart';
@@ -412,7 +412,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _openSettings() async {
     erase = 0;
     await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (context) => Settings()))
+        .push(MaterialPageRoute(builder: (context) => const SettingsPage()))
         .then((value) async {
           selected_theme = selected_theme;
           thm = themes.firstWhere((theme) => theme.theme == selected_theme);

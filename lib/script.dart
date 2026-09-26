@@ -712,6 +712,11 @@ double cgpa = 0.00;
 int tapid = 0;
 int batch = 24;
 String selecteddiscipline = "----"; //store
+
+/// Halves of [selecteddiscipline] as the first-run discipline dialog edits
+/// them.
+String selectdual = selecteddiscipline.substring(0, 2);
+String selecengg = selecteddiscipline.substring(2, 4);
 String selectedcampus = "Hyd";
 int selectedprofile = 1;
 int selectedgrade = 10;
