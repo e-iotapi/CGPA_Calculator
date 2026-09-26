@@ -40,48 +40,6 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.behind,
   });
 
-  /// Builds a palette from one of the original nine-colour themes, deriving
-  /// the roles those themes never had.
-  factory AppPalette.legacy({
-    required String theme,
-    required Color backcolor,
-    required Color textcolor,
-    required Color sepcolor,
-    required Color highcolor,
-    required Color cardcolor,
-    required Color bordcolor,
-    required Color unscolor,
-    required Color butcolor,
-    required Color iconcolor,
-  }) {
-    final dark =
-        ThemeData.estimateBrightnessForColor(backcolor) == Brightness.dark;
-    final base = dark ? AppPalette.dark : AppPalette.light;
-    return AppPalette(
-      name: theme,
-      background: backcolor,
-      surface: cardcolor,
-      surfaceRaised: butcolor,
-      surfaceSunken: backcolor,
-      text: textcolor,
-      textMuted: unscolor,
-      divider: sepcolor,
-      border: bordcolor,
-      outline: bordcolor.withValues(alpha: 0.2),
-      accent: highcolor,
-      icon: iconcolor,
-      inverse: textcolor,
-      onInverse: backcolor,
-      hero: Color.alphaBlend(highcolor.withValues(alpha: 0.22), cardcolor),
-      onHero: textcolor,
-      onHeroMuted: unscolor,
-      navBackground: butcolor,
-      navIcon: unscolor,
-      ahead: base.ahead,
-      behind: base.behind,
-    );
-  }
-
   final String name;
 
   /// Page ground.
@@ -241,87 +199,20 @@ class AppPalette extends ThemeExtension<AppPalette> {
     behind: Color(0xFFE0A272),
   );
 
-  /// The user-selectable themes. White and Black are the redesign; the rest
-  /// are unchanged from the original `constants.dart`.
+  /// The two user-selectable themes. The names are what `selected_theme`
+  /// has always stored for light and dark.
   static final List<AppPalette> named = [
-    // White and Black were the original light and dark themes; they now
-    // carry the redesign's palettes under their old names, so a saved
-    // selection keeps working.
     light.renamed('White'),
     dark.renamed('Black'),
-    AppPalette.legacy(
-      theme: "Blue",
-      backcolor: Color(0xFF01011C),
-      butcolor: Color(0xFF0A0A44),
-      bordcolor: Color(0xFF9D9C9C),
-      cardcolor: Color(0xFF010125),
-      textcolor: Color(0xFF4090B2),
-      sepcolor: Color(0xFF0F2628),
-      highcolor: Color(0xFFBF3E0B),
-      unscolor: Colors.white38,
-      iconcolor: Color(0xFF645E69),
-    ),
-    AppPalette.legacy(
-      theme: "Lilac",
-      backcolor: Color(0xFFE5C2EF),
-      butcolor: Color(0xFFE1B1EF),
-      bordcolor: Color(0xFF0C0C0C),
-      cardcolor: Color(0xFFE1BEEC),
-      textcolor: Color(0xFF1F1717),
-      sepcolor: Color(0xFF757575),
-      highcolor: Color(0xFF0D57E1),
-      unscolor: Color(0xFF766B80),
-      iconcolor: Color(0xE21E1D21),
-    ),
-    AppPalette.legacy(
-      theme: "Coffee",
-      backcolor: Color(0xF7492E18),
-      butcolor: Color(0xFF593C22),
-      bordcolor: Color(0xFFD2B478),
-      cardcolor: Color(0xFF56371D),
-      highcolor: Color(0xFFEAC578),
-      sepcolor: Color(0xFFC4A875),
-      textcolor: Color(0xFFFCE2BD),
-      unscolor: Color(0xFF917752),
-      iconcolor: Color(0xFFF6D6A7),
-    ),
-    AppPalette.legacy(
-      theme: "Emerald",
-      backcolor: Color(0xFF0E4D43),
-      butcolor: Color(0xFF136753),
-      bordcolor: Color(0xFFCECBCB),
-      cardcolor: Color(0xFF0E574C),
-      textcolor: Color(0xFFC4D2CB),
-      sepcolor: Color(0xFF38936E),
-      highcolor: Color(0xFF1EE67B),
-      unscolor: Color(0x996D9C8C),
-      iconcolor: Color(0xFF9FE1D6),
-    ),
-    AppPalette.legacy(
-      theme: "Cyberpunk",
-      backcolor: Color(0xFF2E1A44),
-      butcolor: Color(0xFF421F58),
-      bordcolor: Color(0xFF6C597E),
-      cardcolor: Color(0xFF361F4F),
-      textcolor: Color(0xFFD381BB),
-      sepcolor: Color(0xFF7F3E75),
-      highcolor: Color(0xFFD4A5E1),
-      unscolor: Color(0x99765C85),
-      iconcolor: Color(0xFF9A5B95),
-    ),
-    AppPalette.legacy(
-      theme: "Mint",
-      backcolor: Color(0xFFB3D7D1),
-      butcolor: Color(0xFFA2C8C3),
-      bordcolor: Color(0xFF5D7D7B),
-      cardcolor: Color(0xFFABD2CE),
-      textcolor: Color(0xFF294F4B),
-      sepcolor: Color(0xFF3A4F4D),
-      highcolor: Color(0xFF053F3C),
-      unscolor: Color(0xFF6F7E7B),
-      iconcolor: Color(0xFF486B68),
-    ),
   ];
+
+  /// Maps a saved theme name onto one that still exists. The six colour
+  /// themes were removed; each falls back to the mode it resembled.
+  static String resolveName(String saved) => switch (saved) {
+    'White' || 'Black' => saved,
+    'Blue' || 'Coffee' || 'Emerald' || 'Cyberpunk' => 'Black',
+    _ => 'White',
+  };
 }
 
 // A, A-, B, B- and the muted tone are taken from the design boards. C and

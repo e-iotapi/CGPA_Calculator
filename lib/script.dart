@@ -104,9 +104,9 @@ Future<void> basicStartup() async {
     'selectedcampus',
     defaultValue: selectedcampus,
   );
-  selected_theme = settingsBox.get(
-    'selected_theme',
-    defaultValue: selected_theme,
+  // Saved names from the removed colour themes fall back to White or Black.
+  selected_theme = AppPalette.resolveName(
+    settingsBox.get('selected_theme', defaultValue: selected_theme),
   );
   degree_selected = settingsBox.get('degree_selected', defaultValue: false);
   currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
@@ -153,9 +153,9 @@ Future<void> initializeCourses() async {
     'selectedcampus',
     defaultValue: selectedcampus,
   );
-  selected_theme = settingsBox.get(
-    'selected_theme',
-    defaultValue: selected_theme,
+  // Saved names from the removed colour themes fall back to White or Black.
+  selected_theme = AppPalette.resolveName(
+    settingsBox.get('selected_theme', defaultValue: selected_theme),
   );
   degree_selected = settingsBox.get('degree_selected', defaultValue: false);
   currentsort = settingsBox.get('currentsort', defaultValue: currentsort);

@@ -97,6 +97,7 @@ Future<void> _pump(
           onSwipe: (_) {},
           onOpenAnalytics: () {},
           onOpenSettings: () {},
+          onToggleTheme: () {},
           onInstall: () {},
           offshoot: offshoot,
         ),
@@ -188,6 +189,12 @@ void main() {
         t.getRect(cards.at(1)).top,
         greaterThan(t.getRect(cards.at(0)).bottom),
       );
+    });
+
+    testWidgets('header offers the switch to the other mode', (t) async {
+      await _pump(t, _data(SemesterMode.actual));
+      expect(find.byTooltip('Switch to dark mode'), findsOneWidget);
+      expect(find.byTooltip('Switch to light mode'), findsNothing);
     });
 
     testWidgets('ungraded course shows a muted dash, not "CLR"', (t) async {

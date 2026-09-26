@@ -6,38 +6,28 @@ import 'package:flutter_test/flutter_test.dart';
 import '../fixtures/legacy_constants.dart' as legacy;
 
 void main() {
-  test('named palettes keep every original theme, in order', () {
-    expect(
-      AppPalette.named.map((p) => p.name),
-      legacy.themes.map((c) => c.theme),
-    );
+  test('only White and Black are offered', () {
+    expect(AppPalette.named.map((p) => p.name), ['White', 'Black']);
+    expect(AppPalette.named[0].background, AppPalette.light.background);
+    expect(AppPalette.named[1].background, AppPalette.dark.background);
   });
 
-  test('White and Black are the redesign palettes, under their old names', () {
-    final white = AppPalette.named.firstWhere((p) => p.name == 'White');
-    final black = AppPalette.named.firstWhere((p) => p.name == 'Black');
-    expect(white.hero, AppPalette.light.hero);
-    expect(white.background, AppPalette.light.background);
-    expect(black.hero, AppPalette.dark.hero);
-    expect(black.background, AppPalette.dark.background);
-  });
-
-  for (final old in legacy.themes.where(
-    (t) => t.theme != 'White' && t.theme != 'Black',
-  )) {
-    test('${old.theme} keeps all nine colours', () {
-      final p = AppPalette.named.firstWhere((p) => p.name == old.theme);
-      expect(p.backcolor, old.backcolor);
-      expect(p.textcolor, old.textcolor);
-      expect(p.sepcolor, old.sepcolor);
-      expect(p.highcolor, old.highcolor);
-      expect(p.cardcolor, old.cardcolor);
-      expect(p.bordcolor, old.bordcolor);
-      expect(p.unscolor, old.unscolor);
-      expect(p.butcolor, old.butcolor);
-      expect(p.iconcolor, old.iconcolor);
+  // Every theme a user could have saved before, taken from the original list.
+  for (final old in legacy.themes) {
+    test('saved "${old.theme}" falls back to the mode it resembled', () {
+      final wasDark =
+          ThemeData.estimateBrightnessForColor(old.backcolor) ==
+          Brightness.dark;
+      final now = AppPalette.named.firstWhere(
+        (p) => p.name == AppPalette.resolveName(old.theme),
+      );
+      expect(now.isDark, wasDark);
     });
   }
+
+  test('an unknown saved name falls back to White', () {
+    expect(AppPalette.resolveName('Sunset'), 'White');
+  });
 
   test('materialTheme seeds from the accent, as MyApp did before', () {
     for (final p in AppPalette.named) {

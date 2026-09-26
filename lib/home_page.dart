@@ -347,6 +347,11 @@ class _MyHomePageState extends State<MyHomePage> {
             context,
           ).push(MaterialPageRoute(builder: (context) => Analytics())),
       onOpenSettings: _openSettings,
+      onToggleTheme:
+          () => setState(() {
+            selected_theme = thm.isDark ? 'White' : 'Black';
+            thm = themes.firstWhere((t) => t.theme == selected_theme);
+          }),
       onInstall: kIsWeb ? () => PwaHelper.promptInstall(context, thm) : null,
       offshoot: selectedprofile == 4 ? buildOffshootUI(wid, hei) : null,
     );

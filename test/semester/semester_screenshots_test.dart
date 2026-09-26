@@ -106,6 +106,7 @@ void main() {
                     onSwipe: (_) {},
                     onOpenAnalytics: () {},
                     onOpenSettings: () {},
+                    onToggleTheme: () {},
                     onInstall: () {},
                   ),
                 ),
