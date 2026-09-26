@@ -66,13 +66,16 @@ void reloadPage() => web.window.location.reload();
 
 String userAgent() => web.window.navigator.userAgent;
 
-bool isStandalone() =>
-    web.window.matchMedia('(display-mode: standalone)').matches ||
-    // iOS Safari's own flag for a home-screen app.
-    (web.window.navigator as JSObject)
-            .getProperty<JSAny?>('standalone'.toJS)
-            ?.dartify() ==
-        true;
+bool isStandalone() {
+  // iOS has its own flag, and only iOS has it; trust it there over the media
+  // query, which some WebKit builds answer for a Safari tab too.
+  final ios =
+      (web.window.navigator as JSObject)
+          .getProperty<JSAny?>('standalone'.toJS)
+          ?.dartify();
+  if (ios is bool) return ios;
+  return web.window.matchMedia('(display-mode: standalone)').matches;
+}
 
 bool hasTouch() => web.window.navigator.maxTouchPoints > 0;
 

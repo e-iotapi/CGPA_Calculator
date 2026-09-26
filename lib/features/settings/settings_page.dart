@@ -60,8 +60,8 @@ class _SettingsPageState extends State<SettingsPage> {
               onReport: () => _submitReport(context),
               onReset: () => _reset(context),
               onSignOut: _signOut,
-              onInstall:
-                  kIsWeb && !isStandalone() ? () => _install(context) : null,
+              onInstall: kIsWeb ? () => _install(context) : null,
+              installed: kIsWeb && isStandalone(),
               onEmail:
                   () => launchUrl(Uri.parse('mailto:siddhu.cms@gmail.com')),
               onGithub:

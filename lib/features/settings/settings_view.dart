@@ -28,6 +28,7 @@ class SettingsView extends StatelessWidget {
     required this.onSignOut,
     this.onEmail,
     this.onInstall,
+    this.installed = false,
     this.onGithub,
   });
 
@@ -63,8 +64,11 @@ class SettingsView extends StatelessWidget {
   final VoidCallback onSignOut;
   final VoidCallback? onEmail;
 
-  /// Null hides the row: not on the web, or already installed.
+  /// Null hides the row: not on the web.
   final VoidCallback? onInstall;
+
+  /// Running from the home screen; the row still shows, for another device.
+  final bool installed;
   final VoidCallback? onGithub;
 
   @override
@@ -176,7 +180,7 @@ class SettingsView extends StatelessWidget {
                     _Item(
                       icon: Icons.install_mobile_rounded,
                       label: 'Install app',
-                      value: 'Home screen',
+                      value: installed ? 'Installed' : 'Home screen',
                       onTap: onInstall!,
                     ),
                   ]),
