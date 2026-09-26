@@ -1,7 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
-import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
@@ -10,7 +9,6 @@ import 'package:cgpa_calculator/sync.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cgpa_calculator/features/settings/install_guide.dart';
-import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -62,7 +60,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     mode: LaunchMode.externalApplication,
                   ),
               onInstall:
-                  kIsWeb && !PwaHelper.isStandalone
+                  kIsWeb && !isStandalone()
                       ? () => _install(context)
                       : null,
               onEmail:
@@ -210,8 +208,8 @@ class _SettingsPageState extends State<SettingsPage> {
   /// The browser's own prompt where it has one; otherwise, and always on
   /// iOS, the home-screen steps.
   Future<void> _install(BuildContext context) async {
-    final platform = PwaHelper.platform;
-    if (platform != InstallPlatform.ios && PwaHelper.tryNativePrompt()) return;
+    final platform = installPlatform();
+    if (platform != InstallPlatform.ios && promptInstall()) return;
     await showInstallGuide(context, platform);
   }
 

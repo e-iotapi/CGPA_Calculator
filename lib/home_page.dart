@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
@@ -11,12 +10,10 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/script.dart';
-import 'package:cgpa_calculator/mastercourselist.dart';
-import 'package:cgpa_calculator/constants.dart';
+import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
@@ -40,10 +37,6 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool _showFab = true;
-  @override
-  void initState() {
-    super.initState();
-  }
 
   List<Course> get items =>
       Hive.box<Course>('coursesBox').values
@@ -63,31 +56,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool _isDisciplineChanged = false;
   bool _isrightswipe = true;
-  TextEditingController _batchController1 = TextEditingController(
+  final TextEditingController _batchController1 = TextEditingController(
     text: batch.toString(),
   );
-  String name1 =
-      mcourselist
-          .firstWhere(
-            (course) => sameCourseId(course.id, "$addcourse $addcourseid"),
-            orElse: () => Mastercourselist(id: '', title: '', credits: 0),
-          )
-          .title;
-  double credits1 =
-      mcourselist
-          .firstWhere(
-            (course) => sameCourseId(course.id, "$addcourse $addcourseid"),
-            orElse: () => Mastercourselist(id: '', title: '', credits: 0),
-          )
-          .credits;
-
   void setfab() {
     _showFab = true;
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted)
+      if (mounted) {
         setState(() => _showFab = false);
-      else
+      } else {
         _showFab = false;
+      }
     });
   }
 
@@ -101,21 +80,6 @@ class _MyHomePageState extends State<MyHomePage> {
     setprof();
     settheme();
     setnavcolor();
-    name1 =
-        mcourselist
-            .firstWhere(
-              (course) => sameCourseId(course.id, "$addcourse $addcourseid"),
-              orElse: () => Mastercourselist(id: '', title: '', credits: 0),
-            )
-            .title;
-
-    credits1 =
-        mcourselist
-            .firstWhere(
-              (course) => sameCourseId(course.id, "$addcourse $addcourseid"),
-              orElse: () => Mastercourselist(id: '', title: '', credits: 0),
-            )
-            .credits;
     sgpa = sgcalc(currentsem);
     cgpa = cgcalc();
     creditTotals();
@@ -408,7 +372,7 @@ class _MyHomePageState extends State<MyHomePage> {
         .push(MaterialPageRoute(builder: (context) => const SettingsPage()))
         .then((value) async {
           selected_theme = selected_theme;
-          thm = themes.firstWhere((theme) => theme.theme == selected_theme);
+          thm = AppPalette.byName(selected_theme);
           profile1n = profile1n;
           profile2n = profile2n;
           currentsem = currentsem;
@@ -418,7 +382,7 @@ class _MyHomePageState extends State<MyHomePage> {
           await initializeCourses();
           setnavcolor();
           setState(() {
-            thm = themes.firstWhere((theme) => theme.theme == selected_theme);
+            thm = AppPalette.byName(selected_theme);
           });
         });
   }

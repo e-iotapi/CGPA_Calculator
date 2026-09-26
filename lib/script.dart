@@ -4,14 +4,13 @@ import 'dart:ui' as ui;
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:flutter/foundation.dart';
-import 'package:cgpa_calculator/constants.dart';
+import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
-import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
@@ -79,7 +78,7 @@ String exportGradesCsv() {
 
 Future<void> basicStartup() async {
   var settingsBox = await Hive.openBox('settingsBox');
-  final coursesBox = await Hive.openBox<Course>('coursesBox');
+  await Hive.openBox<Course>('coursesBox');
   selecteddiscipline = settingsBox.get(
     'selecteddiscipline',
     defaultValue: selecteddiscipline,
@@ -463,22 +462,6 @@ Future<void> setdis() async {
   await settingsBox.put('degree_selected', true);
 }
 
-List<String> compareOffshoot(List<Course> of){
-  int O1=0,O2=0;
-  double c1=0,c2=0;
-  int co1=0,co2=0;
-  for(int i =0;i<of.length;i++){
-    O2+=(of[i].grade2>0)?of[i].grade2:0;
-    O1+=(of[i].grade1>0)?of[i].grade1:0;
-    c1+=(of[i].grade1>0)?of[i].credits:0;
-    c2+=(of[i].grade2>0)?of[i].credits:0;
-    co1+=(of[i].grade1>0 || of[i].grade1==-3)?1:0;
-    co2+=(of[i].grade2>0 || of[i].grade2==-3)?1:0;
-
-  }
-  return [O1.toString(),c1.toString(),O2.toString(),c2.toString(),co1.toString(),co2.toString()];
-}
-
 void sort(List<Course> sitems, String cs) {
   if (selectedprofile == 1) {
     if (cs == "Sort by Credits(Asc)") {
@@ -499,30 +482,6 @@ void sort(List<Course> sitems, String cs) {
       sitems.sort((a, b) => b.grade2.compareTo(a.grade2));
     } else if (cs == "Sort by Grades(Asc)") {
       sitems.sort((a, b) => a.grade2.compareTo(b.grade2));
-    }
-  }
-}
-
-void sorto(List<Course> offshootList, String cs) {
-  if (selectedprofile == 1) {
-    if (cs == "Sort by Credits(Asc)") {
-      offshootList.sort((a, b) => a.credits.compareTo(b.credits));
-    } else if (cs == "Sort by Credits(Des)") {
-      offshootList.sort((a, b) => b.credits.compareTo(a.credits));
-    } else if (cs == "Sort by Grades(Des)") {
-      offshootList.sort((a, b) => b.grade1.compareTo(a.grade1));
-    } else if (cs == "Sort by Grades(Asc)") {
-      offshootList.sort((a, b) => a.grade1.compareTo(b.grade1));
-    }
-  } else if (selectedprofile == 2) {
-    if (cs == "Sort by Credits(Asc)") {
-      offshootList.sort((a, b) => a.credits.compareTo(b.credits));
-    } else if (cs == "Sort by Credits(Des)") {
-      offshootList.sort((a, b) => b.credits.compareTo(a.credits));
-    } else if (cs == "Sort by Grades(Des)") {
-      offshootList.sort((a, b) => b.grade2.compareTo(a.grade2));
-    } else if (cs == "Sort by Grades(Asc)") {
-      offshootList.sort((a, b) => a.grade2.compareTo(b.grade2));
     }
   }
 }
@@ -549,30 +508,6 @@ Future<void> setprof() async {
   await settingsBox.put('profile2n', profile2n);
 }
 
-Future<void> removeCourseById(String targetId) async {
-  try {
-    var box = Hive.box<Course>('coursesBox');
-    await box.delete(targetId);
-    await box.flush();
-    await box.compact();
-  } catch (e) {}
-}
-Future<void> removeOffshootCourseById(String targetId) async {
-  try {
-    var box = Hive.box<Course>('offshootBox');
-    await box.delete(targetId);
-    await box.flush();
-    await box.compact();
-  } catch (e) {}
-}
-
-Future<void> addCourse(Course course) async {
-  try {
-    var box = Hive.box<Course>('coursesBox');
-    await box.add(course);
-    await box.flush();
-  } catch (e) {}
-}
 
 Future<void> addOrUpdateCourse(Course course) async {
   try {
@@ -601,34 +536,6 @@ Future<void> clearSemesterGrades(String sem, int profile) async {
     }
     await box.flush();
   } catch (e) {}
-}
-
-Future<void> addOrUpdateCourseOffshoot(Course course) async {
-  try {
-    var box = Hive.box<Course>('offshootBox');
-    await box.put(course.id, course);
-    await box.flush();
-  } catch (e) {}
-}
-
-String electiveFinder(String s) {
-  if (s == Elective.cdc2.tag) {
-    return selecteddiscipline.substring(2, 4) + " " + "CDC";
-  } else if (s == Elective.cdc1.tag) {
-    return selecteddiscipline.substring(0, 2) + " " + "CDC";
-  } else if (s == "CDCN") {
-    return "None";
-  } else if (s == Elective.open.tag) {
-    return Elective.open.tag;
-  } else if (s == Elective.del2.tag) {
-    return selecteddiscipline.substring(2, 4) + " " + "Disciplinary Elective";
-  } else if (s == Elective.del1.tag) {
-    return selecteddiscipline.substring(0, 2) + " " + "Disciplinary Elective";
-  } else if (s == Elective.humanity.tag) {
-    return Elective.humanity.tag;
-  } else {
-    return s;
-  }
 }
 
 void setnavcolor() {
@@ -664,21 +571,11 @@ double sgcalc(String s) {
   return p == null ? -3.0 : _semTally(s, p).rounded;
 }
 
-/// "actual expected" SGPA of the current semester. [s] is ignored, as it
-/// always was.
-String sgcomp(String s) =>
-    '${_semTally(currentsem, Profile.actual).fixed} '
-    '${_semTally(currentsem, Profile.expected).fixed}';
-
 /// CGPA for the selected profile, rounded; -3.0 if no profile.
 double cgcalc() {
   final p = Profile.fromId(selectedprofile);
   return p == null ? -3.0 : _cumTally(p).rounded;
 }
-
-/// "actual expected" CGPA.
-String cgcomp() =>
-    '${_cumTally(Profile.actual).fixed} ${_cumTally(Profile.expected).fixed}';
 
 /// Credits shown beside the SGPA/CGPA, per profile, into the scred/ccred
 /// globals.
@@ -689,30 +586,9 @@ void creditTotals() {
   ccred2 = _cumTally(Profile.expected).shownCredits;
 }
 
-void electiveSetter() {
-  if (addcourse == "HSS" ||
-      addcourse == "GS" ||
-      huel.contains(addcourse + " " + addcourseid)) {
-    selectedelective = Elective.humanity.tag;
-  } else if (del[selecteddiscipline.substring(2, 4)]!.contains(
-    addcourse + " " + addcourseid,
-  )) {
-    selectedelective = Elective.del2.tag;
-  } else if (del[selecteddiscipline.substring(0, 2)]!.contains(
-    addcourse + " " + addcourseid,
-  )) {
-    selectedelective = Elective.del1.tag;
-  } else if (nonelist.contains(addcourse + " " + addcourseid)) {
-    selectedelective = "CDCN";
-  } else {
-    selectedelective = Elective.open.tag;
-  }
-}
-
-var thm = themes.firstWhere((x) => x.theme == selected_theme);
+var thm = AppPalette.byName(selected_theme);
 double sgpa = 0.00;
 double cgpa = 0.00;
-int tapid = 0;
 int batch = 24;
 String selecteddiscipline = "----"; //store
 
@@ -722,8 +598,6 @@ String selectdual = selecteddiscipline.substring(0, 2);
 String selecengg = selecteddiscipline.substring(2, 4);
 String selectedcampus = "Hyd";
 int selectedprofile = 1;
-int selectedgrade = 10;
-String selectedelective = "None";
 String currentsem = "1 - 1"; // store
 double scred1 = 0;
 double scred2 = 0;
@@ -732,48 +606,10 @@ double ccred2 = 0;
 String profile1n = "Actual";
 String profile2n = "Expected";
 
-String addcourse = "AN";
 String currentsort = "Sort by Credits(Asc)"; //store
 String selected_theme = "White";
 bool degree_selected = false;
 int erase = 0;
-bool isUpdating = false;
-String addcourseid = dropdownid[0];
-List<String> anCourseIds =
-mcourselist
-    .where((course) => course.id.startsWith('AN '))
-    .map((course) => course.id.replaceFirst('AN ', ''))
-    .toList();
-List<String> dropdownid = anCourseIds;
-final List<String> depts = [
-  "AN",
-  "BIO",
-  "BIOT",
-  "BITS",
-  "CE",
-  "CHE",
-  "CHEM",
-  "CS",
-  "ECE",
-  "ECON",
-  "ECOM",
-  "EEE",
-  "FIN",
-  "GS",
-  "HSS",
-  "INSTR",
-  "IS",
-  "MAC",
-  "MATH",
-  "ME",
-  "MF",
-  "MGTS",
-  "MSE",
-  "MST",
-  "PHA",
-  "PHY",
-  "SNS",
-];
 final List<String> grades = pickerGrades;
 final List<String> sems = baseSemesters;
 /// Switches light or dark under the circle reveal and saves it. [then]
@@ -783,7 +619,7 @@ Future<void> switchTheme(bool dark, {VoidCallback? then}) async {
   if (name == selected_theme) return;
   await ThemeReveal.run(() {
     selected_theme = name;
-    thm = themes.firstWhere((t) => t.theme == selected_theme);
+    thm = AppPalette.byName(selected_theme);
     setnavcolor();
     themeVersion.value++;
     then?.call();

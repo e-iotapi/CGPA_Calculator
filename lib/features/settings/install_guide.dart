@@ -1,6 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
-import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
+import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/shared/widgets/pointer_mark.dart';
 import 'package:flutter/material.dart';
 
