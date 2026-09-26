@@ -10,22 +10,6 @@
     "description": "Pointer: the CGPA calculator for BITS Pilani, Goa and Hyderabad. Instant SGPA and CGPA for every semester, evaluative marks with best-of rules, the finance offshoot score, a target planner and your degree progress — synced to your BITS account and usable offline.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
-    "screenshots": [
-        {
-            "src": "images/Screenshot1.png",
-            "sizes": "640x1280",
-            "type": "image/png",
-            "purpose": "any",
-            "label": "App main screen"
-        },
-        {
-            "src": "images/Screenshot2.png",
-            "sizes": "1280x720",
-            "type": "image/png",
-            "form_factor": "wide",
-            "label": "App main screen"
-        }
-    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",

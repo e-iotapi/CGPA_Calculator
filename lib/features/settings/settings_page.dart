@@ -54,15 +54,8 @@ class _SettingsPageState extends State<SettingsPage> {
               onReport: () => _submitReport(context),
               onReset: () => _reset(context),
               onSignOut: _signOut,
-              onCredits:
-                  () => launchUrl(
-                    Uri.parse('https://github.com/Srijen-Raja/CGPA_Calculator'),
-                    mode: LaunchMode.externalApplication,
-                  ),
               onInstall:
-                  kIsWeb && !isStandalone()
-                      ? () => _install(context)
-                      : null,
+                  kIsWeb && !isStandalone() ? () => _install(context) : null,
               onEmail:
                   () => launchUrl(Uri.parse('mailto:siddhu.cms@gmail.com')),
               onGithub:
