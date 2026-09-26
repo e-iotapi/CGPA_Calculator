@@ -55,9 +55,10 @@ Map<String, (String, String)> _shown(DegreeAudit a) => {
     ),
 };
 
+var _n = 0;
 Course _c(String el, double cr, int g, [String d = 'B3']) => Course(
   title: '',
-  id: 'X',
+  id: 'X ${_n++}',
   credits: cr,
   grade1: g,
   grade2: GradeCode.clr,

@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/course.dart';
 
@@ -53,10 +54,13 @@ double earnedCredits(Elective category, Iterable<Course> courses) => courses
     .where((c) => c.elective == category.tag && countsTowardDegree(c))
     .fold(0.0, (sum, c) => sum + c.credits);
 
-/// Passed courses in [category].
+/// Passed courses in [category]. Ids that differ only by a lowercase `l`
+/// for `1` are one course (§2.10).
 int earnedCourses(Elective category, Iterable<Course> courses) =>
     courses
         .where((c) => c.elective == category.tag && countsTowardDegree(c))
+        .map((c) => normalizeCourseId(c.id))
+        .toSet()
         .length;
 
 /// One card of the audit. A null requirement means none is shown.

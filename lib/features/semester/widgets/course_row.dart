@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_scrubber.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
 import 'package:flutter/material.dart';
 
@@ -39,7 +40,7 @@ class CourseRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          course.title,
+          displayTitle(course.id, course.title),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TypeScale.body.copyWith(color: p.text),

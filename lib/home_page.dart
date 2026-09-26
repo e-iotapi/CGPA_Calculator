@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
@@ -71,14 +72,14 @@ class _MyHomePageState extends State<MyHomePage> {
   String name1 =
       mcourselist
           .firstWhere(
-            (course) => course.id == ("$addcourse $addcourseid"),
+            (course) => sameCourseId(course.id, "$addcourse $addcourseid"),
             orElse: () => Mastercourselist(id: '', title: '', credits: 0),
           )
           .title;
   double credits1 =
       mcourselist
           .firstWhere(
-            (course) => course.id == ("$addcourse $addcourseid"),
+            (course) => sameCourseId(course.id, "$addcourse $addcourseid"),
             orElse: () => Mastercourselist(id: '', title: '', credits: 0),
           )
           .credits;
@@ -106,7 +107,7 @@ class _MyHomePageState extends State<MyHomePage> {
     name1 =
         mcourselist
             .firstWhere(
-              (course) => course.id == ("$addcourse $addcourseid"),
+              (course) => sameCourseId(course.id, "$addcourse $addcourseid"),
               orElse: () => Mastercourselist(id: '', title: '', credits: 0),
             )
             .title;
@@ -114,7 +115,7 @@ class _MyHomePageState extends State<MyHomePage> {
     credits1 =
         mcourselist
             .firstWhere(
-              (course) => course.id == ("$addcourse $addcourseid"),
+              (course) => sameCourseId(course.id, "$addcourse $addcourseid"),
               orElse: () => Mastercourselist(id: '', title: '', credits: 0),
             )
             .credits;
