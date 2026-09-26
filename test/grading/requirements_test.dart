@@ -136,10 +136,7 @@ void main() {
     });
 
     test('a dual keeps a card per half, with the table\'s share', () {
-      const needs = DegreeNeeds(
-        degree: 'B3A7',
-        del: (courses: 9, units: 27),
-      );
+      const needs = DegreeNeeds(degree: 'B3A7', del: (courses: 9, units: 27));
       final a = degreeAudit([], 'B3A7', needs: needs);
       expect(card(a, 'Disciplinary Electives (B3)').requiredCredits, 18);
       expect(card(a, 'Disciplinary Electives (A7)').requiredCredits, 12);
@@ -200,7 +197,10 @@ void main() {
     });
 
     test('an elective from another department is an open elective', () {
-      expect(of(el('EEE F241', 'Disciplinary Elective2'), '--A7'), Elective.open);
+      expect(
+        of(el('EEE F241', 'Disciplinary Elective2'), '--A7'),
+        Elective.open,
+      );
       expect(of(el('BITS F382', 'Open Elective')), Elective.open);
     });
 
@@ -211,7 +211,21 @@ void main() {
 
     test('core courses are left alone', () {
       expect(of(el('EEE F111', 'CDC2')), Elective.cdc2);
-      expect(of(el('HSS F101', 'CDCN')), isNull);
+      expect(of(el('XYZ F101', 'CDCN')), isNull);
+    });
+
+    test('common courses are the first degree\'s core', () {
+      expect(of(el('HSS F101', 'CDCN')), Elective.cdc1);
+      expect(of(el('MATH F111', 'CDCN')), Elective.cdc1);
+      expect(of(el('MATH F111', 'CDCN'), '--A7'), Elective.cdc2);
+    });
+
+    test('a category set by hand is never moved', () {
+      final eee = el('EEE F311', 'Disciplinary Elective2');
+      expect(of(eee), Elective.open);
+      pinnedCategories = {'EEE F311'};
+      addTearDown(() => pinnedCategories = {});
+      expect(of(eee), Elective.del2);
     });
 
     test('and count where they are placed', () {

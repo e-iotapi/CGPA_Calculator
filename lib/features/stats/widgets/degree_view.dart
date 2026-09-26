@@ -495,7 +495,9 @@ class _Members extends StatelessWidget {
             if (onAssign != null) ...[
               const SizedBox(height: 5),
               CategoryDropdown(
-                value: c.elective,
+                // Where it counts now, which the department rules may have
+                // decided, rather than the tag it was stored with.
+                value: auditCategory(c, discipline)?.tag ?? c.elective,
                 discipline: discipline,
                 onChanged: (t) => onAssign!(c, t),
               ),
