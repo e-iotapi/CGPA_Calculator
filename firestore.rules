@@ -12,9 +12,35 @@ service cloud.firestore {
              '(?i)^[^@]+@(goa|pilani|dubai|hyderabad)[.]bits-pilani[.]ac[.]in$');
     }
 
+    function me() { return request.auth.token.email.lower(); }
+
+    // An owner need not be a BITS account (ARCHITECTURE.md §5): the list in
+    // owners/{email} is the only way a non-BITS address gets in.
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && exists(/databases/$(db)/documents/owners/$(me()))
+        && get(/databases/$(db)/documents/owners/$(me())).data.active == true;
+    }
+
+    function mayUse() { return isBits() || isOwner(); }
+
+    // Anyone may ask whether they are on the list, so sign-in can decide.
+    // Adding and removing owners waits for the audit log; until then it is
+    // done in the Firebase console.
+    match /owners/{email} {
+      allow get: if request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && me() == email;
+      allow list: if isOwner();
+      allow write: if false;
+    }
+
     match /users/{uid} {
-      allow read, delete: if isBits() && request.auth.uid == uid;
-      allow create, update: if isBits() && request.auth.uid == uid
+      allow read, delete: if mayUse() && request.auth.uid == uid;
+      allow create, update: if mayUse() && request.auth.uid == uid
         && request.resource.data.rev is int
         && request.resource.data.data is string
         && request.resource.data.data.size() < 500000;
@@ -24,7 +50,7 @@ service cloud.firestore {
     // can file one under their own uid, but nothing can be read back from the
     // client. Read them in the Firebase console, which bypasses these rules.
     match /reports/{reportId} {
-      allow create: if isBits()
+      allow create: if mayUse()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.message is string
         && request.resource.data.message.size() > 0

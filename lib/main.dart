@@ -25,9 +25,13 @@ void main() async {
   registerMarksAdapters();
   await Sync.openBoxes();
   final user = await FirebaseAuth.instance.authStateChanges().first;
-  if (user == null || !isBitsEmail(user.email)) {
-    // A session that predates the restriction, or a non-BITS account.
-    if (user != null) await FirebaseAuth.instance.signOut();
+  final allowed = user == null ? false : await mayUseApp(user);
+  if (user == null || allowed != true) {
+    // A session that predates the restriction, or a non-BITS account that
+    // is not an owner. Unknown (offline) keeps the session for next time.
+    if (user != null && allowed == false) {
+      await FirebaseAuth.instance.signOut();
+    }
     runApp(const SignInApp());
   } else {
     await startApp(user);
@@ -100,11 +104,14 @@ class _SignInAppState extends State<SignInApp>
       final cred = await FirebaseAuth.instance.signInWithPopup(provider);
       final user = cred.user;
       if (user == null) throw FirebaseAuthException(code: 'no-user');
-      if (!isBitsEmail(user.email)) {
+      final allowed = await mayUseApp(user);
+      if (allowed != true) {
         final rejected = user.email ?? 'that account';
         await FirebaseAuth.instance.signOut();
-        throw 'Sign in with your BITS email. $rejected is not a '
-            'BITS Pilani campus account.';
+        throw allowed == null
+            ? 'Could not check $rejected. Check your connection and try again.'
+            : 'Sign in with your BITS email. $rejected is not a '
+                'BITS Pilani campus account.';
       }
       await startApp(user); // replaces this app with the real one
       return;
