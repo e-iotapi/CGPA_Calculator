@@ -30,6 +30,7 @@ void main() {
       '${plan.cgpaAfter} vs ${sheet.cgpa}',
     );
     expect(plan.cgpaAfter, sheet.cgpa);
+    expect(sheet.needs.keys, containsAll(['HEL', 'DEL', 'EL']));
 
     // Data that already disagrees with the sheet still lands on its CGPA.
     Course graded(String id) =>

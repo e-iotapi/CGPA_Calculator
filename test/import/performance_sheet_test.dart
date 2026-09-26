@@ -57,6 +57,20 @@ class _Sheet {
     y = top + 9.3 * (l.length > r.length ? l.length : r.length) + 20;
   }
 
+  /// A "Count of …" line: each tag followed by its numbers.
+  void needs(String label, List<String> numbers) {
+    text(23.4, label);
+    final per = numbers.length ~/ 3;
+    for (final (i, tag) in ['HEL', 'DEL', 'EL'].indexed) {
+      final x = 226 + i * 110.0;
+      text(x, tag);
+      for (var j = 0; j < per; j++) {
+        text(x + 41 + j * 36, numbers[i * per + j]);
+      }
+    }
+    y += 11;
+  }
+
   PerformanceSheet parse() => parsePerformanceSheet(
     items,
     pageWidth: 612,
@@ -105,9 +119,27 @@ _Sheet _sample() {
   s.band('FIRST SEMESTER 2025-2026', [
     _r('CS F213', 'OBJECT ORIENTED PROG', null, units: '4.0'),
   ]);
+  s.needs('Count of Electives Required, Completed', [
+    '3',
+    '1',
+    '10',
+    '7',
+    '0',
+    '1',
+  ]);
+  s.needs('Count of Units Required, Completed', [
+    '8',
+    '3',
+    '30',
+    '21',
+    '0',
+    '3',
+  ]);
   s.text(23.4, 'Pending Courses (To be eligible for graduation)');
   s.y += 20;
   s.band('FIRST SEMESTER 2026-2027', [_r('CS F303', 'COMPUTER NETWORKS', 'A')]);
+  // The pending section's own counts are what is left, not what is required.
+  s.needs('Count of Electives', ['2', '3', '0']);
   return s;
 }
 
@@ -174,6 +206,15 @@ void main() {
       expect(econ.sem, 'ST 1');
       expect(econ.grade, 'A-');
       expect(econ.retake, isTrue);
+    });
+
+    test('reads what each elective tag requires', () {
+      expect(sheet.needs, {
+        'HEL': (courses: 3, units: 8),
+        'DEL': (courses: 10, units: 30),
+        'EL': (courses: 0, units: 0),
+      });
+      expect(sheet.electiveNeeds('B3A7')!.del, (courses: 10, units: 30));
     });
 
     test('pending courses are left out', () {

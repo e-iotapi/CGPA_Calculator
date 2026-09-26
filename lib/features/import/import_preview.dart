@@ -10,6 +10,7 @@ Future<bool> showImportPreview(
   BuildContext context, {
   required PerformanceSheet sheet,
   required ImportPlan plan,
+  bool newNeeds = false,
 }) async {
   final ok = await showModalBottomSheet<bool>(
     context: context,
@@ -17,22 +18,35 @@ Future<bool> showImportPreview(
     showDragHandle: true,
     backgroundColor: AppPalette.of(context).background,
     constraints: const BoxConstraints(maxWidth: 640),
-    builder: (_) => ImportPreview(sheet: sheet, plan: plan),
+    builder:
+        (_) => ImportPreview(sheet: sheet, plan: plan, newNeeds: newNeeds),
   );
   return ok ?? false;
 }
 
 class ImportPreview extends StatelessWidget {
-  const ImportPreview({super.key, required this.sheet, required this.plan});
+  const ImportPreview({
+    super.key,
+    required this.sheet,
+    required this.plan,
+    this.newNeeds = false,
+  });
 
   final PerformanceSheet sheet;
   final ImportPlan plan;
+
+  /// The sheet's elective requirements differ from what Pointer has.
+  final bool newNeeds;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final muted = TypeScale.caption.copyWith(color: p.textMuted, height: 1.4);
     String n(int k, String one, String many) => '$k ${k == 1 ? one : many}';
+    String need(String tag) => switch (sheet.needs[tag]) {
+      (courses: 0, units: 0) || null => '$tag none',
+      final r => '$tag ${n(r.courses, 'course', 'courses')}, ${r.units} units',
+    };
 
     final lines = [
       if (plan.graded > 0) n(plan.graded, 'grade set', 'grades set'),
@@ -51,6 +65,9 @@ class ImportPreview extends StatelessWidget {
         '${n(plan.running.length, 'running course', 'running courses')} '
             'cleared until results: ${plan.running.join(', ')}',
       if (plan.unchanged > 0) '${plan.unchanged} already up to date',
+      if (newNeeds)
+        'Degree page set to your sheet\'s electives: '
+            '${['HEL', 'DEL', 'EL'].map(need).join(' · ')}',
     ];
 
     final after = plan.cgpaAfter?.toStringAsFixed(2);
@@ -75,7 +92,7 @@ class ImportPreview extends StatelessWidget {
             if (sheet.studentId != null)
               Text('Performance sheet for ${sheet.studentId}', style: muted),
             const SizedBox(height: Space.md),
-            if (plan.isEmpty)
+            if (plan.isEmpty && !newNeeds)
               Text(
                 'Everything on your sheet is already in Pointer.',
                 style: TypeScale.body.copyWith(color: p.text),
@@ -168,7 +185,9 @@ class ImportPreview extends StatelessWidget {
             PrimaryButton(
               label: 'Import',
               onPressed:
-                  plan.isEmpty ? null : () => Navigator.pop(context, true),
+                  plan.isEmpty && !newNeeds
+                      ? null
+                      : () => Navigator.pop(context, true),
             ),
             const SizedBox(height: Space.sm),
             TextButton(
