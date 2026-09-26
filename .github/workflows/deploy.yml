@@ -15,8 +15,10 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build web --release
-      - run: cp netlify.toml build/web/ || true
-      - run: npx netlify-cli deploy --prod --dir=build/web
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      # Built here and uploaded directly, so it uses none of Pages' build quota.
+      # No 404.html in build/web, so Pages serves index.html for unknown paths.
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy build/web --project-name=pointer-bits-pilani --branch=master
