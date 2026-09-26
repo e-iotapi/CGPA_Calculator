@@ -117,6 +117,7 @@ void main() {
                     onClearRequested: () {},
                     onSwipe: (_) {},
                     onOpenAnalytics: () {},
+                    onOpenCalendar: () {},
                     onOpenSettings: () {},
                     onToggleTheme: () {},
                     onInstall: () {},

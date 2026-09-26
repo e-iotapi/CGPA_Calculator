@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
+import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
@@ -353,13 +354,22 @@ class _MyHomePageState extends State<MyHomePage> {
           () => Navigator.of(
             context,
           ).push(MaterialPageRoute(builder: (context) => StatsPage(discipline: selecteddiscipline))),
+      onOpenCalendar: () async {
+        await Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (context) => const CalendarPage()));
+        if (mounted) setState(() {});
+      },
       onOpenSettings: _openSettings,
       onToggleTheme:
           () => setState(() {
             selected_theme = thm.isDark ? 'White' : 'Black';
             thm = themes.firstWhere((t) => t.theme == selected_theme);
           }),
-      onInstall: kIsWeb ? () => PwaHelper.promptInstall(context, thm) : null,
+      onInstall:
+          kIsWeb && !PwaHelper.isStandalone
+              ? () => PwaHelper.promptInstall(context, thm)
+              : null,
       offshoot:
           selectedprofile == 4
               ? OffshootPanel(

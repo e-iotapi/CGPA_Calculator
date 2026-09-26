@@ -59,6 +59,15 @@ class Sync {
     }
   }
 
+  /// Local changes not yet pushed. False before sync has started.
+  static bool get hasUnsynced {
+    try {
+      return snapshot() != _meta.get('last');
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> stop() async {
     for (final s in _subs) {
       await s.cancel();
