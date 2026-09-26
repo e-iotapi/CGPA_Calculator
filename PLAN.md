@@ -6,6 +6,10 @@ Hand this to Claude Code from the repo root:
 Design reference (all screens, with notes):
 <https://claude.ai/artifact/K4H9w2Ad9cwdTqxPSAiWMW>
 
+**Status — Phases 0 to 11 are built.** Do not restart from Phase 0. What remains is
+Phase 12 (course data) and Phase 13 (ship), plus anything still unticked in the §6 UI
+audit. Phases 1–11 stay below as the spec the app is checked against, not as work to redo.
+
 ---
 
 ## 1. Where the project actually is
@@ -391,7 +395,45 @@ row. Rows are one shared component.
 **Verify:** every control the old page had still exists and still works. This is a
 re-layout, not a feature cut.
 
-### Phase 12 — Ship
+### Phase 12 — Course data *(new)*
+The course map is incomplete, independently of the UI. See `COURSE_GAPS.md` for the full
+diff against the official semester-wise charts: **42 distinct courses missing across 122
+discipline slots**, for the 17 disciplines offered at Goa and Hyderabad.
+
+**Nothing here is a deletion** (§2.10). Old courses stay in the map — students on older
+batches need them, and removing a row silently changes the CGPA of anyone holding a grade
+against it. Every item is an addition.
+
+Order, by impact:
+
+1. **`BITS F412` Practice School-II (20 units) and `BITS F421T` Thesis (16)** — missing
+   from all 17 disciplines. A final-year student cannot enter the largest course of the
+   degree, so their credit total is short by 16–20 units and the CGPA denominator is
+   wrong. The charts also list `F425T` (18–20) and `F424T` (thesis 9 + electives).
+2. **`ECON F211` / `MGTS F211`** — an either/or slot present only under `B3`, missing from
+   15 disciplines.
+3. **`MATH F102`** where missing, 16 disciplines.
+4. **AJ, Environmental and Sustainability** — 29 of 41 courses absent, the whole `ENVS`
+   core. Core is 48 units / 16 courses, electives 12 / 4.
+5. **AC, Electronics and Computer (Goa)** — the entire post-2023 first year is missing.
+6. The per-discipline one-offs in §4 of `COURSE_GAPS.md`.
+
+⚠ **Items 1, 2 and 4 introduce alternative courses** — "X or Y" slots, and AJ has three
+in its first year alone. The `Course` model cannot express this: every row is
+unconditionally required, so adding both halves of a pair inflates the denominator, which
+is the same class of bug as the missing PS-II. **Settle the model change before entering
+the rows.**
+
+Also unresolved: **B.E. Pharmaceutical Engg. (Hyderabad) has no code** in the official
+programme-codes table as supplied, and `A9` / `AB` / `C2` should not be selectable on a
+Goa or Hyderabad profile — `campuslist` and `degreelist` are currently independent. The
+mapping is in `DISCIPLINES_GOA_HYD.md`.
+
+**Verify:** for a discipline with a full chart, the app's course count for that discipline
+matches the chart. CGPA for existing users is unchanged — new rows are ungraded and must
+not enter the denominator.
+
+### Phase 13 — Ship
 Rules redeploy if touched, full build, deploy, and the acceptance list below.
 
 ---
@@ -444,7 +486,7 @@ one. Grep for these and confirm nothing routes to them:
 
 ---
 
-## 6. Acceptance
+## 7. Acceptance
 
 - [ ] Two BITS accounts see only their own data
 - [ ] A non-BITS Google account is rejected at sign-in **and** by the rules
@@ -453,6 +495,11 @@ one. Grep for these and confirm nothing routes to them:
 - [ ] CGPA identical on home screen and Stats
 - [ ] Marks reproduces the source spreadsheet exactly (Phase 7)
 - [ ] A date entered once appears in Calendar
+- [ ] Every row of the §6 UI audit is ticked, checked in the running app
+- [ ] No legacy screen is reachable — manual add, old settings, analytics page, any Marquee
+- [ ] The grade menu is an anchored popover and the row behind it stays visible
+- [ ] PS-II / Thesis can be entered, and a final-year credit total reaches the chart's minimum
+- [ ] Adding the new course rows leaves every existing user's CGPA unchanged
 - [ ] Class-average delta matches `yours − average`, and is absent when unset
 - [ ] Degree audit shows the same category credits and counts as the current app, as the Degree view of Stats
 - [ ] No overflow at 320px, tablet, desktop, or at 200% text
@@ -461,7 +508,7 @@ one. Grep for these and confirm nothing routes to them:
 
 ---
 
-## 7. Deliberately out of scope
+## 8. Deliberately out of scope
 
 - **Encryption.** Decided against: rules already isolate users, and the only meaningful further step is a user passphrase, which means unrecoverable data on loss. Not worth it for a student tool.
 - **Live sync listeners.** Remote changes appear on reload. Settings globals are read once at startup, so a listener would need the state migration (§3.4) finished first.

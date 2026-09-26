@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/firebase_options.dart';
@@ -6,6 +7,7 @@ import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -14,6 +16,9 @@ import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Phone browsers deliver touches out of step with frames, so a drag moves
+  // the list unevenly. Resampling lines the touches up with the frames.
+  GestureBinding.instance.resamplingEnabled = true;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await Hive.initFlutter();
   Hive.registerAdapter(CourseAdapter());
@@ -147,10 +152,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Pointer',
-      theme: thm.materialTheme,
-      home: const MyHomePage(title: 'Pointer'),
+    // Rebuilt when the theme changes, under the circle reveal.
+    return ValueListenableBuilder(
+      valueListenable: themeVersion,
+      builder:
+          (_, _, _) => MaterialApp(
+            title: 'Pointer',
+            theme: thm.materialTheme,
+            builder:
+                (_, child) =>
+                    ThemeReveal.root(TapOriginTracker(child: child!)),
+            home: const MyHomePage(title: 'Pointer'),
+          ),
     );
   }
 }
