@@ -13,21 +13,21 @@ String normalizeCourseId(String id) {
 bool sameCourseId(String a, String b) =>
     normalizeCourseId(a) == normalizeCourseId(b);
 
-/// Codes spelled differently across disciplines, shown as one entry.
+/// Codes titled differently across disciplines, shown under one name.
+/// Spelling variants ("PS 1", "Practice School-1") collapse to the chart's
+/// name; a slash joins two names only where the course was renamed.
 /// `MF F221` is deliberately absent: its two titles are different courses.
 const courseTitleAliases = {
   'BITS F101': 'Navigating Campus Life and Living Well / Social Conduct',
-  'BITS F113': 'Gen Maths 1 / General Mathematics I',
-  'BITS F221':
-      'PS 1 / Practice School I / Practice School-1 / Practice SchoolI',
+  'BITS F113': 'General Mathematics I',
+  'BITS F221': 'Practice School I',
   'BITS F225': 'Environmental Science / Environmental Studies',
   'BITS K101':
       'Physical Fitness, Health Wellbeing and Creativity / '
       'Physical Well-being and Creativity',
-  'PHA F214': 'Anatomy Physio and Hygiene / Anatomy, Physiology, & Hygiene',
-  'PHA F216': 'Pharmaceutical Formulations 1 / Pharmaceutical Formulations I',
-  'PHY F111':
-      'Mechanical Oscillations and Waves / Mechanics, Oscillations and Waves',
+  'PHA F214': 'Anatomy, Physiology and Hygiene',
+  'PHA F216': 'Pharmaceutical Formulations I',
+  'PHY F111': 'Mechanics, Oscillations and Waves',
 };
 
 /// The title to show for a course stored as [id] / [title].

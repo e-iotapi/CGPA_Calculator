@@ -35,6 +35,14 @@ void main() {
     );
     expect(displayTitle('CS F372', 'Operating Systems'), 'Operating Systems');
     expect(courseTitleAliases.length, 8);
+    // Spelling variants show one name; only renames keep a slash.
+    expect(displayTitle('BITS F221', 'PS 1'), 'Practice School I');
+    expect(displayTitle('BITS F221', 'Practice SchoolI'), 'Practice School I');
+    expect(displayTitle('BITS F113', 'Gen Maths 1'), 'General Mathematics I');
+    expect([
+      for (final t in courseTitleAliases.values)
+        if (t.contains('/')) t,
+    ], hasLength(3));
   });
 
   test('an F101 / F10l pair counts as one course, credits unchanged', () {
