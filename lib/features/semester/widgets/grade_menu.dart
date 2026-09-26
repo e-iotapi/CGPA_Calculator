@@ -20,6 +20,10 @@ const specialGradesNote =
     'RC and W drop the credits from your CGPA. GD keeps them but not the '
     'points.';
 
+/// What Ongoing does, where it is offered.
+const ongoingNote =
+    'Ongoing counts toward your degree, not your CGPA, until it is graded.';
+
 /// Opens the grade menu under [anchor] (the chip), right-aligned to it, and
 /// returns the stored value picked, or null. The row stays visible behind.
 Future<int?> showGradeMenu(
@@ -90,7 +94,8 @@ class _Anchored extends SingleChildLayoutDelegate {
 }
 
 /// The board's card: a 4-column grid of grades, the four codes that are not
-/// grades under a hairline with their rule, then "Not graded yet".
+/// grades under a hairline with their rule, then Ongoing and "Not graded
+/// yet".
 class GradeMenu extends StatelessWidget {
   const GradeMenu({super.key, required this.current});
 
@@ -202,7 +207,27 @@ class GradeMenu extends StatelessWidget {
               const SizedBox(height: 9),
               rule(),
               const SizedBox(height: 9),
-              pill('', quiet: true, text: 'Not graded yet'),
+              Row(
+                children: [
+                  Expanded(child: pill('ONG', quiet: true, text: 'Ongoing')),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: pill('', quiet: true, text: 'Not graded yet'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Text(
+                  ongoingNote,
+                  style: small.copyWith(
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0,
+                    height: 1.45,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

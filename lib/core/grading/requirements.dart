@@ -162,21 +162,40 @@ const Map<String, Requirement> requirements = {
   'B-': Requirement(0, 0, 0, 0),
 };
 
-/// Whether [c] has been passed for the audit: a letter grade or GD, read
-/// from the Actual profile only — the same rule the CGPA uses (§2.1).
-bool countsTowardDegree(Course c) => c.grade1 > 0 || c.grade1 == GradeCode.gd;
+/// Whether [c] counts for the audit: a letter grade, GD, or Ongoing, read
+/// from the Actual profile only. Ongoing counts here and never in the CGPA.
+bool countsTowardDegree(Course c) =>
+    c.grade1 > 0 || c.grade1 == GradeCode.gd || c.grade1 == GradeCode.ongoing;
+
+/// Codes of the common core: first-year and shared courses the chart gives
+/// no half, which count as core though they carry no CDC tag.
+final Set<String> commonCore = {
+  ...nonelist,
+  for (final c in [...hydCourseList, ...hydCourseListNew])
+    if (Elective.fromTag(c.elective) == null) c.id,
+};
+
+/// [c] counts toward the degree but toward no requirement: no CDC or
+/// elective category, and not common core. The Degree page lists these to
+/// be assigned. An id that is not a course code cannot be judged, so it is
+/// left where it was.
+bool isUnassigned(Course c, String discipline) =>
+    countsTowardDegree(c) &&
+    auditCategory(c, discipline) == null &&
+    RegExp(r'^[A-Z]{2,5}\s+[A-Z]\d{3}').hasMatch(c.id.trim()) &&
+    !commonCore.contains(c.id.trim());
 
 /// Passed courses whose [auditCategory] is in [categories]; null stands for
-/// a core course with no half.
+/// a core course with no half, never an unassigned one.
 Iterable<Course> _passed(
   Iterable<Course> courses,
   String discipline,
   Set<Elective?> categories,
-) => courses.where(
-  (c) =>
-      countsTowardDegree(c) &&
-      categories.contains(auditCategory(c, discipline)),
-);
+) => courses.where((c) {
+  if (!countsTowardDegree(c)) return false;
+  final e = auditCategory(c, discipline);
+  return categories.contains(e) && (e != null || !isUnassigned(c, discipline));
+});
 
 /// Passed credits in [category], under [discipline]'s elective rules.
 double earnedCredits(
@@ -207,6 +226,7 @@ class AuditCategory {
     required this.credits,
     this.requiredCourses,
     this.requiredCredits,
+    this.members = const [],
   });
 
   /// The card's category; CDC1 for the one core card a sheet gives.
@@ -219,6 +239,9 @@ class AuditCategory {
   final int? requiredCourses;
   final int? requiredCredits;
 
+  /// The courses counted here, to list when the card is opened.
+  final List<Course> members;
+
   bool get complete =>
       requiredCredits != null &&
       requiredCredits! > 0 &&
@@ -228,15 +251,27 @@ class AuditCategory {
 }
 
 class DegreeAudit {
-  const DegreeAudit(this.totalCredits, this.categories, {this.creditsLeft});
+  const DegreeAudit(
+    this.totalCredits,
+    this.categories, {
+    this.creditsLeft,
+    this.ongoingCredits = 0,
+    this.unassigned = const [],
+  });
 
-  /// Credits shown on the home screen's CGPA card, out of
-  /// [degreeTotalCredits].
+  /// Credits shown on the home screen's CGPA card, plus Ongoing ones: done
+  /// for the degree, though not yet in the CGPA.
   final double totalCredits;
   final List<AuditCategory> categories;
 
   /// With a sheet's needs: what every card still lacks, added up.
   final double? creditsLeft;
+
+  /// Of [totalCredits], how many are Ongoing.
+  final double ongoingCredits;
+
+  /// Counted courses that belong to no requirement.
+  final List<Course> unassigned;
 }
 
 /// The audit for [discipline] ("B3A7", "--A7", "----" for none), in the order
@@ -275,6 +310,7 @@ DegreeAudit degreeAudit(
     return AuditCategory(
       category: e,
       label: label,
+      members: passed.toList(),
       courses: passed.map((c) => courseGraph.canonical(c.id)).toSet().length,
       credits: passed.fold(0.0, (s, c) => s + c.credits),
       requiredCourses: set ? need.courses : null,
@@ -329,13 +365,22 @@ DegreeAudit degreeAudit(
       sheet?.el ?? (hasB ? null : (courses: 5, units: 15)),
     ),
   ];
+  final ongoing = mine
+      .where((c) => c.grade1 == GradeCode.ongoing)
+      .fold(0.0, (s, c) => s + c.credits);
   return DegreeAudit(
     cumulativeTally(
-      all,
-      discipline: discipline,
-      profile: Profile.actual,
-    ).shownCredits,
+          all,
+          discipline: discipline,
+          profile: Profile.actual,
+        ).shownCredits +
+        ongoing,
     cards,
+    ongoingCredits: ongoing,
+    unassigned: [
+      for (final c in mine)
+        if (isUnassigned(c, discipline)) c,
+    ],
     creditsLeft:
         core == null
             ? null
