@@ -30,6 +30,7 @@ class SemesterView extends StatefulWidget {
     required this.onClearRequested,
     required this.onSwipe,
     required this.onOpenAnalytics,
+    required this.onOpenCalendar,
     required this.onOpenSettings,
     required this.onToggleTheme,
     this.onInstall,
@@ -59,6 +60,7 @@ class SemesterView extends StatefulWidget {
   /// +1 for the next tab, -1 for the previous.
   final ValueChanged<int> onSwipe;
   final VoidCallback onOpenAnalytics;
+  final VoidCallback onOpenCalendar;
   final VoidCallback onOpenSettings;
 
   /// Flips between the light and dark palettes.
@@ -278,9 +280,11 @@ class _SemesterViewState extends State<SemesterView> {
   /// Greeting and name, or [eyebrow] and [title] in their place.
   Widget _header({String? eyebrow, String? title}) {
     final p = AppPalette.of(context);
-    // Three 46px buttons leave a 320px phone too little room for the name.
+    // Four or five 46px buttons leave a phone too little room for the name.
+    final five = widget.onInstall != null;
+    final narrow = MediaQuery.sizeOf(context).width < 380;
     final btn =
-        MediaQuery.sizeOf(context).width < 380 ? 40.0 : Sizes.iconButton;
+        narrow ? (five ? 36.0 : 40.0) : (five ? 42.0 : Sizes.iconButton);
     return Row(
       children: [
         Expanded(
@@ -323,6 +327,13 @@ class _SemesterViewState extends State<SemesterView> {
           ),
           const SizedBox(width: Space.sm),
         ],
+        CircleIconButton(
+          icon: Icons.calendar_today_outlined,
+          tooltip: 'Calendar',
+          onPressed: widget.onOpenCalendar,
+          size: btn,
+        ),
+        const SizedBox(width: Space.sm),
         CircleIconButton(
           icon: Icons.insert_chart_outlined_rounded,
           tooltip: 'Stats',

@@ -96,6 +96,7 @@ Future<void> _pump(
           onClearRequested: () {},
           onSwipe: (_) {},
           onOpenAnalytics: () {},
+          onOpenCalendar: () {},
           onOpenSettings: () {},
           onToggleTheme: () {},
           onInstall: () {},
