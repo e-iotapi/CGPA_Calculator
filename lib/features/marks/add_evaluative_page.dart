@@ -41,10 +41,24 @@ class _PartFields {
       marks = TextEditingController(
         text: p?.marks == null ? '' : marks2(p!.marks!),
       ),
-      outOf = TextEditingController(text: p == null ? '' : marks2(p.outOf)),
+      // A seeded component has no out-of yet: blank, not "0".
+      outOf = TextEditingController(
+        text: p == null || p.outOf <= 0 ? '' : marks2(p.outOf),
+      ),
+      average = TextEditingController(
+        text: p?.average == null ? '' : marks2(p!.average!),
+      ),
       date = p?.date;
 
-  final TextEditingController name, marks, outOf;
+  /// A copy of [f] to fill in: the next name, the same out-of, no marks.
+  _PartFields.after(_PartFields f)
+    : name = TextEditingController(text: nextName(f.name.text)),
+      marks = TextEditingController(),
+      outOf = TextEditingController(text: f.outOf.text),
+      average = TextEditingController(),
+      date = null;
+
+  final TextEditingController name, marks, outOf, average;
   String? date;
 
   EvalPart? toPart(bool single) {
@@ -55,6 +69,7 @@ class _PartFields {
       marks: double.tryParse(marks.text),
       outOf: o,
       date: date,
+      average: double.tryParse(average.text),
     );
   }
 
@@ -62,6 +77,7 @@ class _PartFields {
     name.dispose();
     marks.dispose();
     outOf.dispose();
+    average.dispose();
   }
 }
 
@@ -108,6 +124,8 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
       weight: w,
       parts: parts.cast<EvalPart>(),
       countBest: _several && _best < parts.length ? _best : 0,
+      // Set on the Marks page; kept as it was.
+      average: widget.existing?.average,
     );
   }
 
@@ -229,7 +247,10 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
         if (_several)
           Padding(
             padding: const EdgeInsets.only(bottom: Space.sm),
-            child: Text('name · date · marks · out of', style: muted),
+            child: Text(
+              'name · date · marks · out of · class average',
+              style: muted,
+            ),
           ),
         for (final (i, f) in _active.indexed) ...[
           _partRow(f, i),
@@ -328,6 +349,14 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
                 onPick: () => _pickDate(f),
                 onClear: () => setState(() => f.date = null),
               ),
+              IconButton(
+                tooltip: 'Duplicate part ${i + 1}',
+                onPressed:
+                    () => setState(
+                      () => _parts.insert(i + 1, _PartFields.after(f)),
+                    ),
+                icon: Icon(Icons.copy_rounded, color: p.textMuted, size: 17),
+              ),
               if (_parts.length > 2)
                 IconButton(
                   tooltip: 'Remove part ${i + 1}',
@@ -342,6 +371,14 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
           ),
           const SizedBox(height: 6),
           numbers,
+          const SizedBox(height: 6),
+          AppTextField(
+            controller: f.average,
+            label: 'Class average for this part',
+            number: true,
+            dense: true,
+            onChanged: changed,
+          ),
         ],
       ),
     );
@@ -350,13 +387,14 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
   Widget _preview(Evaluative? d, AppPalette p) {
     final value = d == null ? null : contribution(d);
     final counted = d == null ? const <EvalPart>[] : countedParts(d);
-    final got = counted.fold(0.0, (s, x) => s + x.marks!);
+    final got = counted.fold(0.0, (s, x) => s + (x.marks ?? 0));
     final max = counted.fold(0.0, (s, x) => s + x.outOf);
     final how =
         d == null
             ? 'Fill in a name, a weight and each part\'s maximum.'
             : counted.isEmpty
-            ? 'Nothing graded yet — it counts once a mark is in.'
+            ? 'Nothing graded yet — it counts once a mark is in. Then a '
+                'blank part scores zero.'
             : '${d.countBest > 0 ? 'best ${d.countBest} of ${d.parts.length}' : 'all counted'}'
                 ' → ${marks2(got)} of ${marks2(max)}, the counted parts\' '
                 'own maximums';

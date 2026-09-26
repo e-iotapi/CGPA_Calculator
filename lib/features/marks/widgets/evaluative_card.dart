@@ -9,18 +9,27 @@ import 'package:flutter/material.dart';
 
 /// One evaluative: name, how many parts count, its weight and what it gives.
 /// Groups list their parts, with dropped ones kept visible and labelled;
-/// long dated series collapse to their date range.
+/// long dated series collapse to their date range. Under them, the
+/// component's class average, typed or worked out from its parts.
 class EvaluativeCard extends StatelessWidget {
   const EvaluativeCard({
     super.key,
     required this.e,
     required this.weighted,
     required this.onTap,
+    this.onDuplicate,
+    this.onAverage,
   });
 
   final Evaluative e;
   final bool weighted;
   final VoidCallback onTap;
+
+  /// A copy with the next name and no marks.
+  final VoidCallback? onDuplicate;
+
+  /// The typed component average; null clears it. Null hides the field.
+  final ValueChanged<double?>? onAverage;
 
   @override
   Widget build(BuildContext context) {
@@ -100,27 +109,6 @@ class EvaluativeCard extends StatelessWidget {
       ],
     );
 
-    final card = AppCard(
-      onTap: onTap,
-      radius: Radii.row - 2,
-      color: ungraded ? p.surface.withValues(alpha: 0.55) : null,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          head,
-          if (group && !collapsed) ...[
-            const SizedBox(height: 9),
-            for (final part in e.parts)
-              _PartLine(
-                part: part,
-                counted: counted.contains(part),
-                dropped: dropped.contains(part),
-              ),
-          ],
-        ],
-      ),
-    );
     final label = [
       e.name,
       if (ungraded) 'not graded yet' else '${value.toStringAsFixed(2)} secured',
@@ -128,18 +116,181 @@ class EvaluativeCard extends StatelessWidget {
       if (dropped.isNotEmpty)
         'dropped: ${dropped.map((d) => d.name).join(', ')}',
     ].join(', ');
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child:
-          ungraded
-              ? DashedOutline(
-                color: p.outline,
-                radius: Radii.row - 2,
-                child: card,
-              )
-              : card,
+    final card = AppCard(
+      radius: Radii.row - 2,
+      color: ungraded ? p.surface.withValues(alpha: 0.55) : null,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  label: label,
+                  excludeSemantics: true,
+                  child: InkWell(
+                    onTap: onTap,
+                    borderRadius: BorderRadius.circular(Radii.row - 2),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        14,
+                        12,
+                        onDuplicate == null ? 14 : 4,
+                        12,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          head,
+                          if (group && !collapsed) ...[
+                            const SizedBox(height: 9),
+                            for (final part in e.parts)
+                              _PartLine(
+                                part: part,
+                                counted: counted.contains(part),
+                                dropped: dropped.contains(part),
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (onDuplicate != null)
+                IconButton(
+                  tooltip: 'Duplicate ${e.name}',
+                  onPressed: onDuplicate,
+                  icon: Icon(Icons.copy_rounded, size: 16, color: p.textMuted),
+                ),
+            ],
+          ),
+          if (onAverage != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+              child: _ComponentAverage(e: e, onChanged: onAverage!),
+            ),
+        ],
+      ),
+    );
+    return ungraded
+        ? DashedOutline(color: p.outline, radius: Radii.row - 2, child: card)
+        : card;
+  }
+}
+
+/// The component's class average: a small field, with the sum of the part
+/// averages as its hint when nothing is typed, and where you stand.
+class _ComponentAverage extends StatefulWidget {
+  const _ComponentAverage({required this.e, required this.onChanged});
+
+  final Evaluative e;
+  final ValueChanged<double?> onChanged;
+
+  @override
+  State<_ComponentAverage> createState() => _ComponentAverageState();
+}
+
+class _ComponentAverageState extends State<_ComponentAverage> {
+  late final _text = TextEditingController(
+    text: widget.e.average == null ? '' : marks2(widget.e.average!),
+  );
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final e = widget.e;
+    final avg = componentAverage(e);
+    final delta = componentDelta(e);
+    final outOf = e.parts.fold(0.0, (s, x) => s + x.outOf);
+    final small = TypeScale.caption.copyWith(
+      fontSize: 10.5,
+      color: p.textMuted,
+    );
+    // Wraps rather than overflowing at large text sizes.
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          'Component average',
+          style: small.copyWith(fontWeight: FontWeight.w600),
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 64,
+              child: TextField(
+                controller: _text,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                textAlign: TextAlign.center,
+                style: TypeScale.caption.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: p.text,
+                ),
+                onChanged: (t) => widget.onChanged(double.tryParse(t)),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText:
+                      avg != null && avg.derived ? marks2(avg.value) : '—',
+                  hintStyle: TypeScale.caption.copyWith(
+                    fontSize: 12,
+                    color: p.textMuted,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  filled: true,
+                  fillColor: p.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            if (outOf > 0) ...[
+              const SizedBox(width: 4),
+              Text('/ ${marks2(outOf)}', style: small),
+            ],
+          ],
+        ),
+        if (avg != null && avg.derived) Text('from parts', style: small),
+        if (delta != null)
+          Semantics(
+            label: deltaWords(delta, 'of the class'),
+            excludeSemantics: true,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  deltaIcon(delta),
+                  size: 16,
+                  color: delta < 0 ? p.behind : p.ahead,
+                ),
+                Text(
+                  deltaWords(delta),
+                  style: small.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: p.text,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -228,6 +379,14 @@ class _PartLine extends StatelessWidget {
                   text: ' / ${marks2(part.outOf)}',
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
+                if (part.average != null)
+                  TextSpan(
+                    text: ' · avg ${marks2(part.average!)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: p.textMuted,
+                    ),
+                  ),
               ],
             ),
             style: style.copyWith(
