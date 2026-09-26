@@ -7,7 +7,9 @@ import 'package:cgpa_calculator/core/grading/marks.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/features/calendar/calendar_controller.dart';
 import 'package:cgpa_calculator/features/marks/add_evaluative_page.dart';
+import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
@@ -209,6 +211,89 @@ void main() {
       );
       await t.pumpAndSettle();
     }
+
+    testWidgets('a one-mark evaluative takes a date and reaches the calendar', (
+      t,
+    ) async {
+      await pump(
+        t,
+        const AddEvaluativePage(courseId: 'X', weighted: true, unassigned: 100),
+        const Size(390, 844),
+      );
+      final fields = find.byType(TextField);
+      await t.enterText(fields.at(0), 'Quiz');
+      await t.enterText(fields.at(1), '10');
+      await t.enterText(fields.at(3), '20');
+      await t.pump();
+      expect(
+        find.text('Give it a date to see it on the calendar.'),
+        findsOneWidget,
+      );
+      await t.tap(find.text('Add a date'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+      final today = isoDate(DateTime.now());
+      expect(find.text(shortDate(today)), findsOneWidget);
+
+      await t.tap(find.byTooltip('Clear date'));
+      await t.pump();
+      expect(find.text('Add a date'), findsOneWidget);
+      await t.tap(find.text('Add a date'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+
+      await t.ensureVisible(find.text('Save evaluative'));
+      // The save writes to Hive, which needs real time.
+      await t.runAsync(() async {
+        await t.tap(find.text('Save evaluative'));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await t.pumpAndSettle();
+      final entries = calendarEntries(allEvaluatives());
+      expect(entries.single.label, 'Quiz');
+      expect(isoDate(entries.single.date), today);
+    });
+
+    testWidgets('each part of a several-part evaluative has a date field', (
+      t,
+    ) async {
+      for (final (size, scale) in const [
+        (Size(390, 844), 1.0),
+        (Size(320, 640), 2.0),
+      ]) {
+        await pump(
+          t,
+          const AddEvaluativePage(
+            courseId: 'X',
+            weighted: true,
+            unassigned: 100,
+          ),
+          size,
+          scale,
+        );
+        await t.tap(find.text('Several parts'));
+        await t.pumpAndSettle();
+        final date = find.text('Date');
+        await t.scrollUntilVisible(
+          find.text('Part 2 name'),
+          200,
+          scrollable:
+              find
+                  .ancestor(
+                    of: find.text('Several parts'),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+        );
+        expect(t.takeException(), isNull, reason: '$size ×$scale');
+        if (scale == 1) {
+          expect(date, findsNWidgets(2));
+          expect(find.text('Add a date'), findsNothing);
+        }
+      }
+    });
 
     testWidgets('screens lay out at 320, 768, 1440 and 200% text', (t) async {
       await loadAppFonts();
