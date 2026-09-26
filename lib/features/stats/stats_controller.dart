@@ -118,7 +118,8 @@ class StatsData {
   /// A total the student set wins.
   double get degreeLeft => switch (totalSet) {
     final t? => math.max(0, t - audit.totalCredits),
-    null => audit.creditsLeft ?? remaining,
+    // Ongoing courses are counted as done, so not as still to come.
+    null => audit.creditsLeft ?? math.max(0, remaining - audit.ongoingCredits),
   };
 
   /// Credits earned (as the home screen counts them) over earned + left.

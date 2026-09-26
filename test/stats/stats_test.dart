@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/stats/stats_controller.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
+import 'package:cgpa_calculator/features/stats/widgets/degree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -46,6 +47,7 @@ Future<void> _pump(
   double textScale = 1,
   AppPalette palette = AppPalette.light,
   VoidCallback? onEditTotal,
+  AssignCourse? onAssign,
 }) async {
   t.view.physicalSize = size * (_shots == null ? 1 : 2);
   t.view.devicePixelRatio = _shots == null ? 1 : 2;
@@ -69,6 +71,7 @@ Future<void> _pump(
           onTargetChanged: (_) {},
           onPlanChanged: (_, _) {},
           onBack: () {},
+          onAssign: onAssign,
           onEditTotal: onEditTotal,
         ),
       ),
@@ -191,6 +194,98 @@ void main() {
       expect(find.textContaining('total set by you'), findsOneWidget);
       await t.tap(find.text('CREDITS EARNED'));
       expect(taps, 1);
+    });
+
+    group('Ongoing and Unassigned', () {
+      Course c(String id, int g, String tag, {double cr = 3}) => Course(
+        title: id,
+        id: id,
+        credits: cr,
+        grade1: g,
+        grade2: GradeCode.clr,
+        discipline: 'A7',
+        sem: '3 - 1',
+        elective: tag,
+      );
+      final all = [
+        c('CS F211', 9, 'CDC2', cr: 4),
+        c('CS F212', GradeCode.ongoing, 'CDC2', cr: 4),
+        // Common core: no tag, and not unassigned.
+        c('MATH F111', 8, 'CDCN'),
+        c('BITS F111', 8, 'CDCN'),
+        // Added by hand with no category.
+        c('XYZ F101', 7, 'CDCN', cr: 2),
+      ];
+      final d = StatsData.from(all: all, discipline: '--A7');
+
+      test('Ongoing counts for the degree, never the CGPA', () {
+        expect(tally(all, Profile.actual).gradedCredits, 4 + 3 + 3 + 2);
+        expect(d.audit.ongoingCredits, 4);
+        expect(d.audit.totalCredits, 4 + 4 + 3 + 3 + 2);
+        final core = d.audit.categories.firstWhere(
+          (a) => a.label == 'CDC (A7)',
+        );
+        expect(core.credits, 8);
+        expect(core.members.map((m) => m.id), ['CS F211', 'CS F212']);
+        // Still to be graded, for the CGPA forecast.
+        expect(outstandingCourses(all, '--A7').map((m) => m.id), ['CS F212']);
+      });
+
+      test('a course in no requirement lands in Unassigned', () {
+        expect(d.audit.unassigned.map((m) => m.id), ['XYZ F101']);
+      });
+
+      testWidgets('requirements open to their courses and reassign', (t) async {
+        final moved = <(String, String)>[];
+        await _pump(
+          t,
+          d,
+          StatsView.degree,
+          size: const Size(390, 844),
+          onAssign: (course, tag) async => moved.add((course.id, tag)),
+        );
+        expect(
+          find.textContaining('4 of these credits are ongoing'),
+          findsOneWidget,
+        );
+        final scroll = find.byType(Scrollable).first;
+        await t.scrollUntilVisible(
+          find.text('CDC (A7)'),
+          200,
+          scrollable: scroll,
+        );
+        await t.tap(find.text('CDC (A7)'));
+        await t.pumpAndSettle();
+        expect(
+          find.textContaining('CS F212', findRichText: true),
+          findsWidgets,
+        );
+        await t.scrollUntilVisible(
+          find.text('Unassigned'),
+          200,
+          scrollable: scroll,
+        );
+        await t.tap(find.text('Unassigned'));
+        await t.pumpAndSettle();
+        final field = find.bySemanticsLabel(RegExp('^Counts as')).last;
+        // Mid-screen, clear of the pinned footer.
+        await Scrollable.ensureVisible(t.element(field), alignment: 0.5);
+        await t.pumpAndSettle();
+        await t.tap(field);
+        await t.pumpAndSettle();
+        await t.tap(find.text('Open Elective').last);
+        await t.pumpAndSettle();
+        expect(moved, [('XYZ F101', 'Open Elective')]);
+        expect(t.takeException(), isNull);
+      });
+
+      test('no bucket when every course has a home', () {
+        final clean = StatsData.from(
+          all: all.where((m) => m.id != 'XYZ F101').toList(),
+          discipline: '--A7',
+        );
+        expect(clean.audit.unassigned, isEmpty);
+      });
     });
 
     testWidgets('no overflow at 320, 768, 1440 or 200% text', (t) async {

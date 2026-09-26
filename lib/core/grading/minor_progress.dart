@@ -123,7 +123,11 @@ MinorProgress minorProgress(
     ];
     final best =
         found.where(passed).firstOrNull ??
-        found.where((c) => c.grade1 == GradeCode.clr).firstOrNull;
+        found
+            .where(
+              (c) => c.grade1 == GradeCode.clr || c.grade1 == GradeCode.ongoing,
+            )
+            .firstOrNull;
     if (best == null) return MinorSlotStatus(slot, null, MinorState.missing);
     used.add(best);
     return MinorSlotStatus(

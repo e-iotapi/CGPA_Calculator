@@ -13,6 +13,10 @@ abstract final class GradeCode {
   static const rc = -6;
   static const w = -7;
 
+  /// In progress: counts toward the degree, never toward the CGPA. Distinct
+  /// from [clr], which counts nowhere.
+  static const ongoing = -8;
+
   /// What [reversegradecalc] returns for an unknown letter.
   static const unknown = -100;
 }
@@ -32,6 +36,7 @@ const gradeValues = <String, int>{
   'GD': GradeCode.gd,
   'RC': GradeCode.rc,
   'W': GradeCode.w,
+  'ONG': GradeCode.ongoing,
 };
 
 final _letters = {
@@ -61,5 +66,9 @@ const pickerGrades = [
   'W',
   'CLR',
   'GD',
+  'ONG',
   '',
 ];
+
+/// [s] in words, for screen readers: "Ongoing" rather than "ONG".
+String gradeWords(int s) => s == GradeCode.ongoing ? 'Ongoing' : gradecalc(s);

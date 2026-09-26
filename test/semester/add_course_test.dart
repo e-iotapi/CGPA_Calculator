@@ -229,7 +229,7 @@ void main() {
     await t.pump();
     // The title wraps to two lines before it gives up.
     expect(t.widget<Text>(find.text(_long).last).maxLines, 2);
-    // All thirteen grades wrap into at most four 36px rows, not a column of
+    // All fourteen grades wrap into at most four 36px rows, not a column of
     // full-width bars, and the whole card stays short.
     final first = t.getTopLeft(find.text('A').last).dy;
     final last = t.getTopLeft(find.text('Not yet')).dy;

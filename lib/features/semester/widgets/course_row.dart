@@ -144,7 +144,7 @@ class CourseRow extends StatelessWidget {
   static Widget _chip(int grade) {
     final ungraded = grade == GradeCode.clr;
     return Semantics(
-      label: ungraded ? 'No grade' : 'Grade ${gradecalc(grade)}',
+      label: ungraded ? 'No grade' : 'Grade ${gradeWords(grade)}',
       excludeSemantics: true,
       child: GradeChip(ungraded ? '–' : gradecalc(grade), muted: ungraded),
     );
