@@ -93,8 +93,12 @@ String _category(String? tag, String id, String discipline) {
   };
   if (elective != null) return electiveFor(id, elective, discipline).tag;
   final dept = id.split(' ').first;
-  if (departments[discipline.substring(2, 4)] == dept) return Elective.cdc2.tag;
-  if (departments[discipline.substring(0, 2)] == dept) return Elective.cdc1.tag;
+  if (departments[discipline.substring(2, 4)]?.contains(dept) ?? false) {
+    return Elective.cdc2.tag;
+  }
+  if (departments[discipline.substring(0, 2)]?.contains(dept) ?? false) {
+    return Elective.cdc1.tag;
+  }
   return noCategory;
 }
 

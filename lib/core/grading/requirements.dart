@@ -74,27 +74,27 @@ class DegreeNeeds {
   int get hashCode => Object.hash(degree, cdc, hel, del, el);
 }
 
-/// The department whose codes each discipline's own courses carry.
-const departments = {
-  'A1': 'CHE',
-  'A2': 'CE',
-  'A3': 'EEE',
-  'A4': 'ME',
-  'A5': 'PHA',
-  'A7': 'CS',
-  'A8': 'INSTR',
-  'A9': 'BIOT',
-  'AA': 'ECE',
-  'AB': 'MF',
-  'AC': 'ECOM',
-  'AD': 'MAC',
-  'AJ': 'ENVS',
-  'B1': 'BIO',
-  'B2': 'CHEM',
-  'B3': 'ECON',
-  'B4': 'MATH',
-  'B5': 'PHY',
-  'B7': 'SNS',
+/// The departments whose codes each discipline's own courses carry.
+const departments = <String, Set<String>>{
+  'A1': {'CHE'},
+  'A2': {'CE'},
+  'A3': {'EEE'},
+  'A4': {'ME'},
+  'A5': {'PHA'},
+  'A7': {'CS'},
+  'A8': {'INSTR'},
+  'A9': {'BIOT'},
+  'AA': {'ECE'},
+  'AB': {'MF'},
+  'AC': {'ECOM'},
+  'AD': {'MAC'},
+  'AJ': {'ENVS'},
+  'B1': {'BIO'},
+  'B2': {'CHEM'},
+  'B3': {'ECON', 'FIN'},
+  'B4': {'MATH'},
+  'B5': {'PHY'},
+  'B7': {'SNS'},
 };
 
 bool _isElective(Elective? e) =>
@@ -116,8 +116,8 @@ Elective _placed(String dept, String id, Elective taken, String discipline) {
   if (dept == 'GS' || dept == 'HSS') return Elective.humanity;
   if (taken == Elective.humanity || taken == Elective.open) return taken;
   final a = discipline.substring(2, 4), b = discipline.substring(0, 2);
-  if (departments[a] == dept) return Elective.del2;
-  if (departments[b] == dept) return Elective.del1;
+  if (departments[a]?.contains(dept) ?? false) return Elective.del2;
+  if (departments[b]?.contains(dept) ?? false) return Elective.del1;
   if (del[a]?.contains(id) ?? false) return Elective.del2;
   if (del[b]?.contains(id) ?? false) return Elective.del1;
   return Elective.open;

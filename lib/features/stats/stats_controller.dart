@@ -25,6 +25,7 @@ class StatsData {
     required this.planned,
     required this.audit,
     required this.note,
+    this.totalSet,
   });
 
   factory StatsData.from({
@@ -33,6 +34,7 @@ class StatsData {
     double? target,
     Map<String, double> plan = const {},
     DegreeNeeds? needs,
+    int? totalSet,
   }) {
     final order = semestersFor(discipline);
     final done = cumulativeTally(
@@ -76,6 +78,7 @@ class StatsData {
       required: req,
       planned: planned,
       audit: degreeAudit(all, discipline, needs: needs),
+      totalSet: totalSet,
       note: _note(prog.map((p) => (sem: p.sem, sgpa: p.term.gpa)), req),
     );
   }
@@ -98,6 +101,9 @@ class StatsData {
   /// One sentence on whether [required] is realistic.
   final String note;
 
+  /// The degree's total credits, as the student set it.
+  final int? totalSet;
+
   double get cgpa => done.gpa;
   double get finish => planned.isEmpty ? cgpa : planned.last.cgpaAfter;
   double get delta => finish - cgpa;
@@ -109,7 +115,11 @@ class StatsData {
 
   /// Credits the degree still needs: from the sheet's requirements when
   /// imported, else the ungraded courses held.
-  double get degreeLeft => audit.creditsLeft ?? remaining;
+  /// A total the student set wins.
+  double get degreeLeft => switch (totalSet) {
+    final t? => math.max(0, t - audit.totalCredits),
+    null => audit.creditsLeft ?? remaining,
+  };
 
   /// Credits earned (as the home screen counts them) over earned + left.
   double get degreeShare {
