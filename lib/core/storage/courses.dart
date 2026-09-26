@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/grading/requirements.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:hive/hive.dart';
 
@@ -20,10 +21,30 @@ Future<void> saveCourse(Course course) async {
   await box.flush();
 }
 
-/// Sets what [course] counts as. "Counts as" on a course, and the Degree
-/// page's requirement and Unassigned lists, all come through here.
-Future<void> setCourseCategory(Course course, String tag) =>
-    saveCourse(course.copyWith(elective: tag));
+/// Sets what [course] counts as, and pins it: a category set by hand is
+/// never moved by the department rules. "Counts as" on a course, and the
+/// Degree page's requirement and Unassigned lists, all come through here.
+Future<void> setCourseCategory(Course course, String tag) async {
+  await pinCategory(course.id);
+  await saveCourse(course.copyWith(elective: tag));
+}
+
+const _pinnedKey = 'pinned_categories';
+
+/// Reads the pinned ids into [pinnedCategories].
+void loadPinnedCategories(Box settings) {
+  final ids = settings.get(_pinnedKey);
+  pinnedCategories = {
+    if (ids is List)
+      for (final id in ids) '$id',
+  };
+}
+
+Future<void> pinCategory(String id) async {
+  pinnedCategories = {...pinnedCategories, id.trim()};
+  if (!Hive.isBoxOpen('settingsBox')) return;
+  await Hive.box('settingsBox').put(_pinnedKey, pinnedCategories.toList());
+}
 
 /// Copies profile [from]'s grade onto profile [to] for every course, in all
 /// semesters, under each course's existing key.

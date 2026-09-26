@@ -5,12 +5,16 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/forecast.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/grading/requirements.dart';
+import 'package:cgpa_calculator/core/models/elective.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/stats/stats_controller.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
 import 'package:cgpa_calculator/features/stats/widgets/degree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 
 import '../helpers/fonts.dart';
 import '../helpers/transcript.dart';
@@ -225,8 +229,14 @@ void main() {
         final core = d.audit.categories.firstWhere(
           (a) => a.label == 'CDC (A7)',
         );
-        expect(core.credits, 8);
-        expect(core.members.map((m) => m.id), ['CS F211', 'CS F212']);
+        // Its own core, and the common courses as the first degree's.
+        expect(core.credits, 14);
+        expect(core.members.map((m) => m.id), [
+          'CS F211',
+          'CS F212',
+          'MATH F111',
+          'BITS F111',
+        ]);
         // Still to be graded, for the CGPA forecast.
         expect(outstandingCourses(all, '--A7').map((m) => m.id), ['CS F212']);
       });
@@ -265,6 +275,11 @@ void main() {
           200,
           scrollable: scroll,
         );
+        await Scrollable.ensureVisible(
+          t.element(find.text('Unassigned')),
+          alignment: 0.5,
+        );
+        await t.pumpAndSettle();
         await t.tap(find.text('Unassigned'));
         await t.pumpAndSettle();
         final field = find.bySemanticsLabel(RegExp('^Counts as')).last;
@@ -277,6 +292,31 @@ void main() {
         await t.pumpAndSettle();
         expect(moved, [('XYZ F101', 'Open Elective')]);
         expect(t.takeException(), isNull);
+      });
+
+      test('common courses count as the first degree\'s core', () {
+        final dual = StatsData.from(
+          all: [
+            for (final m in all)
+              Course(
+                title: m.title,
+                id: m.id,
+                credits: m.credits,
+                grade1: m.grade1,
+                grade2: m.grade2,
+                discipline: m.id.startsWith('CS') ? 'A7' : 'B3',
+                sem: m.sem,
+                elective: m.elective,
+              ),
+          ],
+          discipline: 'B3A7',
+        );
+        final b3 = dual.audit.categories.firstWhere(
+          (a) => a.label == 'CDC (B3)',
+        );
+        expect(b3.members.map((m) => m.id), ['MATH F111', 'BITS F111']);
+        final a7 = d.audit.categories.firstWhere((a) => a.label == 'CDC (A7)');
+        expect(a7.members.map((m) => m.id), containsAll(['MATH F111']));
       });
 
       test('no bucket when every course has a home', () {
@@ -326,5 +366,112 @@ void main() {
         });
       }
     }
+  });
+
+  group('reassigning on the Degree page', () {
+    late Directory dir;
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('hive_assign');
+      Hive.init(dir.path);
+      if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(CourseAdapter());
+      await Hive.openBox('settingsBox');
+      final box = await Hive.openBox<Course>(coursesBoxName);
+      Course c(String id, String tag) => Course(
+        title: id,
+        id: id,
+        credits: 3,
+        grade1: 8,
+        grade2: GradeCode.clr,
+        discipline: 'A7',
+        sem: '3 - 1',
+        elective: tag,
+      );
+      // Taken as a DEL, but another department's: the rules say OPEL.
+      await box.add(c('EEE F311', 'Disciplinary Elective2'));
+      await box.add(c('XYZ F101', 'CDCN'));
+      pinnedCategories = {};
+    });
+    tearDown(() async {
+      await Hive.deleteFromDisk();
+      await dir.delete(recursive: true);
+      pinnedCategories = {};
+    });
+
+    List<String> idsIn(String label) => [
+      for (final a in degreeAudit(allCourses(), '--A7').categories)
+        if (a.label == label) ...a.members.map((m) => m.id),
+    ];
+
+    test('a category set by hand stays where it was put', () async {
+      expect(idsIn('Open Electives'), ['EEE F311']);
+      final eee = allCourses().firstWhere((m) => m.id == 'EEE F311');
+      await setCourseCategory(eee, Elective.del2.tag);
+      expect(idsIn('Disciplinary Electives (A7)'), ['EEE F311']);
+      expect(idsIn('Open Electives'), isEmpty);
+      // Survives a reload of the settings.
+      pinnedCategories = {};
+      loadPinnedCategories(Hive.box('settingsBox'));
+      expect(idsIn('Disciplinary Electives (A7)'), ['EEE F311']);
+    });
+
+    testWidgets('the Unassigned course moves once assigned', (t) async {
+      t.view.physicalSize = const Size(390, 844);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      // Courses in memory: this checks the page rebuilds with the course
+      // in its new place; the test above checks what is stored.
+      var courses = allCourses().toList();
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          home: StatefulBuilder(
+            builder:
+                (context, setState) => StatsScreen(
+                  data: StatsData.from(all: courses, discipline: '--A7'),
+                  view: StatsView.degree,
+                  onViewChanged: (_) {},
+                  onTargetChanged: (_) {},
+                  onPlanChanged: (_, _) {},
+                  onBack: () {},
+                  onAssign: (course, tag) async {
+                    pinnedCategories = {...pinnedCategories, course.id};
+                    setState(
+                      () =>
+                          courses = [
+                            for (final m in courses)
+                              m == course ? m.copyWith(elective: tag) : m,
+                          ],
+                    );
+                  },
+                ),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      final scroll = find.byType(Scrollable).first;
+      await t.scrollUntilVisible(
+        find.text('Unassigned'),
+        200,
+        scrollable: scroll,
+      );
+      await Scrollable.ensureVisible(
+        t.element(find.text('Unassigned')),
+        alignment: 0.5,
+      );
+      await t.pumpAndSettle();
+      await t.tap(find.text('Unassigned'));
+      await t.pumpAndSettle();
+      final field = find.bySemanticsLabel(RegExp('^Counts as')).last;
+      await Scrollable.ensureVisible(t.element(field), alignment: 0.5);
+      await t.pumpAndSettle();
+      await t.tap(field);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Open Elective').last);
+      await t.pumpAndSettle();
+      expect(find.text('Unassigned'), findsNothing);
+      await t.tap(find.text('Open Electives'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('XYZ F101', findRichText: true), findsWidgets);
+    });
   });
 }

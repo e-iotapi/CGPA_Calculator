@@ -85,6 +85,7 @@ void _loadSettings(Box settingsBox) {
   );
   batch = settingsBox.get('batch', defaultValue: 24);
   campus = Campus.named(settingsBox.get('campus') as String?);
+  loadPinnedCategories(settingsBox);
   // Saved names from the removed colour themes fall back to White or Black.
   selected_theme = AppPalette.resolveName(
     settingsBox.get('selected_theme', defaultValue: selected_theme),
