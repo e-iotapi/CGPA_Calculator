@@ -17,6 +17,8 @@ class SettingsView extends StatelessWidget {
     required this.onClose,
     required this.onPickDiscipline,
     required this.onPickBatch,
+    this.campus,
+    this.onPickCampus,
     required this.onTheme,
     required this.onRenameProfile,
     required this.onExport,
@@ -49,6 +51,10 @@ class SettingsView extends StatelessWidget {
   /// `dual` picks the first half (the MSc), otherwise the second.
   final ValueChanged<bool> onPickDiscipline;
   final VoidCallback onPickBatch;
+
+  /// "Goa"; null until known.
+  final String? campus;
+  final VoidCallback? onPickCampus;
   final ValueChanged<bool> onTheme;
 
   /// 1 or 2.
@@ -125,6 +131,12 @@ class SettingsView extends StatelessWidget {
                     value: '20${batch.toString().padLeft(2, '0')}',
                     onTap: onPickBatch,
                   ),
+                  if (onPickCampus != null)
+                    _Item(
+                      label: 'Campus',
+                      value: campus ?? 'Not set',
+                      onTap: onPickCampus!,
+                    ),
                 ]),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, Space.xs, 4, 0),
