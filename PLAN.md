@@ -22,6 +22,7 @@ Verified, not assumed. `master` @ `af47351`, working tree clean.
 | Sync | Hive (local) ⇄ Firestore `users/{uid}`, debounced 1.5s, `rev` optimistic concurrency |
 | Firebase | project `cgpa-calculator-fb90c`, Spark plan |
 | Features | offshoot panel (47/50 verified), RC/W grades, CSV export, JSON import, in-app bug reports → `reports` collection |
+| Analytics | degree-requirement audit (`analytics.dart`, 924 lines) — **existing, must be preserved** |
 
 **Toolchain** (none on the default PATH — see `~/.claude/projects/.../memory/`):
 
@@ -66,6 +67,36 @@ The BITS domain regex in the rules needs the `(?i)` prefix. Without it an upperc
 - **No Chrome on this machine** — `flutter run -d chrome` does not work. Use `flutter build web --release` + `python3 -m http.server 5000 --directory build/web`, then the browser pane.
 - **The browser pane cannot emulate viewports for this app** — the Flutter canvas does not repaint at the emulated size. The pane's real width (~320px) is a usable narrow-phone proxy; anything else needs a real device.
 
+### 2.10 The course map has duplicate ids and alias titles — **never delete a row**
+Old courses stay in the map. Students on older batches need them to reproduce past
+semesters, and deleting a row silently changes the CGPA of anyone holding a grade
+against it. Every fix below is display-layer, not data removal.
+
+**Nine codes carry more than one title** — the same course spelled differently across
+disciplines. Collapse these to a single entry showing both names joined by ` / `,
+keeping every row in the map:
+
+| Code | Titles to join |
+|---|---|
+| `BITS F101` | Navigating Campus Life and Living Well / Social Conduct |
+| `BITS F113` | Gen Maths 1 / General Mathematics I |
+| `BITS F221` | PS 1 / Practice School I / Practice School-1 / Practice SchoolI |
+| `BITS F225` | Environmental Science / Environmental Studies |
+| `BITS K101` | Physical Fitness, Health Wellbeing and Creativity / Physical Well-being and Creativity |
+| `PHA F214` | Anatomy Physio and Hygiene / Anatomy, Physiology, & Hygiene |
+| `PHA F216` | Pharmaceutical Formulations 1 / Pharmaceutical Formulations I |
+| `PHY F111` | Mechanical Oscillations and Waves / Mechanics, Oscillations and Waves |
+
+⚠ **`MF F221` is not an alias.** It carries *Casting, Forming and Welding* and
+*Mechanisms and Machines* — two genuinely different courses sharing one code. Joining
+them with ` / ` would be wrong. This is a data error in the source list and needs the
+correct code looked up before it is touched; leave both rows alone until then.
+
+**32 rows use a lowercase `l` for the digit `1`** — `BITS F10l` (×16) and `BITS K10l`
+(×16), duplicating `BITS F101` and `BITS K101` inside the same discipline. Normalise
+`l` → `1` when matching and count the pair as one course. Do not rewrite or delete the
+rows: a user's stored grade is keyed on the id as written.
+
 ---
 
 ## 3. Target architecture
@@ -92,8 +123,9 @@ lib/
       offshoot.dart             (existing offshoot_calc.dart, moved)
       marks.dart                evaluative totals, best-n-of-m, scaling
       forecast.dart             target maths
+      requirements.dart         degree audit — CDC / DEl / HuEl / OpEl progress
   features/
-    semester/  offshoot/  stats/  marks/  calendar/  settings/
+    semester/  offshoot/  stats/  marks/  calendar/  analytics/  settings/
       each: <name>_page.dart + widgets/ + <name>_controller.dart
   shared/
     widgets/                    AppCard, GradeChip, StatCard, PillButton, AppNav
@@ -165,6 +197,9 @@ Branch off `master`. Record `flutter analyze` output (currently 0 errors, ~111 i
 
 ### Phase 1 — Foundation, no visible change
 `app/theme/tokens.dart`, `palette.dart`, `shared/layout/breakpoints.dart`, `shared/widgets/*`. Wire the existing themes into the new palette. Nothing else moves.
+Include **motion tokens** in `tokens.dart` — `fast` 120ms, `base` 220ms, `slow` 380ms, plus a standard curve.
+The current code hard-codes `Duration(milliseconds: 500)` in eight places; every new animation uses a token,
+and the existing eight are migrated as their screens are rebuilt in later phases.
 **Verify:** app renders identically. This phase should produce no UI diff.
 
 ### Phase 2 — Extract grading core ⚠ highest risk
@@ -185,9 +220,75 @@ CGPA after 4-1:   7.71  (158 credits shown, 155 denominator, 1195 points)
 Rebuild from `main_ui_extension.dart` into `features/semester/`. Greeting, editorial line, stat cards, semester pills, sort + export, course rows with `Expanded` + `min-width: 0` + ellipsis.
 **Verify:** long titles ellipsize instead of pushing the grade chip off screen.
 
+**Two tap targets per course row.** The row opens Marks; the grade chip opens a grade
+menu and must **not** also open Marks. A nested target inside a tappable row fires both
+handlers unless the inner one stops the event — the chip needs its own `GestureDetector`
+with `behavior: HitTestBehavior.opaque` above the row's `InkWell`. The chip draws at
+46×34 and its tap target must still reach 44px once padding is counted.
+
+The menu splits the scale deliberately: the eight graded values, then `NC` / `RC` / `W` /
+`GD`, which do not behave like grades — RC and W drop the credits from the CGPA entirely,
+GD keeps the credits but not the points (§2.1). The current dropdown hides that, and it
+is exactly where a wrong tap costs someone a believable CGPA, so the menu states it.
+Thirteenth option is "Not graded yet".
+
+**Add a course** — board `AddCourse`. The current sheet offers a department-code
+dropdown, a course-number dropdown *and* a search box: two ways in, neither explained,
+and the title field clips mid-word with no ellipsis. Search becomes the only primary
+path, over code or name; each result shows code, credits and category, and a course
+already held in another semester says so rather than being silently addable twice.
+Selecting one expands it — category stays editable (the same course counts differently
+per discipline), and the grade is the pill row above, not a dropdown. The manual path
+survives as a link for courses outside the master list. The submit button states the
+consequence: *Add to 4 − 1 · SGPA 9.17 → 9.22*.
+**Add manually** — board `AddManual`. ⚠ This was underspecified the first time: the plan
+said the manual path "survives as a link" and said nothing about its appearance, so the
+link was wired back to the legacy dialog in `overlays_extension.dart` and the old screen
+is still reachable one tap inside the new sheet. It needs the same treatment as the rest:
+
+- Same sheet chrome, a back arrow returning to search.
+- **Every field labelled.** The old dialog has six unlabelled controls — `AN`, `F311`,
+  `None`, `A` — none of which say what they are for.
+- **The title is a wrapping two-line box, not a fixed-width field.** The old one puts a
+  `Marquee` in it, so a long title slides back and forth forever: unreadable while it
+  moves, motion nobody asked for, and it ignores `prefers-reduced-motion`. Remove the
+  marquee; do not keep it anywhere else either (`overlays_extension.dart`, `home_page.dart`).
+- **Credits are a stepper**, not free text. The value is 1–9 in practice and a typo there
+  silently corrupts the CGPA denominator.
+- Grade uses the same pill grid as the menu above.
+- An amber note states the real limitation: a manual course is not in the BITS list, so
+  Degree progress can only count it under the category chosen here.
+
+**Verify:** a 60-character course title ellipsizes in the result row, the selected card
+and the course row, at 320px.
+
 ### Phase 5 — Offshoot restyle
 `offshoot_calc.dart` → `core/grading/offshoot.dart`, panel into `features/offshoot/`. Logic already correct; this is presentation only.
 **Verify:** still 47/50 and 54/60.
+
+### Phase 5b — Analytics / degree audit *(preserve, then restyle)*
+`analytics.dart` is an existing, working feature and **must not be dropped in the rewrite**.
+It answers "how much of my degree is done": credits and course counts per elective
+category — CDC1, CDC2, Disciplinary Elective 1/2, Humanity Elective, Open Elective —
+against the requirement for the selected discipline.
+
+- Move the `creditsforcourses` table (discipline → `[cdcCourses, cdcCredits, delCourses, delCredits]`)
+  into `core/grading/requirements.dart` as reference data. It is currently a local
+  variable inside a State class, and the same table is duplicated in the offshoot code.
+- `creds(tag, courses)` uses the same counting rule as CGPA — `grade1 > 0 || grade1 == -3`
+  — so it belongs beside `cgpa.dart`, not copied again (§2.1).
+- It reads `grade1` only (the Actual profile). Keep that; do not silently make it follow
+  `selectedprofile`.
+- The elective tags are a shared vocabulary across analytics, offshoot and the master
+  course list. Put them in one enum or constant set rather than string literals in three files.
+- Entry point is currently a nav button in `main_ui_extension.dart` pushing a full page.
+  **In the new UI it is not a separate page** — it becomes the second view of Stats
+  (Phase 6), behind a `Progression | Degree` segmented switch at the top of that screen.
+  So in this phase move the *logic* only and keep the old page reachable; the view is
+  rebuilt under `features/stats/` in Phase 6 and the old page is deleted there.
+
+**Verify:** for discipline `B3A7`, category totals and the "x / y" requirement counts match
+the current app exactly, before any restyling.
 
 ### Phase 6 — Stats *(new)*
 `core/grading/forecast.dart` — required average is exact, not a fitted curve:
@@ -197,6 +298,15 @@ required = (target × (doneCredits + futureCredits) − earnedPoints) / futureCr
 ```
 
 For target 8.00: **8.66 across the remaining 68 credits.** Chart, target line, per-semester sliders persisted to `settingsBox` (JSON-safe values only, §2.3).
+
+Stats has **two views** behind one segmented switch:
+- **Progression** — the chart, forecast and required-average card described above.
+- **Degree** — the Phase 5b audit: overall credits earned / required with a progress bar,
+  then one card per requirement category (earned / required credits, course counts, a bar,
+  a check when complete, dashed outline when not started).
+
+The switch is the only navigation between them; `analytics.dart` and its nav button are deleted
+once Degree renders the same numbers.
 **Verify:** the chart's last actual point equals the home screen's CGPA exactly.
 
 ### Phase 7 — Marks *(new, largest)*
@@ -215,14 +325,107 @@ Dates read from `EvalPart.date` — no separate store, nothing entered twice. Mo
 ### Phase 9 — Rename + branding
 `Pointer` in `pubspec.yaml` description, `web/index.html` title and meta, `manifest.json`, sign-in, landing. Tassel logo (concept 04) → regenerate all five icon sizes from the source, maskable at 60% for the circular crop.
 
+**The loading screen goes in this phase too.** `web/index.html` currently ships a blue
+card reading "Loading CGPA Calculator, Please Wait..." that looks nothing like the app
+it is loading. Replace it with the `Loading` artboard on the canvas — that board is the
+real markup, not a picture of one.
+
+It is the only screen in the design that is **not Flutter**: it paints before the engine
+boots, so it must stay pure CSS. No JS, no framework, nothing that waits on the bundle.
+The animation is the logo itself — the cap floats, the tassel bead swings off its cord,
+a sweep runs the bar — all compositor-only transforms, because the people who see this
+screen are the ones on a slow connection.
+
+Four things not to lose:
+- **The SEO fallback text stays in the DOM.** The old block doubles as crawlable content
+  and the site ranks on it. Keep the `h1` and the description; they move to a quiet
+  footer, they do not get deleted.
+- **`prefers-reduced-motion`** stops all three animations and leaves the bar filled and static.
+- **Fade, don't snap.** The current handler sets `display: none` on `flutter-first-frame`.
+  Use a short opacity transition instead, or the handoff to the app visibly jumps.
+- **Montserrat needs `preconnect` + `display=swap`**, or the font blocks first paint and
+  the loading screen is itself slow to load.
+
+Also stale in `index.html` and worth fixing in the same pass: `author`, `publisher` and
+the `og:site_name` / schema.org `author` still say Srijen Raja, and
+`apple-mobile-web-app-title` is `cgpa_calculator`.
+
 ⚠ **If the Netlify subdomain changes, the Firebase authorized domain must change with it, or sign-in breaks on the new URL.** Update both in the same sitting.
 
 ### Phase 10 — Responsive + accessibility sweep
 Replace all **62** `MediaQuery.size.height × n` / `width × n` call sites with fixed or intrinsic heights and flexible widths. Then **remove `TextScaler.noScaling`** from `MyApp` — it currently overrides the reader's font-size setting, which costs accessibility and hides exactly the layout bugs this phase is fixing.
 **Verify:** 320 / 768 / desktop with no overflow, and the layout survives 200% text scale.
 
-### Phase 11 — Ship
+### Phase 11 — Settings
+⚠ **Missed in the first pass** — Settings had no phase at all, so `settings.dart` is
+still the old screen while everything around it is rebuilt. Board `Settings`.
+
+Grouped cards instead of a stack of forty `FloatingActionButton`s: Account, Academics,
+Appearance, Grade profiles, Your data, then the two destructive-ish actions paired on one
+row. Rows are one shared component.
+
+- Theme control is **Light / Dark**, matching `AppPalette.named` from Phase 1 — the old
+  named-theme dropdown is gone.
+- The destructive warning stays attached to the control it describes: *"Changing the first
+  discipline clears your grades"* sits under Academics, not in a dialog nobody reads.
+- Reset is outlined in the warm tone, not filled red — it is reversible by re-adding
+  courses and should not look like account deletion.
+- Attribution footer: Siddharth Mishra, email, GitHub, and the Apache-2.0 credit to the
+  original CGPA Calculator.
+
+**Verify:** every control the old page had still exists and still works. This is a
+re-layout, not a feature cut.
+
+### Phase 12 — Ship
 Rules redeploy if touched, full build, deploy, and the acceptance list below.
+
+---
+
+## 6. UI audit — every board, is it built?
+
+One row per artboard on the canvas. Tick a row only after looking at the running app,
+not after reading the diff — the two gaps below were both found by opening the app and
+were both invisible in the commit log.
+
+| Board | Screen | Phase | Done |
+|---|---|---|---|
+| `Loading` | pre-boot loading screen (`web/index.html`) | 9 | [ ] |
+| `SignIn` | sign in | 9 | [ ] |
+| `Landing` | marketing landing page | 9 | [ ] |
+| `Main` | semester, light | 4 | [ ] |
+| `DarkMain` | semester, dark | 4 | [ ] |
+| `AddCourse` | add a course — search | 4 | [ ] |
+| `AddManual` | add a course — manual | 4 | [ ] |
+| `GradeMenu` | grade chip menu + row hit targets | 4 | [ ] |
+| `Offshoot` | offshoot panel, light | 5 | [ ] |
+| `DarkOffshoot` | offshoot panel, dark | 5 | [ ] |
+| `Stats` | stats — Progression view | 6 | [ ] |
+| `StatsDegree` | stats — Degree view | 6 | [ ] |
+| `Marks` | course marks | 7 | [ ] |
+| `MarksAdd` | add evaluative | 7 | [ ] |
+| `MarksSetup` | course setup | 7 | [ ] |
+| `Calendar` | calendar + offline strip | 8 | [ ] |
+| `Settings` | settings | 11 | [ ] |
+| `Responsive` | breakpoint behaviour (not a screen) | 10 | [ ] |
+| `Logo` | icon source (not a screen) | 9 | [ ] |
+
+**Old screens that must no longer be reachable.** A new screen shipping does not mean the
+old one is gone — both gaps found so far were legacy widgets still reachable behind a new
+one. Grep for these and confirm nothing routes to them:
+
+- [ ] the manual add-course dialog in `overlays_extension.dart`
+- [ ] the old settings page in `settings.dart`
+- [ ] the analytics page in `analytics.dart` and its nav button (replaced by Stats → Degree)
+- [ ] every `Marquee` (`overlays_extension.dart`, `home_page.dart`)
+- [ ] `TextScaler.noScaling` in `MyApp`
+
+**Per-screen checks that apply everywhere:**
+
+- [ ] a 60-character course title ellipsizes or wraps — it never clips mid-word and never scrolls
+- [ ] nothing overflows at 320px, and nothing overflows at 200% text scale
+- [ ] top content clears the safe area; the nav clears the home indicator
+- [ ] every tap target reaches 44px, including ones nested inside another target
+- [ ] both light and dark render — dark is not a dimmed light
 
 ---
 
@@ -236,6 +439,7 @@ Rules redeploy if touched, full build, deploy, and the acceptance list below.
 - [ ] Marks reproduces the source spreadsheet exactly (Phase 7)
 - [ ] A date entered once appears in Calendar
 - [ ] Class-average delta matches `yours − average`, and is absent when unset
+- [ ] Degree audit shows the same category credits and counts as the current app, as the Degree view of Stats
 - [ ] No overflow at 320px, tablet, desktop, or at 200% text
 - [ ] Icons correct on iOS home screen, Android launcher, browser tab
 - [ ] Firestore usage well inside the free tier

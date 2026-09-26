@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 class PwaHelper {
   static bool get isWebPlatform => false;
+  static bool get isStandalone => false;
   static bool get isIOSWeb => false;
   static bool get isAndroidWeb => false;
 

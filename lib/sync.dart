@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -11,20 +12,26 @@ import 'package:hive/hive.dart';
 /// any box change, guarded by an optimistic `rev` counter. On conflict the
 /// server wins and the un-pushed local snapshot is stashed in syncMeta['backup'].
 class Sync {
-  static const _boxes = ['settingsBox', 'coursesBox', 'offshootBox'];
+  static const _boxes = [
+    'settingsBox',
+    'coursesBox',
+    'offshootBox',
+    'marksBox',
+  ];
   static late Box _meta; // uid, rev, last (last synced snapshot), backup
   static late DocumentReference<Map<String, dynamic>> _doc;
   static Timer? _debounce;
   static final List<StreamSubscription> _subs = [];
 
   static Box _box(String n) =>
-      n == 'settingsBox' ? Hive.box(n) : Hive.box<Course>(n);
+      n == 'settingsBox' || n == 'marksBox' ? Hive.box(n) : Hive.box<Course>(n);
 
   static Future<void> openBoxes() async {
     _meta = await Hive.openBox('syncMeta');
     await Hive.openBox('settingsBox');
     await Hive.openBox<Course>('coursesBox');
     await Hive.openBox<Course>('offshootBox');
+    await Hive.openBox('marksBox');
   }
 
   static Future<void> clearLocal() async {
@@ -49,6 +56,15 @@ class Sync {
           _debounce = Timer(const Duration(milliseconds: 1500), push);
         }),
       );
+    }
+  }
+
+  /// Local changes not yet pushed. False before sync has started.
+  static bool get hasUnsynced {
+    try {
+      return snapshot() != _meta.get('last');
+    } catch (_) {
+      return false;
     }
   }
 
@@ -79,6 +95,10 @@ class Sync {
             'sem': v.sem,
             'elective': v.elective,
           }
+          : v is Evaluative
+          ? v.toJson()
+          : v is CourseConfig
+          ? v.toJson()
           : v;
 
   static Course _course(Map m) => Course(
@@ -173,6 +193,10 @@ class Sync {
       await box.clear();
       if (n == 'settingsBox') {
         await box.putAll({for (final r in rows) r[0]: r[1]});
+      } else if (n == 'marksBox') {
+        await box.putAll({
+          for (final r in rows) r[0]: marksFromJson(Map.from(r[1])),
+        });
       } else {
         await (box as Box<Course>).putAll({
           for (final r in rows) r[0]: _course(Map.from(r[1])),

@@ -8,6 +8,11 @@ import 'package:cgpa_calculator/constants.dart';
 class PwaHelper {
   static bool get isWebPlatform => true;
 
+  /// Running as the installed app rather than in a browser tab.
+  static bool get isStandalone =>
+      html.window.matchMedia('(display-mode: standalone)').matches ||
+      (js.context['navigator']['standalone'] == true);
+
   static bool get isIOSWeb {
     final ua = html.window.navigator.userAgent.toLowerCase();
     final isIos = ua.contains('iphone') || 
@@ -135,7 +140,7 @@ class PwaHelper {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Install CGPA Calculator",
+                            "Install Pointer",
                             style: TextStyle(
                               fontSize: 19,
                               fontWeight: FontWeight.bold,

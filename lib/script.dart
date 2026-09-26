@@ -1,35 +1,23 @@
 // import 'dart:ffi';
 import 'dart:convert';
-import 'dart:js_interop';
 import 'dart:ui' as ui;
-import 'package:web/web.dart' as web;
+import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/constants.dart';
+import 'package:cgpa_calculator/core/grading/cgpa.dart';
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 
-/// Triggers a browser download of [bytes] as [filename].
-void _downloadBytes(List<int> bytes, String filename, String mime) {
-  final blob = web.Blob(
-    [Uint8List.fromList(bytes).toJS].toJS,
-    web.BlobPropertyBag(type: mime),
-  );
-  final url = web.URL.createObjectURL(blob);
-  final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.style.display = 'none';
-  web.document.body!.append(anchor);
-  anchor.click();
-  anchor.remove();
-  web.URL.revokeObjectURL(url);
-}
+export 'package:cgpa_calculator/core/grading/grade_scale.dart';
 
 void saveImageWeb(Uint8List bytes, String filename) =>
-    _downloadBytes(bytes, filename, 'image/png');
+    downloadBytes(bytes, filename, 'image/png');
 
 String _csvCell(Object? v) {
   final s = v?.toString() ?? '';
@@ -83,7 +71,7 @@ String exportGradesCsv() {
       'CGPA_Grades_${DateTime.now().toIso8601String().split("T").first}.csv';
   // BOM so Excel opens UTF-8 correctly.
   final bytes = <int>[0xEF, 0xBB, 0xBF, ...utf8.encode(buildGradesCsv())];
-  _downloadBytes(bytes, name, 'text/csv;charset=utf-8');
+  downloadBytes(bytes, name, 'text/csv;charset=utf-8');
   return name;
 }
 
@@ -99,9 +87,9 @@ Future<void> basicStartup() async {
     'selectedcampus',
     defaultValue: selectedcampus,
   );
-  selected_theme = settingsBox.get(
-    'selected_theme',
-    defaultValue: selected_theme,
+  // Saved names from the removed colour themes fall back to White or Black.
+  selected_theme = AppPalette.resolveName(
+    settingsBox.get('selected_theme', defaultValue: selected_theme),
   );
   degree_selected = settingsBox.get('degree_selected', defaultValue: false);
   currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
@@ -148,9 +136,9 @@ Future<void> initializeCourses() async {
     'selectedcampus',
     defaultValue: selectedcampus,
   );
-  selected_theme = settingsBox.get(
-    'selected_theme',
-    defaultValue: selected_theme,
+  // Saved names from the removed colour themes fall back to White or Black.
+  selected_theme = AppPalette.resolveName(
+    settingsBox.get('selected_theme', defaultValue: selected_theme),
   );
   degree_selected = settingsBox.get('degree_selected', defaultValue: false);
   currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
@@ -184,7 +172,7 @@ Future<void> initializeCourses() async {
           ((selecteddiscipline.substring(0, 2) != "--")
               ? selecteddiscipline.substring(2, 4)
               : "cccc")) {
-        if (course.elective == "CDC2" &&
+        if (course.elective == Elective.cdc2.tag &&
             !tempaddedcourses.contains(course.title)) {
           if (selecteddiscipline == "B5AA" ||
               selecteddiscipline == "B5A3" ||
@@ -295,7 +283,7 @@ Future<void> initializeCourses() async {
                   course.title == "Numerical Analysis" ||
                   course.title == "Electromagnetic Theory")) {
               } else {
-                if (course.elective == "CDC2") {
+                if (course.elective == Elective.cdc2.tag) {
                   tempsem = course.sem;
                   tempsem =
                       (int.parse(tempsem.substring(0, 1)) + 1).toString() +
@@ -321,7 +309,7 @@ Future<void> initializeCourses() async {
                 }
               }
             } else {
-              if (course.elective == "CDC2") {
+              if (course.elective == Elective.cdc2.tag) {
                 tempsem = course.sem;
                 tempsem =
                     (int.parse(tempsem.substring(0, 1)) + 1).toString() +
@@ -362,7 +350,7 @@ Future<void> initializeCourses() async {
         tempcourses.add(item.title);
       }
       if (item.discipline.startsWith("A") &&
-          item.elective == "CDC2" &&
+          item.elective == Elective.cdc2.tag &&
           !item.sem.startsWith("1")) {
         if (selecteddiscipline.startsWith("B") && !item.sem.startsWith("1")) {
           keysToDelete.add(key);
@@ -403,7 +391,7 @@ Future<void> initializeCourses() async {
                 course.title == "Numerical Analysis" ||
                 course.title == "Electromagnetic Theory")) {
               // print("D");
-              if (course.elective == "CDC2" &&
+              if (course.elective == Elective.cdc2.tag &&
                   selecteddiscipline.startsWith("B")) {
                 tempsem = course.sem;
                 tempsem =
@@ -429,7 +417,7 @@ Future<void> initializeCourses() async {
               }
             }
           } else {
-            if (course.elective == "CDC2" &&
+            if (course.elective == Elective.cdc2.tag &&
                 selecteddiscipline.startsWith("B")) {
               tempsem = course.sem;
               tempsem =
@@ -620,86 +608,24 @@ Future<void> addOrUpdateCourseOffshoot(Course course) async {
   } catch (e) {}
 }
 
-String gradecalc(int s) {
-  return (s == 10)
-      ? "A"
-      : (s == 9)
-      ? "A-"
-      : (s == 8)
-      ? "B"
-      : (s == 7)
-      ? "B-"
-      : (s == 6)
-      ? "C"
-      : (s == 5)
-      ? "C-"
-      : (s == 4)
-      ? "D"
-      : (s == 2)
-      ? "E"
-      : (s == -1)
-      ? "NC"
-      : (s == -2)
-      ? "CLR"
-      : (s == -3)
-      ? "GD"
-      : (s == -6)
-      ? "RC"
-      : (s == -7)
-      ? "W"
-      : (s == -5)
-      ? "–"
-      : "?";
-}
-
 String electiveFinder(String s) {
-  if (s == "CDC2") {
+  if (s == Elective.cdc2.tag) {
     return selecteddiscipline.substring(2, 4) + " " + "CDC";
-  } else if (s == "CDC1") {
+  } else if (s == Elective.cdc1.tag) {
     return selecteddiscipline.substring(0, 2) + " " + "CDC";
   } else if (s == "CDCN") {
     return "None";
-  } else if (s == "Open Elective") {
-    return "Open Elective";
-  } else if (s == "Disciplinary Elective2") {
+  } else if (s == Elective.open.tag) {
+    return Elective.open.tag;
+  } else if (s == Elective.del2.tag) {
     return selecteddiscipline.substring(2, 4) + " " + "Disciplinary Elective";
-  } else if (s == "Disciplinary Elective1") {
+  } else if (s == Elective.del1.tag) {
     return selecteddiscipline.substring(0, 2) + " " + "Disciplinary Elective";
-  } else if (s == "Humanity Elective") {
-    return "Humanity Elective";
+  } else if (s == Elective.humanity.tag) {
+    return Elective.humanity.tag;
   } else {
     return s;
   }
-}
-
-int reversegradecalc(String s) {
-  return (s == "A")
-      ? 10
-      : (s == "A-")
-      ? 9
-      : (s == "B")
-      ? 8
-      : (s == "B-")
-      ? 7
-      : (s == "C")
-      ? 6
-      : (s == "C-")
-      ? 5
-      : (s == "D")
-      ? 4
-      : (s == "E")
-      ? 2
-      : (s == "NC")
-      ? -1
-      : (s == "CLR" || s=="")
-      ? -2
-      : (s == "GD")
-      ? -3
-      : (s == "RC")
-      ? -6
-      : (s == "W")
-      ? -7
-      : -100;
 }
 
 void setnavcolor() {
@@ -713,192 +639,70 @@ void setnavcolor() {
 
 
 
+// GPA maths lives in core/grading/cgpa.dart. These keep the old names and the
+// globals for screens that have not been rebuilt yet.
+
+GpaTally _semTally(String sem, Profile p) => semesterTally(
+  Hive.box<Course>('coursesBox').values,
+  sem: sem,
+  discipline: selecteddiscipline,
+  profile: p,
+);
+
+GpaTally _cumTally(Profile p) => cumulativeTally(
+  Hive.box<Course>('coursesBox').values,
+  discipline: selecteddiscipline,
+  profile: p,
+);
+
+/// SGPA of [s] for the selected profile, rounded; -3.0 if no profile.
 double sgcalc(String s) {
-  var allCourses = Hive.box<Course>('coursesBox').values.where(
-    (course) =>
-        course.sem == s &&
-        (course.discipline == selecteddiscipline.substring(0, 2) ||
-            course.discipline == selecteddiscipline.substring(2, 4)),
-  );
-  double dontCount = 0;
-  double s1 = 0;
-  if (selectedprofile == 1) {
-    for (Course i in allCourses) {
-      s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
-      if (i.grade1 == -3) {
-        dontCount += i.credits;
-      }
-    }
-    double sum = 0;
-    for (Course i in allCourses) {
-      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
-    }
-    return ((s1 - dontCount) != 0)
-        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
-        : 0;
-  } else if (selectedprofile == 2) {
-    for (Course i in allCourses) {
-      s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
-      if (i.grade2 == -3) {
-        dontCount += i.credits;
-      }
-    }
-    double sum = 0;
-    for (Course i in allCourses) {
-      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
-    }
-    return ((s1 - dontCount) != 0)
-        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
-        : 0;
-  } else {
-    return -3.0;
-  }
+  final p = Profile.fromId(selectedprofile);
+  return p == null ? -3.0 : _semTally(s, p).rounded;
 }
 
-String sgcomp(String s) {
-  var allCourses = Hive.box<Course>('coursesBox').values.where(
-    (course) =>
-        course.sem == currentsem &&
-        (course.discipline == selecteddiscipline.substring(0, 2) ||
-            course.discipline == selecteddiscipline.substring(2, 4)),
-  );
-  double dontCount = 0;
-  double s1 = 0;
-  String ans = "";
-  for (Course i in allCourses) {
-    s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
-    if (i.grade1 == -3) {
-      dontCount += i.credits;
-    }
-  }
-  double sum = 0;
-  for (Course i in allCourses) {
-    sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
-  }
-  ans =
-      ((s1 - dontCount) != 0)
-          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
-          : "0";
-  ans += ' ';
-  s1 = 0;
-  dontCount = 0;
-  for (Course i in allCourses) {
-    s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
-    if (i.grade2 == -3) {
-      dontCount += i.credits;
-    }
-  }
-  sum = 0;
-  for (Course i in allCourses) {
-    sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
-  }
-  return ans +
-      (((s1 - dontCount) != 0)
-          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
-          : "0");
-}
+/// "actual expected" SGPA of the current semester. [s] is ignored, as it
+/// always was.
+String sgcomp(String s) =>
+    '${_semTally(currentsem, Profile.actual).fixed} '
+    '${_semTally(currentsem, Profile.expected).fixed}';
 
+/// CGPA for the selected profile, rounded; -3.0 if no profile.
 double cgcalc() {
-  var allCourses = Hive.box<Course>('coursesBox').values.where(
-    (course) =>
-        (course.discipline == selecteddiscipline.substring(0, 2) ||
-            course.discipline == selecteddiscipline.substring(2, 4)),
-  );
-  double dontCount = 0;
-  double s1 = 0;
-  if (selectedprofile == 1) {
-    for (Course i in allCourses) {
-      s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
-      if (i.grade1 == -3) {
-        dontCount += i.credits;
-      }
-    }
-    double sum = 0;
-    for (Course i in allCourses) {
-      sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
-    }
-    return ((s1 - dontCount) != 0)
-        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
-        : 0;
-  } else if (selectedprofile == 2) {
-    for (Course i in allCourses) {
-      s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
-      if (i.grade2 == -3) {
-        dontCount += i.credits;
-      }
-    }
-    double sum = 0;
-    for (Course i in allCourses) {
-      sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
-    }
-    return ((s1 - dontCount) != 0)
-        ? double.parse(((sum) / (s1 - dontCount)).toStringAsFixed(2))
-        : 0;
-  }
-  return -3.0;
+  final p = Profile.fromId(selectedprofile);
+  return p == null ? -3.0 : _cumTally(p).rounded;
 }
 
-String cgcomp() {
-  var allCourses = Hive.box<Course>('coursesBox').values.where(
-    (course) =>
-        (course.discipline == selecteddiscipline.substring(0, 2) ||
-            course.discipline == selecteddiscipline.substring(2, 4)),
-  );
-  String ans = "";
-  double dontCount = 0;
-  double s1 = 0;
-  for (Course i in allCourses) {
-    s1 += (i.grade1 > 0 || i.grade1 == -3) ? i.credits : 0;
-    if (i.grade1 == -3) {
-      dontCount += i.credits;
-    }
-  }
-  double sum = 0;
-  for (Course i in allCourses) {
-    sum += (i.grade1 > 0) ? (i.grade1 * i.credits) : 0;
-  }
-  ans =
-      ((s1 - dontCount) != 0)
-          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
-          : "0";
-  ans += " ";
-  s1 = 0;
-  dontCount = 0;
-  for (Course i in allCourses) {
-    s1 += (i.grade2 > 0 || i.grade2 == -3) ? i.credits : 0;
-    if (i.grade2 == -3) {
-      dontCount += i.credits;
-    }
-  }
-  sum = 0;
-  for (Course i in allCourses) {
-    sum += (i.grade2 > 0) ? (i.grade2 * i.credits) : 0;
-  }
-  return ans +
-      (((s1 - dontCount) != 0)
-          ? ((sum) / (s1 - dontCount)).toStringAsFixed(2)
-          : "0");
+/// "actual expected" CGPA.
+String cgcomp() =>
+    '${_cumTally(Profile.actual).fixed} ${_cumTally(Profile.expected).fixed}';
+
+/// Credits shown beside the SGPA/CGPA, per profile, into the scred/ccred
+/// globals.
+void creditTotals() {
+  scred1 = _semTally(currentsem, Profile.actual).shownCredits;
+  scred2 = _semTally(currentsem, Profile.expected).shownCredits;
+  ccred1 = _cumTally(Profile.actual).shownCredits;
+  ccred2 = _cumTally(Profile.expected).shownCredits;
 }
-
-
 
 void electiveSetter() {
   if (addcourse == "HSS" ||
       addcourse == "GS" ||
       huel.contains(addcourse + " " + addcourseid)) {
-    selectedelective = "Humanity Elective";
+    selectedelective = Elective.humanity.tag;
   } else if (del[selecteddiscipline.substring(2, 4)]!.contains(
     addcourse + " " + addcourseid,
   )) {
-    selectedelective = "Disciplinary Elective2";
+    selectedelective = Elective.del2.tag;
   } else if (del[selecteddiscipline.substring(0, 2)]!.contains(
     addcourse + " " + addcourseid,
   )) {
-    selectedelective = "Disciplinary Elective1";
+    selectedelective = Elective.del1.tag;
   } else if (nonelist.contains(addcourse + " " + addcourseid)) {
     selectedelective = "CDCN";
   } else {
-    selectedelective = "Open Elective";
+    selectedelective = Elective.open.tag;
   }
 }
 
@@ -908,6 +712,11 @@ double cgpa = 0.00;
 int tapid = 0;
 int batch = 24;
 String selecteddiscipline = "----"; //store
+
+/// Halves of [selecteddiscipline] as the first-run discipline dialog edits
+/// them.
+String selectdual = selecteddiscipline.substring(0, 2);
+String selecengg = selecteddiscipline.substring(2, 4);
 String selectedcampus = "Hyd";
 int selectedprofile = 1;
 int selectedgrade = 10;
@@ -962,34 +771,8 @@ final List<String> depts = [
   "PHY",
   "SNS",
 ];
-final List<String> grades = [
-  "A",
-  "A-",
-  "B",
-  "B-",
-  "C",
-  "C-",
-  "D",
-  "E",
-  "NC",
-  "RC",
-  "W",
-  "CLR",
-  "GD",
-  ""
-];
-final List<String> sems = [
-  "1 - 1",
-  "1 - 2",
-  "2 - 1",
-  "2 - 2",
-  "PS 1",
-  "3 - 1",
-  "3 - 2",
-  "ST 1",
-  "4 - 1",
-  "4 - 2",
-];
+final List<String> grades = pickerGrades;
+final List<String> sems = baseSemesters;
 final List<String> degreelist = [
   "B1",
   "B2",

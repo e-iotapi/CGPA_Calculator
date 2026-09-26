@@ -9,12 +9,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:cgpa_calculator/core/models/marks.dart';
+import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await Hive.initFlutter();
   Hive.registerAdapter(CourseAdapter());
+  registerMarksAdapters();
   await Sync.openBoxes();
   final user = await FirebaseAuth.instance.authStateChanges().first;
   if (user == null || !isBitsEmail(user.email)) {
@@ -130,196 +133,11 @@ class _SignInAppState extends State<SignInApp>
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CGPA Calculator',
+      title: 'Pointer',
       scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: thm.highcolor),
-      ),
-      home: Scaffold(
-        backgroundColor: thm.backcolor,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, c) {
-              final narrow = c.maxWidth < 360;
-              return SingleChildScrollView(
-                // Scrolls rather than overflowing on short/landscape windows.
-                padding: EdgeInsets.symmetric(
-                  horizontal: narrow ? 20 : 26,
-                  vertical: 24,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: c.maxHeight - 48 > 0 ? c.maxHeight - 48 : 0,
-                    maxWidth: 400,
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _entrance(
-                          0,
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              height: 62,
-                              width: 62,
-                              decoration: BoxDecoration(
-                                color: thm.cardcolor,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: thm.bordcolor.withValues(alpha: 0.12),
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Icon(
-                                Icons.school_rounded,
-                                size: 31,
-                                color: thm.highcolor,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 26),
-                        _entrance(
-                          1,
-                          Text(
-                            'CGPA',
-                            style: TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontSize: narrow ? 34 : 41,
-                              height: 1.04,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -1.2,
-                              color: thm.textcolor.withValues(alpha: 0.42),
-                            ),
-                          ),
-                        ),
-                        _entrance(
-                          2,
-                          Text(
-                            'Calculator',
-                            style: TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontSize: narrow ? 34 : 41,
-                              height: 1.04,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: -1.2,
-                              color: thm.textcolor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _entrance(
-                          3,
-                          Text(
-                            'Track every semester, compare what-ifs and plan '
-                            'your offshoot. Sign in with your BITS campus ID — '
-                            'Pilani, Goa, Hyderabad or Dubai — and your grades '
-                            'follow you to any device.',
-                            style: TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontSize: 13.5,
-                              height: 1.55,
-                              color: thm.textcolor.withValues(alpha: 0.62),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-                        _entrance(
-                          4,
-                          SizedBox(
-                            height: 56,
-                            child: Material(
-                              color: thm.textcolor,
-                              borderRadius: BorderRadius.circular(28),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(28),
-                                onTap: _busy ? null : _signIn,
-                                child: Center(
-                                  child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 220),
-                                    child:
-                                        _busy
-                                            ? SizedBox(
-                                              key: const ValueKey('busy'),
-                                              height: 20,
-                                              width: 20,
-                                              child:
-                                                  CircularProgressIndicator(
-                                                    strokeWidth: 2.4,
-                                                    color: thm.backcolor,
-                                                  ),
-                                            )
-                                            : Row(
-                                              key: const ValueKey('idle'),
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Container(
-                                                  height: 26,
-                                                  width: 26,
-                                                  decoration: BoxDecoration(
-                                                    color: thm.backcolor,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  alignment: Alignment.center,
-                                                  child: Text(
-                                                    'G',
-                                                    style: TextStyle(
-                                                      fontFamily: 'Montserrat',
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: thm.highcolor,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 11),
-                                                Flexible(
-                                                  child: Text(
-                                                    'Continue with Google',
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      fontFamily: 'Montserrat',
-                                                      fontSize: 15,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: thm.backcolor,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        _entrance(
-                          5,
-                          Text(
-                            'Based on the CGPA Calculator by Srijen Raja · Apache-2.0',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontSize: 9.5,
-                              color: thm.textcolor.withValues(alpha: 0.4),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
+      theme: thm.materialTheme,
+      home: SignInView(busy: _busy, onSignIn: _signIn, entrance: _entrance),
     );
   }
 }
@@ -330,19 +148,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.noScaling),
-          child: child!,
-        );
-      },
-      title: 'CGPA Calculator',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: thm.highcolor),
-      ),
-      home: const MyHomePage(title: 'CGPA CALCULATOR'),
+      title: 'Pointer',
+      theme: thm.materialTheme,
+      home: const MyHomePage(title: 'Pointer'),
     );
   }
 }

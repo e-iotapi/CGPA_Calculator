@@ -72,7 +72,7 @@ extension OverlaysExtension on _MyHomePageState {
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: SizedBox(
-                                    height: hei * 0.44,
+                                    height: 372.0,
                                     width: wid * 0.85,
                                     child: Column(
                                       children: [
@@ -122,10 +122,10 @@ extension OverlaysExtension on _MyHomePageState {
                                         Row(
                                           children: [
                                             Spacer(flex: 1),
-                                            SizedBox(height: hei * 0.1),
+                                            SizedBox(height: 72.0),
                                             Container(
                                               margin: EdgeInsets.only(right: 0),
-                                              height: hei * 0.08,
+                                              height: 60.0,
                                               width: wid * 0.8,
                                               decoration: BoxDecoration(
                                                 border: Border.all(
@@ -171,7 +171,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                 child: Row(
                                                   children: [
                                                     Container(
-                                                      height: hei * 0.08,
+                                                      height: 60.0,
                                                       decoration: BoxDecoration(
                                                         border: Border.all(
                                                           color: thm.bordcolor,
@@ -479,7 +479,7 @@ extension OverlaysExtension on _MyHomePageState {
                                           children: [
                                             Spacer(flex: 1),
                                             SizedBox(
-                                              height: hei * 0.08,
+                                              height: 60.0,
                                               width: wid * 0.8,
                                               child: Row(
                                                 children: [
@@ -644,7 +644,7 @@ extension OverlaysExtension on _MyHomePageState {
                                 child: Padding(
                                   padding: EdgeInsets.all(wid * 0.025),
                                   child: SizedBox(
-                                    height: hei * 0.50,
+                                    height: 420.0,
                                     width: wid * 0.85,
                                     child: Column(
                                       children: [
@@ -866,7 +866,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                     WidgetStateProperty.all(0),
                                                 viewConstraints: BoxConstraints(
                                                   minHeight: 0,
-                                                  maxHeight: hei * 0.3,
+                                                  maxHeight: 250.0,
                                                 ),
                                                 barTextStyle:
                                                     WidgetStateProperty.resolveWith(
@@ -997,12 +997,12 @@ extension OverlaysExtension on _MyHomePageState {
                                         Spacer(flex: 1),
                                         Row(
                                           children: [
-                                            SizedBox(height: hei * 0.1),
+                                            SizedBox(height: 72.0),
                                             Container(
                                               padding: EdgeInsets.only(
                                                 right: 0,
                                               ),
-                                              height: hei * 0.08,
+                                              height: 60.0,
                                               width: wid * 0.62,
                                               decoration: BoxDecoration(
                                                 border: Border.all(
@@ -1035,7 +1035,7 @@ extension OverlaysExtension on _MyHomePageState {
                                             ),
                                             Spacer(flex: 1),
                                             Container(
-                                              height: hei * 0.08,
+                                              height: 60.0,
                                               decoration: BoxDecoration(
                                                 border: Border.all(
                                                   color: thm.bordcolor,
@@ -1081,7 +1081,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                         constraints:
                                                             BoxConstraints.tightFor(
                                                               height:
-                                                                  hei * 0.07,
+                                                                  56.0,
                                                             ),
                                                       ),
                                                 ),
@@ -1143,7 +1143,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                           ),
                                                     ),
                                                     DropdownMenuEntry(
-                                                      value: "CDC2",
+                                                      value: Elective.cdc2.tag,
                                                       label:
                                                           "CDC (" +
                                                           selecteddiscipline
@@ -1160,8 +1160,8 @@ extension OverlaysExtension on _MyHomePageState {
                                                           ),
                                                     ),
                                                     DropdownMenuEntry(
-                                                      value: "Open Elective",
-                                                      label: "Open Elective",
+                                                      value: Elective.open.tag,
+                                                      label: Elective.open.tag,
                                                       style:
                                                           MenuItemButton.styleFrom(
                                                             textStyle: TextStyle(
@@ -1174,9 +1174,9 @@ extension OverlaysExtension on _MyHomePageState {
                                                     ),
                                                     DropdownMenuEntry(
                                                       value:
-                                                          "Humanity Elective",
+                                                          Elective.humanity.tag,
                                                       label:
-                                                          "Humanity Elective",
+                                                          Elective.humanity.tag,
                                                       style:
                                                           MenuItemButton.styleFrom(
                                                             textStyle: TextStyle(
@@ -1189,7 +1189,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                     ),
                                                     DropdownMenuEntry(
                                                       value:
-                                                          "Disciplinary Elective2",
+                                                          Elective.del2.tag,
                                                       label:
                                                           "Disciplinary Elective (" +
                                                           selecteddiscipline
@@ -1208,7 +1208,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                     if (selecteddiscipline
                                                         .startsWith("B"))
                                                       DropdownMenuEntry(
-                                                        value: "CDC1",
+                                                        value: Elective.cdc1.tag,
                                                         label:
                                                             "CDC (" +
                                                             selecteddiscipline
@@ -1230,7 +1230,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                         .startsWith("B"))
                                                       DropdownMenuEntry(
                                                         value:
-                                                            "Disciplinary Elective1",
+                                                            Elective.del1.tag,
                                                         label:
                                                             "Disciplinary Elective (" +
                                                             selecteddiscipline
@@ -1273,7 +1273,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                         constraints:
                                                             BoxConstraints.tightFor(
                                                               height:
-                                                                  hei * 0.07,
+                                                                  56.0,
                                                             ),
                                                       ),
                                                 ),
@@ -1351,7 +1351,7 @@ extension OverlaysExtension on _MyHomePageState {
                                           children: [
                                             Spacer(flex: 1),
                                             SizedBox(
-                                              height: hei * 0.08,
+                                              height: 60.0,
                                               width: wid * 0.8,
                                               child: FloatingActionButton(
                                                 backgroundColor: thm.butcolor,
@@ -1571,7 +1571,7 @@ extension OverlaysExtension on _MyHomePageState {
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: SizedBox(
-                                    height: hei * 0.42,
+                                    height: 360.0,
                                     width: wid * 0.75,
                                     child: Column(
                                       children: [
@@ -1619,7 +1619,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                           ),
                                                       constraints:
                                                           BoxConstraints.tightFor(
-                                                            height: hei * 0.07,
+                                                            height: 56.0,
                                                           ),
                                                     ),
                                               ),
@@ -1747,7 +1747,7 @@ extension OverlaysExtension on _MyHomePageState {
                                                           ),
                                                       constraints:
                                                           BoxConstraints.tightFor(
-                                                            height: hei * 0.07,
+                                                            height: 56.0,
                                                           ),
                                                     ),
                                               ),
@@ -1955,7 +1955,7 @@ extension OverlaysExtension on _MyHomePageState {
                                           children: [
                                             Spacer(flex: 1),
                                             SizedBox(
-                                              height: hei * 0.08,
+                                              height: 60.0,
                                               width: wid * 0.7,
                                               child: FloatingActionButton(
                                                 child: Text(
