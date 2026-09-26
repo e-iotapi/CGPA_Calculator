@@ -140,7 +140,7 @@ class PwaHelper {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Install CGPA Calculator",
+                            "Install Pointer",
                             style: TextStyle(
                               fontSize: 19,
                               fontWeight: FontWeight.bold,
