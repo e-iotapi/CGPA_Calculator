@@ -153,12 +153,43 @@ void main() {
       expect(formatGpa(d.current.overall), '7.67');
     });
 
-    test('editorial states the gap to the running CGPA', () {
+    test('editorial compares the CGPA with last semester\'s', () {
+      // 7.67 overall against 6.00 after 2 - 1.
       expect(
         _data(SemesterMode.actual).editorial,
-        'This semester you are 0.83 above your running CGPA.',
+        'Your CGPA is 1.67 above last semester\'s.',
       );
-      expect(_data(SemesterMode.actual).editorialEmphasis, '0.83 above');
+      expect(_data(SemesterMode.actual).editorialEmphasis, '1.67 above');
+      // Expected has nothing graded before 4 - 1: no comparison at all.
+      expect(
+        _data(SemesterMode.expected).editorial,
+        'Nothing graded before 4 - 1 to compare with.',
+      );
+      expect(_data(SemesterMode.expected).editorialEmphasis, isNull);
+      // The first graded semester has no last semester either.
+      expect(
+        _data(SemesterMode.actual, sem: '2 - 1').editorial,
+        'Nothing graded before 2 - 1 to compare with.',
+      );
+      final level = [
+        _c('A', 'CS F111', 3, 8, g2: 8, sem: '1 - 1'),
+        _c('B', 'CS F222', 3, 8, g2: 8, sem: '1 - 2'),
+      ];
+      SemesterData on(SemesterMode m) => SemesterData.from(
+        allCourses: level,
+        visible: [level[1]],
+        sem: '1 - 2',
+        semesters: semestersFor('B3A7'),
+        discipline: 'B3A7',
+        mode: m,
+        sort: CourseSort.creditsAsc,
+        profileNames: const ['Actual', 'Expected', 'P3', 'P4', 'P5'],
+      );
+      expect(
+        on(SemesterMode.expected).editorial,
+        'Your expected CGPA is the same as last semester\'s.',
+      );
+      expect(on(SemesterMode.expected).editorialEmphasis, 'the same as');
       expect(
         _data(SemesterMode.actual, sem: '4 - 2').editorial,
         'Nothing graded in 4 - 2 yet.',
