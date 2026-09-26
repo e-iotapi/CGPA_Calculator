@@ -22,6 +22,7 @@ Verified, not assumed. `master` @ `af47351`, working tree clean.
 | Sync | Hive (local) ⇄ Firestore `users/{uid}`, debounced 1.5s, `rev` optimistic concurrency |
 | Firebase | project `cgpa-calculator-fb90c`, Spark plan |
 | Features | offshoot panel (47/50 verified), RC/W grades, CSV export, JSON import, in-app bug reports → `reports` collection |
+| Analytics | degree-requirement audit (`analytics.dart`, 924 lines) — **existing, must be preserved** |
 
 **Toolchain** (none on the default PATH — see `~/.claude/projects/.../memory/`):
 
@@ -66,6 +67,36 @@ The BITS domain regex in the rules needs the `(?i)` prefix. Without it an upperc
 - **No Chrome on this machine** — `flutter run -d chrome` does not work. Use `flutter build web --release` + `python3 -m http.server 5000 --directory build/web`, then the browser pane.
 - **The browser pane cannot emulate viewports for this app** — the Flutter canvas does not repaint at the emulated size. The pane's real width (~320px) is a usable narrow-phone proxy; anything else needs a real device.
 
+### 2.10 The course map has duplicate ids and alias titles — **never delete a row**
+Old courses stay in the map. Students on older batches need them to reproduce past
+semesters, and deleting a row silently changes the CGPA of anyone holding a grade
+against it. Every fix below is display-layer, not data removal.
+
+**Nine codes carry more than one title** — the same course spelled differently across
+disciplines. Collapse these to a single entry showing both names joined by ` / `,
+keeping every row in the map:
+
+| Code | Titles to join |
+|---|---|
+| `BITS F101` | Navigating Campus Life and Living Well / Social Conduct |
+| `BITS F113` | Gen Maths 1 / General Mathematics I |
+| `BITS F221` | PS 1 / Practice School I / Practice School-1 / Practice SchoolI |
+| `BITS F225` | Environmental Science / Environmental Studies |
+| `BITS K101` | Physical Fitness, Health Wellbeing and Creativity / Physical Well-being and Creativity |
+| `PHA F214` | Anatomy Physio and Hygiene / Anatomy, Physiology, & Hygiene |
+| `PHA F216` | Pharmaceutical Formulations 1 / Pharmaceutical Formulations I |
+| `PHY F111` | Mechanical Oscillations and Waves / Mechanics, Oscillations and Waves |
+
+⚠ **`MF F221` is not an alias.** It carries *Casting, Forming and Welding* and
+*Mechanisms and Machines* — two genuinely different courses sharing one code. Joining
+them with ` / ` would be wrong. This is a data error in the source list and needs the
+correct code looked up before it is touched; leave both rows alone until then.
+
+**32 rows use a lowercase `l` for the digit `1`** — `BITS F10l` (×16) and `BITS K10l`
+(×16), duplicating `BITS F101` and `BITS K101` inside the same discipline. Normalise
+`l` → `1` when matching and count the pair as one course. Do not rewrite or delete the
+rows: a user's stored grade is keyed on the id as written.
+
 ---
 
 ## 3. Target architecture
@@ -92,8 +123,9 @@ lib/
       offshoot.dart             (existing offshoot_calc.dart, moved)
       marks.dart                evaluative totals, best-n-of-m, scaling
       forecast.dart             target maths
+      requirements.dart         degree audit — CDC / DEl / HuEl / OpEl progress
   features/
-    semester/  offshoot/  stats/  marks/  calendar/  settings/
+    semester/  offshoot/  stats/  marks/  calendar/  analytics/  settings/
       each: <name>_page.dart + widgets/ + <name>_controller.dart
   shared/
     widgets/                    AppCard, GradeChip, StatCard, PillButton, AppNav
@@ -165,6 +197,9 @@ Branch off `master`. Record `flutter analyze` output (currently 0 errors, ~111 i
 
 ### Phase 1 — Foundation, no visible change
 `app/theme/tokens.dart`, `palette.dart`, `shared/layout/breakpoints.dart`, `shared/widgets/*`. Wire the existing themes into the new palette. Nothing else moves.
+Include **motion tokens** in `tokens.dart` — `fast` 120ms, `base` 220ms, `slow` 380ms, plus a standard curve.
+The current code hard-codes `Duration(milliseconds: 500)` in eight places; every new animation uses a token,
+and the existing eight are migrated as their screens are rebuilt in later phases.
 **Verify:** app renders identically. This phase should produce no UI diff.
 
 ### Phase 2 — Extract grading core ⚠ highest risk
@@ -189,6 +224,30 @@ Rebuild from `main_ui_extension.dart` into `features/semester/`. Greeting, edito
 `offshoot_calc.dart` → `core/grading/offshoot.dart`, panel into `features/offshoot/`. Logic already correct; this is presentation only.
 **Verify:** still 47/50 and 54/60.
 
+### Phase 5b — Analytics / degree audit *(preserve, then restyle)*
+`analytics.dart` is an existing, working feature and **must not be dropped in the rewrite**.
+It answers "how much of my degree is done": credits and course counts per elective
+category — CDC1, CDC2, Disciplinary Elective 1/2, Humanity Elective, Open Elective —
+against the requirement for the selected discipline.
+
+- Move the `creditsforcourses` table (discipline → `[cdcCourses, cdcCredits, delCourses, delCredits]`)
+  into `core/grading/requirements.dart` as reference data. It is currently a local
+  variable inside a State class, and the same table is duplicated in the offshoot code.
+- `creds(tag, courses)` uses the same counting rule as CGPA — `grade1 > 0 || grade1 == -3`
+  — so it belongs beside `cgpa.dart`, not copied again (§2.1).
+- It reads `grade1` only (the Actual profile). Keep that; do not silently make it follow
+  `selectedprofile`.
+- The elective tags are a shared vocabulary across analytics, offshoot and the master
+  course list. Put them in one enum or constant set rather than string literals in three files.
+- Entry point is currently a nav button in `main_ui_extension.dart` pushing a full page.
+  **In the new UI it is not a separate page** — it becomes the second view of Stats
+  (Phase 6), behind a `Progression | Degree` segmented switch at the top of that screen.
+  So in this phase move the *logic* only and keep the old page reachable; the view is
+  rebuilt under `features/stats/` in Phase 6 and the old page is deleted there.
+
+**Verify:** for discipline `B3A7`, category totals and the "x / y" requirement counts match
+the current app exactly, before any restyling.
+
 ### Phase 6 — Stats *(new)*
 `core/grading/forecast.dart` — required average is exact, not a fitted curve:
 
@@ -197,6 +256,15 @@ required = (target × (doneCredits + futureCredits) − earnedPoints) / futureCr
 ```
 
 For target 8.00: **8.66 across the remaining 68 credits.** Chart, target line, per-semester sliders persisted to `settingsBox` (JSON-safe values only, §2.3).
+
+Stats has **two views** behind one segmented switch:
+- **Progression** — the chart, forecast and required-average card described above.
+- **Degree** — the Phase 5b audit: overall credits earned / required with a progress bar,
+  then one card per requirement category (earned / required credits, course counts, a bar,
+  a check when complete, dashed outline when not started).
+
+The switch is the only navigation between them; `analytics.dart` and its nav button are deleted
+once Degree renders the same numbers.
 **Verify:** the chart's last actual point equals the home screen's CGPA exactly.
 
 ### Phase 7 — Marks *(new, largest)*
@@ -236,6 +304,7 @@ Rules redeploy if touched, full build, deploy, and the acceptance list below.
 - [ ] Marks reproduces the source spreadsheet exactly (Phase 7)
 - [ ] A date entered once appears in Calendar
 - [ ] Class-average delta matches `yours − average`, and is absent when unset
+- [ ] Degree audit shows the same category credits and counts as the current app, as the Degree view of Stats
 - [ ] No overflow at 320px, tablet, desktop, or at 200% text
 - [ ] Icons correct on iOS home screen, Android launcher, browser tab
 - [ ] Firestore usage well inside the free tier
