@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/analytics.dart';
