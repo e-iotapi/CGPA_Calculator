@@ -209,6 +209,66 @@ void main() {
       expect(of(el('HSS F334', 'Disciplinary Elective1')), Elective.humanity);
     });
 
+    test('ECOM is a DEL for every electronics programme', () {
+      for (final d in ['--A3', '--A8', '--AA', '--AC', 'B3A3', 'B5AA']) {
+        expect(
+          of(el('ECOM F343', 'Disciplinary Elective2'), d),
+          Elective.del2,
+          reason: d,
+        );
+      }
+      // Not for the others: another department's DEL is an open elective.
+      expect(
+        of(el('ECOM F343', 'Disciplinary Elective2'), '--A7'),
+        Elective.open,
+      );
+    });
+
+    test('BITS courses are open electives', () {
+      expect(of(el('BITS F493', 'Disciplinary Elective1')), Elective.open);
+      expect(of(el('BITS F464', 'Humanity Elective')), Elective.open);
+      expect(of(el('BITS F399', 'CDCN')), Elective.open);
+      // The same course under the degree's own code is its DEL.
+      expect(of(el('ECON F355', 'Disciplinary Elective1')), Elective.del1);
+      // Common core stays core.
+      expect(of(el('BITS F111', 'CDCN')), Elective.cdc1);
+    });
+
+    test('HELs past their credits count as open electives', () {
+      Course hel(String id, String sem) =>
+          el(id, 'Humanity Elective', 'A7').copyWith(sem: sem);
+      final a = degreeAudit([
+        hel('HSS F222', '3 - 1'),
+        hel('HSS F111', '1 - 2'),
+        hel('GS F333', '2 - 1'),
+        hel('HSS F444', '4 - 1'),
+      ], '--A7');
+      AuditCategory at(String l) =>
+          a.categories.singleWhere((c) => c.label == l);
+      // 8 credits: the first three, earliest first, the third reaching it.
+      expect(at('Humanity Electives').members.map((c) => c.id), [
+        'HSS F111',
+        'GS F333',
+        'HSS F222',
+      ]);
+      expect(at('Open Electives').members.map((c) => c.id), ['HSS F444']);
+      expect(at('Open Electives').spilled.single.id, 'HSS F444');
+    });
+
+    test('DELs past their credits count as open electives', () {
+      final dels = [
+        for (var i = 1; i <= 6; i++)
+          el('CS F4$i$i', 'Disciplinary Elective2', 'A7'),
+      ];
+      final a = degreeAudit(dels, '--A7');
+      AuditCategory at(String l) =>
+          a.categories.singleWhere((c) => c.label == l);
+      // A7 needs 12 credits of DEL: four 3-credit courses.
+      expect(at('Disciplinary Electives (A7)').credits, 12);
+      expect(at('Open Electives').credits, 6);
+      expect(at('Open Electives').spilled, hasLength(2));
+    });
+
     test('core courses are left alone', () {
       expect(of(el('EEE F111', 'CDC2')), Elective.cdc2);
       expect(of(el('XYZ F101', 'CDCN')), isNull);

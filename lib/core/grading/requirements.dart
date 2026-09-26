@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
+import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
 
 /// Credits a degree needs in total.
@@ -74,17 +75,18 @@ class DegreeNeeds {
   int get hashCode => Object.hash(degree, cdc, hel, del, el);
 }
 
-/// The departments whose codes each discipline's own courses carry.
+/// The departments whose codes each discipline's own courses carry. ECOM
+/// courses are disciplinary electives for every electronics programme.
 const departments = <String, Set<String>>{
   'A1': {'CHE'},
   'A2': {'CE'},
-  'A3': {'EEE'},
+  'A3': {'EEE', 'ECOM'},
   'A4': {'ME'},
   'A5': {'PHA'},
   'A7': {'CS'},
-  'A8': {'INSTR'},
+  'A8': {'INSTR', 'ECOM'},
   'A9': {'BIOT'},
-  'AA': {'ECE'},
+  'AA': {'ECE', 'ECOM'},
   'AB': {'MF'},
   'AC': {'ECOM'},
   'AD': {'MAC'},
@@ -114,6 +116,9 @@ Elective electiveFor(String id, Elective taken, String discipline) {
 
 Elective _placed(String dept, String id, Elective taken, String discipline) {
   if (dept == 'GS' || dept == 'HSS') return Elective.humanity;
+  // A course taken under a BITS code is an open elective, whatever else it
+  // is cross-listed as.
+  if (dept == 'BITS') return Elective.open;
   if (taken == Elective.humanity || taken == Elective.open) return taken;
   final a = discipline.substring(2, 4), b = discipline.substring(0, 2);
   // Any code the course is cross-listed under can place it.
@@ -138,15 +143,18 @@ Elective firstDegreeCore(String discipline) =>
     discipline.startsWith('--') ? Elective.cdc2 : Elective.cdc1;
 
 /// The category [c] counts toward in the audit: exactly what the student
-/// set, when they set it; the first degree's core for a common course; its
-/// own for a core course (null when it has none); [electiveFor] for an
-/// elective. With no discipline, its own.
+/// set, when they set it; the first degree's core for a common course; an
+/// open elective for any other BITS course; its own for a core course (null
+/// when it has none); [electiveFor] for an elective. With no discipline,
+/// its own.
 Elective? auditCategory(Course c, String discipline) {
   final e = Elective.fromTag(c.elective);
   if (discipline == '----' || pinnedCategories.contains(c.id.trim())) return e;
   if (e == null && commonCore.contains(c.id.trim())) {
     return firstDegreeCore(discipline);
   }
+  // Any other BITS course is an open elective, tagged or not.
+  if (e == null && c.id.trim().startsWith('BITS ')) return Elective.open;
   if (!_isElective(e)) return e;
   return electiveFor(c.id, e!, discipline);
 }
@@ -239,6 +247,7 @@ class AuditCategory {
     this.requiredCourses,
     this.requiredCredits,
     this.members = const [],
+    this.spilled = const [],
   });
 
   /// The card's category; CDC1 for the one core card a sheet gives.
@@ -253,6 +262,10 @@ class AuditCategory {
 
   /// The courses counted here, to list when the card is opened.
   final List<Course> members;
+
+  /// Of [members], HELs and DELs taken beyond their own requirement, which
+  /// count here as open electives.
+  final List<Course> spilled;
 
   bool get complete =>
       requiredCredits != null &&
@@ -316,13 +329,16 @@ DegreeAudit degreeAudit(
     String label,
     Need? need, {
     Set<Elective?>? counts,
+    Iterable<Course>? courses,
+    List<Course> spilled = const [],
   }) {
-    final passed = _passed(mine, discipline, counts ?? {e});
+    final passed = courses ?? _passed(mine, discipline, counts ?? {e});
     final set = need != null && (need.courses > 0 || need.units > 0);
     return AuditCategory(
       category: e,
       label: label,
       members: passed.toList(),
+      spilled: spilled,
       courses: passed.map((c) => courseGraph.canonical(c.id)).toSet().length,
       credits: passed.fold(0.0, (s, c) => s + c.credits),
       requiredCourses: set ? need.courses : null,
@@ -342,6 +358,19 @@ DegreeAudit degreeAudit(
   // the reference data's share.
   final dual = hasA && hasB;
   final core = sheet?.cdc;
+  final del2Need = dual ? del(a) : sheet?.del ?? del(a);
+  final del1Need = dual || noReq ? del(b) : sheet?.del ?? del(b);
+  final helNeed = sheet?.hel ?? (courses: 3, units: 8);
+  // HELs and DELs count toward their own requirement until its credits are
+  // met, earliest first; any after that are open electives.
+  final hel = _fill(_passed(mine, discipline, {Elective.humanity}), helNeed);
+  final del2 = _fill(_passed(mine, discipline, {Elective.del2}), del2Need);
+  final del1 = _fill(_passed(mine, discipline, {Elective.del1}), del1Need);
+  final spilled = [
+    ...hel.spill,
+    if (hasA) ...del2.spill,
+    if (hasB) ...del1.spill,
+  ];
   final cards = [
     if (core != null)
       card(
@@ -355,7 +384,8 @@ DegreeAudit degreeAudit(
       card(
         Elective.del2,
         'Disciplinary Electives ($second)',
-        dual ? del(a) : sheet?.del ?? del(a),
+        del2Need,
+        courses: del2.keep,
       ),
     ],
     if (hasB) ...[
@@ -363,18 +393,20 @@ DegreeAudit degreeAudit(
       card(
         Elective.del1,
         'Disciplinary Electives ($first)',
-        dual || noReq ? del(b) : sheet?.del ?? del(b),
+        del1Need,
+        courses: del1.keep,
       ),
     ],
-    card(
-      Elective.humanity,
-      'Humanity Electives',
-      sheet?.hel ?? (courses: 3, units: 8),
-    ),
+    card(Elective.humanity, 'Humanity Electives', helNeed, courses: hel.keep),
     card(
       Elective.open,
       'Open Electives',
       sheet?.el ?? (hasB ? null : (courses: 5, units: 15)),
+      courses: [
+        ..._passed(mine, discipline, {Elective.open}),
+        ...spilled,
+      ],
+      spilled: spilled,
     ),
   ];
   final ongoing = mine
@@ -406,4 +438,38 @@ DegreeAudit degreeAudit(
                   ),
             ),
   );
+}
+
+/// [courses] in the order taken, split where [need]'s credits are met: the
+/// course that reaches them still counts. No need, or one of no credits,
+/// keeps every course.
+({List<Course> keep, List<Course> spill}) _fill(
+  Iterable<Course> courses,
+  Need? need,
+) {
+  // Every semester, a dual's fifth year included.
+  final order = semestersFor('B');
+  int at(Course c) {
+    final i = order.indexOf(c.sem);
+    return i < 0 ? order.length : i;
+  }
+
+  final sorted =
+      courses.indexed.toList()..sort((x, y) {
+        final bySem = at(x.$2).compareTo(at(y.$2));
+        return bySem != 0 ? bySem : x.$1.compareTo(y.$1);
+      });
+  final units = need?.units ?? 0;
+  if (units <= 0) return (keep: [for (final (_, c) in sorted) c], spill: []);
+  final keep = <Course>[], spill = <Course>[];
+  var got = 0.0;
+  for (final (_, c) in sorted) {
+    if (got >= units) {
+      spill.add(c);
+    } else {
+      keep.add(c);
+      got += c.credits;
+    }
+  }
+  return (keep: keep, spill: spill);
 }
