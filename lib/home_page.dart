@@ -24,6 +24,8 @@ import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
+import 'package:cgpa_calculator/features/semester/add_course_sheet.dart';
+import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 part 'overlays_extension.dart';
@@ -319,11 +321,30 @@ class _MyHomePageState extends State<MyHomePage> {
           }),
       onSortSelected: (s) => setState(() => currentsort = s.key),
       onExport: () => _exportSemester(sitems),
-      onAddCourse:
-          () => setState(() {
-            _isSearched = false;
-            _isCardOpen = true;
-          }),
+      onAddCourse: () async {
+        final c = await showAddCourseSheet(
+          context,
+          held: Hive.box<Course>('coursesBox').values,
+          sem: currentsem,
+          discipline: selecteddiscipline,
+          profile:
+              SemesterMode.fromProfileId(selectedprofile).profile ??
+              Profile.actual,
+          onManual:
+              () => setState(() {
+                _isSearched = false;
+                _isCardOpen = true;
+              }),
+        );
+        if (c == null) return;
+        await addOrUpdateCourse(c);
+        if (mounted) {
+          setState(() {
+            sgpa = sgcalc(currentsem);
+            cgpa = cgcalc();
+          });
+        }
+      },
       onCourseTap: (c, i) async {
         void edit() => setState(() {
           tapid = i;

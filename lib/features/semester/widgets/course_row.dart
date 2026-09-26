@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
+import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_scrubber.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
@@ -98,6 +99,17 @@ class CourseRow extends StatelessWidget {
             GradeScrubber(
               grade: _grade,
               onPicked: (g) => onGradePicked?.call(g),
+              onTap:
+                  onGradePicked == null
+                      ? null
+                      : () async {
+                        final g = await showGradeMenu(
+                          context,
+                          current: _grade,
+                          title: displayTitle(course.id, course.title),
+                        );
+                        if (g != null) onGradePicked!(g);
+                      },
               child: _chip(_grade),
             ),
         ],
@@ -135,30 +147,35 @@ class _CreditBadge extends StatelessWidget {
           color: p.surfaceSunken,
           borderRadius: BorderRadius.circular(Radii.badge),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              formatCredits(credits),
-              style: TextStyle(
-                fontFamily: TypeScale.family,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                height: 1,
-                color: p.text,
+        // Fixed size, so large text scales down inside it.
+        padding: const EdgeInsets.all(3),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                formatCredits(credits),
+                style: TextStyle(
+                  fontFamily: TypeScale.family,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                  color: p.text,
+                ),
               ),
-            ),
-            Text(
-              'CRED',
-              style: TextStyle(
-                fontFamily: TypeScale.family,
-                fontSize: 7.5,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-                color: p.textMuted,
+              Text(
+                'CRED',
+                style: TextStyle(
+                  fontFamily: TypeScale.family,
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                  color: p.textMuted,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
