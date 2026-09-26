@@ -775,6 +775,9 @@ final List<String> depts = [
 ];
 final List<String> grades = pickerGrades;
 final List<String> sems = baseSemesters;
+/// Bumped when [thm] changes, so the app rebuilds with the new theme.
+final themeVersion = ValueNotifier(0);
+
 /// Codes in [degreelist] not offered at Goa or Hyderabad (A9 Biotechnology,
 /// AB Manufacturing). Kept for anyone already on them, never offered anew.
 const notOfferedHere = {'A9', 'AB'};
