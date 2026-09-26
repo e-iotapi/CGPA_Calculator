@@ -27,6 +27,8 @@ class SettingsView extends StatelessWidget {
     required this.onReset,
     required this.onSignOut,
     this.onCredits,
+    this.onEmail,
+    this.onGithub,
   });
 
   final String name;
@@ -56,6 +58,8 @@ class SettingsView extends StatelessWidget {
   final VoidCallback onReset;
   final VoidCallback onSignOut;
   final VoidCallback? onCredits;
+  final VoidCallback? onEmail;
+  final VoidCallback? onGithub;
 
   @override
   Widget build(BuildContext context) {
@@ -201,6 +205,27 @@ class SettingsView extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: Space.md),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (final (text, tap) in [
+                      ('Email me', onEmail),
+                      ('GitHub', onGithub),
+                    ])
+                      if (tap != null)
+                        TextButton(
+                          onPressed: tap,
+                          child: Text(
+                            text,
+                            style: TypeScale.caption.copyWith(
+                              color: p.accent,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                  ],
+                ),
                 Semantics(
                   link: onCredits != null,
                   child: InkWell(
