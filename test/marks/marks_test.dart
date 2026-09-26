@@ -111,7 +111,7 @@ void main() {
     test('running total is the sum of the components, over 45 graded', () {
       final s = MarksSummary(_sheet, null);
       expect(s.gradedWeight, 45);
-      // 6 + 14 + 2.76 + 2.60. PLAN.md says 11.36, which leaves out Kernel.
+      // 6 + 14 + 2.76 + 2.60. 11.36 would leave out Kernel.
       expect(s.secured.toStringAsFixed(2), '25.36');
       expect(contribution(_single('Mid Semester', 25)), isNull);
     });

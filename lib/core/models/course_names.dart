@@ -1,4 +1,4 @@
-/// Display rules for the course map's duplicates (PLAN §2.10). Rows are
+/// Display rules for the course map's duplicates (ARCHITECTURE.md §14.10). Rows are
 /// never rewritten or deleted — a stored grade is keyed on the id as
 /// written — so these apply only when matching and showing.
 library;
