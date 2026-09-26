@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
+import 'package:cgpa_calculator/core/storage/marks.dart';
+import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
 import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
@@ -320,13 +322,21 @@ class _MyHomePageState extends State<MyHomePage> {
             _isSearched = false;
             _isCardOpen = true;
           }),
-      onCourseTap:
-          (c, i) => setState(() {
-            tapid = i;
-            addcourse = c.id.split(" ")[0];
-            addcourseid = c.id.split(" ")[1];
-            _isCourseCardOpen = true;
-          }),
+      onCourseTap: (c, i) async {
+        void edit() => setState(() {
+          tapid = i;
+          addcourse = c.id.split(" ")[0];
+          addcourseid = c.id.split(" ")[1];
+          _isCourseCardOpen = true;
+        });
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => MarksPage(course: c, onEditCourse: edit),
+          ),
+        );
+        if (mounted) setState(() {});
+      },
+      classDeltas: classDeltas(),
       onGradePicked: (c, g) async {
         await saveCourse(withGrade(c, selectedprofile, g));
         setState(() {});
