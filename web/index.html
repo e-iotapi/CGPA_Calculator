@@ -76,6 +76,47 @@
       deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
       return true;
     };
+
+    // Opens a PDF picker and returns its text with positions, as JSON
+    // {width, items: [[page, x, y, width, text], …]} with y measured down the
+    // page; null if nothing was picked. pdf.js loads only when this runs, and
+    // the file never leaves the browser.
+    window.pickPdfText = function() {
+      return new Promise(function(resolve, reject) {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/pdf,.pdf';
+        input.addEventListener('cancel', function() { resolve(null); });
+        input.onchange = async function() {
+          var file = input.files && input.files[0];
+          if (!file) { resolve(null); return; }
+          try {
+            var base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/';
+            var pdfjs = await import(base + 'pdf.min.mjs');
+            pdfjs.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.mjs';
+            var doc = await pdfjs.getDocument({
+              data: new Uint8Array(await file.arrayBuffer()),
+            }).promise;
+            var items = [], width = 0;
+            for (var p = 1; p <= doc.numPages; p++) {
+              var page = await doc.getPage(p);
+              var vp = page.getViewport({scale: 1});
+              width = vp.width;
+              var content = await page.getTextContent();
+              for (var it of content.items) {
+                if (!it.str || !it.str.trim()) continue;
+                items.push([p, it.transform[4], vp.height - it.transform[5],
+                  it.width, it.str]);
+              }
+            }
+            resolve(JSON.stringify({width: width, items: items}));
+          } catch (e) {
+            reject(String((e && e.message) || e));
+          }
+        };
+        input.click();
+      });
+    };
   </script>
 
 

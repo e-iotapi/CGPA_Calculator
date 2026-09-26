@@ -12,6 +12,8 @@ class StatCard extends StatelessWidget {
     required this.value,
     this.caption,
     this.hero = false,
+    this.onTap,
+    this.tapHint,
   });
 
   final String label;
@@ -19,27 +21,38 @@ class StatCard extends StatelessWidget {
   final String? caption;
   final bool hero;
 
+  /// Makes the card a button; the label gets a chevron.
+  final VoidCallback? onTap;
+
+  /// What tapping does, for screen readers ("Change profile").
+  final String? tapHint;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final fg = hero ? p.onHero : p.text;
     final muted = hero ? p.onHeroMuted : p.textMuted;
-    return Container(
+    final labelText = Text(
+      label.toUpperCase(),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TypeScale.label.copyWith(color: muted),
+    );
+    final body = Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      decoration: BoxDecoration(
-        color: hero ? p.hero : p.surface,
-        borderRadius: BorderRadius.circular(Radii.card),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label.toUpperCase(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TypeScale.label.copyWith(color: muted),
-          ),
+          if (onTap == null)
+            labelText
+          else
+            Row(
+              children: [
+                Flexible(child: labelText),
+                Icon(Icons.expand_more_rounded, size: 16, color: muted),
+              ],
+            ),
           const SizedBox(height: 1),
           // Shrinks rather than clipping when the card is very narrow.
           FittedBox(
@@ -57,6 +70,16 @@ class StatCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+    return Semantics(
+      button: onTap != null,
+      hint: tapHint,
+      child: Material(
+        color: hero ? p.hero : p.surface,
+        borderRadius: BorderRadius.circular(Radii.card),
+        clipBehavior: Clip.antiAlias,
+        child: onTap == null ? body : InkWell(onTap: onTap, child: body),
       ),
     );
   }

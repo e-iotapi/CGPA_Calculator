@@ -8,6 +8,13 @@ import 'package:cgpa_calculator/mastercourselist.dart';
 /// The "counts as" tag for a course that belongs to no category.
 const noCategory = 'CDCN';
 
+/// Credits one semester may carry without the administration's approval.
+const maxSemesterCredits = 25.0;
+
+/// Credits [held] already has in [sem].
+double semesterCredits(Iterable<Course> held, String sem) =>
+    held.where((c) => c.sem == sem).fold(0.0, (s, c) => s + c.credits);
+
 /// "4 - 1" as shown: "4 − 1".
 String semLabel(String sem) => sem.replaceAll('-', '−');
 

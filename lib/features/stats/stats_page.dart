@@ -33,6 +33,7 @@ class _StatsPageState extends State<StatsPage> {
     discipline: widget.discipline,
     target: _target,
     plan: _plan,
+    needs: electiveNeeds,
   );
 
   @override

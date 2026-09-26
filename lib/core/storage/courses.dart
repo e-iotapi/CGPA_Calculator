@@ -20,17 +20,20 @@ Future<void> saveCourse(Course course) async {
   await box.flush();
 }
 
-/// [course] with the grade for profile 1 or 2 replaced.
-Course withGrade(Course course, int profileId, int grade) => Course(
-  title: course.title,
-  id: course.id,
-  credits: course.credits,
-  grade1: profileId == 1 ? grade : course.grade1,
-  grade2: profileId == 2 ? grade : course.grade2,
-  discipline: course.discipline,
-  sem: course.sem,
-  elective: course.elective,
-);
+/// Copies profile [from]'s grade onto profile [to] for every course, in all
+/// semesters, under each course's existing key.
+Future<void> copyProfile(int from, int to) async {
+  final box = Hive.box<Course>(coursesBoxName);
+  for (final e in box.toMap().entries) {
+    await box.put(e.key, e.value.withGrade(to, e.value.gradeFor(from)));
+  }
+  await box.flush();
+}
+
+/// Whether profile [profile] has no grade on any course yet.
+bool profileIsEmpty(int profile) => Hive.box<Course>(
+  coursesBoxName,
+).values.every((c) => c.gradeFor(profile) == GradeCode.clr);
 
 /// Every stored course, for read-only screens.
 Iterable<Course> allCourses() => Hive.box<Course>(coursesBoxName).values;
@@ -46,19 +49,7 @@ Future<void> placeDualPracticeSchool(Box<Course> box, String discipline) async {
         c.sem == '4 - 2' &&
         c.grade1 == GradeCode.clr &&
         c.grade2 == GradeCode.clr) {
-      await box.put(
-        e.key,
-        Course(
-          title: c.title,
-          id: c.id,
-          credits: c.credits,
-          grade1: c.grade1,
-          grade2: c.grade2,
-          discipline: c.discipline,
-          sem: '5 - 2',
-          elective: c.elective,
-        ),
-      );
+      await box.put(e.key, c.copyWith(sem: '5 - 2'));
     }
   }
 }

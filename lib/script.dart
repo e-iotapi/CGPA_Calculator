@@ -91,6 +91,16 @@ void _loadSettings(Box settingsBox) {
   currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
   profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
   profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
+  for (var id = 3; id <= profileCount; id++) {
+    moreProfileNames[id - 3] = settingsBox.get(
+      'profile${id}n',
+      defaultValue: 'Profile $id',
+    );
+  }
+  final pair = settingsBox.get('comparePair');
+  if (pair is List && pair.length == 2) {
+    comparePair = (pair[0] as int, pair[1] as int);
+  }
 }
 
 Future<void> basicStartup() async {
@@ -101,29 +111,7 @@ Future<void> basicStartup() async {
 }
 
 /// Copies every Actual grade onto the Expected profile, across all semesters.
-/// Writes back under each course's existing key, which may be an int (courses
-/// added via box.add) or the course id — re-keying here would duplicate them.
-Future<void> copyGrades() async {
-  final coursesBox = await Hive.openBox<Course>('coursesBox');
-  for (final k in coursesBox.keys.toList()) {
-    final i = coursesBox.get(k);
-    if (i == null) continue;
-    await coursesBox.put(
-      k,
-      Course(
-        title: i.title,
-        sem: i.sem,
-        id: i.id,
-        grade1: i.grade1,
-        grade2: i.grade1,
-        discipline: i.discipline,
-        credits: i.credits,
-        elective: i.elective,
-      ),
-    );
-  }
-  await coursesBox.flush();
-}
+Future<void> copyGrades() => copyProfile(1, 2);
 
 Future<void> initializeCourses() async {
   var settingsBox = await Hive.openBox('settingsBox');
@@ -204,6 +192,10 @@ Future<void> setprof() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('profile1n', profile1n);
   await settingsBox.put('profile2n', profile2n);
+  for (var id = 3; id <= profileCount; id++) {
+    await settingsBox.put('profile${id}n', moreProfileNames[id - 3]);
+  }
+  await settingsBox.put('comparePair', [comparePair.$1, comparePair.$2]);
 }
 
 
@@ -220,16 +212,7 @@ Future<void> clearSemesterGrades(String sem, int profile) async {
     var box = Hive.box<Course>('coursesBox');
     List<Course> courses = box.values.where((c) => c.sem == sem).toList();
     for (var course in courses) {
-      Course updatedCourse = Course(
-        title: course.title,
-        sem: course.sem,
-        id: course.id,
-        grade1: (profile == 1) ? -2 : course.grade1,
-        grade2: (profile == 2) ? -2 : course.grade2,
-        discipline: course.discipline,
-        credits: course.credits,
-        elective: course.elective,
-      );
+      Course updatedCourse = course.withGrade(profile, -2);
       await box.put(updatedCourse.id, updatedCourse);
     }
     await box.flush();
@@ -302,6 +285,16 @@ double ccred1 = 0;
 double ccred2 = 0;
 String profile1n = "Actual";
 String profile2n = "Expected";
+
+/// Actual and Expected, plus three profiles that only Compare shows.
+const profileCount = 5;
+final moreProfileNames = ['Profile 3', 'Profile 4', 'Profile 5'];
+
+/// The two profiles Compare shows side by side, by id.
+(int, int) comparePair = (1, 2);
+
+/// Every profile's name, profile 1 first.
+List<String> get profileNames => [profile1n, profile2n, ...moreProfileNames];
 
 String currentsort = "Sort by Credits(Asc)"; //store
 String selected_theme = "White";

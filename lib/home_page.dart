@@ -249,6 +249,50 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  /// Shows profile [profile] in Compare's [slot]. A profile with no grades
+  /// yet can start as a copy of one that has some.
+  Future<void> _changeCompared(int slot, int profile) async {
+    final (a, b) = comparePair;
+    final other = slot == 0 ? b : a;
+    setState(() {
+      comparePair =
+          profile == other
+              ? (b, a)
+              : slot == 0
+              ? (profile, b)
+              : (a, profile);
+    });
+    await setprof();
+    if (!mounted || !profileIsEmpty(profile)) return;
+    final names = profileNames;
+    final from = await showDialog<int>(
+      context: context,
+      builder:
+          (c) => AlertDialog(
+            title: Text('Start ${names[profile - 1]} from…'),
+            content: const Text(
+              'It has no grades yet. Copy another profile\'s grades, in every '
+              'semester, as a starting point?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c),
+                child: const Text('Start empty'),
+              ),
+              for (var id = 1; id <= profileCount; id++)
+                if (id != profile && !profileIsEmpty(id))
+                  TextButton(
+                    onPressed: () => Navigator.pop(c, id),
+                    child: Text(names[id - 1]),
+                  ),
+            ],
+          ),
+    );
+    if (from == null) return;
+    await copyProfile(from, profile);
+    if (mounted) setState(() {});
+  }
+
   Widget _semesterView(List<Course> sitems, double wid, double hei) {
     final parts = greeting().split(', ');
     return SemesterView(
@@ -260,7 +304,8 @@ class _MyHomePageState extends State<MyHomePage> {
         discipline: selecteddiscipline,
         mode: SemesterMode.fromProfileId(selectedprofile),
         sort: CourseSort.fromKey(currentsort),
-        profileNames: (profile1n, profile2n),
+        profileNames: profileNames,
+        compared: comparePair,
       ),
       greeting: parts.first,
       name: parts.skip(1).join(', '),
@@ -318,9 +363,14 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       classDeltas: classDeltas(),
       onGradePicked: (c, g) async {
-        await saveCourse(withGrade(c, selectedprofile, g));
+        await saveCourse(c.withGrade(selectedprofile, g));
         setState(() {});
       },
+      onCompareGradePicked: (c, profile, g) async {
+        await saveCourse(c.withGrade(profile, g));
+        setState(() {});
+      },
+      onCompareChanged: _changeCompared,
       onClearRequested: _confirmClearSemester,
       onSwipe:
           (delta) => setState(() {

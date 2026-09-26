@@ -32,6 +32,7 @@ class StatsData {
     required String discipline,
     double? target,
     Map<String, double> plan = const {},
+    ElectiveNeeds? needs,
   }) {
     final order = semestersFor(discipline);
     final done = cumulativeTally(
@@ -74,7 +75,7 @@ class StatsData {
       remaining: remaining,
       required: req,
       planned: planned,
-      audit: degreeAudit(all, discipline),
+      audit: degreeAudit(all, discipline, needs: needs),
       note: _note(prog.map((p) => (sem: p.sem, sgpa: p.term.gpa)), req),
     );
   }

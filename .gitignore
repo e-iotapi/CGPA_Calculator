@@ -49,3 +49,7 @@ app.*.map.json
 
 # Real transcript used by test/grading — personal data, kept out of the public repo.
 test/fixtures/transcript.csv
+test/fixtures/performance_sheet.json
+
+# ERP academic reports: real grades, never commit
+*.pdf

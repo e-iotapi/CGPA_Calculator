@@ -43,23 +43,39 @@ final _courses = [
     2,
     7,
   ),
-  _c('Business Analysis and Valuation', 'BITS F493', 3, 10, g2: 9),
+  _c(
+    'Business Analysis and Valuation',
+    'BITS F493',
+    3,
+    10,
+    g2: 9,
+  ).withGrade(3, 9),
   _c('Theory of Computation', 'CS F351', 3, 8),
   _c('Operating Systems', 'CS F372', 4, GradeCode.clr),
   _c('Older course', 'CS F211', 4, 6, sem: '2 - 1'),
 ];
 
-SemesterData _data(SemesterMode mode, {String sem = '4 - 1'}) =>
-    SemesterData.from(
-      allCourses: _courses,
-      visible: _courses.where((c) => c.sem == sem).toList(),
-      sem: sem,
-      semesters: semestersFor('B3A7'),
-      discipline: 'B3A7',
-      mode: mode,
-      sort: CourseSort.creditsAsc,
-      profileNames: ('Actual', 'Expected'),
-    );
+SemesterData _data(
+  SemesterMode mode, {
+  String sem = '4 - 1',
+  (int, int) compared = (1, 2),
+}) => SemesterData.from(
+  allCourses: _courses,
+  visible: _courses.where((c) => c.sem == sem).toList(),
+  sem: sem,
+  semesters: semestersFor('B3A7'),
+  discipline: 'B3A7',
+  mode: mode,
+  sort: CourseSort.creditsAsc,
+  profileNames: const [
+    'Actual',
+    'Expected',
+    'Profile 3',
+    'Profile 4',
+    'Profile 5',
+  ],
+  compared: compared,
+);
 
 Future<void> _pump(
   WidgetTester t,
@@ -69,6 +85,8 @@ Future<void> _pump(
   void Function(Course, int)? onTap,
   VoidCallback? onAdd,
   Widget? offshoot,
+  void Function(int slot, int profile)? onCompareChanged,
+  void Function(Course, int, int)? onCompareGrade,
 }) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
@@ -101,6 +119,8 @@ Future<void> _pump(
           onOpenSettings: () {},
           onToggleTheme: () {},
           offshoot: offshoot,
+          onCompareChanged: onCompareChanged,
+          onCompareGradePicked: onCompareGrade,
         ),
       ),
     ),
@@ -221,6 +241,41 @@ void main() {
       expect(find.text('A-'), findsOneWidget); // Expected
       expect(find.bySemanticsLabel('Export gradesheet'), findsNothing);
       expect(find.text('Add courses'), findsNothing);
+    });
+
+    testWidgets('compare shows any two of five profiles and picks them', (
+      t,
+    ) async {
+      final changes = <(int, int)>[];
+      final grades = <(String, int, int)>[];
+      await _pump(
+        t,
+        _data(SemesterMode.compare, compared: (3, 1)),
+        onCompareChanged: (s, p) => changes.add((s, p)),
+        onCompareGrade: (c, p, g) => grades.add((c.id, p, g)),
+      );
+      expect(find.text('PROFILE 3'), findsOneWidget); // left card
+      expect(
+        find.text('Comparing Profile 3 and Actual grades'),
+        findsOneWidget,
+      );
+      // Profile 3 has one grade (BITS F493: A-), the rest ungraded.
+      expect(find.text('A-'), findsOneWidget);
+
+      await t.tap(find.text('PROFILE 3'));
+      await t.pumpAndSettle();
+      expect(find.text('Compare with'), findsOneWidget);
+      await t.tap(find.text('Profile 5'));
+      await t.pumpAndSettle();
+      expect(changes, [(0, 5)]);
+
+      // A chip in the left column edits profile 3.
+      await t.tap(find.text('A-'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('B').last);
+      await t.pumpAndSettle();
+      expect(grades.single.$2, 3);
+      expect(grades.single.$1, 'BITS F493');
     });
 
     testWidgets('offshoot tab shows the supplied panel instead of the list', (
@@ -356,12 +411,26 @@ void main() {
       final box = Hive.box<Course>(coursesBoxName);
       await box.add(_courses[2]); // int key, as addCourse does
       await box.put(_courses[1].id, _courses[1]); // id key, as seeding does
-      await saveCourse(withGrade(_courses[2], 1, 10));
-      await saveCourse(withGrade(_courses[1], 2, 4));
+      await saveCourse(_courses[2].withGrade(1, 10));
+      await saveCourse(_courses[1].withGrade(2, 4));
       expect(box.length, 2);
       expect(box.values.firstWhere((c) => c.id == 'CS F351').grade1, 10);
       expect(box.values.firstWhere((c) => c.id == 'BITS F493').grade2, 4);
       expect(box.values.firstWhere((c) => c.id == 'BITS F493').grade1, 10);
+    });
+
+    test('profiles 3 to 5 survive copies and saving', () async {
+      final c = _courses[2].withGrade(4, 7);
+      expect(c.gradeFor(4), 7);
+      expect(c.gradeFor(3), GradeCode.clr);
+      expect(c.copyWith(sem: '4 - 2').more, {4: 7});
+      expect(c.withGrade(1, 8).gradeFor(4), 7);
+      await saveCourse(c);
+      expect(Hive.box<Course>(coursesBoxName).get(c.id)!.gradeFor(4), 7);
+      await copyProfile(4, 5);
+      expect(Hive.box<Course>(coursesBoxName).get(c.id)!.gradeFor(5), 7);
+      expect(profileIsEmpty(3), isTrue);
+      expect(profileIsEmpty(5), isFalse);
     });
 
     test('a course not yet stored is keyed by its id', () async {
