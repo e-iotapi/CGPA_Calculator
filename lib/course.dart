@@ -62,13 +62,14 @@ class Course extends HiveObject {
   Course copyWith({
     String? sem,
     String? elective,
+    double? credits,
     int? grade1,
     int? grade2,
     Map<int, int>? more,
   }) => Course(
     title: title,
     id: id,
-    credits: credits,
+    credits: credits ?? this.credits,
     discipline: discipline,
     sem: sem ?? this.sem,
     elective: elective ?? this.elective,

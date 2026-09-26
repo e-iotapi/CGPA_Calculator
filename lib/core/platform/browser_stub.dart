@@ -11,3 +11,5 @@ bool isStandalone() => false;
 bool hasTouch() => false;
 
 bool promptInstall() => false;
+
+Future<String?> pickPdfText() async => null;
