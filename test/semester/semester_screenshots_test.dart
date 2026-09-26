@@ -4,8 +4,10 @@ import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/grading/offshoot.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
@@ -43,12 +45,22 @@ final _courses = [
   _c('Technical Report Writing', 'BITS F112', 2, GradeCode.clr),
 ];
 
+// A, A, A, A-, B, B-: 47 / 50 with ECON F412 dropped.
+final _offshoot = OffshootScore([
+  for (final (i, c) in offshootCourses.indexed)
+    OffshootRow(c, const [9, 10, 8, 7, 10, 10][i], false),
+], 50);
+
 void main() {
   setUpAll(() async {
     if (_out != null) await loadAppFonts();
   });
   for (final palette in [AppPalette.light, AppPalette.dark]) {
-    for (final mode in [SemesterMode.actual, SemesterMode.compare]) {
+    for (final mode in [
+      SemesterMode.actual,
+      SemesterMode.compare,
+      SemesterMode.offshoot,
+    ]) {
       for (final (name, size) in const [
         ('320', Size(320, 640)),
         ('768', Size(768, 1024)),
@@ -108,6 +120,14 @@ void main() {
                     onOpenSettings: () {},
                     onToggleTheme: () {},
                     onInstall: () {},
+                    offshoot:
+                        mode == SemesterMode.offshoot
+                            ? OffshootPanel(
+                              score: _offshoot,
+                              onToggleCourse: (_) {},
+                              onOutOfSelected: (_) {},
+                            )
+                            : null,
                   ),
                 ),
               ),
