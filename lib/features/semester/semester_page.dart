@@ -320,7 +320,7 @@ class _SemesterViewState extends State<SemesterView> {
         ],
         CircleIconButton(
           icon: Icons.insert_chart_outlined_rounded,
-          tooltip: 'Degree progress',
+          tooltip: 'Stats',
           onPressed: widget.onOpenAnalytics,
           size: btn,
         ),
