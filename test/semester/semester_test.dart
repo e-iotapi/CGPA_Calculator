@@ -99,7 +99,6 @@ Future<void> _pump(
           onOpenCalendar: () {},
           onOpenSettings: () {},
           onToggleTheme: () {},
-          onInstall: () {},
           offshoot: offshoot,
         ),
       ),

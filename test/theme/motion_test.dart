@@ -62,4 +62,23 @@ void main() {
     await ThemeReveal.run(() => applied = true);
     expect(applied, isTrue);
   });
+
+  testWidgets('theme switch reveals over the old screen', (t) async {
+    await t.pumpWidget(_app());
+    final before = find.byType(CustomPaint).evaluate().length;
+    var applied = false;
+    await t.runAsync(() async {
+      ThemeReveal.run(() => applied = true);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 200));
+    expect(applied, isTrue);
+    expect(find.byType(CustomPaint).evaluate().length, before + 1);
+    await t.pumpAndSettle();
+    // The run was started in the real zone; let its ending run there too.
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pump();
+    expect(find.byType(CustomPaint).evaluate().length, before);
+  });
 }

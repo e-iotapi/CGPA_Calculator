@@ -33,7 +33,6 @@ class SemesterView extends StatefulWidget {
     required this.onOpenCalendar,
     required this.onOpenSettings,
     required this.onToggleTheme,
-    this.onInstall,
     this.offshoot,
     this.classDeltas = const {},
     this.slideFromRight = true,
@@ -66,8 +65,6 @@ class SemesterView extends StatefulWidget {
   /// Flips between the light and dark palettes.
   final VoidCallback onToggleTheme;
 
-  /// Null hides the install button.
-  final VoidCallback? onInstall;
 
   /// Shown in place of the stats and course list on the offshoot tab, filling
   /// the space below the header.
@@ -280,11 +277,9 @@ class _SemesterViewState extends State<SemesterView> {
   /// Greeting and name, or [eyebrow] and [title] in their place.
   Widget _header({String? eyebrow, String? title}) {
     final p = AppPalette.of(context);
-    // Four or five 46px buttons leave a phone too little room for the name.
-    final five = widget.onInstall != null;
+    // Four 46px buttons leave a narrow phone too little room for the name.
     final narrow = MediaQuery.sizeOf(context).width < 380;
-    final btn =
-        narrow ? (five ? 36.0 : 40.0) : (five ? 42.0 : Sizes.iconButton);
+    final btn = narrow ? 40.0 : Sizes.iconButton;
     return Row(
       children: [
         Expanded(
@@ -318,15 +313,6 @@ class _SemesterViewState extends State<SemesterView> {
           ),
         ),
         const SizedBox(width: Space.md),
-        if (widget.onInstall != null) ...[
-          CircleIconButton(
-            icon: Icons.install_mobile_rounded,
-            tooltip: 'Install app',
-            onPressed: widget.onInstall,
-            size: btn,
-          ),
-          const SizedBox(width: Space.sm),
-        ],
         CircleIconButton(
           icon: Icons.calendar_today_outlined,
           tooltip: 'Calendar',

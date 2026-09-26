@@ -1,14 +1,9 @@
 // lib/pwa_helper/pwa_stub.dart
 
-import 'package:flutter/material.dart';
+import 'package:cgpa_calculator/pwa_helper/install_platform.dart';
 
 class PwaHelper {
-  static bool get isWebPlatform => false;
   static bool get isStandalone => false;
-  static bool get isIOSWeb => false;
-  static bool get isAndroidWeb => false;
-
-  static void promptInstall(BuildContext context, dynamic theme) {
-    // No-op fallback on native mobile platforms
-  }
+  static InstallPlatform get platform => InstallPlatform.desktop;
+  static bool tryNativePrompt() => false;
 }
