@@ -283,6 +283,31 @@ Dates read from `EvalPart.date` — no separate store, nothing entered twice. Mo
 ### Phase 9 — Rename + branding
 `Pointer` in `pubspec.yaml` description, `web/index.html` title and meta, `manifest.json`, sign-in, landing. Tassel logo (concept 04) → regenerate all five icon sizes from the source, maskable at 60% for the circular crop.
 
+**The loading screen goes in this phase too.** `web/index.html` currently ships a blue
+card reading "Loading CGPA Calculator, Please Wait..." that looks nothing like the app
+it is loading. Replace it with the `Loading` artboard on the canvas — that board is the
+real markup, not a picture of one.
+
+It is the only screen in the design that is **not Flutter**: it paints before the engine
+boots, so it must stay pure CSS. No JS, no framework, nothing that waits on the bundle.
+The animation is the logo itself — the cap floats, the tassel bead swings off its cord,
+a sweep runs the bar — all compositor-only transforms, because the people who see this
+screen are the ones on a slow connection.
+
+Four things not to lose:
+- **The SEO fallback text stays in the DOM.** The old block doubles as crawlable content
+  and the site ranks on it. Keep the `h1` and the description; they move to a quiet
+  footer, they do not get deleted.
+- **`prefers-reduced-motion`** stops all three animations and leaves the bar filled and static.
+- **Fade, don't snap.** The current handler sets `display: none` on `flutter-first-frame`.
+  Use a short opacity transition instead, or the handoff to the app visibly jumps.
+- **Montserrat needs `preconnect` + `display=swap`**, or the font blocks first paint and
+  the loading screen is itself slow to load.
+
+Also stale in `index.html` and worth fixing in the same pass: `author`, `publisher` and
+the `og:site_name` / schema.org `author` still say Srijen Raja, and
+`apple-mobile-web-app-title` is `cgpa_calculator`.
+
 ⚠ **If the Netlify subdomain changes, the Firebase authorized domain must change with it, or sign-in breaks on the new URL.** Update both in the same sitting.
 
 ### Phase 10 — Responsive + accessibility sweep
