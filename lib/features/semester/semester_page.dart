@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/stat_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 /// The home screen: greeting, one-line summary, SGPA/CGPA, semester picker
 /// and the course list. Purely presentational — every change goes out
@@ -37,6 +38,7 @@ class SemesterView extends StatefulWidget {
     this.slideFromRight = true,
     this.onCompareGradePicked,
     this.onCompareChanged,
+    this.onReorder,
   });
 
   final SemesterData data;
@@ -47,6 +49,10 @@ class SemesterView extends StatefulWidget {
 
   final ValueChanged<String> onSemesterSelected;
   final ValueChanged<CourseSort> onSortSelected;
+
+  /// This semester's courses in the order they were dragged into. Null
+  /// hides the drag handles.
+  final ValueChanged<List<Course>>? onReorder;
   final VoidCallback onExport;
   final VoidCallback onAddCourse;
 
@@ -212,25 +218,39 @@ class _SemesterViewState extends State<SemesterView> {
           ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
-            sliver: SliverList.separated(
+            sliver: SliverReorderableList(
               itemCount: d.courses.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 9),
+              onReorderItem: (from, to) {
+                final order = [...d.courses];
+                order.insert(to, order.removeAt(from));
+                widget.onReorder?.call(order);
+              },
               itemBuilder:
-                  (_, i) => CourseRow(
-                    course: d.courses[i],
-                    mode: d.mode,
-                    classDelta: widget.classDeltas[d.courses[i].id],
-                    onTap: () => widget.onCourseTap(d.courses[i], i),
-                    onGradePicked: (g) => widget.onGradePicked(d.courses[i], g),
-                    compared: d.compared,
-                    onCompareGradePicked:
-                        widget.onCompareGradePicked == null
-                            ? null
-                            : (profile, g) => widget.onCompareGradePicked!(
-                              d.courses[i],
-                              profile,
-                              g,
-                            ),
+                  (_, i) => Padding(
+                    key: ObjectKey(d.courses[i]),
+                    padding: EdgeInsets.only(
+                      bottom: i == d.courses.length - 1 ? 0 : 9,
+                    ),
+                    child: _draggable(
+                      i,
+                      CourseRow(
+                        course: d.courses[i],
+                        mode: d.mode,
+                        classDelta: widget.classDeltas[d.courses[i].id],
+                        onTap: () => widget.onCourseTap(d.courses[i], i),
+                        onGradePicked:
+                            (g) => widget.onGradePicked(d.courses[i], g),
+                        compared: d.compared,
+                        onCompareGradePicked:
+                            widget.onCompareGradePicked == null
+                                ? null
+                                : (profile, g) => widget.onCompareGradePicked!(
+                                  d.courses[i],
+                                  profile,
+                                  g,
+                                ),
+                      ),
+                    ),
                   ),
             ),
           ),
@@ -562,6 +582,49 @@ class _SemesterViewState extends State<SemesterView> {
           onPressed: widget.onExport,
         ),
       ],
+    );
+  }
+
+  /// Row [i] with a drag handle before it, and move up / down for screen
+  /// readers. As it was when reordering is off.
+  Widget _draggable(int i, Widget row) {
+    final reorder = widget.onReorder;
+    if (reorder == null) return row;
+    final p = AppPalette.of(context);
+    final courses = widget.data.courses;
+    void move(int to) {
+      final order = [...courses];
+      order.insert(to, order.removeAt(i));
+      reorder(order);
+    }
+
+    return Semantics(
+      customSemanticsActions: {
+        if (i > 0)
+          const CustomSemanticsAction(label: 'Move up'): () => move(i - 1),
+        if (i < courses.length - 1)
+          const CustomSemanticsAction(label: 'Move down'): () => move(i + 1),
+      },
+      child: Row(
+        children: [
+          ReorderableDragStartListener(
+            index: i,
+            child: Tooltip(
+              message: 'Drag to reorder',
+              child: SizedBox(
+                width: 22,
+                height: Sizes.minTouch,
+                child: Icon(
+                  Icons.drag_indicator_rounded,
+                  size: 18,
+                  color: p.textMuted.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+          ),
+          Expanded(child: row),
+        ],
+      ),
     );
   }
 

@@ -12,6 +12,7 @@ import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
 import 'package:cgpa_calculator/shared/widgets/stat_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:cgpa_calculator/core/storage/course_order.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
@@ -87,6 +88,7 @@ Future<void> _pump(
   Widget? offshoot,
   void Function(int slot, int profile)? onCompareChanged,
   void Function(Course, int, int)? onCompareGrade,
+  ValueChanged<List<Course>>? onReorder,
 }) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
@@ -121,6 +123,7 @@ Future<void> _pump(
           offshoot: offshoot,
           onCompareChanged: onCompareChanged,
           onCompareGradePicked: onCompareGrade,
+          onReorder: onReorder,
         ),
       ),
     ),
@@ -436,6 +439,77 @@ void main() {
     test('a course not yet stored is keyed by its id', () async {
       await saveCourse(_courses[0]);
       expect(Hive.box<Course>(coursesBoxName).get('CS F301'), isNotNull);
+    });
+  });
+
+  group('manual order', () {
+    test('a saved order applies; courses not in it go after, in place', () {
+      final visible = _courses.where((c) => c.sem == '4 - 1').toList();
+      final ordered = orderCourses(visible, ['CS F372', 'CS F301']);
+      expect(ordered.map((c) => c.id), [
+        'CS F372',
+        'CS F301',
+        'BITS F493',
+        'CS F351',
+      ]);
+      expect(CourseSort.fromKey('Custom'), CourseSort.custom);
+    });
+
+    testWidgets('rows drag by a handle, and move for screen readers', (
+      t,
+    ) async {
+      List<Course>? order;
+      for (final (size, scale) in const [
+        (Size(320, 640), 1.0),
+        (Size(320, 640), 2.0),
+        (Size(768, 1024), 1.0),
+      ]) {
+        await _pump(
+          t,
+          _data(SemesterMode.actual),
+          size: size,
+          textScale: scale,
+          onReorder: (o) => order = o,
+        );
+        expect(t.takeException(), isNull, reason: '$size $scale');
+      }
+      await _pump(
+        t,
+        _data(SemesterMode.actual),
+        size: const Size(390, 844),
+        onReorder: (o) => order = o,
+      );
+      expect(find.byTooltip('Drag to reorder'), findsNWidgets(4));
+
+      final handle = t.ensureSemantics();
+      final row = find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            (w.properties.customSemanticsActions?.keys.any(
+                  (a) => a.label == 'Move down',
+                ) ??
+                false),
+      );
+      final first = t.widget<Semantics>(row.first);
+      first.properties.customSemanticsActions!.entries
+          .firstWhere((e) => e.key.label == 'Move down')
+          .value();
+      expect(order!.first.id, _data(SemesterMode.actual).courses[1].id);
+      expect(order![1].id, _data(SemesterMode.actual).courses[0].id);
+      handle.dispose();
+
+      // A real drag: the first row's handle to below the second row.
+      order = null;
+      final grip = find.byTooltip('Drag to reorder').first;
+      final gesture = await t.startGesture(t.getCenter(grip));
+      for (var i = 0; i < 12; i++) {
+        await gesture.moveBy(const Offset(0, 15));
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await t.pumpAndSettle();
+      expect(order, isNotNull);
+      expect(order!.first.id, isNot(_data(SemesterMode.actual).courses[0].id));
     });
   });
 }
