@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:flutter/material.dart';
 
 /// Fill and text colour for one grade chip.
@@ -100,6 +101,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
   ThemeData get materialTheme => ThemeData(
     colorScheme: ColorScheme.fromSeed(seedColor: accent),
     extensions: [this],
+    pageTransitionsTheme: PageTransitionsTheme(
+      builders: {
+        for (final p in TargetPlatform.values)
+          p: const CircleRevealTransitionsBuilder(),
+      },
+    ),
   );
 
   static AppPalette of(BuildContext context) =>

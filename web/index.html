@@ -135,6 +135,10 @@
       .ptr-sweep { transform: none; width: 100%; opacity: .45; }
       #ptr-loading { transition: none; }
     }
+    /* iOS Safari zooms into any focused field under 16px and Flutter then
+       blocks pinch-out, leaving the page stuck zoomed. Flutter draws the text
+       itself; this only sizes its hidden input, so nothing visible changes. */
+    input, textarea { font-size: 16px !important; }
   </style>
 </head>
 <body>

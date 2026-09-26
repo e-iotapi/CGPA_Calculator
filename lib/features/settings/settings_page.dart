@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
@@ -157,7 +158,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final v = await _pick(
       context,
       dual ? 'Dual degree' : 'Discipline',
-      disciplineOptions(dual: dual),
+      disciplineOptions(dual: dual, current: half),
       half,
     );
     if (v == null || v == half || !context.mounted) return;
@@ -201,11 +202,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _setTheme(bool dark) async {
-    selected_theme = dark ? 'Black' : 'White';
-    thm = themes.firstWhere((t) => t.theme == selected_theme);
+    final name = dark ? 'Black' : 'White';
+    if (name == selected_theme) return;
+    await ThemeReveal.run(() {
+      selected_theme = name;
+      thm = themes.firstWhere((t) => t.theme == selected_theme);
+      setnavcolor();
+      themeVersion.value++;
+      if (mounted) setState(() {});
+    });
     await settheme();
-    setnavcolor();
-    if (mounted) setState(() {});
   }
 
   Future<void> _renameProfile(BuildContext context, int i) async {

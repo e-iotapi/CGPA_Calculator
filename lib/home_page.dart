@@ -23,6 +23,7 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
 import 'package:cgpa_calculator/features/semester/add_course_sheet.dart';
+import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
@@ -61,10 +62,7 @@ class _MyHomePageState extends State<MyHomePage> {
           )
           .toList();
 
-  bool _isClosingCourse = false;
-  bool _isGradeChanged = false;
   bool _isDisciplineChanged = false;
-  bool _isCourseCardOpen = false;
   bool _isrightswipe = true;
   TextEditingController _batchController1 = TextEditingController(
     text: batch.toString(),
@@ -174,7 +172,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: Stack(
                   children: [
                     _semesterView(sitems, wid, hei),
-                    buildCourseDetailSheet(wid, hei, sitems),
                     AnimatedSwitcher(
                       duration: Duration(milliseconds: 400),
                       switchInCurve: Curves.easeInOut,
@@ -335,12 +332,22 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       },
       onCourseTap: (c, i) async {
-        void edit() => setState(() {
-          tapid = i;
-          addcourse = c.id.split(" ")[0];
-          addcourseid = c.id.split(" ")[1];
-          _isCourseCardOpen = true;
-        });
+        Future<void> edit() async {
+          final e = await showEditCourseSheet(
+            context,
+            course: c,
+            discipline: selecteddiscipline,
+            profile: SemesterMode.fromProfileId(selectedprofile).profile,
+          );
+          if (e == null) return;
+          await applyCourseEdit(c, e);
+          if (mounted) {
+            setState(() {
+              sgpa = sgcalc(currentsem);
+              cgpa = cgcalc();
+            });
+          }
+        }
         await Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => MarksPage(course: c, onEditCourse: edit),

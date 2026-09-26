@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
+import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
@@ -244,8 +245,6 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
   List<Widget> _manualView(BuildContext context) {
     final p = AppPalette.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final label = TypeScale.label.copyWith(color: p.textMuted);
-    final hint = TypeScale.caption.copyWith(color: p.textMuted);
     final held = _manualHeldIn;
     final category =
         _manualCategory ??
@@ -277,66 +276,14 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
     final input = TypeScale.body.copyWith(color: p.text);
     void edited(String _) => setState(() {});
 
-    Widget section(String name, Widget child, [String? note]) => Padding(
-      padding: const EdgeInsets.only(bottom: Space.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(name, style: label),
-          const SizedBox(height: Space.xs),
-          child,
-          if (note != null) ...[
-            const SizedBox(height: Space.xs),
-            Text(note, style: hint),
-          ],
-        ],
-      ),
-    );
+    Widget section(String name, Widget child, [String? note]) =>
+        FieldSection(label: name, note: note, child: child);
 
     Widget step(IconData icon, String tip, int to) => CircleIconButton(
       icon: icon,
       tooltip: tip,
       onPressed: to < 1 || to > 9 ? null : () => setState(() => _credits = to),
     );
-
-    Widget pill(String text, int value) {
-      final on = _manualGrade == value;
-      return Semantics(
-        button: true,
-        selected: on,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap:
-              () => setState(() => _manualGrade = on ? GradeCode.clr : value),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: Sizes.minTouch),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              color: on ? p.inverse : p.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: on ? p.inverse : p.border),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                text,
-                style: TypeScale.caption.copyWith(
-                  fontWeight: on ? FontWeight.w700 : FontWeight.w600,
-                  color: on ? p.onInverse : p.text,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final grades = [
-      for (final g in letterGrades)
-        (g.replaceAll('-', '−'), reversegradecalc(g)),
-      for (final (g, _) in specialGrades) (g, reversegradecalc(g)),
-    ];
 
     // The header scrolls with the fields, so large text leaves room.
     return [
@@ -433,63 +380,17 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
             ),
             section(
               'COUNTS AS',
-              DropdownButtonHideUnderline(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: Space.md),
-                  decoration: BoxDecoration(
-                    color: p.surface,
-                    border: Border.all(color: p.border),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: DropdownButton<String>(
-                    value: category,
-                    isExpanded: true,
-                    dropdownColor: p.surface,
-                    style: TypeScale.caption.copyWith(
-                      color: p.text,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    items: [
-                      for (final t in {
-                        ...categoryOptions(widget.discipline),
-                        category,
-                      })
-                        DropdownMenuItem(
-                          value: t,
-                          child: Text(
-                            categoryLabel(t, widget.discipline),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                    onChanged: (t) => setState(() => _manualCategory = t),
-                  ),
-                ),
+              CategoryDropdown(
+                value: category,
+                discipline: widget.discipline,
+                onChanged: (t) => setState(() => _manualCategory = t),
               ),
             ),
             section(
               'GRADE',
-              Column(
-                children: [
-                  for (var r = 0; r < grades.length; r += 6)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 5),
-                      child: Row(
-                        children: [
-                          for (var i = r; i < r + 6; i++) ...[
-                            if (i > r) const SizedBox(width: 5),
-                            Expanded(
-                              child:
-                                  i < grades.length
-                                      ? pill(grades[i].$1, grades[i].$2)
-                                      : const SizedBox(),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                ],
+              GradeGrid(
+                value: _manualGrade,
+                onChanged: (g) => setState(() => _manualGrade = g),
               ),
               'Leave it blank if the grade is not out yet',
             ),

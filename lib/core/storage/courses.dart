@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:hive/hive.dart';
 
@@ -33,3 +34,31 @@ Course withGrade(Course course, int profileId, int grade) => Course(
 
 /// Every stored course, for read-only screens.
 Iterable<Course> allCourses() => Hive.box<Course>(coursesBoxName).values;
+
+/// A dual degree takes Practice School-II in its fifth year, not the fourth
+/// the chart row is seeded in. Moves only a seeded, ungraded row.
+Future<void> placeDualPracticeSchool(Box<Course> box, String discipline) async {
+  final dual = discipline.startsWith('B') && discipline.substring(2) != '--';
+  if (!dual) return;
+  for (final e in box.toMap().entries) {
+    final c = e.value;
+    if (c.id == 'BITS F412' &&
+        c.sem == '4 - 2' &&
+        c.grade1 == GradeCode.clr &&
+        c.grade2 == GradeCode.clr) {
+      await box.put(
+        e.key,
+        Course(
+          title: c.title,
+          id: c.id,
+          credits: c.credits,
+          grade1: c.grade1,
+          grade2: c.grade2,
+          discipline: c.discipline,
+          sem: '5 - 2',
+          elective: c.elective,
+        ),
+      );
+    }
+  }
+}

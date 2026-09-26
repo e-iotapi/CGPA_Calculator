@@ -1,7 +1,7 @@
 /// Rules the old Settings screen applied, kept as functions of their inputs.
 library;
 
-import 'package:cgpa_calculator/script.dart' show degreelist;
+import 'package:cgpa_calculator/script.dart' show degreelist, notOfferedHere;
 
 /// What initializeCourses does with the course box on the way back home:
 /// 0 keeps grades, 1 clears everything, 2 drops the A-discipline courses
@@ -39,18 +39,23 @@ String profileName(String text, String fallback) {
   return t.length > 9 ? t.substring(0, 9) : t;
 }
 
-/// Picker options as (stored value, label).
-List<(String, String)> disciplineOptions({required bool dual}) =>
-    dual
-        ? [
-          for (final d in degreelist.where((d) => d.startsWith('B'))) (d, d),
-          ('B-', 'Other'),
-          ('--', 'None'),
-        ]
-        : [
-          for (final d in degreelist.where((d) => d.startsWith('A'))) (d, d),
-          ('--', 'Other'),
-        ];
+/// Picker options as (stored value, label). A code not offered at Goa or
+/// Hyderabad shows only while it is [current].
+List<(String, String)> disciplineOptions({
+  required bool dual,
+  String? current,
+}) {
+  final codes = [
+    for (final d in degreelist)
+      if (d.startsWith(dual ? 'B' : 'A') &&
+          (!notOfferedHere.contains(d) || d == current))
+        d,
+  ];
+  return [
+    for (final d in codes) (d, d),
+    if (dual) ...[('B-', 'Other'), ('--', 'None')] else ('--', 'Other'),
+  ];
+}
 
 String disciplineLabel(String half, {required bool dual}) =>
     disciplineOptions(
