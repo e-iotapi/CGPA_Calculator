@@ -56,8 +56,8 @@ class _SemesterPillsState extends State<SemesterPills> {
       animate
           ? _controller.animateTo(
             target,
-            duration: Motion.medium,
-            curve: Curves.easeOutCubic,
+            duration: Motion.base,
+            curve: Motion.curve,
           )
           : _controller.jumpTo(target);
     });

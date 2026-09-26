@@ -128,8 +128,8 @@ class _SemesterViewState extends State<SemesterView> {
           final wide = Breakpoints.of(c.maxWidth) != WindowSize.compact;
           return AnimatedSwitcher(
             duration: Motion.slow,
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
+            switchInCurve: Motion.curve,
+            switchOutCurve: Motion.exitCurve,
             transitionBuilder:
                 (child, a) => FadeTransition(
                   opacity: a,

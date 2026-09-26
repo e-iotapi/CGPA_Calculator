@@ -40,9 +40,15 @@ abstract final class Sizes {
 }
 
 abstract final class Motion {
-  static const fast = Duration(milliseconds: 150);
-  static const medium = Duration(milliseconds: 220);
-  static const slow = Duration(milliseconds: 350);
+  static const fast = Duration(milliseconds: 120);
+  static const base = Duration(milliseconds: 220);
+  static const slow = Duration(milliseconds: 380);
+
+  /// The standard curve for anything entering or moving.
+  static const curve = Curves.easeOutCubic;
+
+  /// For anything leaving.
+  static const exitCurve = Curves.easeInCubic;
 }
 
 /// Type scale. Colourless: callers add colour from the palette with
