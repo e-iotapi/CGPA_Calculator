@@ -520,13 +520,16 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
           borderRadius: BorderRadius.circular(16),
           onTap: () => setState(() => _grade = value),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+            // 31px pills in 36px rows: all thirteen wrap into four short
+            // rows, so the card fits above the action bar.
+            constraints: const BoxConstraints(minHeight: 36),
             child: Center(
               widthFactor: 1,
+              // No alignment on the Container: it would stretch each pill
+              // to the full row. The Center below sizes it to its text.
               child: Container(
                 height: 31,
                 padding: const EdgeInsets.symmetric(horizontal: 11),
-                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color:
                       on
@@ -534,12 +537,15 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
                           : p.surface.withValues(alpha: quiet ? 0.5 : 1),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Text(
-                  text,
-                  style: TypeScale.caption.copyWith(
-                    fontSize: 12.5,
-                    fontWeight: on ? FontWeight.w700 : FontWeight.w600,
-                    color: on ? p.onInverse : p.text,
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    text,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: on ? FontWeight.w700 : FontWeight.w600,
+                      color: on ? p.onInverse : p.text,
+                    ),
                   ),
                 ),
               ),
@@ -567,9 +573,10 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('SELECTED', style: label),
+                    // Two lines: an alias-joined title (§2.10) is long.
                     Text(
                       h.title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TypeScale.body.copyWith(
                         color: p.onHero,
@@ -592,38 +599,11 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
           const SizedBox(height: Space.md),
           Text('COUNTS AS', style: label),
           const SizedBox(height: Space.xs),
-          DropdownButtonHideUnderline(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: Space.md),
-              decoration: BoxDecoration(
-                color: p.surface,
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: DropdownButton<String>(
-                value: _category,
-                isExpanded: true,
-                dropdownColor: p.surface,
-                style: TypeScale.caption.copyWith(
-                  color: p.text,
-                  fontWeight: FontWeight.w600,
-                ),
-                items: [
-                  for (final t in {
-                    ...categoryOptions(widget.discipline),
-                    _category,
-                  })
-                    DropdownMenuItem(
-                      value: t,
-                      child: Text(
-                        categoryLabel(t, widget.discipline),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-                onChanged: (t) => setState(() => _category = t ?? _category),
-              ),
-            ),
+          CategoryDropdown(
+            value: _category,
+            discipline: widget.discipline,
+            bordered: false,
+            onChanged: (t) => setState(() => _category = t),
           ),
           const SizedBox(height: Space.md),
           Text('GRADE', style: label),

@@ -79,43 +79,99 @@ class CategoryDropdown extends StatelessWidget {
     required this.value,
     required this.discipline,
     required this.onChanged,
+    this.bordered = true,
   });
 
   final String value;
   final String discipline;
   final ValueChanged<String> onChanged;
 
+  /// Off on a coloured card, where the white field needs no outline.
+  final bool bordered;
+
+  /// A menu anchored under the field, as wide as it.
+  Future<void> _open(BuildContext context) async {
+    final p = AppPalette.of(context);
+    final box = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final topLeft = box.localToGlobal(
+      Offset(0, box.size.height + 4),
+      ancestor: overlay,
+    );
+    final picked = await showMenu<String>(
+      context: context,
+      color: p.surface,
+      constraints: BoxConstraints.tightFor(width: box.size.width),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+      position: RelativeRect.fromRect(
+        topLeft & Size(box.size.width, 0),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final t in {...categoryOptions(discipline), value})
+          PopupMenuItem(
+            value: t,
+            height: 40,
+            child: Text(
+              categoryLabel(t, discipline),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TypeScale.caption.copyWith(
+                color: p.text,
+                fontWeight: t == value ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+    if (picked != null) onChanged(picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return DropdownButtonHideUnderline(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: Space.md),
-        decoration: BoxDecoration(
-          color: p.surface,
-          border: Border.all(color: p.border),
+    final label = categoryLabel(value, discipline);
+    return Semantics(
+      button: true,
+      label: 'Counts as $label',
+      excludeSemantics: true,
+      child: Material(
+        color: p.surface,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(13),
+          side: bordered ? BorderSide(color: p.border) : BorderSide.none,
         ),
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          dropdownColor: p.surface,
-          style: TypeScale.caption.copyWith(
-            color: p.text,
-            fontWeight: FontWeight.w600,
-          ),
-          items: [
-            for (final t in {...categoryOptions(discipline), value})
-              DropdownMenuItem(
-                value: t,
-                child: Text(
-                  categoryLabel(t, discipline),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _open(context),
+          child: SizedBox(
+            height: 38,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Space.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TypeScale.caption.copyWith(
+                        color: p.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: Space.xs),
+                  Icon(
+                    Icons.expand_more_rounded,
+                    size: 16,
+                    color: p.textMuted,
+                  ),
+                ],
               ),
-          ],
-          onChanged: (t) => onChanged(t ?? value),
+            ),
+          ),
         ),
       ),
     );

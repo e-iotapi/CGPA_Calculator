@@ -200,6 +200,53 @@ void main() {
     });
   }
 
+  testWidgets('the selected card fits: wrapped grades, a 38px field', (
+    t,
+  ) async {
+    t.view.physicalSize = const Size(320, 640);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: Scaffold(
+          body: SizedBox(
+            height: 515,
+            child: AddCourseSheet(
+              held: _held,
+              sem: '4 - 1',
+              discipline: 'A7--',
+              profile: Profile.actual,
+              master: _master,
+            ),
+          ),
+        ),
+      ),
+    );
+    await t.enterText(find.byType(TextField), 'long');
+    await t.pump();
+    await t.tap(find.text(_long).last);
+    await t.pump();
+    // The title wraps to two lines before it gives up.
+    expect(t.widget<Text>(find.text(_long).last).maxLines, 2);
+    // All thirteen grades wrap into at most four 36px rows, not a column of
+    // full-width bars, and the whole card stays short.
+    final first = t.getTopLeft(find.text('A').last).dy;
+    final last = t.getTopLeft(find.text('Not yet')).dy;
+    expect(last - first, lessThanOrEqualTo(3 * 36));
+    final top = t.getTopLeft(find.text('SELECTED')).dy;
+    expect(t.getBottomLeft(find.text('Not yet')).dy - top, lessThan(260));
+
+    final field = find.bySemanticsLabel(RegExp('^Counts as'));
+    expect(t.getSize(field).height, 38);
+    await t.tap(field);
+    await t.pumpAndSettle();
+    expect(find.byType(PopupMenuItem<String>), findsWidgets);
+    await t.tap(find.byType(PopupMenuItem<String>).last);
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+  });
+
   for (final scale in [1.0, 2.0]) {
     testWidgets('manual entry at 320px, text ×$scale', (t) async {
       t.view.physicalSize = const Size(320, 640);
