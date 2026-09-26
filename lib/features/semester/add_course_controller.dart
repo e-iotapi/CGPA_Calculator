@@ -105,9 +105,10 @@ List<CourseHit> searchCourses(
       byId.values
           .where(
             (m) =>
-                codeStarts(m) ||
-                m.title.toLowerCase().contains(q) ||
-                m.id.toLowerCase().contains(q),
+                !isRetired(m.id) &&
+                (codeStarts(m) ||
+                    m.title.toLowerCase().contains(q) ||
+                    m.id.toLowerCase().contains(q)),
           )
           .toList()
         ..sort((x, y) {

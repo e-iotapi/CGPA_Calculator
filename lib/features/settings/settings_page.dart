@@ -1,7 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
-import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
@@ -46,9 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
               profiles: profileNames,
               onClose: () => Navigator.of(context).maybePop(),
               onPickDiscipline: (dual) => _pickDiscipline(context, dual),
-              onPickBatch: () => _pickBatch(context),
               campus: campus?.label,
-              onPickCampus: () => _pickCampus(context),
               onTheme: _setTheme,
               onRenameProfile: (i) => _renameProfile(context, i),
               onExport: () => _exportCsv(context),
@@ -181,35 +178,6 @@ class _SettingsPageState extends State<SettingsPage> {
       selectdual = selecteddiscipline.substring(0, 2);
       selecengg = selecteddiscipline.substring(2, 4);
     });
-  }
-
-  Future<void> _pickBatch(BuildContext context) async {
-    final v = await _pick(context, 'Batch', [
-      for (final y in batchOptions(DateTime.now()).reversed)
-        (y, '20${y.toString().padLeft(2, '0')}'),
-    ], batch);
-    if (v == null || v == batch || !context.mounted) return;
-    final next = batchErase(batch, v, erase);
-    if (next == 1 &&
-        erase != 1 &&
-        !await _confirm(context, 'Change batch?', eraseWarning(1)!, 'Change')) {
-      return;
-    }
-    erase = next;
-    batch = v;
-    await setdis();
-    await initializeCourses();
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _pickCampus(BuildContext context) async {
-    final v = await _pick(context, 'Campus', [
-      for (final c in Campus.values) (c, c.label),
-    ], campus);
-    if (v == null || v == campus || !context.mounted) return;
-    campus = v;
-    await setdis();
-    if (mounted) setState(() {});
   }
 
   Future<void> _install(BuildContext context) => offerInstall(context);
