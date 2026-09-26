@@ -129,12 +129,25 @@ Elective _placed(String dept, String id, Elective taken, String discipline) {
   return Elective.open;
 }
 
-/// The category [c] counts toward in the audit: its own for a core course
-/// (null when it has none), [electiveFor] for an elective. With no
-/// discipline, its own.
+/// Course ids whose category the student set by hand. Theirs is final: the
+/// department rules below never move them. Loaded with the settings.
+Set<String> pinnedCategories = {};
+
+/// The first degree's core: the M.Sc. half of a dual, else the single one.
+Elective firstDegreeCore(String discipline) =>
+    discipline.startsWith('--') ? Elective.cdc2 : Elective.cdc1;
+
+/// The category [c] counts toward in the audit: exactly what the student
+/// set, when they set it; the first degree's core for a common course; its
+/// own for a core course (null when it has none); [electiveFor] for an
+/// elective. With no discipline, its own.
 Elective? auditCategory(Course c, String discipline) {
   final e = Elective.fromTag(c.elective);
-  if (!_isElective(e) || discipline == '----') return e;
+  if (discipline == '----' || pinnedCategories.contains(c.id.trim())) return e;
+  if (e == null && commonCore.contains(c.id.trim())) {
+    return firstDegreeCore(discipline);
+  }
+  if (!_isElective(e)) return e;
   return electiveFor(c.id, e!, discipline);
 }
 
@@ -168,7 +181,7 @@ bool countsTowardDegree(Course c) =>
     c.grade1 > 0 || c.grade1 == GradeCode.gd || c.grade1 == GradeCode.ongoing;
 
 /// Codes of the common core: first-year and shared courses the chart gives
-/// no half, which count as core though they carry no CDC tag.
+/// no half. They count as the first degree's core (B3 in B3A7).
 final Set<String> commonCore = {
   ...nonelist,
   for (final c in [...hydCourseList, ...hydCourseListNew])
@@ -182,8 +195,7 @@ final Set<String> commonCore = {
 bool isUnassigned(Course c, String discipline) =>
     countsTowardDegree(c) &&
     auditCategory(c, discipline) == null &&
-    RegExp(r'^[A-Z]{2,5}\s+[A-Z]\d{3}').hasMatch(c.id.trim()) &&
-    !commonCore.contains(c.id.trim());
+    RegExp(r'^[A-Z]{2,5}\s+[A-Z]\d{3}').hasMatch(c.id.trim());
 
 /// Passed courses whose [auditCategory] is in [categories]; null stands for
 /// a core course with no half, never an unassigned one.
