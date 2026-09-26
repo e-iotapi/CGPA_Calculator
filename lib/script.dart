@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/constants.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
@@ -450,6 +451,7 @@ Future<void> initializeCourses() async {
     }
   }
   //print("All keys in coursesBox: ${coursesBox.keys}");
+  await placeDualPracticeSchool(coursesBox, selecteddiscipline);
 }
 
 Future<void> setdis() async {
@@ -773,6 +775,14 @@ final List<String> depts = [
 ];
 final List<String> grades = pickerGrades;
 final List<String> sems = baseSemesters;
+/// Codes in [degreelist] not offered at Goa or Hyderabad (A9 Biotechnology,
+/// AB Manufacturing). Kept for anyone already on them, never offered anew.
+const notOfferedHere = {'A9', 'AB'};
+
+/// [degreelist] without [notOfferedHere], for pickers.
+List<String> get offeredDegrees =>
+    degreelist.where((d) => !notOfferedHere.contains(d)).toList();
+
 final List<String> degreelist = [
   "B1",
   "B2",

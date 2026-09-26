@@ -3465,6 +3465,107 @@ List<Mastercourselist> mcourselist = [
     id: "SNS F343",
     credits: 3,
   ),
+  // Phase 12 additions from the official semester-wise charts.
+  Mastercourselist(
+    title: "Thesis",
+    id: "BITS F421T",
+    credits: 16,
+  ),
+  Mastercourselist(
+    title: "Thesis",
+    id: "BITS F425T",
+    credits: 18,
+  ),
+  Mastercourselist(
+    title: "Thesis",
+    id: "BITS F424T",
+    credits: 9,
+  ),
+  Mastercourselist(
+    title: "Fundamentals of Solid State Devices",
+    id: "SNS F214",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Nanomaterials Synthesis & Characterization Lab",
+    id: "SNS F244",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Introduction to Environmental & Sustainable Systems Engineering",
+    id: "BITS F240",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Hydraulics & Fluid Mechanics",
+    id: "ENVS F211",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Environmental Chemistry and Biotechnology",
+    id: "ENVS F212",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Water and Wastewater Treatment and Management",
+    id: "ENVS F221",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Transport Phenomena for Environmental Systems",
+    id: "ENVS F222",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Material Science and Engineering for Sustainability",
+    id: "ENVS F223",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Sampling and Analytical Techniques for Pollutants",
+    id: "ENVS F224",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Environmental Modelling",
+    id: "ENVS F311",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Air Pollution Control",
+    id: "ENVS F312",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Digital Sustainability",
+    id: "ENVS F313",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Environmental Engineering Lab",
+    id: "ENVS F314",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Sustainability Policies and Measures",
+    id: "ENVS F321",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Solid and Hazardous Waste Management",
+    id: "ENVS F322",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Sustainable Urban Design and Smart Cities",
+    id: "ENVS F323",
+    credits: 3,
+  ),
+  Mastercourselist(
+    title: "Environmental Economics and Governance",
+    id: "ENVS F324",
+    credits: 3,
+  ),
 ];
 
 Future<List<Mastercourselist>> fetchData() async {

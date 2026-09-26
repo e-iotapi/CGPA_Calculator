@@ -157,7 +157,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final v = await _pick(
       context,
       dual ? 'Dual degree' : 'Discipline',
-      disciplineOptions(dual: dual),
+      disciplineOptions(dual: dual, current: half),
       half,
     );
     if (v == null || v == half || !context.mounted) return;
