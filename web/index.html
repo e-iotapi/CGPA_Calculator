@@ -18,27 +18,29 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>CGPA Calculator for BITS Pilani Students | For Pilani, Goa and Hyderabad Campus</title>
-  <meta name="description" content="Calculate your CGPA easily with this user-friendly CGPA Calculator designed specifically for BITS Pilani students. Designed for BITS Pilani, BITS Goa, BITS Hyderabad Campuses. BPPC, BPGC, BPHC. Get quick, accurate CG for all semesters." />
+  <title>Pointer — CGPA Calculator for BITS Pilani, Goa and Hyderabad</title>
+  <meta name="description" content="Pointer is the CGPA calculator for BITS Pilani, Goa and Hyderabad (BPPC, BPGC, BPHC): instant SGPA and CGPA for every semester, evaluative marks with best-of rules, the offshoot score and degree progress." />
   <meta name="keywords" content="CGPA Calculator, CGPA Calculator BITS, CGPA Calculator Bits Pilani, BITS Pilani CGPA,CGPA, Semester Calculator, Student Tools, Academic Calculator,CGPA, CG, CG Calculator, CG Calculator Online, CGPA Calculator Online, GPA Calculator, BITS, BITS Pilani, BITS Goa, BITS Hyderabad, BITS CGPA, BITS CG, BITS Pilani CG, BITS Goa CG, BITS Hyderabad CG, Pilani CGPA Calculator, Goa CGPA Calculator, Hyderabad CGPA Calculator, CG Grade Calculator, Semester CG Calculator, BITS Semester Calculator,CGPA Calculator for BITS Hyd, CGPA Calculator for BITS Hyderabad, CGPA Calculator for BITS Goa, CGPA Calculator for BPHC, CGPA Calculator for BPPC, CGPA Calculator for BHGC, College CG Calculator, University CG Calculator, Engineering CG Calculator, Student Grade Calculator, Grade Point Average Calculator, CG Mark Calculator, BITS Campus Calculator, Quick CG Calculator, Academic CG Calculator, Course CG Calculator, BITS Academic Tools, BITS Student Tools, CGPA to CG Converter, CGPA to Percentage BITS, CG Finder, CGPA App, CGPA Website, BITS Exam CGPA, BITS Grade Tool, BITS GPA, BITS Percentage Calculator" />
-  <meta name="author" content="Srijen Raja" />
-  <meta name="publisher" content="Srijen Raja">
+  <meta name="author" content="Siddharth Mishra" />
+  <meta name="publisher" content="Pointer">
   <meta name="google-site-verification" content="tuqISfsuhuYBDZzlmG0IrYWXscdI_tp-qE3-W0pywlo" />
 
-  <meta property="og:site_name" content="Srijen Raja">
-  <meta property="og:title" content="CGPA Calculator for BITS Pilani Students" />
+  <meta property="og:site_name" content="Pointer">
+  <meta property="og:title" content="Pointer — CGPA Calculator for BITS" />
   <meta property="og:description" content="Calculate your CGPA easily and accurately with this dedicated CGPA calculator for BITS students." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://cgpa-calculator-bits-goa.netlify.app/" />
   <meta property="og:image" content="https://cgpa-calculator-bits-goa.netlify.app/icons/Icon-192.png" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="CGPA Calculator for BITS Pilani Students" />
+  <meta name="twitter:title" content="Pointer — CGPA Calculator for BITS" />
   <meta name="twitter:description" content="Use this powerful CGPA Calculator to track your semester grades with ease." />
   <meta name="twitter:image" content="https://cgpa-calculator-bits-goa.netlify.app/icons/Icon-192.png" />
 
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="cgpa_calculator" />
+  <meta name="apple-mobile-web-app-title" content="Pointer" />
+  <meta name="theme-color" content="#F2F2EF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0D0D0C" media="(prefers-color-scheme: dark)" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <link rel="apple-touch-icon" href="icons/Icon-192.png" />
   <link rel ="canonical" href="https://cgpa-calculator-bits-goa.netlify.app/" />
@@ -49,10 +51,12 @@
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "name": "CGPA Calculator for BITS Pilani",
+      "name": "Pointer — CGPA Calculator for BITS Pilani",
+      "alternateName": "CGPA Calculator for BITS Pilani",
       "description": "Calculate your CGPA easily with this user-friendly CGPA Calculator designed specifically for BITS Pilani students. Get quick, accurate results for all semesters.",
       "applicationCategory": "EducationalApplication",
-      "author": { "@type": "Person", "name": "Srijen Raja" },
+      "author": { "@type": "Person", "name": "Siddharth Mishra" },
+      "isBasedOn": "CGPA Calculator by Srijen Raja (Apache-2.0)",
       "url": "https://cgpa-calculator-bits-goa.netlify.app/"
     }
   </script>
@@ -78,45 +82,87 @@
   </script>
 
 
-  <style>
-    .loader {
-    margin: 10px;
-      width: 30px;
-      height: 30px;
-      border: 4px solid #ccc;       /* Light grey background ring */
-      border-top: 4px solid #3498db;/* Blue top ring */
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
+  <!-- Montserrat: preconnect + display=swap so the font never blocks first paint. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;800&display=swap" rel="stylesheet">
 
-    @keyframes spin {
-      0%   { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+  <!-- Loading screen: pure CSS, paints before the engine boots. Compositor-only
+       animations (transform/opacity) for slow connections. -->
+  <style>
+    :root { --bg: #F2F2EF; --ink: #17170F; --soft: #45453C; --muted: #55554C;
+            --quiet: #8A8A7E; --quieter: #9E9E92; --track: #E2E2DA; --bead: #2C7A62; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0D0D0C; --ink: #F4F4EF; --soft: #BDBDB2; --muted: #ADADA2;
+              --quiet: #84847A; --quieter: #6E6E63; --track: #2A2A26; --bead: #7FC9A8; }
+    }
+    html, body { margin: 0; padding: 0; background: var(--bg); }
+    #ptr-loading { position: fixed; inset: 0; z-index: 10; background: var(--bg); color: var(--ink);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 0 32px; box-sizing: border-box; font-family: Montserrat, system-ui, sans-serif;
+      transition: opacity .28s ease-out; }
+    #ptr-loading.ptr-done { opacity: 0; pointer-events: none; }
+    .ptr-word { display: flex; align-items: baseline; gap: 1px; margin-bottom: 9px;
+      font-size: 34px; letter-spacing: -1.4px; }
+    .ptr-word b { font-weight: 800; } .ptr-word span { font-weight: 400; color: var(--soft); }
+    .ptr-tag { margin: 0 0 30px; text-align: center; font-size: 13.5px; font-weight: 500;
+      line-height: 1.5; color: var(--muted); max-width: 270px; }
+    .ptr-bar { width: 148px; height: 4px; border-radius: 3px; background: var(--track); overflow: hidden; }
+    .ptr-sweep { width: 34%; height: 4px; border-radius: 3px; background: var(--bead); }
+    .ptr-status { display: flex; align-items: center; gap: 7px; margin-top: 15px; font-size: 11.5px;
+      font-weight: 600; letter-spacing: .2px; color: var(--quieter); }
+    .ptr-dots { display: flex; gap: 3px; }
+    .ptr-dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+    .ptr-seo { position: absolute; left: 32px; right: 32px; bottom: 40px; text-align: center; }
+    .ptr-seo h1 { margin: 0 0 5px; font-size: 11.5px; font-weight: 600; color: var(--quiet); line-height: 1.45; }
+    .ptr-seo p { margin: 0; font-size: 10.5px; font-weight: 500; color: var(--quieter); line-height: 1.5; }
+
+    @keyframes ptr-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+    @keyframes ptr-swing { 0%,100% { transform: rotate(-11deg) } 50% { transform: rotate(11deg) } }
+    @keyframes ptr-sweep { 0% { transform: translateX(-100%) } 100% { transform: translateX(300%) } }
+    @keyframes ptr-fade  { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+    .ptr-mark  { margin-bottom: 26px; animation: ptr-float 3.2s cubic-bezier(.45,0,.55,1) infinite; }
+    .ptr-cord  { animation: ptr-swing 1.9s cubic-bezier(.45,0,.55,1) infinite;
+                 transform-box: view-box; transform-origin: 40px 17px; }
+    .ptr-sweep { animation: ptr-sweep 1.5s cubic-bezier(.65,0,.35,1) infinite; }
+    .ptr-dot   { animation: ptr-fade 1.5s ease-in-out infinite; }
+    .ptr-dot:nth-child(2) { animation-delay: .18s }
+    .ptr-dot:nth-child(3) { animation-delay: .36s }
+    @media (prefers-reduced-motion: reduce) {
+      .ptr-mark, .ptr-cord, .ptr-sweep, .ptr-dot { animation: none; }
+      .ptr-sweep { transform: none; width: 100%; opacity: .45; }
+      #ptr-loading { transition: none; }
     }
   </style>
-
 </head>
-<body style="background-color:#f6f8fa; margin:0; padding:0; font-family:'Segoe UI', Arial, sans-serif;">
-<div id="seo-fallback-content" style="max-width:480px; margin:60px auto 0 auto; background:#fff; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.06); padding:36px 28px 28px 28px; text-align:center;">
-  <h1 style="font-size:2.2rem; font-weight:700; color:#1d3557; margin-bottom:0.6em; margin-top:0;">
-    CGPA Calculator for BITS Pilani
-  </h1>
-  <p style="font-size:1.15rem; color:#333; line-height:1.5; margin-bottom:1em;">
-    This web app provides a fast and accurate CGPA calculator for BITS Pilani students. Simply enter your grades and get instant results for all semesters.
-  </p>
-  <p style="font-size:1.08rem; color:#555; margin-bottom:1.0em;">
-    Mainly designed for iOS users who cannot use traditional Play Store apps, this platform makes it easy to track your academic progress.
-  </p>
-  <p style="color:#767676; font-size:0.98rem; margin-bottom:0;">
-    Loading CGPA Calculator, Please Wait...
-  </p>
-</div>
-<div style="display: flex; justify-content: center;">
-  <div class="loader"></div>
+<body>
+<div id="ptr-loading" role="status" aria-live="polite">
+  <div class="ptr-mark">
+    <svg width="96" height="96" viewBox="0 0 48 48" fill="none" role="img" aria-label="Pointer">
+      <path d="M24 9l16 8-16 8-16-8z" fill="currentColor"></path>
+      <path d="M14 22v7c0 3.9 4.5 7 10 7s10-3.1 10-7v-7" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.32"></path>
+      <g class="ptr-cord">
+        <path d="M40 17v11" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"></path>
+        <circle cx="40" cy="33" r="4.4" fill="var(--bead)"></circle>
+      </g>
+    </svg>
+  </div>
+  <div class="ptr-word"><b>Point</b><span>er</span></div>
+  <p class="ptr-tag">Grades, marks and the whole degree &mdash; in one place, for BITS Pilani, Goa and Hyderabad.</p>
+  <div class="ptr-bar"><div class="ptr-sweep"></div></div>
+  <div class="ptr-status">Loading <span class="ptr-dots"><span class="ptr-dot"></span><span class="ptr-dot"></span><span class="ptr-dot"></span></span></div>
+  <!-- Crawlable fallback: kept in the DOM for search, visually quiet. -->
+  <div class="ptr-seo" id="seo-fallback-content">
+    <h1>CGPA Calculator for BITS Pilani, Goa and Hyderabad</h1>
+    <p>Enter your grades for instant SGPA and CGPA across every semester, track evaluative marks, and see how much of your degree is done.</p>
+  </div>
 </div>
 <script>
-  document.addEventListener('flutter-first-frame', function() {
-    document.getElementById('seo-fallback-content').style.display = 'none';
+  // Fade, don't snap: the handoff to the app should not visibly jump.
+  document.addEventListener('flutter-first-frame', function () {
+    var el = document.getElementById('ptr-loading');
+    el.classList.add('ptr-done');
+    setTimeout(function () { el.setAttribute('aria-hidden', 'true'); el.style.visibility = 'hidden'; }, 320);
   });
 </script>
 <script src="flutter_bootstrap.js" async></script>
