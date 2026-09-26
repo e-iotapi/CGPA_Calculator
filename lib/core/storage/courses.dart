@@ -30,3 +30,6 @@ Course withGrade(Course course, int profileId, int grade) => Course(
   sem: course.sem,
   elective: course.elective,
 );
+
+/// Every stored course, for read-only screens.
+Iterable<Course> allCourses() => Hive.box<Course>(coursesBoxName).values;

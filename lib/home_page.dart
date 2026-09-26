@@ -3,7 +3,7 @@ import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
-import 'package:cgpa_calculator/analytics.dart';
+import 'package:cgpa_calculator/features/stats/stats_page.dart';
 import 'package:cgpa_calculator/pwa_helper/pwa_helper.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -342,7 +342,7 @@ class _MyHomePageState extends State<MyHomePage> {
       onOpenAnalytics:
           () => Navigator.of(
             context,
-          ).push(MaterialPageRoute(builder: (context) => Analytics())),
+          ).push(MaterialPageRoute(builder: (context) => StatsPage(discipline: selecteddiscipline))),
       onOpenSettings: _openSettings,
       onToggleTheme:
           () => setState(() {
