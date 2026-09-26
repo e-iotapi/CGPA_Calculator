@@ -159,7 +159,8 @@
 </div>
 <script>
   // Fade, don't snap: the handoff to the app should not visibly jump.
-  document.addEventListener('flutter-first-frame', function () {
+  // The engine dispatches this on window; it never reaches document.
+  window.addEventListener('flutter-first-frame', function () {
     var el = document.getElementById('ptr-loading');
     el.classList.add('ptr-done');
     setTimeout(function () { el.setAttribute('aria-hidden', 'true'); el.style.visibility = 'hidden'; }, 320);
