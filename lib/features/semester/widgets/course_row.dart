@@ -102,9 +102,9 @@ class CourseRow extends StatelessWidget {
               onTap:
                   onGradePicked == null
                       ? null
-                      : () async {
+                      : (anchor) async {
                         final g = await showGradeMenu(
-                          context,
+                          anchor,
                           current: _grade,
                           title: displayTitle(course.id, course.title),
                         );

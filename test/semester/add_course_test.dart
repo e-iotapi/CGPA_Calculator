@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_row.dart';
+import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_scrubber.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/material.dart';
@@ -107,11 +108,15 @@ void main() {
     int? picked;
     await t.pumpWidget(
       _app(
-        CourseRow(
-          course: _held.last,
-          mode: SemesterMode.actual,
-          onTap: () => rowTaps++,
-          onGradePicked: (g) => picked = g,
+        ListView(
+          children: [
+            CourseRow(
+              course: _held.last,
+              mode: SemesterMode.actual,
+              onTap: () => rowTaps++,
+              onGradePicked: (g) => picked = g,
+            ),
+          ],
         ),
       ),
     );
@@ -122,9 +127,15 @@ void main() {
     await t.pumpAndSettle();
     expect(rowTaps, 0);
     expect(find.text('Not graded yet'), findsOneWidget);
-    expect(find.textContaining('leave the CGPA entirely'), findsNWidgets(2));
-    await t.ensureVisible(find.text('GD'));
-    await t.pumpAndSettle();
+    expect(find.text(specialGradesNote), findsOneWidget);
+    // A popover under the chip, right-aligned to it; the row stays visible.
+    final menu = t.getRect(find.byType(GradeMenu));
+    final chipRect = t.getRect(chip);
+    expect(menu.width, 216);
+    // Below the chip, or above it when there is no room; never over it.
+    expect(menu.top > chipRect.bottom || menu.bottom < chipRect.top, isTrue);
+    // Right-aligned to the chip, held inside the 20px gutter.
+    expect(menu.right, closeTo(chipRect.right.clamp(0, 800 - 20), 1));
     await t.tap(find.text('GD'));
     await t.pumpAndSettle();
     expect(picked, GradeCode.gd);
@@ -272,4 +283,40 @@ void main() {
       expect(added?.elective, Elective.open.tag);
     });
   }
+
+  testWidgets('grade menu fits at 320px with 200% text', (t) async {
+    t.view.physicalSize = const Size(320, 640);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        builder:
+            (c, child) => MediaQuery(
+              data: MediaQuery.of(
+                c,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+        home: Scaffold(
+          body: ListView(
+            children: [
+              CourseRow(
+                course: _held.last,
+                mode: SemesterMode.actual,
+                onGradePicked: (_) {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await t.tap(find.byType(GradeScrubber));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    final menu = t.getRect(find.byType(GradeMenu));
+    expect(menu.left, greaterThanOrEqualTo(16));
+    expect(menu.right, lessThanOrEqualTo(304));
+    expect(menu.bottom, lessThanOrEqualTo(640));
+  });
 }
