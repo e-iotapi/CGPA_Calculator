@@ -81,6 +81,8 @@ void main() {
       onReport: () => taps.add('report'),
       onReset: () => taps.add('reset'),
       onSignOut: () => taps.add('signout'),
+      onEmail: () => taps.add('email'),
+      onGithub: () => taps.add('github'),
     );
 
     Future<void> pump(Size size, {double scale = 1, bool dark = false}) async {

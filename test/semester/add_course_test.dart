@@ -166,7 +166,6 @@ void main() {
                     sem: '4 - 1',
                     discipline: 'A7--',
                     profile: Profile.actual,
-                    onManual: () {},
                     master: _master,
                   ),
                 ),
@@ -187,6 +186,90 @@ void main() {
         find.textContaining('Add to 4 − 1', findRichText: true),
         findsOneWidget,
       );
+    });
+  }
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('manual entry at 320px, text ×$scale', (t) async {
+      t.view.physicalSize = const Size(320, 640);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      Course? added;
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          builder:
+              (c, child) => MediaQuery(
+                data: MediaQuery.of(
+                  c,
+                ).copyWith(textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+          home: Scaffold(
+            body: Builder(
+              builder:
+                  (c) => Center(
+                    child: TextButton(
+                      onPressed:
+                          () async =>
+                              added = await showAddCourseSheet(
+                                c,
+                                held: _held,
+                                sem: '4 - 1',
+                                discipline: 'A7--',
+                                profile: Profile.actual,
+                              ),
+                      child: const Text('open'),
+                    ),
+                  ),
+            ),
+          ),
+        ),
+      );
+      await t.tap(find.text('open'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Not in the list? Enter it manually'));
+      await t.pumpAndSettle();
+      expect(find.text('Enter it manually'), findsOneWidget);
+      final fields = find.byType(TextField);
+      await t.enterText(fields.at(0), 'cs');
+      await t.enterText(fields.at(1), 'f372');
+      await t.pump();
+      expect(find.textContaining('already in 4 − 1'), findsOneWidget);
+      await t.enterText(fields.at(1), 'f499');
+      final list =
+          find
+              .descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              )
+              .first;
+      final titleField = find.widgetWithText(TextField, 'Course name');
+      await t.scrollUntilVisible(titleField, 100, scrollable: list);
+      await t.enterText(titleField, _long);
+      await t.pump();
+      expect(t.takeException(), isNull);
+      final title = t.widget<TextField>(find.byType(TextField).last);
+      expect(title.maxLines, isNull); // wraps, never cut
+      await t.scrollUntilVisible(
+        find.byTooltip('Fewer credits'),
+        100,
+        scrollable: list,
+      );
+      await t.tap(find.byTooltip('Fewer credits'));
+      await t.pump();
+      await t.scrollUntilVisible(find.text('GD'), 100, scrollable: list);
+      await t.tap(find.text('A'));
+      await t.pump();
+      expect(t.takeException(), isNull);
+      expect(find.textContaining('Degree progress'), findsOneWidget);
+      await t.tap(find.textContaining('Add to 4 − 1', findRichText: true));
+      await t.pumpAndSettle();
+      expect(added?.id, 'CS F499');
+      expect(added?.title, _long);
+      expect(added?.credits, 2);
+      expect(added?.grade1, 10);
+      expect(added?.elective, Elective.open.tag);
     });
   }
 }

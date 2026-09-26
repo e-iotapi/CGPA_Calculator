@@ -226,11 +226,26 @@ handlers unless the inner one stops the event — the chip needs its own `Gestur
 with `behavior: HitTestBehavior.opaque` above the row's `InkWell`. The chip draws at
 46×34 and its tap target must still reach 44px once padding is counted.
 
-The menu splits the scale deliberately: the eight graded values, then `NC` / `RC` / `W` /
-`GD`, which do not behave like grades — RC and W drop the credits from the CGPA entirely,
-GD keeps the credits but not the points (§2.1). The current dropdown hides that, and it
-is exactly where a wrong tap costs someone a believable CGPA, so the menu states it.
-Thirteenth option is "Not graded yet".
+**The menu is a popover anchored under the chip, not a bottom sheet.** ⚠ This was
+underspecified and got built as a full-height sheet with one full-width bar per grade.
+Match board `GradeMenu`:
+
+- A card ~216px wide, anchored under the chip that opened it, right-aligned to it, with a
+  shadow. It does not fill the width and does not cover the row it belongs to.
+- Grades in a **4-column grid** of 32px-high pills, not a vertical list. Thirteen options
+  in a list is a scrolling screen; in a grid it is six rows and no scrolling.
+- Selected grade filled ink; the rest on the surface tone.
+- A hairline divider separates the eight graded values from `NC` / `RC` / `W` / `GD`,
+  which do not behave like grades — RC and W drop the credits from the CGPA entirely, GD
+  keeps the credits but not the points (§2.1).
+- **One caption line** under that group carries the rule, rather than a sentence per row.
+  The sentences are correct and worth keeping in wording, but per-row they are what turns
+  the menu into a full screen.
+- Last row, full width: "Not graded yet".
+
+Changing a grade is a one-tap correction made dozens of times. It should not take over
+the screen, and the row being edited should stay visible behind it — that context is the
+whole reason the menu is anchored.
 
 **Add a course** — board `AddCourse`. The current sheet offers a department-code
 dropdown, a course-number dropdown *and* a search box: two ways in, neither explained,
@@ -396,7 +411,7 @@ were both invisible in the commit log.
 | `DarkMain` | semester, dark | 4 | [ ] |
 | `AddCourse` | add a course — search | 4 | [ ] |
 | `AddManual` | add a course — manual | 4 | [ ] |
-| `GradeMenu` | grade chip menu + row hit targets | 4 | [ ] |
+| `GradeMenu` | grade chip menu + row hit targets | 4 | [ ] anchored popover, **not** a bottom sheet |
 | `Offshoot` | offshoot panel, light | 5 | [ ] |
 | `DarkOffshoot` | offshoot panel, dark | 5 | [ ] |
 | `Stats` | stats — Progression view | 6 | [ ] |
