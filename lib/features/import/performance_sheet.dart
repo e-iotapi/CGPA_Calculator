@@ -117,13 +117,10 @@ String? _semFor(String heading, int batchYear, String discipline) {
     final year = int.parse(m.group(2)!) - batchYear + 1;
     sem = '$year - ${m.group(1) == 'FIRST' ? 1 : 2}';
   } else if (_summer.firstMatch(heading) case final m?) {
-    // The summer after the second, third and fourth years.
-    sem = switch (int.parse(m.group(1)!) - batchYear + 1) {
-      2 => 'PS 1',
-      3 => 'ST 1',
-      4 => 'ST 2',
-      _ => null,
-    };
+    // "SUMMER TERM 2024-2025" is the 2023 batch's first summer, after the
+    // first year: PS 1. Each later summer is ST 1, ST 2 and so on.
+    final nth = int.parse(m.group(1)!) - batchYear;
+    sem = nth == 1 ? 'PS 1' : (nth > 1 ? 'ST ${nth - 1}' : null);
   } else {
     sem = null;
   }
