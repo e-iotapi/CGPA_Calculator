@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
+import 'package:cgpa_calculator/core/storage/course_order.dart';
 import 'package:cgpa_calculator/course.dart';
 
 /// What the nav's four tabs show. Matches `selectedprofile` 1–4.
@@ -22,7 +23,11 @@ enum CourseSort {
   creditsAsc('Sort by Credits(Asc)', 'Credits ↑'),
   creditsDesc('Sort by Credits(Des)', 'Credits ↓'),
   gradesAsc('Sort by Grades(Asc)', 'Grade ↑'),
-  gradesDesc('Sort by Grades(Des)', 'Grade ↓');
+  gradesDesc('Sort by Grades(Des)', 'Grade ↓'),
+
+  /// The order the student dragged the rows into. Once a row is dragged the
+  /// other sorts stop applying until one is picked again.
+  custom(customSortKey, 'Custom');
 
   const CourseSort(this.key, this.label);
   final String key;

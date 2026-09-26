@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
+import 'package:cgpa_calculator/core/storage/course_order.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/seed.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -152,6 +153,11 @@ Future<void> setdis() async {
 }
 
 void sort(List<Course> sitems, String cs) {
+  if (cs == customSortKey) {
+    final ordered = orderCourses(sitems, courseOrderFor(currentsem));
+    sitems.setAll(0, ordered);
+    return;
+  }
   if (selectedprofile == 1) {
     if (cs == "Sort by Credits(Asc)") {
       sitems.sort((a, b) => a.credits.compareTo(b.credits));
