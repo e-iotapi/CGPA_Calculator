@@ -153,7 +153,9 @@ void main() {
       expect(row('CS F111').sem, '1 - 2');
       expect(row('GS F211').sem, '2 - 1');
       expect(row('ECON F354').sem, '2 - 2');
+      // The first summer term is PS 1, the next ST 1.
       expect(row('BITS F221').sem, 'PS 1');
+      expect(row('ECON F212').sem, 'ST 1');
       expect(row('CS F213').sem, '3 - 1');
       expect(sheet.unplaced, isEmpty);
     });
