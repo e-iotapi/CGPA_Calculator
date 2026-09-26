@@ -201,9 +201,9 @@ class _SettingsPageState extends State<SettingsPage> {
   /// The browser's own prompt where it has one; otherwise, and always on
   /// iOS, the home-screen steps.
   Future<void> _install(BuildContext context) async {
-    final platform = installPlatform();
-    if (platform != InstallPlatform.ios && promptInstall()) return;
-    await showInstallGuide(context, platform);
+    final target = installTarget();
+    if (target.device != InstallDevice.ios && promptInstall()) return;
+    await showInstallGuide(context, target);
   }
 
   Future<void> _setTheme(bool dark) => switchTheme(

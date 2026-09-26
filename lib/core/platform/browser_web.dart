@@ -69,23 +69,12 @@ String userAgent() => web.window.navigator.userAgent;
 bool isStandalone() =>
     web.window.matchMedia('(display-mode: standalone)').matches ||
     // iOS Safari's own flag for a home-screen app.
-    (web.window.navigator as JSObject).getProperty<JSAny?>('standalone'.toJS)
+    (web.window.navigator as JSObject)
+            .getProperty<JSAny?>('standalone'.toJS)
             ?.dartify() ==
         true;
 
-String platformName() {
-  final ua = web.window.navigator.userAgent.toLowerCase();
-  // iPads report themselves as a Mac with a touch screen.
-  final touchMac =
-      ua.contains('macintosh') && web.window.navigator.maxTouchPoints > 0;
-  if (ua.contains('iphone') ||
-      ua.contains('ipad') ||
-      ua.contains('ipod') ||
-      touchMac) {
-    return 'ios';
-  }
-  return ua.contains('android') ? 'android' : 'desktop';
-}
+bool hasTouch() => web.window.navigator.maxTouchPoints > 0;
 
 /// Calls window.promptInstall from index.html, which holds the deferred
 /// beforeinstallprompt event.
