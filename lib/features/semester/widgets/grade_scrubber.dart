@@ -11,7 +11,11 @@ class GradeScrubber extends StatefulWidget {
     required this.grade,
     required this.onPicked,
     required this.child,
+    this.onTap,
   });
+
+  /// A plain tap. Handled here so it never reaches a tappable parent.
+  final VoidCallback? onTap;
 
   /// The stored grade value.
   final int grade;
@@ -133,6 +137,7 @@ class _GradeScrubberState extends State<GradeScrubber> {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
       onLongPressStart: _open,
       onLongPressMoveUpdate: _move,
       onLongPressEnd: (_) {
@@ -142,8 +147,15 @@ class _GradeScrubberState extends State<GradeScrubber> {
       },
       onLongPressCancel: _close,
       child: Semantics(
-        hint: 'Hold and drag to change the grade',
-        child: widget.child,
+        hint: 'Tap for grades, or hold and drag to change',
+        // Pad the 34px chip out to a 44px target.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: Sizes.minTouch,
+            minHeight: Sizes.minTouch,
+          ),
+          child: Center(widthFactor: 1, heightFactor: 1, child: widget.child),
+        ),
       ),
     );
   }
