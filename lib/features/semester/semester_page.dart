@@ -34,6 +34,7 @@ class SemesterView extends StatefulWidget {
     required this.onToggleTheme,
     this.onInstall,
     this.offshoot,
+    this.classDeltas = const {},
     this.slideFromRight = true,
   });
 
@@ -70,6 +71,9 @@ class SemesterView extends StatefulWidget {
   /// the space below the header.
   final Widget? offshoot;
   final bool slideFromRight;
+
+  /// Class-average delta by course id; courses without one show nothing.
+  final Map<String, double> classDeltas;
 
   @override
   State<SemesterView> createState() => _SemesterViewState();
@@ -209,6 +213,7 @@ class _SemesterViewState extends State<SemesterView> {
                   (_, i) => CourseRow(
                     course: d.courses[i],
                     mode: d.mode,
+                    classDelta: widget.classDeltas[d.courses[i].id],
                     onTap: () => widget.onCourseTap(d.courses[i], i),
                     onGradePicked: (g) => widget.onGradePicked(d.courses[i], g),
                   ),

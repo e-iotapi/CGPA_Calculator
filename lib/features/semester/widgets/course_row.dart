@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_scrubber.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
+import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
 import 'package:flutter/material.dart';
 
@@ -21,6 +22,7 @@ class CourseRow extends StatelessWidget {
     required this.mode,
     this.onTap,
     this.onGradePicked,
+    this.classDelta,
   });
 
   final Course course;
@@ -29,6 +31,9 @@ class CourseRow extends StatelessWidget {
 
   /// Called with the new stored grade after a hold-and-drag.
   final ValueChanged<int>? onGradePicked;
+
+  /// Marks minus the class average; null shows nothing.
+  final double? classDelta;
 
   @override
   Widget build(BuildContext context) {
@@ -46,11 +51,31 @@ class CourseRow extends StatelessWidget {
           style: TypeScale.body.copyWith(color: p.text),
         ),
         const SizedBox(height: 2),
-        Text(
-          course.id,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TypeScale.caption.copyWith(color: p.textMuted),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                course.id,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TypeScale.caption.copyWith(color: p.textMuted),
+              ),
+            ),
+            if (classDelta case final d?) ...[
+              const SizedBox(width: 3),
+              // Arrow and word carry it; the colour only reinforces.
+              Icon(deltaIcon(d), size: 16, color: d < 0 ? p.behind : p.ahead),
+              Text(
+                deltaWords(d),
+                maxLines: 1,
+                style: TypeScale.caption.copyWith(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: d < 0 ? p.behind : p.ahead,
+                ),
+              ),
+            ],
+          ],
         ),
       ],
     );
