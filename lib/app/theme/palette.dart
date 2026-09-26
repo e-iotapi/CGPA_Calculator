@@ -144,7 +144,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   AppPalette lerp(AppPalette? other, double t) =>
       other == null || t < 0.5 ? this : other;
 
-  // Legacy names, one per original `Constants` field.
+  // Legacy names still read by the remaining legacy screens.
   String get theme => name;
   Color get backcolor => background;
   Color get textcolor => text;
@@ -152,9 +152,6 @@ class AppPalette extends ThemeExtension<AppPalette> {
   Color get highcolor => accent;
   Color get cardcolor => surface;
   Color get bordcolor => border;
-  Color get unscolor => textMuted;
-  Color get butcolor => surfaceRaised;
-  Color get iconcolor => icon;
 
   /// The redesign's light mode.
   static const light = AppPalette(
@@ -212,6 +209,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     light.renamed('White'),
     dark.renamed('Black'),
   ];
+
+  /// The palette saved as [saved], after [resolveName].
+  static AppPalette byName(String saved) =>
+      named.firstWhere((p) => p.name == resolveName(saved));
 
   /// Maps a saved theme name onto one that still exists. The six colour
   /// themes were removed; each falls back to the mode it resembled.

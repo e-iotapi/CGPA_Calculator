@@ -424,36 +424,6 @@ extension OverlaysExtension on _MyHomePageState {
                                                     await initializeCourses();
                                                     sort(sitems,currentsort);
                                                     setState(() {
-                                                      selectedgrade = 10;
-                                                      addcourse = "AN";
-                                                      addcourseid = "F311";
-                                                      electiveSetter();
-                                                      dropdownid =
-                                                          mcourselist
-                                                              .where(
-                                                                (
-                                                                  course,
-                                                                ) => course.id
-                                                                    .startsWith(
-                                                                      "AN" +
-                                                                          ' ',
-                                                                    ),
-                                                              )
-                                                              .map(
-                                                                (
-                                                                  course,
-                                                                ) => course.id
-                                                                    .replaceFirst(
-                                                                      "AN" +
-                                                                          ' ',
-                                                                      '',
-                                                                    ),
-                                                              )
-                                                              .toList();
-                                                      dropdownid.sort(
-                                                        (a, b) =>
-                                                            a.compareTo(b),
-                                                      );
                                                       sort(sitems,currentsort);
                                                       degree_selected = true;
                                                     });

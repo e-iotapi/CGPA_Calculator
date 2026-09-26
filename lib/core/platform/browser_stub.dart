@@ -5,3 +5,9 @@ Future<String?> pickTextFile(String accept) async => null;
 void reloadPage() {}
 
 String userAgent() => 'vm';
+
+bool isStandalone() => false;
+
+String platformName() => 'desktop';
+
+bool promptInstall() => false;
