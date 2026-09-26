@@ -58,6 +58,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     Uri.parse('https://github.com/Srijen-Raja/CGPA_Calculator'),
                     mode: LaunchMode.externalApplication,
                   ),
+              onEmail:
+                  () => launchUrl(Uri.parse('mailto:siddhu.cms@gmail.com')),
+              onGithub:
+                  () => launchUrl(
+                    Uri.parse('https://github.com/e-iotapi'),
+                    mode: LaunchMode.externalApplication,
+                  ),
             ),
       ),
     );

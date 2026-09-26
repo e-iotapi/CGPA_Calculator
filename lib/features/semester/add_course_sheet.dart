@@ -2,11 +2,13 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/material.dart';
 
@@ -17,7 +19,6 @@ Future<Course?> showAddCourseSheet(
   required String sem,
   required String discipline,
   required Profile profile,
-  required VoidCallback onManual,
 }) {
   return showModalBottomSheet<Course>(
     context: context,
@@ -33,7 +34,6 @@ Future<Course?> showAddCourseSheet(
             sem: sem,
             discipline: discipline,
             profile: profile,
-            onManual: onManual,
           ),
         ),
   );
@@ -46,7 +46,6 @@ class AddCourseSheet extends StatefulWidget {
     required this.sem,
     required this.discipline,
     required this.profile,
-    required this.onManual,
     this.master,
   });
 
@@ -56,7 +55,6 @@ class AddCourseSheet extends StatefulWidget {
   final String sem;
   final String discipline;
   final Profile profile;
-  final VoidCallback onManual;
 
   @override
   State<AddCourseSheet> createState() => _AddCourseSheetState();
@@ -69,10 +67,51 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
   String _category = noCategory;
   int _grade = GradeCode.clr;
 
+  // Manual entry, for courses not in the BITS list.
+  bool _manual = false;
+  final _dept = TextEditingController();
+  final _number = TextEditingController();
+  final _title = TextEditingController();
+  int _credits = 3;
+  String? _manualCategory;
+  int _manualGrade = GradeCode.clr;
+
   @override
   void dispose() {
-    _query.dispose();
+    for (final c in [_query, _dept, _number, _title]) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  String get _manualId =>
+      '${_dept.text.trim().toUpperCase()} ${_number.text.trim().toUpperCase()}';
+
+  String? get _manualHeldIn =>
+      widget.held.where((c) => sameCourseId(c.id, _manualId)).firstOrNull?.sem;
+
+  Course? get _manualCourse {
+    if (_dept.text.trim().isEmpty ||
+        _number.text.trim().isEmpty ||
+        _title.text.trim().isEmpty ||
+        _manualHeldIn != null) {
+      return null;
+    }
+    final category =
+        _manualCategory ?? categoryFor(_manualId, widget.discipline);
+    return newCourse(
+      CourseHit(
+        id: _manualId,
+        title: _title.text.trim(),
+        credits: _credits.toDouble(),
+        category: category,
+      ),
+      sem: widget.sem,
+      discipline: widget.discipline,
+      category: category,
+      profile: widget.profile,
+      grade: _manualGrade,
+    );
   }
 
   void _search(String q) => setState(() {
@@ -109,7 +148,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final sem = semLabel(widget.sem);
-    final course = _course;
+    final course = _manual ? _manualCourse : _course;
     final mode = widget.profile == Profile.actual ? 'Actual' : 'Expected';
 
     return SafeArea(
@@ -123,79 +162,356 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Add a course',
-              style: TypeScale.title.copyWith(color: p.text),
-            ),
-            Text(
-              'to semester $sem · $mode',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TypeScale.caption.copyWith(color: p.textMuted),
-            ),
-            const SizedBox(height: Space.md),
-            TextField(
-              controller: _query,
-              autofocus: true,
-              onChanged: _search,
-              style: TypeScale.body.copyWith(color: p.text),
-              decoration: InputDecoration(
-                hintText: 'Search by code or name',
-                prefixIcon: Icon(Icons.search_rounded, color: p.icon),
-                suffixText:
-                    _query.text.trim().isEmpty ? null : '${_hits.length} found',
-                filled: true,
-                fillColor: p.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: p.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: p.text, width: 1.5),
+            if (_manual)
+              ..._manualView(context)
+            else ...[
+              Text(
+                'Add a course',
+                style: TypeScale.title.copyWith(color: p.text),
+              ),
+              Text(
+                'to semester $sem · $mode',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TypeScale.caption.copyWith(color: p.textMuted),
+              ),
+              const SizedBox(height: Space.md),
+              TextField(
+                controller: _query,
+                autofocus: true,
+                onChanged: _search,
+                style: TypeScale.body.copyWith(color: p.text),
+                decoration: InputDecoration(
+                  hintText: 'Search by code or name',
+                  prefixIcon: Icon(Icons.search_rounded, color: p.icon),
+                  suffixText:
+                      _query.text.trim().isEmpty
+                          ? null
+                          : '${_hits.length} found',
+                  filled: true,
+                  fillColor: p.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: p.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: p.text, width: 1.5),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: Space.md),
-            Expanded(
-              child: ListView(
-                children: [
-                  for (final h in _hits) ...[
-                    _HitRow(
-                      hit: h,
-                      picked: h.id == _picked?.id,
-                      discipline: widget.discipline,
-                      onTap: h.heldIn == null ? () => _pick(h) : null,
-                    ),
-                    if (h.id == _picked?.id) _selectedCard(context, h),
-                    const SizedBox(height: Space.sm - 1),
-                  ],
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onManual();
-                      },
-                      child: Text(
-                        'Not in the list? Enter it manually',
-                        style: TypeScale.caption.copyWith(
-                          color: p.accent,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
+              const SizedBox(height: Space.md),
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (final h in _hits) ...[
+                      _HitRow(
+                        hit: h,
+                        picked: h.id == _picked?.id,
+                        discipline: widget.discipline,
+                        onTap: h.heldIn == null ? () => _pick(h) : null,
+                      ),
+                      if (h.id == _picked?.id) _selectedCard(context, h),
+                      const SizedBox(height: Space.sm - 1),
+                    ],
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: () => setState(() => _manual = true),
+                        child: Text(
+                          'Not in the list? Enter it manually',
+                          style: TypeScale.caption.copyWith(
+                            color: p.accent,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: Space.sm),
             _submit(context, course, sem),
           ],
         ),
       ),
     );
+  }
+
+  /// The AddManual board: every field labelled, the title never cut.
+  List<Widget> _manualView(BuildContext context) {
+    final p = AppPalette.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final label = TypeScale.label.copyWith(color: p.textMuted);
+    final hint = TypeScale.caption.copyWith(color: p.textMuted);
+    final held = _manualHeldIn;
+    final category =
+        _manualCategory ??
+        categoryFor(
+          _dept.text.trim().isEmpty ? '' : _manualId,
+          widget.discipline,
+        );
+
+    InputDecoration field(String hintText) => InputDecoration(
+      hintText: hintText,
+      isDense: true,
+      counterText: '',
+      filled: true,
+      fillColor: p.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(13),
+        borderSide: BorderSide(color: p.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(13),
+        borderSide: BorderSide(color: p.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(13),
+        borderSide: BorderSide(color: p.text, width: 1.5),
+      ),
+    );
+    final input = TypeScale.body.copyWith(color: p.text);
+    void edited(String _) => setState(() {});
+
+    Widget section(String name, Widget child, [String? note]) => Padding(
+      padding: const EdgeInsets.only(bottom: Space.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(name, style: label),
+          const SizedBox(height: Space.xs),
+          child,
+          if (note != null) ...[
+            const SizedBox(height: Space.xs),
+            Text(note, style: hint),
+          ],
+        ],
+      ),
+    );
+
+    Widget step(IconData icon, String tip, int to) => CircleIconButton(
+      icon: icon,
+      tooltip: tip,
+      onPressed: to < 1 || to > 9 ? null : () => setState(() => _credits = to),
+    );
+
+    Widget pill(String text, int value) {
+      final on = _manualGrade == value;
+      return Semantics(
+        button: true,
+        selected: on,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap:
+              () => setState(() => _manualGrade = on ? GradeCode.clr : value),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              color: on ? p.inverse : p.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: on ? p.inverse : p.border),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                text,
+                style: TypeScale.caption.copyWith(
+                  fontWeight: on ? FontWeight.w700 : FontWeight.w600,
+                  color: on ? p.onInverse : p.text,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final grades = [
+      for (final g in letterGrades)
+        (g.replaceAll('-', '−'), reversegradecalc(g)),
+      for (final (g, _) in specialGrades) (g, reversegradecalc(g)),
+    ];
+
+    // The header scrolls with the fields, so large text leaves room.
+    return [
+      Expanded(
+        child: ListView(
+          children: [
+            Row(
+              children: [
+                CircleIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Back to search',
+                  onPressed: () => setState(() => _manual = false),
+                ),
+                const SizedBox(width: Space.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Enter it manually',
+                        style: TypeScale.title.copyWith(color: p.text),
+                      ),
+                      Text(
+                        'for courses not in the BITS list',
+                        style: TypeScale.caption.copyWith(color: p.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.md),
+            section(
+              'COURSE CODE',
+              Row(
+                children: [
+                  SizedBox(
+                    width: 108,
+                    child: TextField(
+                      controller: _dept,
+                      autofocus: true,
+                      maxLength: 5,
+                      onChanged: edited,
+                      textCapitalization: TextCapitalization.characters,
+                      style: input,
+                      decoration: field('CS'),
+                    ),
+                  ),
+                  const SizedBox(width: Space.sm),
+                  Expanded(
+                    child: TextField(
+                      controller: _number,
+                      maxLength: 6,
+                      onChanged: edited,
+                      textCapitalization: TextCapitalization.characters,
+                      style: input,
+                      decoration: field('F301'),
+                    ),
+                  ),
+                ],
+              ),
+              held != null
+                  ? '$_manualId is already in ${semLabel(held)}'
+                  : 'Department, then number, as on your timetable',
+            ),
+            section(
+              'TITLE',
+              TextField(
+                controller: _title,
+                minLines: 1,
+                maxLines: null,
+                onChanged: edited,
+                textCapitalization: TextCapitalization.words,
+                style: input,
+                decoration: field('Course name'),
+              ),
+            ),
+            section(
+              'CREDITS',
+              Row(
+                children: [
+                  step(Icons.remove_rounded, 'Fewer credits', _credits - 1),
+                  SizedBox(
+                    width: 56,
+                    child: Text(
+                      '$_credits',
+                      textAlign: TextAlign.center,
+                      style: TypeScale.title.copyWith(color: p.text),
+                    ),
+                  ),
+                  step(Icons.add_rounded, 'More credits', _credits + 1),
+                ],
+              ),
+            ),
+            section(
+              'COUNTS AS',
+              DropdownButtonHideUnderline(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: Space.md),
+                  decoration: BoxDecoration(
+                    color: p.surface,
+                    border: Border.all(color: p.border),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: DropdownButton<String>(
+                    value: category,
+                    isExpanded: true,
+                    dropdownColor: p.surface,
+                    style: TypeScale.caption.copyWith(
+                      color: p.text,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    items: [
+                      for (final t in {
+                        ...categoryOptions(widget.discipline),
+                        category,
+                      })
+                        DropdownMenuItem(
+                          value: t,
+                          child: Text(
+                            categoryLabel(t, widget.discipline),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (t) => setState(() => _manualCategory = t),
+                  ),
+                ),
+              ),
+            ),
+            section(
+              'GRADE',
+              Column(
+                children: [
+                  for (var r = 0; r < grades.length; r += 6)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: Row(
+                        children: [
+                          for (var i = r; i < r + 6; i++) ...[
+                            if (i > r) const SizedBox(width: 5),
+                            Expanded(
+                              child:
+                                  i < grades.length
+                                      ? pill(grades[i].$1, grades[i].$2)
+                                      : const SizedBox(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              'Leave it blank if the grade is not out yet',
+            ),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: dark ? const Color(0xFF3A2A12) : const Color(0xFFFFF4E3),
+                borderRadius: BorderRadius.circular(Radii.row),
+              ),
+              child: Text(
+                'A manual course is not in the BITS list, so Degree progress '
+                'counts it only under the category you pick here.',
+                style: TypeScale.caption.copyWith(
+                  color:
+                      dark ? const Color(0xFFF2C98A) : const Color(0xFF7A4E12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 
   Widget _submit(BuildContext context, Course? course, String sem) {
