@@ -44,8 +44,10 @@ Future<void> applyCourseEdit(Course course, CourseEdit edit) async {
     } else {
       await Hive.box<Course>(coursesBoxName).delete(course.id);
     }
-  } else if (edit.saved != null) {
-    await saveCourse(edit.saved!);
+  } else if (edit.saved case final saved?) {
+    // A category changed here is set by hand, as on the Degree page.
+    if (saved.elective != course.elective) await pinCategory(course.id);
+    await saveCourse(saved);
   }
 }
 

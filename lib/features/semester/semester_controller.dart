@@ -39,9 +39,17 @@ enum CourseSort {
 
 /// GPA figures for one profile.
 class ProfileFigures {
-  const ProfileFigures({required this.term, required this.overall});
+  const ProfileFigures({
+    required this.term,
+    required this.overall,
+    this.previous,
+  });
   final GpaTally term;
   final GpaTally overall;
+
+  /// The CGPA at the end of the last graded semester before this one; null
+  /// when there is none.
+  final GpaTally? previous;
 }
 
 /// Everything the semester screen displays, computed once per build from the
@@ -71,6 +79,9 @@ class SemesterData {
     required List<String> profileNames,
     (int, int) compared = (1, 2),
   }) {
+    // Every semester ordered before this one, for "last semester's" CGPA:
+    // the same progression the Stats page draws.
+    final before = semesters.takeWhile((s) => s != sem).toList();
     ProfileFigures figures(Profile p) => ProfileFigures(
       term: semesterTally(
         allCourses,
@@ -79,6 +90,13 @@ class SemesterData {
         profile: p,
       ),
       overall: cumulativeTally(allCourses, discipline: discipline, profile: p),
+      previous:
+          progression(
+            allCourses,
+            semesters: before.length == semesters.length ? const [] : before,
+            discipline: discipline,
+            profile: p,
+          ).lastOrNull?.running,
     );
     return SemesterData(
       sem: sem,
@@ -132,19 +150,21 @@ class SemesterData {
       return 'Add your courses and grades to see your CGPA.';
     }
     if (f.term.gradedCredits == 0) return 'Nothing graded in $sem yet.';
-    final diff = f.term.rounded - f.overall.rounded;
-    if (diff.abs() < 0.005) {
-      return 'This semester you are level with your running CGPA.';
-    }
+    final prev = f.previous;
+    // No last semester, no comparison with one.
+    if (prev == null) return 'Nothing graded before $sem to compare with.';
+    final yours =
+        mode == SemesterMode.expected ? 'Your expected CGPA' : 'Your CGPA';
+    final diff = f.overall.rounded - prev.rounded;
+    if (diff.abs() < 0.005) return '$yours is the same as last semester\'s.';
     final by = diff.abs().toStringAsFixed(2);
-    return 'This semester you are $by ${diff > 0 ? 'above' : 'below'} '
-        'your running CGPA.';
+    return '$yours is $by ${diff > 0 ? 'above' : 'below'} last semester\'s.';
   }
 
   /// The bold part of [editorial], if any.
   String? get editorialEmphasis {
     final m = RegExp(
-      r'\d+\.\d\d (above|below)|level with',
+      r'\d+\.\d\d (above|below)|the same as',
     ).firstMatch(editorial);
     return m?.group(0);
   }
