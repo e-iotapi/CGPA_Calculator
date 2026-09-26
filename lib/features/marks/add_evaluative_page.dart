@@ -234,6 +234,17 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
           _partRow(f, i),
           const SizedBox(height: Space.sm),
         ],
+        if (!_several) ...[
+          _DateField(
+            date: _parts.first.date,
+            label: 'Date',
+            onPick: () => _pickDate(_parts.first),
+            onClear: () => setState(() => _parts.first.date = null),
+          ),
+          const SizedBox(height: 6),
+        ],
+        Text('Give it a date to see it on the calendar.', style: muted),
+        const SizedBox(height: Space.sm),
         if (draft != null && droppedParts(draft).isNotEmpty)
           Text(
             '${droppedParts(draft).map((d) => d.name.isEmpty ? 'A part' : d.name).join(', ')} '
@@ -309,12 +320,12 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
                 ),
               ),
               const SizedBox(width: 6),
-              TextButton(
-                onPressed: () => _pickDate(f),
-                child: Text(
-                  f.date == null ? 'Date' : shortDate(f.date!),
-                  style: TypeScale.button.copyWith(color: p.text),
-                ),
+              _DateField(
+                date: f.date,
+                label: 'Part ${i + 1} date',
+                compact: true,
+                onPick: () => _pickDate(f),
+                onClear: () => setState(() => f.date = null),
               ),
               if (_parts.length > 2)
                 IconButton(
@@ -377,5 +388,103 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
         ],
       ),
     );
+  }
+}
+
+/// Looks like the inputs around it; opens the date picker. Set, it shows the
+/// date and a button to clear it.
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.date,
+    required this.label,
+    required this.onPick,
+    required this.onClear,
+    this.compact = false,
+  });
+
+  /// ISO date, or null.
+  final String? date;
+  final String label;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  /// Beside a part's name: just the date.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final set = date != null;
+    final text =
+        set
+            ? shortDate(date!)
+            : compact
+            ? 'Date'
+            : 'Add a date';
+    final pick = InkWell(
+      onTap: onPick,
+      child: Semantics(
+        button: true,
+        label: set ? '$label, ${shortDate(date!)}' : label,
+        excludeSemantics: true,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+          child: Padding(
+            padding: EdgeInsets.only(left: 10, right: set ? 2 : 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.event_outlined,
+                  size: 17,
+                  color: set ? p.text : p.textMuted,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: set ? FontWeight.w600 : FontWeight.w500,
+                      color: set ? p.text : p.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final field = Material(
+      color: p.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: p.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          if (compact) Flexible(child: pick) else Expanded(child: pick),
+          if (set)
+            IconButton(
+              tooltip: 'Clear date',
+              visualDensity: VisualDensity.compact,
+              onPressed: onClear,
+              icon: Icon(Icons.close_rounded, size: 16, color: p.textMuted),
+            ),
+        ],
+      ),
+    );
+    // Beside a name the row gives no width limit of its own.
+    return compact
+        ? ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 128),
+          child: field,
+        )
+        : field;
   }
 }
