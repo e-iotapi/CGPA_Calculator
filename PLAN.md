@@ -241,6 +241,24 @@ Selecting one expands it — category stays editable (the same course counts dif
 per discipline), and the grade is the pill row above, not a dropdown. The manual path
 survives as a link for courses outside the master list. The submit button states the
 consequence: *Add to 4 − 1 · SGPA 9.17 → 9.22*.
+**Add manually** — board `AddManual`. ⚠ This was underspecified the first time: the plan
+said the manual path "survives as a link" and said nothing about its appearance, so the
+link was wired back to the legacy dialog in `overlays_extension.dart` and the old screen
+is still reachable one tap inside the new sheet. It needs the same treatment as the rest:
+
+- Same sheet chrome, a back arrow returning to search.
+- **Every field labelled.** The old dialog has six unlabelled controls — `AN`, `F311`,
+  `None`, `A` — none of which say what they are for.
+- **The title is a wrapping two-line box, not a fixed-width field.** The old one puts a
+  `Marquee` in it, so a long title slides back and forth forever: unreadable while it
+  moves, motion nobody asked for, and it ignores `prefers-reduced-motion`. Remove the
+  marquee; do not keep it anywhere else either (`overlays_extension.dart`, `home_page.dart`).
+- **Credits are a stepper**, not free text. The value is 1–9 in practice and a typo there
+  silently corrupts the CGPA denominator.
+- Grade uses the same pill grid as the menu above.
+- An amber note states the real limitation: a manual course is not in the BITS list, so
+  Degree progress can only count it under the category chosen here.
+
 **Verify:** a 60-character course title ellipsizes in the result row, the selected card
 and the course row, at 320px.
 
@@ -338,8 +356,76 @@ the `og:site_name` / schema.org `author` still say Srijen Raja, and
 Replace all **62** `MediaQuery.size.height × n` / `width × n` call sites with fixed or intrinsic heights and flexible widths. Then **remove `TextScaler.noScaling`** from `MyApp` — it currently overrides the reader's font-size setting, which costs accessibility and hides exactly the layout bugs this phase is fixing.
 **Verify:** 320 / 768 / desktop with no overflow, and the layout survives 200% text scale.
 
-### Phase 11 — Ship
+### Phase 11 — Settings
+⚠ **Missed in the first pass** — Settings had no phase at all, so `settings.dart` is
+still the old screen while everything around it is rebuilt. Board `Settings`.
+
+Grouped cards instead of a stack of forty `FloatingActionButton`s: Account, Academics,
+Appearance, Grade profiles, Your data, then the two destructive-ish actions paired on one
+row. Rows are one shared component.
+
+- Theme control is **Light / Dark**, matching `AppPalette.named` from Phase 1 — the old
+  named-theme dropdown is gone.
+- The destructive warning stays attached to the control it describes: *"Changing the first
+  discipline clears your grades"* sits under Academics, not in a dialog nobody reads.
+- Reset is outlined in the warm tone, not filled red — it is reversible by re-adding
+  courses and should not look like account deletion.
+- Attribution footer: Siddharth Mishra, email, GitHub, and the Apache-2.0 credit to the
+  original CGPA Calculator.
+
+**Verify:** every control the old page had still exists and still works. This is a
+re-layout, not a feature cut.
+
+### Phase 12 — Ship
 Rules redeploy if touched, full build, deploy, and the acceptance list below.
+
+---
+
+## 6. UI audit — every board, is it built?
+
+One row per artboard on the canvas. Tick a row only after looking at the running app,
+not after reading the diff — the two gaps below were both found by opening the app and
+were both invisible in the commit log.
+
+| Board | Screen | Phase | Done |
+|---|---|---|---|
+| `Loading` | pre-boot loading screen (`web/index.html`) | 9 | [ ] |
+| `SignIn` | sign in | 9 | [ ] |
+| `Landing` | marketing landing page | 9 | [ ] |
+| `Main` | semester, light | 4 | [ ] |
+| `DarkMain` | semester, dark | 4 | [ ] |
+| `AddCourse` | add a course — search | 4 | [ ] |
+| `AddManual` | add a course — manual | 4 | [ ] |
+| `GradeMenu` | grade chip menu + row hit targets | 4 | [ ] |
+| `Offshoot` | offshoot panel, light | 5 | [ ] |
+| `DarkOffshoot` | offshoot panel, dark | 5 | [ ] |
+| `Stats` | stats — Progression view | 6 | [ ] |
+| `StatsDegree` | stats — Degree view | 6 | [ ] |
+| `Marks` | course marks | 7 | [ ] |
+| `MarksAdd` | add evaluative | 7 | [ ] |
+| `MarksSetup` | course setup | 7 | [ ] |
+| `Calendar` | calendar + offline strip | 8 | [ ] |
+| `Settings` | settings | 11 | [ ] |
+| `Responsive` | breakpoint behaviour (not a screen) | 10 | [ ] |
+| `Logo` | icon source (not a screen) | 9 | [ ] |
+
+**Old screens that must no longer be reachable.** A new screen shipping does not mean the
+old one is gone — both gaps found so far were legacy widgets still reachable behind a new
+one. Grep for these and confirm nothing routes to them:
+
+- [ ] the manual add-course dialog in `overlays_extension.dart`
+- [ ] the old settings page in `settings.dart`
+- [ ] the analytics page in `analytics.dart` and its nav button (replaced by Stats → Degree)
+- [ ] every `Marquee` (`overlays_extension.dart`, `home_page.dart`)
+- [ ] `TextScaler.noScaling` in `MyApp`
+
+**Per-screen checks that apply everywhere:**
+
+- [ ] a 60-character course title ellipsizes or wraps — it never clips mid-word and never scrolls
+- [ ] nothing overflows at 320px, and nothing overflows at 200% text scale
+- [ ] top content clears the safe area; the nav clears the home indicator
+- [ ] every tap target reaches 44px, including ones nested inside another target
+- [ ] both light and dark render — dark is not a dimmed light
 
 ---
 
