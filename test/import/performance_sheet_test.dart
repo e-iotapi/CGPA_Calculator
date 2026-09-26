@@ -346,7 +346,9 @@ void main() {
     }, discipline: 'B3A7');
 
     test('removes what the sheet does not list and clears guesses', () {
-      expect(plan.dropped, containsAll(['ME F110 (1 - 1)', 'X F999 (1 - 2)']));
+      // ME F110 is ME F112 renumbered: replaced, not dropped.
+      expect(plan.dropped, contains('X F999 (1 - 2)'));
+      expect(plan.dropped, isNot(contains('ME F110 (1 - 1)')));
       expect(plan.remove, containsAll(['ME F110', 'X F999']));
       expect(
         [1, 2].where(plan.remove.contains),

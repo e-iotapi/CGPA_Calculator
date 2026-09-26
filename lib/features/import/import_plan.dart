@@ -5,6 +5,7 @@ library;
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/requirements.dart';
+import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -145,7 +146,8 @@ ImportPlan planImport(
     if (match == null) {
       final master =
           mcourselist.where((m) => sameCourseId(m.id, r.id)).firstOrNull;
-      // A chart course renumbered since ("ME F110" taken as "ME F112"): same
+      // The same course under another code: cross-listed ("BITS F493" taken
+      // as "ECON F355"), or a chart course renumbered since, in the same
       // semester, same title, never graded. The sheet's code replaces it.
       final names = {_key(r.title), if (master != null) _key(master.title)};
       final renumbered =
@@ -153,9 +155,10 @@ ImportPlan planImport(
               .where(
                 (e) =>
                     !claimed.contains(e.key) &&
-                    e.value.sem == r.sem &&
-                    e.value.grade1 == GradeCode.clr &&
-                    names.contains(_key(e.value.title)),
+                    (courseGraph.same(e.value.id, r.id) ||
+                        (e.value.sem == r.sem &&
+                            e.value.grade1 == GradeCode.clr &&
+                            names.contains(_key(e.value.title)))),
               )
               .firstOrNull;
       if (renumbered != null) {

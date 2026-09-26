@@ -1,6 +1,6 @@
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
-import 'package:cgpa_calculator/core/models/course_names.dart';
+import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/course.dart';
 
@@ -116,8 +116,14 @@ Elective _placed(String dept, String id, Elective taken, String discipline) {
   if (dept == 'GS' || dept == 'HSS') return Elective.humanity;
   if (taken == Elective.humanity || taken == Elective.open) return taken;
   final a = discipline.substring(2, 4), b = discipline.substring(0, 2);
-  if (departments[a]?.contains(dept) ?? false) return Elective.del2;
-  if (departments[b]?.contains(dept) ?? false) return Elective.del1;
+  // Any code the course is cross-listed under can place it.
+  final depts = {for (final c in courseGraph.linked(id)) c.split(' ').first};
+  if (depts.any(departments[a]?.contains ?? (_) => false)) {
+    return Elective.del2;
+  }
+  if (depts.any(departments[b]?.contains ?? (_) => false)) {
+    return Elective.del1;
+  }
   if (del[a]?.contains(id) ?? false) return Elective.del2;
   if (del[b]?.contains(id) ?? false) return Elective.del1;
   return Elective.open;
@@ -181,8 +187,8 @@ double earnedCredits(
   category,
 }).fold(0.0, (sum, c) => sum + c.credits);
 
-/// Passed courses in [category]. Ids that differ only by a lowercase `l`
-/// for `1` are one course (§2.10).
+/// Passed courses in [category]. Codes the course graph joins, including
+/// ids that differ only by a lowercase `l` for `1` (§2.10), are one course.
 int earnedCourses(
   Elective category,
   Iterable<Course> courses, {
@@ -190,7 +196,7 @@ int earnedCourses(
 }) =>
     _passed(courses, discipline, {
       category,
-    }).map((c) => normalizeCourseId(c.id)).toSet().length;
+    }).map((c) => courseGraph.canonical(c.id)).toSet().length;
 
 /// One card of the audit. A null requirement means none is shown.
 class AuditCategory {
@@ -269,7 +275,7 @@ DegreeAudit degreeAudit(
     return AuditCategory(
       category: e,
       label: label,
-      courses: passed.map((c) => normalizeCourseId(c.id)).toSet().length,
+      courses: passed.map((c) => courseGraph.canonical(c.id)).toSet().length,
       credits: passed.fold(0.0, (s, c) => s + c.credits),
       requiredCourses: set ? need.courses : null,
       requiredCredits: set ? need.units : null,
