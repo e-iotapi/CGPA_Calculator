@@ -26,16 +26,7 @@ const _overlapTitles = {
 Course? _yearLater(Course c) {
   final year = int.tryParse(c.sem.substring(0, 1));
   if (year == null) return null;
-  return Course(
-    title: c.title,
-    sem: '${year + 1}${c.sem.substring(1)}',
-    id: c.id,
-    grade1: c.grade1,
-    grade2: c.grade2,
-    discipline: c.discipline,
-    credits: c.credits,
-    elective: c.elective,
-  );
+  return c.copyWith(sem: '${year + 1}${c.sem.substring(1)}');
 }
 
 /// The B.E. half's core course [c], as a dual seeds it; null when the dual

@@ -13,10 +13,14 @@ import 'package:cgpa_calculator/course.dart';
 /// On a real transcript this is 1195 / 155 = 7.71 with 158 credits shown,
 /// where 1195 / 158 would give 7.56.
 
-/// Which grade column to read. The values match the `selectedprofile` global.
+/// Which grade column to read. Actual and Expected match the
+/// `selectedprofile` global; the other three exist only in Compare.
 enum Profile {
   actual(1),
-  expected(2);
+  expected(2),
+  third(3),
+  fourth(4),
+  fifth(5);
 
   const Profile(this.id);
   final int id;
@@ -25,8 +29,7 @@ enum Profile {
       Profile.values.where((p) => p.id == id).firstOrNull;
 }
 
-int gradeOf(Course c, Profile profile) =>
-    profile == Profile.actual ? c.grade1 : c.grade2;
+int gradeOf(Course c, Profile profile) => c.gradeFor(profile.id);
 
 /// A discipline code is two two-letter halves ("B3A7"); a course counts when
 /// it belongs to either.

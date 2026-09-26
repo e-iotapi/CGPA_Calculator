@@ -51,6 +51,8 @@ class SemesterData {
     required this.actual,
     required this.expected,
     required this.profileNames,
+    required this.compared,
+    required this.comparedFigures,
   });
 
   factory SemesterData.from({
@@ -61,7 +63,8 @@ class SemesterData {
     required String discipline,
     required SemesterMode mode,
     required CourseSort sort,
-    required (String, String) profileNames,
+    required List<String> profileNames,
+    (int, int) compared = (1, 2),
   }) {
     ProfileFigures figures(Profile p) => ProfileFigures(
       term: semesterTally(
@@ -81,6 +84,11 @@ class SemesterData {
       actual: figures(Profile.actual),
       expected: figures(Profile.expected),
       profileNames: profileNames,
+      compared: compared,
+      comparedFigures: (
+        figures(Profile.fromId(compared.$1)!),
+        figures(Profile.fromId(compared.$2)!),
+      ),
     );
   }
 
@@ -93,19 +101,25 @@ class SemesterData {
   final CourseSort sort;
   final ProfileFigures actual;
   final ProfileFigures expected;
-  final (String, String) profileNames;
+
+  /// Every profile's name, profile 1 first.
+  final List<String> profileNames;
+
+  /// The two profile ids Compare shows, and their figures.
+  final (int, int) compared;
+  final (ProfileFigures, ProfileFigures) comparedFigures;
 
   /// Figures for the tab being shown; Actual's for compare and offshoot.
   ProfileFigures get current =>
       mode == SemesterMode.expected ? expected : actual;
 
-  String nameOf(Profile p) =>
-      p == Profile.actual ? profileNames.$1 : profileNames.$2;
+  String nameOf(int profile) => profileNames[profile - 1];
 
   /// The sentence under the greeting.
   String get editorial {
     if (mode == SemesterMode.compare) {
-      return 'Comparing ${profileNames.$1} and ${profileNames.$2} grades';
+      return 'Comparing ${nameOf(compared.$1)} and ${nameOf(compared.$2)} '
+          'grades';
     }
     if (mode == SemesterMode.offshoot) return 'Your offshoot, scored.';
     final f = current;

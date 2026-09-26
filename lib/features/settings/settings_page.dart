@@ -41,8 +41,7 @@ class _SettingsPageState extends State<SettingsPage> {
               discipline: selecteddiscipline,
               batch: batch,
               isDark: thm.isDark,
-              profile1: profile1n,
-              profile2: profile2n,
+              profiles: profileNames,
               onClose: () => Navigator.of(context).maybePop(),
               onPickDiscipline: (dual) => _pickDiscipline(context, dual),
               onPickBatch: () => _pickBatch(context),
@@ -214,9 +213,7 @@ class _SettingsPageState extends State<SettingsPage> {
   );
 
   Future<void> _renameProfile(BuildContext context, int i) async {
-    final controller = TextEditingController(
-      text: i == 1 ? profile1n : profile2n,
-    );
+    final controller = TextEditingController(text: profileNames[i - 1]);
     final name = await showDialog<String>(
       context: context,
       builder:
@@ -246,10 +243,14 @@ class _SettingsPageState extends State<SettingsPage> {
     controller.dispose();
     if (name == null) return;
     setState(() {
-      if (i == 1) {
-        profile1n = profileName(name, 'Profile 1');
-      } else {
-        profile2n = profileName(name, 'Profile 2');
+      final n = profileName(name, 'Profile $i');
+      switch (i) {
+        case 1:
+          profile1n = n;
+        case 2:
+          profile2n = n;
+        default:
+          moreProfileNames[i - 3] = n;
       }
     });
     await setprof();

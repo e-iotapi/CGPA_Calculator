@@ -27,6 +27,11 @@ class Course extends HiveObject {
   @HiveField(7, defaultValue: "CDC")
   final String elective;
 
+  /// Grades for the compare-only profiles 3 to 5, by profile id. A profile
+  /// with no entry is ungraded (-2).
+  @HiveField(8, defaultValue: <int, int>{})
+  final Map<int, int> more;
+
   Course({
     required this.title,
     required this.sem,
@@ -36,7 +41,41 @@ class Course extends HiveObject {
     required this.discipline,
     required this.credits,
     required this.elective,
+    this.more = const {},
   });
+
+  /// The grade under profile [profile] (1 to 5).
+  int gradeFor(int profile) => switch (profile) {
+    1 => grade1,
+    2 => grade2,
+    _ => more[profile] ?? -2,
+  };
+
+  /// This course with profile [profile]'s grade set to [grade].
+  Course withGrade(int profile, int grade) => copyWith(
+    grade1: profile == 1 ? grade : null,
+    grade2: profile == 2 ? grade : null,
+    more: profile > 2 ? {...more, profile: grade} : null,
+  );
+
+  /// A new, unstored copy; [more] carries across unless replaced.
+  Course copyWith({
+    String? sem,
+    String? elective,
+    int? grade1,
+    int? grade2,
+    Map<int, int>? more,
+  }) => Course(
+    title: title,
+    id: id,
+    credits: credits,
+    discipline: discipline,
+    sem: sem ?? this.sem,
+    elective: elective ?? this.elective,
+    grade1: grade1 ?? this.grade1,
+    grade2: grade2 ?? this.grade2,
+    more: more ?? this.more,
+  );
 }
 
 

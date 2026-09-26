@@ -13,8 +13,7 @@ class SettingsView extends StatelessWidget {
     required this.discipline,
     required this.batch,
     required this.isDark,
-    required this.profile1,
-    required this.profile2,
+    required this.profiles,
     required this.onClose,
     required this.onPickDiscipline,
     required this.onPickBatch,
@@ -40,8 +39,9 @@ class SettingsView extends StatelessWidget {
   /// Two digits.
   final int batch;
   final bool isDark;
-  final String profile1;
-  final String profile2;
+
+  /// Every grade profile's name, profile 1 first.
+  final List<String> profiles;
   final VoidCallback onClose;
 
   /// `dual` picks the first half (the MSc), otherwise the second.
@@ -153,20 +153,18 @@ class SettingsView extends StatelessWidget {
                 ),
                 _SectionLabel('GRADE PROFILES'),
                 _Group([
-                  _Item(
-                    swatch: p.hero,
-                    label: 'Profile 1',
-                    value: profile1,
-                    strong: true,
-                    onTap: () => onRenameProfile(1),
-                  ),
-                  _Item(
-                    swatch: p.gradeTone('B-').fill,
-                    label: 'Profile 2',
-                    value: profile2,
-                    strong: true,
-                    onTap: () => onRenameProfile(2),
-                  ),
+                  for (final (i, name) in profiles.indexed)
+                    _Item(
+                      swatch: switch (i) {
+                        0 => p.hero,
+                        1 => p.gradeTone('B-').fill,
+                        _ => p.outline,
+                      },
+                      label: i < 2 ? 'Profile ${i + 1}' : 'Compare only',
+                      value: name,
+                      strong: true,
+                      onTap: () => onRenameProfile(i + 1),
+                    ),
                 ]),
                 if (onInstall != null) ...[
                   _SectionLabel('APP'),

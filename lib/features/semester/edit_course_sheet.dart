@@ -72,16 +72,10 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
     _ => widget.course.grade1,
   };
 
-  Course get _edited => Course(
-    title: widget.course.title,
-    id: widget.course.id,
-    credits: widget.course.credits,
-    sem: widget.course.sem,
-    discipline: widget.course.discipline,
-    elective: _category,
-    grade1: widget.profile == Profile.actual ? _grade : widget.course.grade1,
-    grade2: widget.profile == Profile.expected ? _grade : widget.course.grade2,
-  );
+  Course get _edited {
+    final c = widget.course.copyWith(elective: _category);
+    return widget.profile == null ? c : c.withGrade(widget.profile!.id, _grade);
+  }
 
   Future<void> _remove() async {
     final p = AppPalette.of(context);
