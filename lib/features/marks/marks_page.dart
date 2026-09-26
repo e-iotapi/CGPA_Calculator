@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/marks.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
+import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/add_evaluative_page.dart';
@@ -68,6 +69,16 @@ class _MarksPageState extends State<MarksPage> {
           grade: grade,
           onSetup: () => _open(CourseSetupPage(course: c)),
         ),
+        const SizedBox(height: Space.sm),
+        _CourseAverage(
+          value: s.config.classAverage,
+          onChanged: (v) async {
+            final config = configFor(_id) ?? CourseConfig(courseId: _id);
+            config.classAverage = v;
+            await saveConfig(config);
+            if (mounted) setState(() {});
+          },
+        ),
         const SizedBox(height: Space.md),
         if (evals.isEmpty)
           Padding(
@@ -85,6 +96,15 @@ class _MarksPageState extends State<MarksPage> {
           EvaluativeCard(
             e: e,
             weighted: s.config.weighted,
+            onDuplicate: () async {
+              await saveEvaluative(duplicateEvaluative(e));
+              if (mounted) setState(() {});
+            },
+            onAverage: (v) async {
+              e.average = v;
+              await saveEvaluative(e, key: key);
+              if (mounted) setState(() {});
+            },
             onTap:
                 () => _open(
                   AddEvaluativePage(
@@ -245,16 +265,10 @@ class _Total extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            InkWell(
-              onTap: onSetup,
-              child: Text(
-                'You ${s.secured.toStringAsFixed(2)} · class average '
-                '${avg.toStringAsFixed(2)} · edit',
-                style: muted.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+            Text(
+              'You ${s.secured.toStringAsFixed(2)} · course average '
+              '${avg.toStringAsFixed(2)}',
+              style: muted.copyWith(fontSize: 10, fontWeight: FontWeight.w600),
             ),
           ],
           const SizedBox(height: Space.sm),
@@ -296,6 +310,57 @@ class _Total extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The course average, entered where marks are read. Compared with what
+/// you have secured over the same components.
+class _CourseAverage extends StatefulWidget {
+  const _CourseAverage({required this.value, required this.onChanged});
+
+  final double? value;
+  final ValueChanged<double?> onChanged;
+
+  @override
+  State<_CourseAverage> createState() => _CourseAverageState();
+}
+
+class _CourseAverageState extends State<_CourseAverage> {
+  late final _text = TextEditingController(
+    text: widget.value == null ? '' : marks2(widget.value!),
+  );
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppTextField(
+          controller: _text,
+          label: 'Course average',
+          hint: 'Optional',
+          number: true,
+          onChanged: (t) => widget.onChanged(double.tryParse(t)),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'The class average for the components you have entered, not the '
+          'whole course. Blank, and no comparison appears.',
+          style: TypeScale.caption.copyWith(
+            fontSize: 10.5,
+            height: 1.4,
+            color: p.textMuted,
+          ),
+        ),
+      ],
     );
   }
 }

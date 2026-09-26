@@ -30,6 +30,43 @@ Future<String> saveEvaluative(Evaluative e, {String? key}) async {
   return key;
 }
 
+/// Seeded on an ordinary course when it is added, with weights at 0 so the
+/// "% still unassigned" line asks for them rather than a guess skewing the
+/// total. A scheme the class publishes, or anything the user edits, wins.
+const defaultComponents = ['Quiz 1', 'Quiz 2', 'Midsem', 'Compre'];
+
+/// Courses with no quizzes: projects, Practice School, theses, seminars,
+/// study and reading courses.
+final _noQuizzes = RegExp(
+  r'project|practice\s*school|thesis|seminar|study|reading',
+  caseSensitive: false,
+);
+
+bool takesDefaultComponents(String title) => !_noQuizzes.hasMatch(title);
+
+/// Seeds [defaultComponents] on [courseId] when it takes them and has no
+/// marks data at all. Never overwrites.
+Future<void> seedDefaultComponents(String courseId, String title) async {
+  if (!Hive.isBoxOpen(marksBoxName) || !takesDefaultComponents(title)) return;
+  if (configFor(courseId) != null || evaluativesFor(courseId).isNotEmpty) {
+    return;
+  }
+  // Explicit keys: on the web the clock ticks in milliseconds, so four saves
+  // in a row could share one.
+  final base = DateTime.now().microsecondsSinceEpoch;
+  for (final (i, name) in defaultComponents.indexed) {
+    await saveEvaluative(
+      Evaluative(
+        courseId: courseId,
+        name: name,
+        weight: 0,
+        parts: [EvalPart(name: '', outOf: 0)],
+      ),
+      key: 'eval:$courseId:${base + i}',
+    );
+  }
+}
+
 Future<void> deleteEvaluative(String key) => _box.delete(key);
 
 CourseConfig? configFor(String courseId) {

@@ -20,6 +20,11 @@ Future<void> saveCourse(Course course) async {
   await box.flush();
 }
 
+/// Sets what [course] counts as. "Counts as" on a course, and the Degree
+/// page's requirement and Unassigned lists, all come through here.
+Future<void> setCourseCategory(Course course, String tag) =>
+    saveCourse(course.copyWith(elective: tag));
+
 /// Copies profile [from]'s grade onto profile [to] for every course, in all
 /// semesters, under each course's existing key.
 Future<void> copyProfile(int from, int to) async {

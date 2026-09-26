@@ -115,6 +115,10 @@ class _StatsPageState extends State<StatsPage> {
       },
       onBack: () => Navigator.of(context).maybePop(),
       onEditTotal: _editTotal,
+      onAssign: (course, tag) async {
+        await setCourseCategory(course, tag);
+        if (mounted) setState(() {});
+      },
       minor: switch (chosenMinor) {
         final m? => minorProgress(m, allCourses(), widget.discipline),
         null => null,
@@ -134,6 +138,7 @@ class StatsScreen extends StatelessWidget {
     required this.onPlanChanged,
     required this.onBack,
     this.onEditTotal,
+    this.onAssign,
     this.minor,
   });
 
@@ -144,6 +149,7 @@ class StatsScreen extends StatelessWidget {
   final void Function(String sem, double sgpa) onPlanChanged;
   final VoidCallback onBack;
   final VoidCallback? onEditTotal;
+  final AssignCourse? onAssign;
 
   /// The minor being pursued; its tab shows only then.
   final MinorProgress? minor;
@@ -256,7 +262,11 @@ class StatsScreen extends StatelessWidget {
                       shown == StatsView.minor
                           ? MinorView(progress: pr!)
                           : degree
-                          ? DegreeView(data: data, onEditTotal: onEditTotal)
+                          ? DegreeView(
+                            data: data,
+                            onEditTotal: onEditTotal,
+                            onAssign: onAssign,
+                          )
                           : ProgressionView(
                             data: data,
                             onTargetChanged: onTargetChanged,

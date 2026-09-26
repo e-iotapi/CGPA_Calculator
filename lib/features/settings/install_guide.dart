@@ -203,6 +203,14 @@ List<InstallStep> installSteps(InstallTarget t) => switch (t) {
 };
 
 /// The home-screen tutorial, as a sheet.
+/// The browser's own prompt where it has one; otherwise, and always on
+/// iOS, the home-screen steps. Settings and the end of setup both use it.
+Future<void> offerInstall(BuildContext context) async {
+  final target = installTarget();
+  if (target.device != InstallDevice.ios && promptInstall()) return;
+  await showInstallGuide(context, target);
+}
+
 Future<void> showInstallGuide(BuildContext context, InstallTarget target) {
   return showModalBottomSheet<void>(
     context: context,
