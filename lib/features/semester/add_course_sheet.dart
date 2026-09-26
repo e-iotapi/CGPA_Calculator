@@ -415,6 +415,39 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
     ];
   }
 
+  /// Adds [course], after an override when it takes the semester past
+  /// [maxSemesterCredits].
+  Future<void> _add(BuildContext context, Course course) async {
+    final total = semesterCredits(widget.held, widget.sem) + course.credits;
+    if (total > maxSemesterCredits) {
+      String f(double v) => v == v.roundToDouble() ? '${v.toInt()}' : '$v';
+      final go = await showDialog<bool>(
+        context: context,
+        builder:
+            (c) => AlertDialog(
+              title: Text('Over ${f(maxSemesterCredits)} credits'),
+              content: Text(
+                'This takes ${semLabel(widget.sem)} to ${f(total)} credits. '
+                'A semester can carry at most ${f(maxSemesterCredits)} unless '
+                'the administration on your campus has approved more.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(c, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(c, true),
+                  child: const Text('I have approval, add it'),
+                ),
+              ],
+            ),
+      );
+      if (go != true) return;
+    }
+    if (context.mounted) Navigator.pop(context, course);
+  }
+
   Widget _submit(BuildContext context, Course? course, String sem) {
     final p = AppPalette.of(context);
     String? change;
@@ -442,7 +475,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
         borderRadius: BorderRadius.circular(19),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: course == null ? null : () => Navigator.pop(context, course),
+          onTap: course == null ? null : () => _add(context, course),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 54),
             child: Padding(

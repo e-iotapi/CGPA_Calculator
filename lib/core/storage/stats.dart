@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/grading/requirements.dart';
 import 'package:hive/hive.dart';
 
 // JSON-safe values only: settingsBox is JSON-encoded by sync (§2.3).
@@ -30,3 +31,17 @@ Map<String, double> get statsPlan {
 
 Future<void> setStatsPlan(Map<String, double> plan) =>
     _settings.put('stats_plan', jsonEncode(plan));
+
+/// Elective requirements from the last imported performance sheet.
+ElectiveNeeds? get electiveNeeds {
+  final raw = _settings.get('elective_needs');
+  if (raw is! String || raw.isEmpty) return null;
+  try {
+    return ElectiveNeeds.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<void> setElectiveNeeds(ElectiveNeeds n) =>
+    _settings.put('elective_needs', jsonEncode(n.toJson()));

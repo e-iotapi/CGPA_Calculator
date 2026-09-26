@@ -110,6 +110,70 @@ void main() {
     expect(bMinus[2].requiredCredits, isNull); // CDC1 on a B- shows no target
   });
 
+  group('needs from a performance sheet', () {
+    AuditCategory card(DegreeAudit a, String label) =>
+        a.categories.singleWhere((c) => c.label == label);
+
+    test('set HEL and EL, and a single degree\'s DEL', () {
+      const needs = ElectiveNeeds(
+        degree: '--A7',
+        hel: (courses: 2, units: 6),
+        del: (courses: 5, units: 15),
+        el: (courses: 0, units: 0),
+      );
+      final a = degreeAudit([], '--A7', needs: needs);
+      expect(card(a, 'Humanity Electives').requiredCredits, 6);
+      expect(card(a, 'Disciplinary Electives (A7)').requiredCourses, 5);
+      // Nothing required: totals only.
+      expect(card(a, 'Open Electives').requiredCredits, isNull);
+    });
+
+    test('are ignored under another degree', () {
+      const needs = ElectiveNeeds(degree: 'B3A7', hel: (courses: 2, units: 6));
+      final a = degreeAudit([], '--A7', needs: needs);
+      expect(card(a, 'Humanity Electives').requiredCredits, 8);
+      expect(card(a, 'Open Electives').requiredCredits, 15);
+    });
+
+    test('a dual keeps its split when the table adds up to the sheet', () {
+      const needs = ElectiveNeeds(
+        degree: 'B3A7',
+        del: (courses: 10, units: 30),
+      );
+      final a = degreeAudit([], 'B3A7', needs: needs);
+      expect(card(a, 'Disciplinary Electives (B3)').requiredCredits, 18);
+      expect(card(a, 'Disciplinary Electives (A7)').requiredCredits, 12);
+    });
+
+    test('and counts both halves in one card when it does not', () {
+      const needs = ElectiveNeeds(
+        degree: 'B3A7',
+        del: (courses: 9, units: 27),
+      );
+      final a = degreeAudit(
+        [
+          _c('Disciplinary Elective1', 3, 8),
+          _c('Disciplinary Elective2', 3, 9, 'A7'),
+        ],
+        'B3A7',
+        needs: needs,
+      );
+      final del = card(a, 'Disciplinary Electives');
+      expect((del.courses, del.credits), (2, 6));
+      expect((del.requiredCourses, del.requiredCredits), (9, 27));
+      expect(a.categories.where((c) => c.label.startsWith('Disc')), [del]);
+    });
+
+    test('survive a JSON round trip', () {
+      const needs = ElectiveNeeds(
+        degree: 'B3A7',
+        hel: (courses: 3, units: 8),
+        el: (courses: 0, units: 0),
+      );
+      expect(ElectiveNeeds.fromJson(needs.toJson()), needs);
+    });
+  });
+
   test(
     'real transcript, B3A7: every "x / y" matches the old page',
     skip: transcriptSkip,

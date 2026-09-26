@@ -284,6 +284,57 @@ void main() {
     });
   }
 
+  testWidgets('past 25 credits asks for an override', (t) async {
+    // 24 credits already in 4 - 1.
+    final full = [for (var i = 0; i < 8; i++) _c('CS F30$i', 9, '4 - 1')];
+    expect(semesterCredits(full, '4 - 1'), 24);
+    Course? added;
+    await t.pumpWidget(
+      _app(
+        Builder(
+          builder:
+              (c) => TextButton(
+                onPressed:
+                    () async =>
+                        added = await showAddCourseSheet(
+                          c,
+                          held: full,
+                          sem: '4 - 1',
+                          discipline: 'A7--',
+                          profile: Profile.actual,
+                        ),
+                child: const Text('open'),
+              ),
+        ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Not in the list? Enter it manually'));
+    await t.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await t.enterText(fields.at(0), 'cs');
+    await t.enterText(fields.at(1), 'f499');
+    await t.enterText(find.widgetWithText(TextField, 'Course name'), 'Extra');
+    await t.pump();
+    final add = find.textContaining('Add to 4 − 1', findRichText: true);
+
+    await t.tap(add);
+    await t.pumpAndSettle();
+    expect(find.text('Over 25 credits'), findsOneWidget);
+    expect(find.textContaining('to 27 credits'), findsOneWidget);
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    expect(added, isNull);
+    expect(add, findsOneWidget, reason: 'the sheet stays open');
+
+    await t.tap(add);
+    await t.pumpAndSettle();
+    await t.tap(find.text('I have approval, add it'));
+    await t.pumpAndSettle();
+    expect(added?.id, 'CS F499');
+  });
+
   testWidgets('grade menu fits at 320px with 200% text', (t) async {
     t.view.physicalSize = const Size(320, 640);
     t.view.devicePixelRatio = 1;

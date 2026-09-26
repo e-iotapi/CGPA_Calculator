@@ -1,6 +1,5 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
-import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_row.dart';
@@ -36,6 +35,8 @@ class SemesterView extends StatefulWidget {
     this.offshoot,
     this.classDeltas = const {},
     this.slideFromRight = true,
+    this.onCompareGradePicked,
+    this.onCompareChanged,
   });
 
   final SemesterData data;
@@ -53,6 +54,13 @@ class SemesterView extends StatefulWidget {
   final void Function(Course course, int index) onCourseTap;
   final void Function(Course course, int grade) onGradePicked;
 
+  /// A grade set from a Compare column, for profile id [profile].
+  final void Function(Course course, int profile, int grade)?
+  onCompareGradePicked;
+
+  /// Compare's [slot] (0 left, 1 right) now shows profile id [profile].
+  final void Function(int slot, int profile)? onCompareChanged;
+
   /// The user held a pull-down at the top of the list.
   final VoidCallback onClearRequested;
 
@@ -64,7 +72,6 @@ class SemesterView extends StatefulWidget {
 
   /// Flips between the light and dark palettes.
   final VoidCallback onToggleTheme;
-
 
   /// Shown in place of the stats and course list on the offshoot tab, filling
   /// the space below the header.
@@ -215,6 +222,15 @@ class _SemesterViewState extends State<SemesterView> {
                     classDelta: widget.classDeltas[d.courses[i].id],
                     onTap: () => widget.onCourseTap(d.courses[i], i),
                     onGradePicked: (g) => widget.onGradePicked(d.courses[i], g),
+                    compared: d.compared,
+                    onCompareGradePicked:
+                        widget.onCompareGradePicked == null
+                            ? null
+                            : (profile, g) => widget.onCompareGradePicked!(
+                              d.courses[i],
+                              profile,
+                              g,
+                            ),
                   ),
             ),
           ),
@@ -369,19 +385,22 @@ class _SemesterViewState extends State<SemesterView> {
   Widget _stats(bool stacked) {
     final List<Widget> cards;
     if (d.mode == SemesterMode.compare) {
-      StatCard card(Profile p, bool hero) {
-        final f = p == Profile.actual ? d.actual : d.expected;
+      StatCard card(int slot) {
+        final f = slot == 0 ? d.comparedFigures.$1 : d.comparedFigures.$2;
         return StatCard(
-          label: d.nameOf(p),
+          label: d.nameOf(slot == 0 ? d.compared.$1 : d.compared.$2),
           value: formatGpa(f.term),
           caption:
               'CGPA ${formatGpa(f.overall)} · '
               '${formatCredits(f.overall.shownCredits)} cr',
-          hero: hero,
+          hero: slot == 0,
+          onTap:
+              widget.onCompareChanged == null ? null : () => _pickProfile(slot),
+          tapHint: 'Change profile',
         );
       }
 
-      cards = [card(Profile.actual, true), card(Profile.expected, false)];
+      cards = [card(0), card(1)];
     } else {
       final f = d.current;
       cards = [
@@ -412,6 +431,64 @@ class _SemesterViewState extends State<SemesterView> {
         Expanded(child: cards[1]),
       ],
     );
+  }
+
+  /// Picks the profile for Compare's [slot]. Choosing the one on the other
+  /// side swaps the two.
+  Future<void> _pickProfile(int slot) async {
+    final p = AppPalette.of(context);
+    final here = slot == 0 ? d.compared.$1 : d.compared.$2;
+    final other = slot == 0 ? d.compared.$2 : d.compared.$1;
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: p.background,
+      builder:
+          (c) => SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.only(bottom: Space.lg),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.gutter,
+                    0,
+                    Space.gutter,
+                    Space.sm,
+                  ),
+                  child: Text(
+                    'Compare with',
+                    style: TypeScale.title.copyWith(color: p.text),
+                  ),
+                ),
+                for (final (i, name) in d.profileNames.indexed)
+                  ListTile(
+                    title: Text(
+                      name,
+                      style: TypeScale.body.copyWith(color: p.text),
+                    ),
+                    subtitle:
+                        i + 1 == other
+                            ? Text(
+                              'On the other side; swaps',
+                              style: TypeScale.caption.copyWith(
+                                color: p.textMuted,
+                              ),
+                            )
+                            : null,
+                    trailing:
+                        i + 1 == here
+                            ? Icon(Icons.check_rounded, color: p.text)
+                            : null,
+                    onTap: () => Navigator.pop(c, i + 1),
+                  ),
+              ],
+            ),
+          ),
+    );
+    if (picked != null && picked != here) {
+      widget.onCompareChanged!(slot, picked);
+    }
   }
 
   Widget _semesterPills() => SemesterPills(
@@ -446,9 +523,9 @@ class _SemesterViewState extends State<SemesterView> {
       return Row(
         children: [
           title,
-          col(d.profileNames.$1),
+          col(d.nameOf(d.compared.$1)),
           const SizedBox(width: Space.sm),
-          col(d.profileNames.$2),
+          col(d.nameOf(d.compared.$2)),
           // Lines the labels up over the chips inside the card padding.
           const SizedBox(width: 15),
         ],

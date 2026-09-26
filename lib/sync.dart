@@ -94,6 +94,8 @@ class Sync {
             'discipline': v.discipline,
             'sem': v.sem,
             'elective': v.elective,
+            if (v.more.isNotEmpty)
+              'more': {for (final e in v.more.entries) '${e.key}': e.value},
           }
           : v is Evaluative
           ? v.toJson()
@@ -110,6 +112,10 @@ class Sync {
     discipline: m['discipline'],
     sem: m['sem'],
     elective: m['elective'] ?? 'CDC',
+    more: {
+      for (final e in Map<String, dynamic>.from(m['more'] ?? {}).entries)
+        int.parse(e.key): (e.value as num).toInt(),
+    },
   );
 
   static Future<void> pull() async {
