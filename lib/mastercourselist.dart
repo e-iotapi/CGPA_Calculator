@@ -1,7 +1,3 @@
-import 'dart:convert';
-
-import 'package:http/http.dart' as http;
-
 class Mastercourselist {
   final String title;
   final String id;
@@ -12,13 +8,9 @@ class Mastercourselist {
     required this.id,
     required this.credits,
   });
-
-  Map<String, dynamic> toJson() {
-    return {'title': title, 'id': id, 'credits': credits};
-  }
 }
 
-// -1NC, -2CLR,-3GD, not included in cgcalculation- edit
+/// Every course on offer, for Add course search.
 List<Mastercourselist> mcourselist = [
   Mastercourselist(
     title: "Linear Algebra and Complex Variables",
@@ -3567,35 +3559,3 @@ List<Mastercourselist> mcourselist = [
     credits: 3,
   ),
 ];
-
-Future<List<Mastercourselist>> fetchData() async {
-  final url =
-      'https://raw.githubusercontent.com/Srijen-Raja/CGPA_Calculator/refs/heads/master/lib/mcourselist.json';
-  try {
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonList = jsonDecode(response.body);
-      //print("Data Fetched");
-      var fetchedlist =
-          jsonList
-              .map<Mastercourselist>(
-                (json) => Mastercourselist(
-                  title: json['title'],
-                  id: json['id'],
-                  credits:
-                      (json['credits'] is int)
-                          ? (json['credits'] as int).toDouble()
-                          : (json['credits'] as double),
-                ),
-              )
-              .toList();
-      return fetchedlist;
-    } else {
-      //print('Failed to load data: ${response.statusCode}');
-      return mcourselist;
-    }
-  } catch (e) {
-    //print('Error fetching data: $e');
-    return mcourselist;
-  }
-}

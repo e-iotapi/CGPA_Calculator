@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/core/storage/seed.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
@@ -148,6 +149,49 @@ void main() {
       await box.put('BITS F412', ps(10));
       await placeDualPracticeSchool(box, 'B3A7');
       expect(box.get('BITS F412')!.sem, '4 - 2');
+    });
+  });
+
+  group('seeding', () {
+    final rows = chartRows(25);
+
+    test('a single degree gets its chart as written', () {
+      final seeded = seedCourses('--A7', rows);
+      expect(seeded.every((c) => c.discipline == 'A7'), isTrue);
+      expect({for (final c in seeded) c.id}, containsAll(_a7Chart));
+    });
+
+    test('a dual takes its B.E. core a year later, less M.Sc. titles', () {
+      final seeded = seedCourses('B3A7', rows);
+      final os = seeded.firstWhere((c) => c.id == 'CS F372');
+      expect(os.sem, '4 - 1'); // charted in 3 - 1
+      final msc = {
+        for (final c in seeded)
+          if (c.discipline == 'B3') c.title,
+      };
+      expect(
+        seeded.where((c) => c.discipline == 'A7' && msc.contains(c.title)),
+        isEmpty,
+      );
+    });
+
+    test('a row with no year to move is skipped, not a crash', () {
+      expect(() => seedCourses('B2A5', rows), returnsNormally);
+    });
+
+    test('changing the B.E. half swaps its core and keeps the M.Sc.', () {
+      final stored = {
+        for (final c in seedCourses('B3A7', rows)) c.id as Object: c,
+      };
+      final plan = reseedSecondHalf('B3A3', stored, rows);
+      expect(plan.drop, contains('CS F372'));
+      expect(plan.drop.every((k) => stored[k]!.discipline == 'A7'), isTrue);
+      expect(plan.add.every((c) => c.discipline == 'A3'), isTrue);
+    });
+
+    test('first run seeds only when nothing of the degree is stored', () {
+      expect(needsSeed('B3A7', const []), isTrue);
+      expect(needsSeed('B3A7', seedCourses('B3A7', rows)), isFalse);
     });
   });
 }
