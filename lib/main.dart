@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/auth_util.dart';
+import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/firebase_options.dart';
 import 'package:cgpa_calculator/home_page.dart';
@@ -7,6 +8,7 @@ import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +26,15 @@ void main() async {
   Hive.registerAdapter(CourseAdapter());
   registerMarksAdapters();
   await Sync.openBoxes();
+  String? message;
+  if (signsInByRedirect()) {
+    // Back from Google on a fresh load: the result, or why it failed.
+    try {
+      await FirebaseAuth.instance.getRedirectResult();
+    } on FirebaseAuthException catch (e) {
+      message = 'Sign-in failed: ${e.message ?? e.code}';
+    }
+  }
   final user = await FirebaseAuth.instance.authStateChanges().first;
   final allowed = user == null ? false : await mayUseApp(user);
   if (user == null || allowed != true) {
@@ -31,8 +42,9 @@ void main() async {
     // is not an owner. Unknown (offline) keeps the session for next time.
     if (user != null && allowed == false) {
       await FirebaseAuth.instance.signOut();
+      message = refusal(user, allowed);
     }
-    runApp(const SignInApp());
+    runApp(SignInApp(message: message));
   } else {
     await startApp(user);
   }
@@ -49,8 +61,27 @@ Future<void> startApp(User user) async {
   runApp(MyApp());
 }
 
+/// A home-screen app on iOS loses the popup: Safari blocks it, or it opens
+/// and never reports back. There the sign-in is a redirect instead, which
+/// works only because the auth helper is served from this site (authDomain,
+/// landing/__/auth/).
+bool signsInByRedirect() =>
+    kIsWeb && isStandalone() && installTarget().device == InstallDevice.ios;
+
+/// Why [user] was turned away; [allowed] is what mayUseApp said.
+String refusal(User user, bool? allowed) {
+  final rejected = user.email ?? 'that account';
+  return allowed == null
+      ? 'Could not check $rejected. Check your connection and try again.'
+      : 'Sign in with your BITS email. $rejected is not a '
+          'BITS Pilani campus account.';
+}
+
 class SignInApp extends StatefulWidget {
-  const SignInApp({super.key});
+  const SignInApp({super.key, this.message});
+
+  /// Shown once on arrival, e.g. why a redirect sign-in was refused.
+  final String? message;
 
   @override
   State<SignInApp> createState() => _SignInAppState();
@@ -64,6 +95,15 @@ class _SignInAppState extends State<SignInApp>
     vsync: this,
     duration: const Duration(milliseconds: 1250),
   )..forward();
+
+  @override
+  void initState() {
+    super.initState();
+    final message = widget.message;
+    if (message != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _show(message));
+    }
+  }
 
   @override
   void dispose() {
@@ -101,45 +141,60 @@ class _SignInAppState extends State<SignInApp>
             // Let people pick their BITS account even if a personal Google
             // session is already active in the browser.
             ..setCustomParameters({'prompt': 'select_account'});
-      final cred = await FirebaseAuth.instance.signInWithPopup(provider);
+      if (signsInByRedirect()) {
+        // Leaves the page; main() picks the result up on the way back.
+        await FirebaseAuth.instance.signInWithRedirect(provider);
+        return;
+      }
+      final UserCredential cred;
+      try {
+        cred = await FirebaseAuth.instance.signInWithPopup(provider);
+      } on FirebaseAuthException catch (e) {
+        // A browser that blocks the popup can still take the redirect.
+        if (e.code != 'popup-blocked') rethrow;
+        await FirebaseAuth.instance.signInWithRedirect(provider);
+        return;
+      }
       final user = cred.user;
       if (user == null) throw FirebaseAuthException(code: 'no-user');
       final allowed = await mayUseApp(user);
       if (allowed != true) {
-        final rejected = user.email ?? 'that account';
         await FirebaseAuth.instance.signOut();
-        throw allowed == null
-            ? 'Could not check $rejected. Check your connection and try again.'
-            : 'Sign in with your BITS email. $rejected is not a '
-                'BITS Pilani campus account.';
+        throw refusal(user, allowed);
       }
       await startApp(user); // replaces this app with the real one
       return;
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      _messengerKey.currentState?.showSnackBar(
-        SnackBar(
-          backgroundColor: thm.cardcolor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: thm.bordcolor.withValues(alpha: 0.2)),
-          ),
-          content: Text(
-            e is String
-                ? e
-                : 'Sign-in failed: '
-                    '${e is FirebaseAuthException ? (e.message ?? e.code) : e}',
-            style: TextStyle(
-              fontFamily: 'Montserrat',
-              fontSize: 13,
-              color: thm.textcolor,
-            ),
-          ),
-        ),
+      _show(
+        e is String
+            ? e
+            : 'Sign-in failed: '
+                '${e is FirebaseAuthException ? (e.message ?? e.code) : e}',
       );
     }
+  }
+
+  void _show(String text) {
+    _messengerKey.currentState?.showSnackBar(
+      SnackBar(
+        backgroundColor: thm.cardcolor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: thm.bordcolor.withValues(alpha: 0.2)),
+        ),
+        content: Text(
+          text,
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            fontSize: 13,
+            color: thm.textcolor,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
