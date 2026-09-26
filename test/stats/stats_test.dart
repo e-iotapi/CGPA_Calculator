@@ -45,6 +45,7 @@ Future<void> _pump(
   Size size = const Size(320, 640),
   double textScale = 1,
   AppPalette palette = AppPalette.light,
+  VoidCallback? onEditTotal,
 }) async {
   t.view.physicalSize = size * (_shots == null ? 1 : 2);
   t.view.devicePixelRatio = _shots == null ? 1 : 2;
@@ -68,6 +69,7 @@ Future<void> _pump(
           onTargetChanged: (_) {},
           onPlanChanged: (_, _) {},
           onBack: () {},
+          onEditTotal: onEditTotal,
         ),
       ),
     ),
@@ -158,6 +160,37 @@ void main() {
       await _pump(t, d, StatsView.degree);
       expect(find.text('CREDITS EARNED'), findsOneWidget);
       expect(find.text('CDC (B3)'), findsOneWidget);
+    });
+
+    test('a total set by hand decides what is left', () {
+      final set = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3A7',
+        totalSet: 50,
+      );
+      expect(set.degreeLeft, 50 - set.audit.totalCredits);
+      final low = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3A7',
+        totalSet: 1,
+      );
+      expect(low.degreeLeft, 0);
+    });
+
+    testWidgets('the credits card opens the total, and says it was set', (
+      t,
+    ) async {
+      var taps = 0;
+      final set = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3A7',
+        totalSet: 50,
+      );
+      await _pump(t, set, StatsView.degree, onEditTotal: () => taps++);
+      expect(find.text('of 50'), findsOneWidget);
+      expect(find.textContaining('total set by you'), findsOneWidget);
+      await t.tap(find.text('CREDITS EARNED'));
+      expect(taps, 1);
     });
 
     testWidgets('no overflow at 320, 768, 1440 or 200% text', (t) async {

@@ -37,6 +37,11 @@ void main() {
       expect(t.takeException(), isNull, reason: '$size $scale');
     }
     expect(find.text('Pointer'), findsOneWidget);
+    expect(
+      find.text('Import every past semester from your ERP sheet'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('never uploaded'), findsOneWidget);
     await t.ensureVisible(find.bySemanticsLabel('Continue with Google'));
     await t.tap(find.bySemanticsLabel('Continue with Google'));
     expect(taps, 1);

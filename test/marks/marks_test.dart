@@ -221,6 +221,16 @@ void main() {
       await t.pumpAndSettle();
     }
 
+    testWidgets('the weight is the component\'s, not the course\'s', (t) async {
+      await pump(
+        t,
+        const AddEvaluativePage(courseId: 'X', weighted: true, unassigned: 100),
+        const Size(390, 844),
+      );
+      expect(find.text('Weight of the component'), findsOneWidget);
+      expect(find.text('Weight of the course'), findsNothing);
+    });
+
     testWidgets('a one-mark evaluative takes a date and reaches the calendar', (
       t,
     ) async {

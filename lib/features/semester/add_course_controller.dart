@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -120,7 +121,7 @@ List<CourseHit> searchCourses(
         title: displayTitle(m.id, m.title),
         credits: m.credits,
         category: categoryFor(m.id, discipline),
-        heldIn: held.where((c) => sameCourseId(c.id, m.id)).firstOrNull?.sem,
+        heldIn: held.where((c) => courseGraph.same(c.id, m.id)).firstOrNull?.sem,
       ),
   ];
 }

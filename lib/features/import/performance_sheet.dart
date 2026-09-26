@@ -70,6 +70,15 @@ class SheetRow {
   final bool retake;
 }
 
+/// A course under "Pending Courses": still to take.
+typedef PendingCourse = ({String id, String title, double units});
+
+/// PS II or a thesis: a student takes one of them, never both.
+bool isFinalTerm(String id, String title) =>
+    title.contains('PRACTICE SCHOOL II') ||
+    title.contains('THESIS') ||
+    RegExp(r'^BITS F4(1[2-3]|2\d)T?$').hasMatch(id);
+
 class PerformanceSheet {
   const PerformanceSheet({
     required this.rows,
@@ -77,6 +86,7 @@ class PerformanceSheet {
     this.cgpa,
     this.unplaced = const [],
     this.needs = const {},
+    this.pending = const [],
   });
 
   /// Completed and registered courses, oldest first, retaken attempts
@@ -93,12 +103,42 @@ class PerformanceSheet {
   /// "Count of … Required, Completed" lines.
   final Map<String, Need> needs;
 
-  /// [needs] for [degree], or null when the sheet has none.
-  ElectiveNeeds? electiveNeeds(String degree) =>
+  /// Courses still to take, PS II and thesis options among them.
+  final List<PendingCourse> pending;
+
+  /// Every core course the degree needs: each untagged course taken or
+  /// running (not withdrawn or failed), each pending one, and one PS II in
+  /// place of the PS II or thesis options.
+  Need? get cdc {
+    final taken = rows.where(
+      (r) => r.tag == null && r.grade != 'W' && r.grade != 'NC',
+    );
+    final left = {
+      for (final p in pending)
+        if (!isFinalTerm(p.id, p.title)) p.id: p.units,
+    };
+    final ps2 = pending
+        .where((p) => p.title.contains('PRACTICE SCHOOL II'))
+        .map((p) => p.units)
+        .fold<double?>(null, (m, u) => m == null || u > m ? u : m);
+    if (taken.isEmpty && left.isEmpty && ps2 == null) return null;
+    final units =
+        taken.fold(0.0, (s, r) => s + r.units) +
+        left.values.fold(0.0, (s, u) => s + u) +
+        (ps2 ?? 0);
+    return (
+      courses: taken.length + left.length + (ps2 == null ? 0 : 1),
+      units: units.round(),
+    );
+  }
+
+  /// What the sheet says [degree] needs, or null when it has no counts.
+  DegreeNeeds? degreeNeeds(String degree) =>
       needs.isEmpty
           ? null
-          : ElectiveNeeds(
+          : DegreeNeeds(
             degree: degree,
+            cdc: cdc,
             hel: needs['HEL'],
             del: needs['DEL'],
             el: needs['EL'],
@@ -124,6 +164,8 @@ final _studentId = RegExp(r'^\d{4}[A-Z0-9]{4}\d{4}[A-Z]$');
 final _heading = RegExp(r'^(FIRST|SECOND) SEMESTER (\d{4})-\d{4}$');
 final _summer = RegExp(r'^SUMMER TERM (\d{4})-\d{4}$');
 final _code = RegExp(r'^([A-Z]{2,5})\s+([A-Z]\d{3}[A-Z]?)$');
+final _dept = RegExp(r'^[A-Z]{2,5}$');
+final _number = RegExp(r'^[A-Z]\d{3}[A-Z]?$');
 final _units = RegExp(r'^\d+(\.\d+)?$');
 const _tags = {'HEL', 'DEL', 'EL'};
 final _needs = RegExp(r'^Count of (Electives|Units) Required');
@@ -292,6 +334,51 @@ PerformanceSheet parsePerformanceSheet(
     );
   }
 
+  // Pending courses run in columns whose codes come as two items ("CS",
+  // "F303"): read each line left to right, a code opening a course and its
+  // units closing it.
+  final pending = <PendingCourse>[];
+  if (end != null) {
+    final after =
+        items.where((i) => !before(i) && i != end).toList()..sort(
+          (a, b) =>
+              a.page != b.page ? a.page.compareTo(b.page) : a.y.compareTo(b.y),
+        );
+    final lines = <List<PdfText>>[];
+    for (final i in after) {
+      final last = lines.lastOrNull;
+      if (last != null &&
+          last.first.page == i.page &&
+          (last.first.y - i.y).abs() < 2) {
+        last.add(i);
+      } else {
+        lines.add([i]);
+      }
+    }
+    for (final line in lines) {
+      line.sort((a, b) => a.x.compareTo(b.x));
+      String? id;
+      final title = <String>[];
+      for (var k = 0; k < line.length; k++) {
+        final t = line[k].text.trim();
+        final next = k + 1 < line.length ? line[k + 1].text.trim() : '';
+        if (_code.firstMatch(t) case final m?) {
+          id = '${m.group(1)} ${m.group(2)}';
+          title.clear();
+        } else if (_dept.hasMatch(t) && _number.hasMatch(next)) {
+          id = '$t $next';
+          title.clear();
+          k++;
+        } else if (id != null && _units.hasMatch(t)) {
+          pending.add((id: id, title: title.join(' '), units: double.parse(t)));
+          id = null;
+        } else if (id != null) {
+          title.add(t);
+        }
+      }
+    }
+  }
+
   final order = semestersFor(disc);
   rows.sort((a, b) => order.indexOf(a.sem).compareTo(order.indexOf(b.sem)));
   // A retake replaces every earlier attempt at the same course.
@@ -305,6 +392,7 @@ PerformanceSheet parsePerformanceSheet(
     cgpa: cgpa,
     unplaced: unplaced.toList(),
     needs: needs,
+    pending: pending,
   );
 }
 

@@ -1,6 +1,7 @@
 /// Rules the old Settings screen applied, kept as functions of their inputs.
 library;
 
+import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/script.dart' show degreelist, notOfferedHere;
 
 /// What initializeCourses does with the course box on the way back home:
@@ -52,7 +53,7 @@ List<(String, String)> disciplineOptions({
         d,
   ];
   return [
-    for (final d in codes) (d, d),
+    for (final d in codes) (d, '${programmeName(d)} ($d)'),
     if (dual) ...[('B-', 'Other'), ('--', 'None')] else ('--', 'Other'),
   ];
 }

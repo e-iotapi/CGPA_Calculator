@@ -11,9 +11,12 @@ import 'package:flutter/material.dart';
 
 /// The degree audit: credits earned overall, then one card per requirement.
 class DegreeView extends StatelessWidget {
-  const DegreeView({super.key, required this.data});
+  const DegreeView({super.key, required this.data, this.onEditTotal});
 
   final StatsData data;
+
+  /// Tapping the credits card: set the degree's total by hand.
+  final VoidCallback? onEditTotal;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +31,7 @@ class DegreeView extends StatelessWidget {
         ),
       );
     }
-    final total = a.totalCredits + data.remaining;
+    final total = a.totalCredits + data.degreeLeft;
     final pct = (data.degreeShare * 100).round();
     final toClear = [
       for (final c in a.categories)
@@ -52,60 +55,75 @@ class DegreeView extends StatelessWidget {
         Semantics(
           label:
               'Credits earned ${formatCredits(a.totalCredits)} of '
-              '${formatCredits(total)}, ${formatCredits(data.remaining)} left',
+              '${formatCredits(total)}, ${formatCredits(data.degreeLeft)} left',
+          button: onEditTotal != null,
+          hint: onEditTotal == null ? null : 'Change the total',
           excludeSemantics: true,
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
-            decoration: BoxDecoration(
-              color: p.hero,
-              borderRadius: BorderRadius.circular(Radii.card),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'CREDITS EARNED',
-                  style: TypeScale.label.copyWith(color: p.onHeroMuted),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
+          child: Material(
+            color: p.hero,
+            borderRadius: BorderRadius.circular(Radii.card),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onEditTotal,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      formatCredits(a.totalCredits),
-                      style: TypeScale.display.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: p.onHero,
-                      ),
+                      'CREDITS EARNED',
+                      style: TypeScale.label.copyWith(color: p.onHeroMuted),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          formatCredits(a.totalCredits),
+                          style: TypeScale.display.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: p.onHero,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'of ${formatCredits(total)}',
+                          style: TypeScale.section.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: p.onHeroMuted,
+                          ),
+                        ),
+                        if (onEditTotal != null) ...[
+                          const SizedBox(width: 5),
+                          Icon(
+                            Icons.edit_rounded,
+                            size: 14,
+                            color: p.onHeroMuted,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 9),
+                    _Bar(
+                      value: data.degreeShare,
+                      color: p.onHero,
+                      track: p.onHero.withValues(alpha: 0.13),
+                      height: 7,
+                    ),
+                    const SizedBox(height: 9),
                     Text(
-                      'of ${formatCredits(total)}',
-                      style: TypeScale.section.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      '${formatCredits(data.degreeLeft)} credits left'
+                      '${data.totalSet != null ? ' · total set by you' : ''}',
+                      style: TypeScale.caption.copyWith(
+                        fontSize: 10.5,
                         color: p.onHeroMuted,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 9),
-                _Bar(
-                  value: data.degreeShare,
-                  color: p.onHero,
-                  track: p.onHero.withValues(alpha: 0.13),
-                  height: 7,
-                ),
-                const SizedBox(height: 9),
-                Text(
-                  '${formatCredits(data.remaining)} credits left',
-                  style: TypeScale.caption.copyWith(
-                    fontSize: 10.5,
-                    color: p.onHeroMuted,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -124,7 +142,6 @@ class DegreeView extends StatelessWidget {
   }
 
   String _short(AuditCategory c) => switch (c.category) {
-    _ when c.also != null => 'DEl',
     Elective.cdc1 || Elective.cdc2 => 'core',
     Elective.del1 => 'DEl 1',
     Elective.del2 => 'DEl 2',

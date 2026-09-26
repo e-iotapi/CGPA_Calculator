@@ -4,6 +4,8 @@ library;
 
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/grading/requirements.dart';
+import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -80,15 +82,31 @@ String _titleCase(String s) => s
 String _key(String title) =>
     title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-/// The category a sheet tag stands for; null keeps the course's own.
-String? _category(String? tag, String id, String discipline) => switch (tag) {
-  'HEL' => Elective.humanity.tag,
-  'EL' => Elective.open.tag,
-  'DEL' => switch (categoryFor(id, discipline)) {
-    final c when c == Elective.del2.tag => c,
-    _ => Elective.del1.tag,
-  },
-  _ => null,
+/// The category a sheet row goes under. A tagged elective is placed by
+/// [electiveFor]; an untagged course is core, in the half whose department
+/// offers it, or in neither.
+String _category(String? tag, String id, String discipline) {
+  final elective = switch (tag) {
+    'HEL' => Elective.humanity,
+    'EL' => Elective.open,
+    'DEL' => Elective.del1,
+    _ => null,
+  };
+  if (elective != null) return electiveFor(id, elective, discipline).tag;
+  final dept = id.split(' ').first;
+  if (departments[discipline.substring(2, 4)]?.contains(dept) ?? false) {
+    return Elective.cdc2.tag;
+  }
+  if (departments[discipline.substring(0, 2)]?.contains(dept) ?? false) {
+    return Elective.cdc1.tag;
+  }
+  return noCategory;
+}
+
+/// A core category: CDC of either half, or none.
+bool _isCore(String tag) => switch (Elective.fromTag(tag)) {
+  null || Elective.cdc1 || Elective.cdc2 => true,
+  _ => false,
 };
 
 /// Sets Actual grades from [sheet] on [stored] (the course box as key →
@@ -128,7 +146,8 @@ ImportPlan planImport(
     if (match == null) {
       final master =
           mcourselist.where((m) => sameCourseId(m.id, r.id)).firstOrNull;
-      // A chart course renumbered since ("ME F110" taken as "ME F112"): same
+      // The same course under another code: cross-listed ("BITS F493" taken
+      // as "ECON F355"), or a chart course renumbered since, in the same
       // semester, same title, never graded. The sheet's code replaces it.
       final names = {_key(r.title), if (master != null) _key(master.title)};
       final renumbered =
@@ -136,9 +155,10 @@ ImportPlan planImport(
               .where(
                 (e) =>
                     !claimed.contains(e.key) &&
-                    e.value.sem == r.sem &&
-                    e.value.grade1 == GradeCode.clr &&
-                    names.contains(_key(e.value.title)),
+                    (courseGraph.same(e.value.id, r.id) ||
+                        (e.value.sem == r.sem &&
+                            e.value.grade1 == GradeCode.clr &&
+                            names.contains(_key(e.value.title)))),
               )
               .firstOrNull;
       if (renumbered != null) {
@@ -152,7 +172,7 @@ ImportPlan planImport(
           id: r.id,
           credits: r.units,
           sem: r.sem,
-          elective: category ?? categoryFor(r.id, discipline),
+          elective: category,
           discipline:
               discipline.substring(0, 2) != '--'
                   ? discipline.substring(0, 2)
@@ -176,8 +196,14 @@ ImportPlan planImport(
       }
     }
     if (c.sem != r.sem && !r.retake) moved++;
+    // A core course keeps its own half; one charted as an elective is core
+    // once the sheet lists it untagged.
     final next = c
-        .copyWith(sem: r.sem, credits: r.units, elective: category)
+        .copyWith(
+          sem: r.sem,
+          credits: r.units,
+          elective: r.tag == null && _isCore(c.elective) ? null : category,
+        )
         .withGrade(1, grade);
     final same =
         next.sem == c.sem &&
