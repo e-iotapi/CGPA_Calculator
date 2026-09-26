@@ -31,6 +31,7 @@ class SemesterView extends StatefulWidget {
     required this.onSwipe,
     required this.onOpenAnalytics,
     required this.onOpenSettings,
+    required this.onToggleTheme,
     this.onInstall,
     this.offshoot,
     this.slideFromRight = true,
@@ -58,6 +59,9 @@ class SemesterView extends StatefulWidget {
   final ValueChanged<int> onSwipe;
   final VoidCallback onOpenAnalytics;
   final VoidCallback onOpenSettings;
+
+  /// Flips between the light and dark palettes.
+  final VoidCallback onToggleTheme;
 
   /// Null hides the install button.
   final VoidCallback? onInstall;
@@ -286,11 +290,15 @@ class _SemesterViewState extends State<SemesterView> {
                   color: p.textMuted,
                 ),
               ),
-              Text(
-                widget.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.title.copyWith(color: p.text),
+              // Shrinks rather than truncating when the header is crowded.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  widget.name,
+                  maxLines: 1,
+                  style: TypeScale.title.copyWith(color: p.text),
+                ),
               ),
             ],
           ),
@@ -309,6 +317,13 @@ class _SemesterViewState extends State<SemesterView> {
           icon: Icons.insert_chart_outlined_rounded,
           tooltip: 'Degree progress',
           onPressed: widget.onOpenAnalytics,
+          size: btn,
+        ),
+        const SizedBox(width: Space.sm),
+        CircleIconButton(
+          icon: p.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+          tooltip: p.isDark ? 'Switch to light mode' : 'Switch to dark mode',
+          onPressed: widget.onToggleTheme,
           size: btn,
         ),
         const SizedBox(width: Space.sm),
