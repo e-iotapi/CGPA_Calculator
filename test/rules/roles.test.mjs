@@ -1,15 +1,9 @@
 // firestore.rules for owners, grants, the staff index, the audit log, people
 // and config (ARCHITECTURE.md §4, §9 step 5), against the emulator.
 //   cd test/rules && npm install && npm test
-import { readFileSync } from 'node:fs';
-import { after, before, beforeEach, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
+import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
-  assertFails,
-  assertSucceeds,
-  initializeTestEnvironment,
-} from '@firebase/rules-unit-testing';
-import {
-  Timestamp,
   collection,
   doc,
   getDoc,
@@ -20,110 +14,12 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import {
+  ADMIN, FACULTY, NEVER, OTHER, OWNER, PRES, STUDENT,
+  appoint, as, days, grantId, name, seed, useEmulator,
+} from './helpers.mjs';
 
-const OWNER = 'owner@gmail.com';
-const ADMIN = 'f20200001@pilani.bits-pilani.ac.in';
-const PRES = 'f20230802@goa.bits-pilani.ac.in'; // ELEC president, Goa
-const STUDENT = 'f20230456@goa.bits-pilani.ac.in';
-const OTHER = 'f20230119@hyderabad.bits-pilani.ac.in';
-const FACULTY = 'rmenon@goa.bits-pilani.ac.in';
-const NEVER = 'f20239999@goa.bits-pilani.ac.in'; // never signed in
-
-let env;
-const days = (n) => Timestamp.fromMillis(Date.now() + n * 864e5);
-const name = (email) => `Name of ${email.split('@')[0]}`;
-
-function as(email) {
-  return env
-    .authenticatedContext(email, { email, email_verified: true, name: name(email) })
-    .firestore();
-}
-
-async function seed(fn) {
-  await env.withSecurityRulesDisabled((c) => fn(c.firestore()));
-}
-
-const grantId = (g) => `${g.role}|${g.campus}|${g.scope}|${g.email}`;
-
-/// One appointment: the grant, the staff index and the audit entry, in one
-/// batch — the shape the app writes.
-function appoint(db, actor, g, staff, { audit = true, auditPath } = {}) {
-  const id = grantId(g);
-  const b = writeBatch(db);
-  const a = doc(collection(db, 'audit'));
-  b.set(doc(db, 'grants', id), {
-    name: name(g.email),
-    active: true,
-    expiresAt: days(100),
-    grantedBy: { email: actor, name: name(actor) },
-    grantedAt: serverTimestamp(),
-    auditId: a.id,
-    ...g,
-  });
-  if (staff !== null) {
-    b.set(doc(db, 'staff', g.email), {
-      name: name(g.email),
-      email: g.email,
-      campus: g.campus,
-      owner: false,
-      admin: false,
-      presidentOf: [],
-      courses: [],
-      expiresAt: days(100),
-      lastGrant: id,
-      ...staff,
-    });
-  }
-  if (audit) {
-    b.set(a, {
-      actor: { email: actor, name: name(actor), role: 'test' },
-      action: 'grant',
-      path: auditPath ?? `grants/${id}`,
-      campus: g.campus,
-      before: null,
-      after: g.role,
-      at: serverTimestamp(),
-    });
-  }
-  return b.commit();
-}
-
-before(async () => {
-  env = await initializeTestEnvironment({
-    projectId: 'demo-pointer',
-    firestore: {
-      rules: readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8'),
-      host: '127.0.0.1',
-      port: 8085,
-    },
-  });
-});
-
-after(() => env.cleanup());
-
-beforeEach(async () => {
-  await env.clearFirestore();
-  await seed(async (db) => {
-    await setDoc(doc(db, 'owners', OWNER), { email: OWNER, name: name(OWNER), active: true });
-    await setDoc(doc(db, 'config', 'grantTerms'), { crDays: 183, presidentDays: 365, adminDays: 730 });
-    for (const e of [ADMIN, PRES, STUDENT, OTHER, FACULTY]) {
-      await setDoc(doc(db, 'people', e), { name: name(e), campus: e.split('@')[1].split('.')[0], firstSignIn: 1 });
-    }
-    const live = { active: true, expiresAt: days(100) };
-    await setDoc(doc(db, 'grants', `admin|all|all|${ADMIN}`), {
-      role: 'admin', campus: 'all', scope: 'all', email: ADMIN, name: name(ADMIN), ...live,
-    });
-    await setDoc(doc(db, 'staff', ADMIN), {
-      email: ADMIN, campus: 'all', admin: true, presidentOf: [], courses: [], owner: false, expiresAt: days(100),
-    });
-    await setDoc(doc(db, 'grants', `dept|goa|ELEC|${PRES}`), {
-      role: 'dept', campus: 'goa', scope: 'ELEC', programme: 'A3', email: PRES, name: name(PRES), ...live,
-    });
-    await setDoc(doc(db, 'staff', PRES), {
-      email: PRES, campus: 'goa', admin: false, presidentOf: ['ELEC'], courses: [], owner: false, expiresAt: days(100),
-    });
-  });
-});
+useEmulator();
 
 describe('people', () => {
   test('a user writes only their own entry', async () => {

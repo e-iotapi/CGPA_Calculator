@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/admin/admin.dart' deferred as admin;
 import 'package:cgpa_calculator/app/routes.dart';
+import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -62,11 +63,54 @@ final List<RouteBase> appRoutes = [
           _admin('audit', () => admin.AuditLogPage(), _staff),
           _admin('roster', () => admin.RosterPage(), _staff),
           _admin('open-as', () => admin.OpenAsPage(), _ownerOnly),
+          _admin('publish', () => admin.PublishPage(), _ownerOnly),
+        ],
+      ),
+      // Presidents and CRs (§13): the scope is in the path. The course route
+      // comes first, so "course" is never read as a department.
+      GoRoute(
+        path: 'maintain/:campus/course/:courseId',
+        redirect: (_, s) => _mayMaintain(s, course: true) ? null : Routes.home,
+        builder:
+            (_, s) => _deferred(
+              () => admin.CrHome(
+                campus: s.pathParameters['campus']!,
+                courseId: s.pathParameters['courseId']!,
+              ),
+            ),
+      ),
+      GoRoute(
+        path: 'maintain/:campus/:dept',
+        redirect: (_, s) => _mayMaintain(s) ? null : Routes.home,
+        builder:
+            (_, s) => _deferred(
+              () => admin.DeptHome(
+                campus: s.pathParameters['campus']!,
+                dept: s.pathParameters['dept']!,
+              ),
+            ),
+        routes: [
+          GoRoute(
+            path: 'courses',
+            builder:
+                (_, s) => _deferred(
+                  () => admin.DeptCourses(
+                    campus: s.pathParameters['campus']!,
+                    dept: s.pathParameters['dept']!,
+                  ),
+                ),
+          ),
         ],
       ),
     ],
   ),
 ];
+
+bool _mayMaintain(GoRouterState s, {bool course = false}) => myRoles.value.may(
+  course ? Capability.courseStructures : Capability.bulkUpload,
+  campus: s.pathParameters['campus'],
+  scope: course ? s.pathParameters['courseId'] : s.pathParameters['dept'],
+);
 
 bool _ownerOnly() => myRoles.value.owner;
 bool _adminOnly() => myRoles.value.reachesAdmin;

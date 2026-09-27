@@ -279,18 +279,69 @@ service cloud.firestore {
     // ---- Shared course data ------------------------------------------------
 
     // The published catalogue (§1): not secret, one read per new version.
-    // Written only by an owner's publish.
+    // Written only by an owner's Publish: a new v{n}, never rewritten, and the
+    // marker moved to it with an audit entry in the same batch (§11).
     match /catalog/{doc} {
       allow read: if mayUse();
-      allow write: if false;
+      allow create: if doc != 'marker' && isOwner()
+        && doc == 'v' + string(request.resource.data.version)
+        && request.resource.data.json is string
+        && getAfter(afterPath('catalog/marker')).data.version
+             == request.resource.data.version;
+      allow create, update: if doc == 'marker' && isOwner()
+        && request.resource.data.keys().hasOnly(['version', 'schema', 'auditId'])
+        && existsAfter(afterPath('catalog/v' + string(request.resource.data.version)))
+        && audited('catalog/marker');
+      allow delete: if false;
+    }
+
+    // ---- Maintainer writes (§13.2, §13.3) -----------------------------------
+
+    // An owner, the department's president or the course's CR, on the
+    // campus in the path. Each is checked against the grant, not the index.
+    function maintains(campus, courseId) {
+      return isOwner() || isPresident(campus, deptOf(courseId))
+        || isCr(campus, courseId);
+    }
+
+    function stamped() {
+      return request.resource.data.updatedBy.email == me()
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // Course identity: drafts until an owner publishes (§11). Presidents in
+    // scope may draft; nothing here reaches students until Publish.
+    match /courses/{courseId} {
+      allow read: if isOwner() || isAdmin();
+      allow create, update: if mayUse()
+        && (isOwner() || isPresident(campusOf(me()), deptOf(courseId)))
+        && request.resource.data.id == courseId
+        && request.resource.data.draft == true
+        && request.resource.data.keys().hasOnly(['id', 'title', 'credits',
+             'retired', 'elective', 'draft', 'auditId', 'updatedBy', 'updatedAt'])
+        && stamped()
+        && audited('courses/' + courseId);
+      // Publish clears the flag.
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['draft'])
+        && request.resource.data.draft == false;
+      allow delete: if false;
     }
 
     // Offerings: a course as taught on one campus in one term (§4, §10.1).
-    // Read by that campus; writes arrive with the maintainer tools.
+    // Read by that campus; written by whoever maintains it there, logged.
     match /courses/{courseId}/offerings/{offering} {
       allow read: if mayUse()
         && (offering.split('_')[0] == campusOf(me()) || isOwner());
-      allow write: if false;
+      allow create, update: if mayUse()
+        && maintains(offering.split('_')[0], courseId)
+        && request.resource.data.courseId == courseId
+        && offering == request.resource.data.campus + '_' + request.resource.data.term
+        && request.resource.data.components is list
+        && request.resource.data.components.size() <= 30
+        && stamped()
+        && audited('courses/' + courseId + '/offerings/' + offering);
+      allow delete: if false;
     }
 
     // ---- The user's own data -----------------------------------------------

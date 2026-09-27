@@ -124,8 +124,8 @@ class RoleStore {
   // ---- Audit ---------------------------------------------------------------
 
   /// Adds the audit entry for [path] to [b]; returns its id for the shared
-  /// document's `auditId`.
-  String _audit(
+  /// document's `auditId`. Every shared write goes through here (§4).
+  String logInto(
     WriteBatch b, {
     required String path,
     required String summary,
@@ -133,6 +133,7 @@ class RoleStore {
     String? course,
     Object? before,
     Object? after,
+    String? uploadId,
   }) {
     final ref = db.collection('audit').doc();
     final acting = actingAs?.call();
@@ -146,6 +147,7 @@ class RoleStore {
       if (course != null) 'course': course,
       'before': before,
       'after': after,
+      if (uploadId != null) 'uploadId': uploadId,
       'at': FieldValue.serverTimestamp(),
     });
     return ref.id;
@@ -181,7 +183,7 @@ class RoleStore {
   Future<void> saveTerms(GrantTerms t) async {
     final b = db.batch();
     final before = await terms();
-    final id = _audit(
+    final id = logInto(
       b,
       path: 'config/grantTerms',
       summary:
@@ -215,7 +217,7 @@ class RoleStore {
   Future<void> _writeGrant(Grant g, String summary, {Grant? before}) async {
     final staff = await _staff(g.email);
     final b = db.batch();
-    final id = _audit(
+    final id = logInto(
       b,
       path: 'grants/${g.id}',
       summary: summary,
@@ -337,7 +339,7 @@ class RoleStore {
   Future<void> addOwner(String email, String name) async {
     final address = email.trim().toLowerCase();
     final b = db.batch();
-    final id = _audit(
+    final id = logInto(
       b,
       path: 'owners/$address',
       summary: 'Added $address as an owner',
@@ -361,7 +363,7 @@ class RoleStore {
       throw StateError('An owner cannot remove themselves.');
     }
     final b = db.batch();
-    final id = _audit(
+    final id = logInto(
       b,
       path: 'owners/$email',
       summary: '${active ? 'Restored' : 'Removed'} $email as an owner',
@@ -392,7 +394,7 @@ class RoleStore {
 
   Future<void> savePublicContact(PublicContact c) async {
     final b = db.batch();
-    final id = _audit(
+    final id = logInto(
       b,
       path: 'config/public',
       summary:
