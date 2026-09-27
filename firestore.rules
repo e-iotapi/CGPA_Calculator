@@ -653,10 +653,9 @@ service cloud.firestore {
                   && counted(c, resource.data, -1, -resource.data.stars, -rec(resource.data))
                 : counted(c, resource.data, 1, resource.data.stars, rec(resource.data))));
 
-      // The author deletes; the counters go back (fix 6).
-      allow delete: if isStudent(me()) && id == hashOf(c)
-        && (resource.data.hidden
-            || counted(c, resource.data, -1, -resource.data.stars, -rec(resource.data)));
+      // Edit only: nobody deletes a review, its author included (fix 6,
+      // decided 27 Sep 2026).
+      allow delete: if false;
 
       match /votes/{v} {
         allow get: if isBits() && v == hashOf(id);
