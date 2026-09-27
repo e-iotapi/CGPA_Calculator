@@ -26,6 +26,7 @@ import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
+import 'package:cgpa_calculator/features/semester/widgets/copy_profile_button.dart';
 import 'package:cgpa_calculator/features/semester/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
@@ -41,8 +42,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  bool _showFab = true;
-
   List<Course> get items =>
       Hive.box<Course>('coursesBox').values
           .where(
@@ -60,16 +59,10 @@ class _MyHomePageState extends State<MyHomePage> {
           .toList();
 
   bool _isrightswipe = true;
-  void setfab() {
-    _showFab = true;
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _showFab = false);
-      } else {
-        _showFab = false;
-      }
-    });
-  }
+
+  /// The copy button's height and the gap above it, kept clear under the
+  /// course list on Expected.
+  static const double _copyButtonRoom = 72;
 
   @override
   Widget build(BuildContext context) {
@@ -112,10 +105,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 _isrightswipe = false;
               }
               selectedprofile = index + 1;
-              if (selectedprofile == 2) {
-                _showFab = true;
-                setfab();
-              }
             });
           },
           destinations: [
@@ -145,7 +134,17 @@ class _MyHomePageState extends State<MyHomePage> {
                 wid = wid.clamp(0, 600).toDouble();
               }
               return MediaQuery(
-                data: mq.copyWith(size: Size(c.maxWidth, hei)),
+                data: mq.copyWith(
+                  size: Size(c.maxWidth, hei),
+                  // Expected keeps the copy button up; the list scrolls clear
+                  // of it.
+                  padding:
+                      selectedprofile == 2
+                          ? mq.padding.copyWith(
+                            bottom: mq.padding.bottom + _copyButtonRoom,
+                          )
+                          : mq.padding,
+                ),
                 child: _semesterView(sitems, wid, hei),
               );
             },
@@ -165,63 +164,15 @@ class _MyHomePageState extends State<MyHomePage> {
               );
             },
             child:
-                (selectedprofile == 2 && _showFab)
-                    ? FloatingActionButton(
+                selectedprofile == 2
+                    ? CopyProfileButton(
                       key: const ValueKey("Button"),
-                      elevation: 10,
-                      backgroundColor:
-                          (selected_theme == "Black" ||
-                                  selected_theme == "Blue")
-                              ? thm.sepcolor
-                              : thm.backcolor,
-                      onPressed: () async {
-                        final ok = await showDialog<bool>(
-                          context: context,
-                          builder:
-                              (ctx) => AlertDialog(
-                                backgroundColor: thm.backcolor,
-                                title: Text(
-                                  'Import from $profile1n?',
-                                  style: TextStyle(
-                                    color: thm.textcolor,
-                                    fontFamily: 'Montserrat',
-                                  ),
-                                ),
-                                content: Text(
-                                  'Every $profile1n grade, in all semesters, will '
-                                  'be copied over your $profile2n grades. '
-                                  'This cannot be undone.',
-                                  style: TextStyle(
-                                    color: thm.textcolor,
-                                    fontSize: 14,
-                                    fontFamily: 'Montserrat',
-                                  ),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed:
-                                        () => Navigator.of(ctx).pop(false),
-                                    child: Text(
-                                      'Cancel',
-                                      style: TextStyle(color: thm.textcolor),
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed:
-                                        () => Navigator.of(ctx).pop(true),
-                                    child: Text(
-                                      'Import',
-                                      style: TextStyle(color: thm.highcolor),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                        );
-                        if (ok != true) return;
+                      from: profile1n,
+                      to: profile2n,
+                      onCopy: () async {
                         await copyGrades();
-                        setState(() {});
+                        if (mounted) setState(() {});
                       },
-                      child: Icon(Icons.copy, color: thm.textcolor),
                     )
                     : SizedBox.shrink(),
           ),
