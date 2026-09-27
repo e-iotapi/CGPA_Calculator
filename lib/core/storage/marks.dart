@@ -61,6 +61,7 @@ Future<void> seedDefaultComponents(String courseId, String title) async {
         name: name,
         weight: 0,
         parts: [EvalPart(name: '', outOf: 0)],
+        seeded: true,
       ),
       key: 'eval:$courseId:${base + i}',
     );

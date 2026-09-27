@@ -1,7 +1,9 @@
 import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-/// Only BITS Pilani campus accounts may use the app. Enforced again in
+/// BITS Pilani campus accounts may use the app, as may owners (below).
+/// Enforced again in
 /// firestore.rules — a client-side check alone is trivially bypassed.
 final RegExp _bitsEmail = RegExp(
   r'^[^@]+@(goa|pilani|dubai|hyderabad)\.bits-pilani\.ac\.in$',
@@ -10,6 +12,26 @@ final RegExp _bitsEmail = RegExp(
 
 bool isBitsEmail(String? email) =>
     email != null && _bitsEmail.hasMatch(email.trim());
+
+/// A non-BITS account gets in only as an owner: `owners/{email}` exists and
+/// is active (ARCHITECTURE.md §5). Null when Firestore could not say, so a
+/// dropped connection does not sign an owner out.
+Future<bool?> isOwner(User user, {FirebaseFirestore? db}) async {
+  final email = user.email?.trim().toLowerCase();
+  if (email == null || email.isEmpty || !user.emailVerified) return false;
+  try {
+    final doc =
+        await (db ?? FirebaseFirestore.instance).doc('owners/$email').get();
+    return doc.exists && doc.data()?['active'] == true;
+  } on FirebaseException catch (e) {
+    // Rules refuse the read for anyone who is not on the list.
+    return e.code == 'permission-denied' ? false : null;
+  }
+}
+
+/// Who may use the app: a BITS campus account, or an owner.
+Future<bool?> mayUseApp(User user) async =>
+    isBitsEmail(user.email) ? true : isOwner(user);
 
 /// What a BITS address says: f20230802@goa.bits-pilani.ac.in is a first
 /// degree, 2023 batch, at Goa.

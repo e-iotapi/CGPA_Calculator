@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- An installed copy still opens "/": send it straight to the app, never
+       to this page (ARCHITECTURE.md §7). -->
+  <script>
+    if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+      location.replace('/calculator/');
+    }
+  </script>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3Q30MVTZ45"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-3Q30MVTZ45');
+  </script>
+
+  <title>Pointer — CGPA Calculator for BITS Pilani, Goa and Hyderabad</title>
+  <meta name="description" content="Pointer is the CGPA calculator for BITS Pilani, Goa and Hyderabad (BPPC, BPGC, BPHC): instant SGPA and CGPA for every semester, evaluative marks with best-of rules, the offshoot score and degree progress." />
+  <meta name="author" content="Siddharth Mishra" />
+  <meta name="publisher" content="Pointer">
+  <meta name="google-site-verification" content="tuqISfsuhuYBDZzlmG0IrYWXscdI_tp-qE3-W0pywlo" />
+
+  <meta property="og:site_name" content="Pointer">
+  <meta property="og:title" content="Pointer — CGPA Calculator for BITS" />
+  <meta property="og:description" content="Every semester plotted, the SGPA you need to hit your target, marks tracked per evaluative, and your offshoot scored." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://pointer-bits-pilani.pages.dev/" />
+  <meta property="og:image" content="https://pointer-bits-pilani.pages.dev/icons/Icon-192.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Pointer — CGPA Calculator for BITS" />
+  <meta name="twitter:description" content="Every semester plotted, the SGPA you need to hit your target, marks tracked per evaluative, and your offshoot scored." />
+  <meta name="twitter:image" content="https://pointer-bits-pilani.pages.dev/icons/Icon-192.png" />
+
+  <meta name="theme-color" content="#F2F2EF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0D0D0C" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://pointer-bits-pilani.pages.dev/" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/icons/Icon-192.png" />
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Pointer — CGPA Calculator for BITS Pilani",
+      "alternateName": "CGPA Calculator for BITS Pilani",
+      "description": "The CGPA calculator for BITS Pilani, Goa and Hyderabad: SGPA and CGPA for every semester, evaluative marks, the offshoot score and degree progress.",
+      "applicationCategory": "EducationalApplication",
+      "author": { "@type": "Person", "name": "Siddharth Mishra" },
+      "url": "https://pointer-bits-pilani.pages.dev/"
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- The Landing board on the UI Directions canvas; colours are the app's
+       palettes (lib/app/theme/palette.dart). -->
+  <style>
+    :root {
+      --bg: #F2F2EF; --surface: #FFFFFF; --sunken: #F2F2EF; --text: #17170F;
+      --muted: #55554C; --soft: #6B6B60; --kicker: #2C7A62; --link: #1F5C4D;
+      --inverse: #17170F; --on-inverse: #F6F6F2; --hero: #B4DED0;
+      --on-hero-muted: #24564A; --phone: #0D0D0C;
+      --chip-a: #CDE8D8; --on-chip-a: #1F5240; --chip-b: #E4E9F2; --on-chip-b: #33445E;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0D0D0C; --surface: #1C1C1A; --sunken: #262622; --text: #F4F4EF;
+        --muted: #BDBDB2; --soft: #A5A59A; --kicker: #CDE8C8; --link: #CDE8C8;
+        --inverse: #F4F4EF; --on-inverse: #0D0D0C; --hero: #CDE8C8;
+        --on-hero-muted: #14210F; --phone: #2A2A26;
+        --chip-a: #2B4A3C; --on-chip-a: #CDE8D8; --chip-b: #2E3645; --on-chip-b: #DCE3EF;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: Montserrat, system-ui, sans-serif;
+    }
+    a { color: var(--link); }
+    .page {
+      max-width: 1280px; margin: 0 auto; padding: 34px 56px;
+      display: flex; flex-direction: column; gap: 30px;
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: inherit; }
+    .mark {
+      width: 40px; height: 40px; border-radius: 14px; background: #17170F; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .brand span:last-child { font-size: 19px; font-weight: 800; letter-spacing: -0.5px; }
+    .nav-right { display: flex; align-items: center; gap: 20px; }
+    .campuses { font-size: 13px; font-weight: 500; color: var(--muted); }
+    .pill {
+      text-decoration: none; min-height: 44px; padding: 0 22px; border-radius: 22px;
+      background: var(--inverse); color: var(--on-inverse);
+      font-size: 13.5px; font-weight: 700; display: flex; align-items: center; flex-shrink: 0;
+    }
+    .hero { display: flex; gap: 46px; align-items: center; }
+    .copy { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+    .kicker { font-size: 11.5px; font-weight: 700; letter-spacing: 1.2px; color: var(--kicker); }
+    h1 {
+      margin: 16px 0 0; font-size: 62px; font-weight: 500; letter-spacing: -2.6px;
+      line-height: 1.04; color: var(--soft);
+    }
+    h1 b { font-weight: 800; color: var(--text); }
+    .lede {
+      margin: 20px 0 0; max-width: 430px; font-size: 15.5px; font-weight: 500;
+      line-height: 1.6; color: var(--muted);
+    }
+    .cta-row { margin-top: 26px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .cta {
+      text-decoration: none; height: 52px; padding: 0 28px; border-radius: 26px;
+      background: var(--inverse); display: flex; align-items: center; gap: 10px;
+    }
+    .cta .g {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: var(--link);
+    }
+    .cta span:last-child { font-size: 14.5px; font-weight: 700; color: var(--on-inverse); }
+    .aside { font-size: 12.5px; font-weight: 500; color: var(--soft); max-width: 180px; line-height: 1.45; }
+
+    .phone {
+      width: 300px; flex-shrink: 0; height: 430px; border-radius: 34px;
+      background: var(--phone); padding: 12px;
+    }
+    .screen {
+      width: 100%; height: 100%; border-radius: 24px; background: var(--bg);
+      padding: 18px 15px; display: flex; flex-direction: column; gap: 11px; overflow: hidden;
+    }
+    .hello { display: flex; flex-direction: column; gap: 1px; }
+    .hello span:first-child { font-size: 10px; font-weight: 500; color: var(--muted); }
+    .hello span:last-child { font-size: 19px; font-weight: 700; letter-spacing: -0.6px; }
+    .line { font-size: 16px; font-weight: 500; letter-spacing: -0.4px; line-height: 1.25; color: var(--soft); }
+    .line b { font-weight: 800; color: var(--text); }
+    .stats { display: flex; gap: 8px; }
+    .stat { flex: 1 1 0; background: var(--surface); border-radius: 18px; padding: 11px; }
+    .stat.sgpa { background: var(--hero); color: #17170F; }
+    .stat small { display: block; font-size: 8.5px; font-weight: 700; color: var(--muted); }
+    .stat.sgpa small { color: var(--on-hero-muted); }
+    .stat div { font-size: 26px; font-weight: 700; letter-spacing: -1.1px; line-height: 1.1; }
+    .row {
+      background: var(--surface); border-radius: 15px; padding: 9px 11px;
+      display: flex; align-items: center; gap: 9px;
+    }
+    .row span:first-child {
+      flex: 1 1 auto; min-width: 0; font-size: 10.5px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .chip {
+      min-width: 30px; height: 24px; border-radius: 8px; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .chip.a { background: var(--chip-a); color: var(--on-chip-a); }
+    .chip.b { background: var(--chip-b); color: var(--on-chip-b); }
+    .spacer { flex-grow: 1; }
+    .bar {
+      height: 44px; border-radius: 22px; background: #17170F;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 8px;
+    }
+    .bar .on {
+      height: 32px; padding: 0 12px; border-radius: 16px; background: #B4DED0; color: #17170F;
+      font-size: 10px; font-weight: 700; display: flex; align-items: center;
+    }
+    .bar .ic { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+
+    .features { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+    .feature {
+      background: var(--surface); border-radius: 22px; padding: 20px;
+      display: flex; flex-direction: column; gap: 9px;
+    }
+    .feature .icon {
+      width: 36px; height: 36px; border-radius: 12px; background: var(--sunken);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .feature .icon svg { stroke: var(--text); }
+    .feature h2 { margin: 0; font-size: 14.5px; font-weight: 700; }
+    .feature p { margin: 0; font-size: 12px; font-weight: 500; line-height: 1.5; color: var(--muted); }
+
+    footer {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px 24px;
+      flex-wrap: wrap; padding-top: 2px; font-size: 11.5px; font-weight: 500; color: var(--soft);
+    }
+    footer b { font-weight: 800; color: var(--text); }
+
+    /* The board is drawn at 1280; below that, the same pieces restack. */
+    @media (max-width: 1000px) {
+      .page { padding: 28px 32px; }
+      .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      h1 { font-size: 52px; letter-spacing: -2px; }
+    }
+    @media (max-width: 760px) {
+      .hero { flex-direction: column; align-items: stretch; gap: 32px; }
+      .phone { align-self: center; }
+      .campuses { display: none; }
+    }
+    @media (max-width: 480px) {
+      .page { padding: 20px 16px 28px; gap: 26px; }
+      h1 { font-size: 40px; letter-spacing: -1.4px; }
+      .features { grid-template-columns: minmax(0, 1fr); }
+      .phone { width: 100%; max-width: 300px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="nav">
+      <a class="brand" href="/" aria-label="Pointer home">
+        <span class="mark">
+          <svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M24 9l16 8-16 8-16-8z" fill="#B4DED0"></path>
+            <path d="M40 17v11" stroke="#B4DED0" stroke-width="3.4" stroke-linecap="round"></path>
+            <circle cx="40" cy="33" r="4.4" fill="#B4DED0"></circle>
+          </svg>
+        </span>
+        <span>Pointer</span>
+      </a>
+      <div class="nav-right">
+        <span class="campuses">BITS Pilani &middot; Goa &middot; Hyderabad &middot; Dubai</span>
+        <a class="pill" href="/calculator/">Open app</a>
+      </div>
+    </header>
+
+    <main class="hero">
+      <div class="copy">
+        <span class="kicker">FOR BITS STUDENTS</span>
+        <h1>Your pointer,<br><b>and everything</b><br><b>behind it.</b></h1>
+        <p class="lede">
+          Every semester plotted, the SGPA you need to hit your target, marks tracked per
+          evaluative, and your offshoot scored the way companies actually ask for it.
+        </p>
+        <div class="cta-row">
+          <a class="cta" href="/calculator/">
+            <span class="g" aria-hidden="true">G</span>
+            <span>Continue with Google</span>
+          </a>
+          <span class="aside">Free, and works offline once it loads.</span>
+        </div>
+      </div>
+
+      <div class="phone" aria-hidden="true">
+        <div class="screen">
+          <div class="hello"><span>Good evening</span><span>Siddharth</span></div>
+          <div class="line">This semester you are <b>1.46 above</b> your running CGPA.</div>
+          <div class="stats">
+            <div class="stat sgpa"><small>SGPA</small><div>9.17</div></div>
+            <div class="stat"><small>CGPA</small><div>7.71</div></div>
+          </div>
+          <div class="row"><span>Operating Systems</span><span class="chip a">A</span></div>
+          <div class="row"><span>Theory of Computation</span><span class="chip b">B</span></div>
+          <div class="row"><span>Computer Architecture</span><span class="chip b">B</span></div>
+          <div class="spacer"></div>
+          <div class="bar">
+            <span class="on">Actual</span>
+            <span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B0B0A4" stroke-width="2" stroke-linecap="round"><path d="M12 20V10M18 20V4M6 20v-4"></path></svg></span>
+            <span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B0B0A4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"></path></svg></span>
+            <span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B0B0A4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"></circle><path d="M8.5 13L7 22l5-3 5 3-1.5-9"></path></svg></span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <section class="features" aria-label="What Pointer does">
+      <div class="feature">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="M7 15l4-5 3 3 5-7"></path></svg></span>
+        <h2>Forecast</h2>
+        <p>Set a target and see the exact SGPA it takes. Drag each remaining semester and watch the CGPA move.</p>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"></path></svg></span>
+        <h2>Marks</h2>
+        <p>Every evaluative, with parts and best-of-n rules. Courses out of 300 rescale to 100 on their own.</p>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"></circle><path d="M8.5 13L7 22l5-3 5 3-1.5-9"></path></svg></span>
+        <h2>Offshoot</h2>
+        <p>Out of 50 or 60, best 5 of 6, and untick whatever a company does not ask for.</p>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></span>
+        <h2>Calendar</h2>
+        <p>Eval dates come from the marks you already entered. Nothing typed twice.</p>
+      </div>
+    </section>
+
+    <footer>
+      <b>Built By Siddharth Mishra</b>
+      <span>Grades stay on your device and in your own account.</span>
+    </footer>
+  </div>
+</body>
+</html>

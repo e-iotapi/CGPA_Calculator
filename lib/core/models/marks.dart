@@ -56,6 +56,8 @@ class Evaluative {
     required this.parts,
     this.countBest = 0,
     this.average,
+    this.sourceId,
+    this.seeded = false,
   });
 
   String courseId;
@@ -74,6 +76,14 @@ class Evaluative {
   /// component's own scale (the sum of its parts' out-of).
   double? average;
 
+  /// The published component this one follows (OfferedComponent.id), or
+  /// null for the user's own (ARCHITECTURE.md §5).
+  String? sourceId;
+
+  /// A placeholder seeded when the course was added (Quiz 1…Compre at
+  /// weight 0). One nobody has edited counts as no scheme at all.
+  bool seeded;
+
   Map<String, dynamic> toJson() => {
     't': 'eval',
     'c': courseId,
@@ -82,6 +92,8 @@ class Evaluative {
     'p': [for (final p in parts) p.toJson()],
     'b': countBest,
     if (average != null) 'a': average,
+    if (sourceId != null) 's': sourceId,
+    if (seeded) 'sd': true,
   };
 
   static Evaluative fromJson(Map m) => Evaluative(
@@ -91,6 +103,8 @@ class Evaluative {
     parts: [for (final p in m['p'] as List) EvalPart.fromJson(p as Map)],
     countBest: (m['b'] as num?)?.toInt() ?? 0,
     average: (m['a'] as num?)?.toDouble(),
+    sourceId: m['s'] as String?,
+    seeded: m['sd'] as bool? ?? false,
   );
 }
 
@@ -161,6 +175,11 @@ class EvaluativeAdapter extends TypeAdapter<Evaluative> {
         if (i < e.parts.length) e.parts[i].average = (a as num?)?.toDouble();
       }
     }
+    // The published link came later still.
+    if (r.availableBytes > 0) {
+      e.sourceId = r.read() as String?;
+      e.seeded = r.readBool();
+    }
     return e;
   }
 
@@ -173,7 +192,9 @@ class EvaluativeAdapter extends TypeAdapter<Evaluative> {
       ..writeList(e.parts)
       ..writeInt(e.countBest)
       ..write(e.average)
-      ..writeList([for (final p in e.parts) p.average]);
+      ..writeList([for (final p in e.parts) p.average])
+      ..write(e.sourceId)
+      ..writeBool(e.seeded);
   }
 }
 
