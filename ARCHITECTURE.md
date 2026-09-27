@@ -638,6 +638,9 @@ Each step ships on its own and is reversible.
     and lists yours (fix 4, ids kept in `settingsBox`); `/reviews/:course` filters by professor,
     merged duplicates counted as their survivor, defaulting to whoever teaches it now.
     `DeptReviews` is hide-only with a reason, audited. Reviews are edited, never deleted.
+    Search takes a course or a professor: `ProfessorStore.search` queries `nameTokens` on the
+    reader's campus, and a professor's page lists every course the offerings record them
+    teaching (a collection-group query), each opening filtered to them.
 11. **Succession, Representatives, the More hub.** Last: they are the surface over everything
     above. *Built:* `RoleStore.handOver` writes both grants, both staff entries and
     both audit entries in one batch; the outgoing grant records `handedTo` and `expiresBefore`,
