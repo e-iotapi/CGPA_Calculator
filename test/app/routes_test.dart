@@ -23,12 +23,19 @@ void main() {
       final hasChildren = home.routes.whereType<GoRoute>().any(
         (r) => r.path.startsWith('$s/'),
       );
+      final route = home.routes.whereType<GoRoute>().firstWhere(
+        (r) => r.path.split('/').first == s,
+      );
+      final nested = route.routes.isNotEmpty;
       expect(
         sources,
-        contains(hasChildren ? '/calculator/$s/*' : '/calculator/$s'),
+        contains(hasChildren || nested ? '/calculator/$s/*' : '/calculator/$s'),
         reason:
             'deep links to /calculator/$s need a line in landing/_redirects',
       );
+      // A page with pages beneath it needs its own line as well: `/x/*`
+      // does not match `/x`.
+      if (nested) expect(sources, contains('/calculator/$s'));
     }
   });
 

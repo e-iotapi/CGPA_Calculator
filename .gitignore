@@ -53,3 +53,6 @@ test/fixtures/performance_sheet.json
 
 # ERP academic reports: real grades, never commit
 *.pdf
+
+# Rules tests (test/rules)
+node_modules/

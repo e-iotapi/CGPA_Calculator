@@ -4,4 +4,8 @@
 /// which would push it into users/{uid} and its 500 KB cap (§16.3 fix 13).
 /// Name every new cache box here; test/core/cache_boxes_test.dart holds the
 /// line.
-const cacheBoxes = <String>{'catalogBox', 'offeringsBox'};
+const cacheBoxes = <String>{'catalogBox', 'offeringsBox', deviceBoxName};
+
+/// Per-device state that must not follow the account to another device:
+/// the role Pointer opens in (§16.3 fix 15) and the cached roles.
+const deviceBoxName = 'deviceBox';

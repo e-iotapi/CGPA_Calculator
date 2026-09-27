@@ -5,6 +5,11 @@ import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -74,6 +79,26 @@ Future<void> startApp(User user) async {
   ));
   await basicStartup();
   unawaited(refreshCurrentOfferings());
+  // Roles (ARCHITECTURE.md §4): the last known set opens at once, the live
+  // one follows.
+  await openDeviceBox();
+  stripNavigate = appRouter.go;
+  restoreMyRoles();
+  final email = user.email;
+  if (email != null && isBitsAddress(email)) {
+    final store = roleStore = RoleStore(
+      FirebaseFirestore.instance,
+      me: email,
+      myName: user.displayName ?? '',
+      actingAs: actingNow,
+    );
+    if (campusOfAddress(email) case final campus?) {
+      unawaited(store
+          .recordSignIn(name: user.displayName ?? '', campus: campus)
+          .catchError((_) {}));
+    }
+    unawaited(refreshMyRoles());
+  }
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -243,8 +268,9 @@ class MyApp extends StatelessWidget {
             theme: thm.materialTheme,
             routerConfig: appRouter,
             builder:
-                (_, child) =>
-                    ThemeReveal.root(TapOriginTracker(child: child!)),
+                (_, child) => ThemeReveal.root(
+                  TapOriginTracker(child: RoleStrip(child: child!)),
+                ),
           ),
     );
   }

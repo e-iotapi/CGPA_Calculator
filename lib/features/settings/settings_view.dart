@@ -30,6 +30,11 @@ class SettingsView extends StatelessWidget {
     this.onInstall,
     this.installed = false,
     this.onGithub,
+    this.workingAs,
+    this.onWorkingAs,
+    this.contactSummary,
+    this.onContact,
+    this.onControls,
   });
 
   final String name;
@@ -74,6 +79,19 @@ class SettingsView extends StatelessWidget {
   final bool installed;
   final VoidCallback? onGithub;
 
+  /// Your roles (§16.4): shown only for an owner or a live grant. What the
+  /// app opens as — "Student", "President · ELEC" — or, for an owner, "Open
+  /// as".
+  final String? workingAs;
+  final VoidCallback? onWorkingAs;
+
+  /// "Email, WhatsApp": what RepProfile holds.
+  final String? contactSummary;
+  final VoidCallback? onContact;
+
+  /// Owners and admins: the /admin controls.
+  final VoidCallback? onControls;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -109,6 +127,32 @@ class SettingsView extends StatelessWidget {
                 ),
                 const SizedBox(height: Space.md),
                 _account(p),
+                if (onWorkingAs != null) ...[
+                  _SectionLabel('YOUR ROLES'),
+                  _Group([
+                    _Item(
+                      label: 'Working as',
+                      value: workingAs,
+                      strong: true,
+                      icon: Icons.swap_horiz_rounded,
+                      onTap: onWorkingAs,
+                    ),
+                    if (onContact != null)
+                      _Item(
+                        label: 'Contact details',
+                        value: contactSummary,
+                        icon: Icons.contact_phone_outlined,
+                        onTap: onContact,
+                      ),
+                    if (onControls != null)
+                      _Item(
+                        label: 'Controls',
+                        value: 'Admin',
+                        icon: Icons.admin_panel_settings_outlined,
+                        onTap: onControls,
+                      ),
+                  ]),
+                ],
                 _SectionLabel('ACADEMICS'),
                 _Group([
                   _Item(
