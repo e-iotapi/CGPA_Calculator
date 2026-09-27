@@ -1,0 +1,41 @@
+name: deploy-staging
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Seed the staging project (PERF_TEST_PLAN.md T4b/T5)
+        env:
+          STAGING_SA_KEY: ${{ secrets.STAGING_SA_KEY }}
+        run: |
+          echo "$STAGING_SA_KEY" > "$RUNNER_TEMP/staging-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/staging-sa.json"
+          (cd tools/test_env && npm ci)
+          node tools/test_env/seed.mjs --project staging
+          rm -f "$RUNNER_TEMP/staging-sa.json"
+      - run: |
+          flutter build web --release --base-href /calculator/ \
+            --dart-define=POINTER_ENV=staging \
+            --dart-define=POINTER_TEST_PASSWORD="${{ secrets.STAGING_PASSWORD }}"
+      # Same site assembly as deploy.yml, so staging matches prod's layout.
+      - run: |
+          mkdir site
+          cp -r landing/. site/
+          cp -r web/icons web/favicon.png site/
+          cp -r build/web site/calculator
+          cp build/web/flutter_service_worker.js site/
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=pointer-bits-pilani --branch=staging
