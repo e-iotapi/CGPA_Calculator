@@ -13,10 +13,21 @@ import 'package:go_router/go_router.dart';
 
 /// One grant as a card: tier, scope pills, name and email, and a line.
 class GrantTile extends StatelessWidget {
-  const GrantTile({super.key, required this.g, this.line, this.onTap});
+  const GrantTile({
+    super.key,
+    required this.g,
+    this.line,
+    this.onTap,
+    this.phone,
+    this.showPhone = false,
+  });
   final Grant g;
   final String? line;
   final VoidCallback? onTap;
+
+  /// The person's staff phone (fix 8), shown when [showPhone] is set.
+  final String? phone;
+  final bool showPhone;
 
   @override
   Widget build(BuildContext context) {
@@ -77,19 +88,41 @@ class GrantTile extends StatelessWidget {
               style: TypeScale.body.copyWith(fontSize: 13),
             ),
             const SizedBox(height: 2),
-            Text(
-              line ??
-                  [
-                    if (g.grantedByName.isNotEmpty)
-                      'Appointed by ${g.grantedByName}',
-                    g.active
-                        ? 'until ${shortDay(g.expiresAt, year: true)}'
-                        : 'ended',
-                  ].join(' · '),
-              style: TypeScale.caption.copyWith(
-                fontSize: 10.5,
-                color: p.textMuted,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    line ??
+                        [
+                          if (g.grantedByName.isNotEmpty)
+                            'Appointed by ${g.grantedByName}',
+                          g.active
+                              ? 'until ${shortDay(g.expiresAt, year: true)}'
+                              : 'ended',
+                        ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 10.5,
+                      color: p.textMuted,
+                    ),
+                  ),
+                ),
+                if (showPhone && g.active) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.call_outlined, size: 12, color: p.textMuted),
+                  const SizedBox(width: 4),
+                  SelectableText(
+                    phone ?? 'No phone yet',
+                    style: TypeScale.caption.copyWith(
+                      fontSize: phone == null ? 10.5 : 11,
+                      color: phone == null ? p.textMuted : p.text,
+                      fontWeight:
+                          phone == null ? FontWeight.w500 : FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),

@@ -138,6 +138,13 @@ describe('staff contacts', () => {
     await assertFails(setDoc(doc(as(STUDENT), 'staffContacts', STUDENT), c(STUDENT)));
   });
 
+  test('the roster lists every phone; students cannot', async () => {
+    await setDoc(doc(as(PRES), 'staffContacts', PRES), c(PRES));
+    await assertSucceeds(getDocs(collection(as(ADMIN), 'staffContacts')));
+    await assertSucceeds(getDocs(collection(as(PRES), 'staffContacts')));
+    await assertFails(getDocs(collection(as(STUDENT), 'staffContacts')));
+  });
+
   test('a phone is required', async () => {
     await assertFails(setDoc(doc(as(PRES), 'staffContacts', PRES), { ...c(PRES), phone: '' }));
     await assertFails(setDoc(doc(as(PRES), 'staffContacts', PRES), { ...c(PRES), phone: 'call me' }));

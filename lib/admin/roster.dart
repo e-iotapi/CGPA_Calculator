@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/admin/people.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/roles/contacts.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -39,9 +40,14 @@ class _RosterPageState extends State<RosterPage> {
     final r = myRoles.value;
     final pres = r.presidencies.firstOrNull;
     final campus = r.owner || r.admin ? null : pres?.campus;
-    return Loaded<List<Grant>>(
-      load: () => roleStore!.roster(campus: campus),
-      builder: (context, all, reload) {
+    return Loaded<(List<Grant>, Map<String, String>)>(
+      load:
+          () async => (
+            await roleStore!.roster(campus: campus),
+            await ContactStore(roleStore!).staffPhones(),
+          ),
+      builder: (context, data, reload) {
+        final (all, phones) = data;
         final live =
             all.where((g) => g.active).where(_shows).toList()..sort((a, b) {
               final c = a.campus.compareTo(b.campus);
@@ -93,6 +99,8 @@ class _RosterPageState extends State<RosterPage> {
                         line:
                             'Appoints presidents · until '
                             '${shortDay(g.expiresAt)}',
+                        phone: phones[g.email],
+                        showPhone: true,
                       ),
                   ],
                 ),
@@ -104,6 +112,8 @@ class _RosterPageState extends State<RosterPage> {
                     for (final g in live.where((g) => g.campus == c))
                       GrantTile(
                         g: g,
+                        phone: phones[g.email],
+                        showPhone: true,
                         onTap:
                             r.owner || r.admin
                                 ? () async {
@@ -121,9 +131,9 @@ class _RosterPageState extends State<RosterPage> {
               ],
               if (live.isEmpty) const Note('Nobody here yet.'),
               const Note(
-                'Names and emails are never hidden here. Only owners, admins '
-                'and presidents can open this page; presidents see their own '
-                'campus.',
+                'Names, emails and staff phone numbers are never hidden here. '
+                'Only owners, admins and presidents can open this page; '
+                'presidents see their own campus.',
               ),
             ],
             const SizedBox(height: Space.lg),
