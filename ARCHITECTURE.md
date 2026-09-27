@@ -631,14 +631,13 @@ Each step ships on its own and is reversible.
    Marks shows a read-only *Taken by* row.
 10. **Reviews** (§10.3), with the counters and the composite indexes from the start. *Built:*
     `core/reviews/` — one review per student per course, its id `sha256(uid + courseId)` so it
-    carries no name and the rules can check ownership; every post, edit, delete, hide and unhide
+    carries no name and the rules can check ownership; every post, edit, hide and unhide
     moves the course and professor counters in the same batch, and the rules check the delta.
     Helpful and Report are once per person (hashed subcollection ids). Term and professor come
     from the student's grades and that term's offering (fix 5). `/reviews` searches any course
     and lists yours (fix 4, ids kept in `settingsBox`); `/reviews/:course` filters by professor,
     merged duplicates counted as their survivor, defaulting to whoever teaches it now.
-    `DeptReviews` is hide-only with a reason, audited. Search is by course, not yet by
-    professor name; a deleted review's vote documents are left behind.
+    `DeptReviews` is hide-only with a reason, audited. Reviews are edited, never deleted.
 11. **Succession, Representatives, the More hub.** Last: they are the surface over everything
     above. *Built:* `RoleStore.handOver` writes both grants, both staff entries and
     both audit entries in one batch; the outgoing grant records `handedTo` and `expiresBefore`,
@@ -1300,9 +1299,10 @@ fails when a `go_router` top-level segment has no line.
    derived from the grade's semester and the user's batch (`termOf(batch, semester)` in the core).
    An offering with no professor recorded takes `professorId: null`, which counts toward the
    course's rating and no professor's.
-6. **A student may delete their own review.** Counters decrement in the same batch; helpful votes
-   go with it. An edit keeps its votes and shows *edited* when `updatedAt > createdAt`.
-   Moderation is still hide-only.
+6. **A student may edit their own review, never delete it** (decided 27 Sep 2026; it replaces
+   deletion by the author). An edit keeps its votes and shows *edited* when
+   `updatedAt > createdAt`, and moves the counters by the difference. Moderation is still
+   hide-only.
 7. **Merge by pointer** (§10.1): `mergedInto` on the absorbed professor, `mergedIds` on the
    survivor, resolved at read.
 8. **Directory:** `directory/{email}` `{ name, campus, roles: [...], email?, whatsapp?, phone?,

@@ -32,11 +32,10 @@ List<String> myReviewedCourses() => [
   for (final c in _settings?.get(_myReviewsKey) as List? ?? const []) '$c',
 ];
 
-Future<void> rememberReview(String courseId, {bool remove = false}) async {
+Future<void> rememberReview(String courseId) async {
   final s = _settings;
   if (s == null) return;
-  final all = {...myReviewedCourses()};
-  remove ? all.remove(courseId) : all.add(courseId);
+  final all = {...myReviewedCourses(), courseId};
   await s.put(_myReviewsKey, all.toList()..sort());
 }
 

@@ -65,7 +65,7 @@ describe('reviews', () => {
     }));
   });
 
-  test('edit by difference; delete puts the counters back', async () => {
+  test('edit by difference; nobody deletes, the author included', async () => {
     await offering();
     await post(as(STUDENT), STUDENT);
     const db = as(STUDENT);
@@ -85,7 +85,7 @@ describe('reviews', () => {
       return b.commit();
     };
     await assertFails(del(0));
-    await assertSucceeds(del(-1));
+    await assertFails(del(-1));
   });
 
   test('helpful once per person; hidden reviews stay hidden from students', async () => {

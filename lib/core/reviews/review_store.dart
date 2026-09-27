@@ -255,25 +255,6 @@ class ReviewStore {
     );
   }
 
-  /// A student deletes their own review; the counters go back (fix 6).
-  Future<void> delete(Review r) async {
-    final b = db.batch()..delete(entries(r.courseId).doc(r.id));
-    if (!r.hidden) {
-      _count(
-        b,
-        r.courseId,
-        r.campus,
-        r.professorId,
-        r.id,
-        count: -1,
-        stars: -r.stars,
-        recommend: r.recommend ? -1 : 0,
-      );
-    }
-    await b.commit();
-    await _forget(r.courseId);
-  }
-
   /// Marks [r] helpful, once per person. False when already voted.
   Future<bool> vote(Review r) => _once(r, 'votes', 'helpful', const {});
 

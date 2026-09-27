@@ -17,7 +17,7 @@ typedef _Took = ({String term, Offering? offering, List<Professor> professors});
 
 /// Boards `ReviewWrite` and `ReviewEdit`: the term and professor come from
 /// the student's grades and that term's offering, never typed (§10.3, fix
-/// 5). Posted without a name or id; editable and deletable later (fix 6).
+/// 5). Posted without a name or id; editable later, never deleted (fix 6).
 class ReviewFormPage extends StatefulWidget {
   const ReviewFormPage({super.key, required this.courseId, this.existing});
   final String courseId;
@@ -91,35 +91,6 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
         setState(() => _busy = false);
         sayReview(context, e);
       }
-    }
-  }
-
-  Future<void> _delete() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete your review?'),
-            content: const Text('It comes off the course\'s rating at once.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-    );
-    if (ok != true) return;
-    try {
-      await reviewStore!.delete(widget.existing!);
-      await rememberReview(widget.courseId, remove: true);
-      if (mounted) Navigator.of(context).pop(true);
-    } catch (e) {
-      if (mounted) sayReview(context, e);
     }
   }
 
@@ -238,34 +209,24 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
                   ? 'Still without your name or ID. An edit keeps its helpful '
                       'votes and says “edited”.'
                   : 'Posted without your name or ID. One review per course; '
-                      'you can edit or delete it later.',
+                      'you can edit it later.',
               style: caption,
             ),
             const SizedBox(height: Space.md),
-            Row(
-              children: [
-                if (editing) ...[
-                  TextButton(onPressed: _delete, child: const Text('Delete')),
-                  const SizedBox(width: Space.sm),
-                ],
-                Expanded(
-                  child: PrimaryButton(
-                    label:
-                        _busy
-                            ? 'Saving…'
-                            : editing
-                            ? 'Save changes'
-                            : 'Post review',
-                    onPressed:
-                        _busy ||
-                                _stars == 0 ||
-                                _recommend == null ||
-                                _text.text.length > reviewTextLimit
-                            ? null
-                            : () => _save(t),
-                  ),
-                ),
-              ],
+            PrimaryButton(
+              label:
+                  _busy
+                      ? 'Saving…'
+                      : editing
+                      ? 'Save changes'
+                      : 'Post review',
+              onPressed:
+                  _busy ||
+                          _stars == 0 ||
+                          _recommend == null ||
+                          _text.text.length > reviewTextLimit
+                      ? null
+                      : () => _save(t),
             ),
           ],
         );

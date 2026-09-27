@@ -20,7 +20,7 @@ void main() {
     expect(statsId('goa', 'p1'), 'goa_p1');
   });
 
-  test('post, edit, vote, hide, unhide and delete move the counters', () async {
+  test('post, edit, vote, hide and unhide move the counters', () async {
     final db = FakeFirebaseFirestore();
     final roles = RoleStore(db, me: 'p@goa.bits-pilani.ac.in', myName: 'P');
     final me = ReviewStore(db, uid: 'u1', roles: roles);
@@ -78,10 +78,5 @@ void main() {
     r = (await me.mine('CS F111'))!;
     expect((await course()).count, 1);
     expect((await db.collection('audit').get()).docs, hasLength(2));
-
-    await me.delete(r);
-    expect(await me.mine('CS F111'), isNull);
-    expect((await course()).count, 0);
-    expect((await prof()).count, 0);
   });
 }
