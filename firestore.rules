@@ -344,6 +344,52 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- Professors (§10.1, §16.3 fix 7) ----------------------------------------
+
+    // Presidents in scope, admins and owners add, rename and merge; CRs only
+    // pick one for their offering.
+    function editsProfessors(campus, dept) {
+      return isOwner() || isAdmin() || isPresident(campus, dept);
+    }
+
+    function professorOk(d) {
+      return d.name is string && d.name.size() > 1 && d.name.size() <= 80
+        && d.nameTokens is list && d.nameTokens.size() <= 200
+        && d.aliases is list && d.aliases.size() <= 20
+        && d.mergedIds is list && d.mergedIds.size() <= 20
+        && d.campus in ['goa', 'hyderabad', 'pilani', 'dubai'];
+    }
+
+    // A survivor's change in a merge: the batch's audit entry names a
+    // duplicate that now points here (merge by pointer).
+    function mergedHere(id) {
+      let a = getAfter(/databases/$(db)/documents/audit/$(request.resource.data.auditId)).data;
+      return a.actor.email == me()
+        && a.path.split('/')[1] in request.resource.data.mergedIds
+        && getAfter(afterPath(a.path)).data.mergedInto == id;
+    }
+
+    match /professors/{id} {
+      allow read: if mayUse()
+        && (resource.data.campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create: if mayUse()
+        && professorOk(request.resource.data)
+        && editsProfessors(request.resource.data.campus, request.resource.data.department)
+        && request.resource.data.mergedIds.size() == 0
+        && !('mergedInto' in request.resource.data)
+        && stamped()
+        && audited('professors/' + id);
+      allow update: if mayUse()
+        && professorOk(request.resource.data)
+        && request.resource.data.campus == resource.data.campus
+        && request.resource.data.department == resource.data.department
+        && !('mergedInto' in resource.data)
+        && editsProfessors(resource.data.campus, resource.data.department)
+        && stamped()
+        && (audited('professors/' + id) || mergedHere(id));
+      allow delete: if false;
+    }
+
     // ---- Resources (§6, §16.3 fixes 3 and 17) ---------------------------------
 
     // https links to known hosts only, the same list as lib/core/resources.

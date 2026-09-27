@@ -66,6 +66,7 @@ final List<RouteBase> appRoutes = [
           _admin('roster', () => admin.RosterPage(), _staff),
           _admin('open-as', () => admin.OpenAsPage(), _ownerOnly),
           _admin('publish', () => admin.PublishPage(), _ownerOnly),
+          _admin('professors/merge', () => admin.ProfessorMerge(), _staff),
         ],
       ),
       // Presidents and CRs (§13): the scope is in the path. The course route
@@ -92,6 +93,16 @@ final List<RouteBase> appRoutes = [
               ),
             ),
         routes: [
+          GoRoute(
+            path: 'professors',
+            builder:
+                (_, s) => _deferred(
+                  () => admin.DeptProfessors(
+                    campus: s.pathParameters['campus']!,
+                    dept: s.pathParameters['dept']!,
+                  ),
+                ),
+          ),
           GoRoute(
             path: 'resources',
             builder:
