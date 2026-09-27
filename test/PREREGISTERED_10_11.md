@@ -45,3 +45,18 @@ review and caching pages are skipped. Security rules are covered separately in `
 | S12 | `MorePage` | Lists Representatives, Course reviews and Resources; each opens its page |
 | S13 | The bottom bar at 390 px wide with five items | Every item, More included, is at least 50 px tall and at least 50 px wide |
 | S14 | Roster | A maintainer with staff contacts shows their phone beside the appointment line; one without shows "No phone yet" |
+
+## Results (27 Sep 2026)
+
+Tests: `test/reviews/reviews_screens_test.dart` (R1–R12) and `test/roles/step11_screens_test.dart`
+(S1–S14). No expectation above was changed.
+
+First run: 21 of 26 passed.
+
+| # | First run | Cause | Resolution |
+|---|---|---|---|
+| R3, R4, R5 | Failed | **App bug.** The debounced search in `ReviewsHome` assigned a `Future` inside `setState` with an arrow, which throws in debug builds on the first keystroke | Fixed in `reviews_home.dart`; all three pass |
+| R11, R12 | Failed | **App bug.** `DeptReviews` disposed the Hide dialog's reason field while the dialog was still closing, which crashes in debug | The dialog now owns its field (`_ReasonDialog`); both pass |
+| R6 | Failed | **Harness.** The default 800×600 test screen left the second review off-screen, so it was never built | The tests use an 800×2400 screen; the expectation is unchanged; passes |
+
+Final: 26 of 26 pass.

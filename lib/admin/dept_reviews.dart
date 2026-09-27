@@ -50,35 +50,11 @@ class _DeptReviewsState extends State<DeptReviews> {
   }
 
   Future<void> _hide(Review r) async {
-    final reason = TextEditingController();
-    final ok = await showDialog<bool>(
+    final why = await showDialog<String>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Hide this review?'),
-            content: TextField(
-              controller: reason,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Reason',
-                hintText: 'Names a person, abusive, not about the course…',
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Hide'),
-              ),
-            ],
-          ),
+      builder: (_) => const _ReasonDialog(),
     );
-    final why = reason.text.trim();
-    reason.dispose();
-    if (ok != true || why.isEmpty) return;
+    if (why == null || why.isEmpty) return;
     await _act(() => _store.hide(r, why), 'Hidden. Its rating came off.');
   }
 
@@ -181,4 +157,46 @@ class _DeptReviewsState extends State<DeptReviews> {
           ),
     );
   }
+}
+
+/// Asks why a review is hidden. Owns its field, so it outlives the closing
+/// animation.
+class _ReasonDialog extends StatefulWidget {
+  const _ReasonDialog();
+
+  @override
+  State<_ReasonDialog> createState() => _ReasonDialogState();
+}
+
+class _ReasonDialogState extends State<_ReasonDialog> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Hide this review?'),
+    content: TextField(
+      controller: _reason,
+      autofocus: true,
+      decoration: const InputDecoration(
+        labelText: 'Reason',
+        hintText: 'Names a person, abusive, not about the course…',
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, _reason.text.trim()),
+        child: const Text('Hide'),
+      ),
+    ],
+  );
 }

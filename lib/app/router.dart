@@ -27,14 +27,14 @@ export 'package:cgpa_calculator/app/routes.dart';
 /// it and Back behaves exactly as the old pushed routes did.
 final GoRouter appRouter = GoRouter(
   routes: appRoutes,
-  // RepProfile comes first after an appointment (§16.3 fix 8).
   refreshListenable: profileDue,
-  redirect:
-      (_, s) =>
-          profileDue.value && s.matchedLocation != Routes.welcome
-              ? Routes.welcome
-              : null,
+  redirect: (_, s) => profileGate(s.matchedLocation),
 );
+
+/// RepProfile comes first after an appointment (§16.3 fix 8): while it is
+/// due, every location resolves to it.
+String? profileGate(String location) =>
+    profileDue.value && location != Routes.welcome ? Routes.welcome : null;
 
 final List<RouteBase> appRoutes = [
   GoRoute(
