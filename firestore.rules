@@ -682,6 +682,12 @@ service cloud.firestore {
           || getAfter(p).data.get('moderatedAt', null) == request.time;
     }
 
+    // Most reviewed on a campus (§16.3 fix 14): counters are public to
+    // anyone signed in, across courses too.
+    match /{path=**}/stats/{s} {
+      allow list: if mayUse();
+    }
+
     match /courses/{c}/stats/{s} {
       allow read: if mayUse();
       allow create, update: if mayUse()

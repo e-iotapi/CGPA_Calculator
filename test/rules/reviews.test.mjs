@@ -4,9 +4,9 @@ import { createHash } from 'node:crypto';
 import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, setDoc, where, writeBatch,
+  collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, increment, limit, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'firebase/firestore';
-import { OTHER, PRES, STUDENT, as, name, seed, useEmulator } from './helpers.mjs';
+import { OTHER, PRES, STUDENT, as, env, name, seed, useEmulator } from './helpers.mjs';
 
 useEmulator();
 
@@ -133,5 +133,15 @@ describe('reviews', () => {
     await assertSucceeds(getDoc(doc(as(STUDENT), 'reviews', C, 'entries', id)));
     // Never a delete by a moderator.
     await assertFails(deleteDoc(doc(as(PRES), 'reviews', C, 'entries', id)));
+  });
+});
+
+describe('review counters across courses', () => {
+  test('anyone signed in lists a campus\'s most reviewed', async () => {
+    const q = (db) => query(collectionGroup(db, 'stats'),
+      where('campus', '==', 'goa'), where('scope', '==', 'course'),
+      orderBy('count', 'desc'), limit(10));
+    await assertSucceeds(getDocs(q(as(STUDENT))));
+    await assertFails(getDocs(q(env.unauthenticatedContext().firestore())));
   });
 });
