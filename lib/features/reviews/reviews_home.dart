@@ -59,13 +59,11 @@ class _ReviewsHomeState extends State<ReviewsHome> {
     final q = _search.text.trim();
     _debounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      setState(
-        () =>
-            _profs =
-                q.length < 2
-                    ? null
-                    : ProfessorStore(roleStore!.db).search(campus, q),
-      );
+      final next =
+          q.length < 2 ? null : ProfessorStore(roleStore!.db).search(campus, q);
+      setState(() {
+        _profs = next;
+      });
     });
   }
 
