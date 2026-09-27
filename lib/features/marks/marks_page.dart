@@ -16,6 +16,7 @@ import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/marks/widgets/average_sources.dart';
 import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
+import 'package:cgpa_calculator/features/marks/widgets/taken_by.dart';
 import 'package:cgpa_calculator/features/marks/widgets/evaluative_card.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -187,6 +188,11 @@ class _MarksPageState extends State<MarksPage> {
             ),
           const SizedBox(height: Space.sm),
         ],
+        if (termFor(c) case final term?
+            when off != null ||
+                c.grade1 == GradeCode.ongoing ||
+                c.grade1 == GradeCode.clr)
+          TakenByRow(term: term, professorIds: off?.professors ?? const []),
         _Total(
           s: s,
           grade: grade,

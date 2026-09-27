@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/admin/bulk_upload.dart';
 import 'package:cgpa_calculator/admin/dept_resources.dart';
+import 'package:cgpa_calculator/admin/professors.dart';
 import 'package:cgpa_calculator/admin/scheme_editor.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
@@ -124,6 +125,13 @@ class DeptHome extends StatelessWidget {
                   title: 'Resources',
                   subtitle: 'Department and course links, and reports',
                   onTap: () => context.push(Routes.deptResources(campus, dept)),
+                ),
+                NavRow(
+                  icon: Icons.school_outlined,
+                  title: 'Professors',
+                  subtitle: 'Add, rename, merge duplicates',
+                  onTap:
+                      () => context.push(Routes.deptProfessors(campus, dept)),
                 ),
                 NavRow(
                   icon: Icons.badge_outlined,
@@ -472,6 +480,13 @@ class CrHome extends StatelessWidget {
             Text(
               courseTitle(courseId),
               style: TypeScale.body.copyWith(color: p.textMuted),
+            ),
+            const SizedBox(height: Space.md),
+            TakenBy(
+              campus: campus,
+              courseId: courseId,
+              offering: o,
+              onSaved: reload,
             ),
             const SizedBox(height: Space.md),
             Row(

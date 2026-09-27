@@ -621,7 +621,12 @@ Each step ships on its own and is reversible.
    that one granule; clearing it brings the official back. Maintainers set course, component
    and part averages in the scheme editor.
 9. **Professors** (§10.1). Before reviews, because a review filed against a typed name cannot
-   be repaired later.
+   be repaired later. *Built:* `core/professors/` — one document per person per campus with
+   `nameTokens` for partial search, and merge by pointer: one audited batch sets `mergedInto`
+   on the duplicate and adds it to the survivor's `mergedIds`, which the rules tie to the same
+   audit entry. `DeptProfessors` makes search come before Add and flags likely duplicates;
+   `ProfessorMerge` is reached from there and from `/admin`; a CR picks up to two on `CrHome`;
+   Marks shows a read-only *Taken by* row.
 10. **Reviews** (§10.3), with the counters and the composite indexes from the start.
 11. **Succession, Representatives, the More hub.** Last: they are the surface over everything
     above.
