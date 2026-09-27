@@ -14,6 +14,7 @@ import 'package:cgpa_calculator/features/marks/add_evaluative_page.dart';
 import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/features/marks/widgets/average_sources.dart';
 import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
 import 'package:cgpa_calculator/features/marks/widgets/evaluative_card.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
@@ -65,6 +66,32 @@ class _MarksPageState extends State<MarksPage> {
   Future<void> _useOfficial(Offering off, bool Function(String) which) async {
     await reattach(_id, which);
     await applyOfficial(_id, off);
+    if (mounted) setState(() {});
+  }
+
+  /// The student's own course average. Cleared, the official one comes
+  /// back (§8).
+  Future<void> _setCourseAverage(Offering? off, double? v) async {
+    final official = off?.courseAverage;
+    final config = configFor(_id) ?? CourseConfig(courseId: _id);
+    if (v == null && official != null) {
+      await reattach(_id, (g) => g == courseAverageGranule);
+      config.classAverage = official;
+    } else {
+      if (official != null &&
+          v != official &&
+          !await _mayChange(
+            off,
+            courseAverageGranule,
+            'the course average',
+            'Course average ${marks2(official)} → '
+                '${v == null ? 'blank' : marks2(v)}',
+          )) {
+        return;
+      }
+      config.classAverage = v;
+    }
+    await saveConfig(config);
     if (mounted) setState(() {});
   }
 
@@ -166,27 +193,19 @@ class _MarksPageState extends State<MarksPage> {
           onSetup: () => _open(CourseSetupPage(course: c)),
         ),
         const SizedBox(height: Space.sm),
-        _CourseAverage(
-          value: s.config.classAverage,
-          onChanged: (v) async {
-            final official = off?.courseAverage;
-            if (official != null &&
-                v != official &&
-                !await _mayChange(
-                  off,
-                  courseAverageGranule,
-                  'the course average',
-                  'Course average ${marks2(official)} → '
-                      '${v == null ? 'blank' : marks2(v)}',
-                )) {
-              if (mounted) setState(() {});
-              return;
-            }
-            final config = configFor(_id) ?? CourseConfig(courseId: _id);
-            config.classAverage = v;
-            await saveConfig(config);
-            if (mounted) setState(() {});
-          },
+        _ClassAverage(
+          text: classAvgText(off?.courseAverage),
+          onTap:
+              () => _open(
+                AverageSourcesPage(
+                  course: c,
+                  courseAverage: s.config.classAverage,
+                  evals: [for (final (_, e) in evals) e],
+                  official: off,
+                  detached: detached,
+                  onCourseAverage: (v) => _setCourseAverage(off, v),
+                ),
+              ),
         ),
         const SizedBox(height: Space.md),
         if (evals.isEmpty)
@@ -210,24 +229,7 @@ class _MarksPageState extends State<MarksPage> {
               if (mounted) setState(() {});
             },
             tag: tag(e),
-            onAverage: (v) async {
-              final official = off?.component(e.sourceId ?? '')?.average;
-              if (official != null &&
-                  v != official &&
-                  !await _mayChange(
-                    off,
-                    componentAverageGranule(e.sourceId!),
-                    '${e.name}\'s average',
-                    'Class average ${marks2(official)} → '
-                        '${v == null ? 'blank' : marks2(v)}',
-                  )) {
-                if (mounted) setState(() {});
-                return;
-              }
-              e.average = v;
-              await saveEvaluative(e, key: key);
-              if (mounted) setState(() {});
-            },
+            classAverage: off?.component(e.sourceId ?? '')?.average,
             onTap:
                 () => _open(
                   AddEvaluativePage(
@@ -236,6 +238,7 @@ class _MarksPageState extends State<MarksPage> {
                     unassigned: s.courseTotal - s.assignedWeight + e.weight,
                     existing: e,
                     existingKey: key,
+                    averagesFrom: off,
                     official:
                         off != null &&
                                 off.component(e.sourceId ?? '') != null &&
@@ -456,53 +459,44 @@ class _Total extends StatelessWidget {
   }
 }
 
-/// The course average, entered where marks are read. Compared with what
-/// you have secured over the same components.
-class _CourseAverage extends StatefulWidget {
-  const _CourseAverage({required this.value, required this.onChanged});
+/// The published course average, unlabelled; opens where every average
+/// comes from (§8).
+class _ClassAverage extends StatelessWidget {
+  const _ClassAverage({required this.text, required this.onTap});
 
-  final double? value;
-  final ValueChanged<double?> onChanged;
-
-  @override
-  State<_CourseAverage> createState() => _CourseAverageState();
-}
-
-class _CourseAverageState extends State<_CourseAverage> {
-  late final _text = TextEditingController(
-    text: widget.value == null ? '' : marks2(widget.value!),
-  );
-
-  @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
+  final String text;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppTextField(
-          controller: _text,
-          label: 'Course average',
-          hint: 'Optional',
-          number: true,
-          onChanged: (t) => widget.onChanged(double.tryParse(t)),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                text,
+                style: TypeScale.caption.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: p.textMuted,
+                ),
+              ),
+            ),
+            Text(
+              'Averages',
+              style: TypeScale.caption.copyWith(
+                fontWeight: FontWeight.w700,
+                color: p.accent,
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 18, color: p.accent),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          'The class average for the components you have entered, not the '
-          'whole course. Blank, and no comparison appears.',
-          style: TypeScale.caption.copyWith(
-            fontSize: 10.5,
-            height: 1.4,
-            color: p.textMuted,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
