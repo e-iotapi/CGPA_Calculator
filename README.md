@@ -3,7 +3,7 @@
 The CGPA calculator for BITS Pilani, Goa and Hyderabad —
 [pointer-bits-pilani.pages.dev](https://pointer-bits-pilani.pages.dev/).
 
-Maintained by **Siddharth Mishra** — siddhu.cms@gmail.com ·
+Maintained by **Siddharth Mishra** ·
 [github.com/e-iotapi](https://github.com/e-iotapi)
 
 ## What it does
