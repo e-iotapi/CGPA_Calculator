@@ -1,7 +1,10 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
+import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
@@ -64,6 +67,23 @@ class _SettingsPageState extends State<SettingsPage> {
                     Uri.parse('https://github.com/e-iotapi'),
                     mode: LaunchMode.externalApplication,
                   ),
+              // Your roles (ARCHITECTURE.md §16.4): owners and live grants.
+              workingAs: myRoles.value.owner
+                  ? (viewAs.value?.label ?? 'Owner')
+                  : roleLabel(workingAs.value),
+              onWorkingAs: myRoles.value.privileged
+                  ? () async {
+                      await openRoute(
+                        context,
+                        myRoles.value.owner ? Routes.openAs : Routes.roles,
+                        () => const RoleSwitchPage(),
+                      );
+                      if (mounted) setState(() {});
+                    }
+                  : null,
+              onControls: myRoles.value.reachesAdmin
+                  ? () => openRoute(context, Routes.admin, () => const SizedBox())
+                  : null,
             ),
       ),
     );

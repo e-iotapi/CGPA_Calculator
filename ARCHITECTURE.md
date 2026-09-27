@@ -590,7 +590,13 @@ Each step ships on its own and is reversible.
    open (12 h).
 5. **Owners, grants, staff index, audit, `/admin`.** Rules first, proven against the emulator —
    the `staff/` consistency rule above all. Read-only screens first, then writes. Owners and
-   admins only.
+   admins only. *Built:* `firestore.rules` holds owners, grants, staff, audit, people and
+   config; `test/rules/` proves them on the emulator (`cd test/rules && npm test`). Every grant
+   write is one batch — grant, `staff/` index, audit entry — and the rules tie the three
+   together. `/admin` is a deferred library (`lib/admin/`); `core/roles/` holds the models, the
+   store and the session (Open as for owners, Switch role for presidents and CRs, both shown in
+   a strip at the top). `config/grantTerms` must exist before the first grant: an owner saving
+   Terms creates it.
 6. **Maintainer editing + publish.** Presidents next, CRs last — the narrowest tier is the
    largest group and the least reviewed.
 7. **Resources**, once editing and audit are proven on the catalogue.

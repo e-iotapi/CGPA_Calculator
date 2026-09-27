@@ -2,47 +2,284 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
 
+    // ---- Who is asking -----------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string;
+    }
+
     // Only verified BITS Pilani campus accounts. The app checks this too, but
     // a client-side check is bypassable — this is the real enforcement.
     function isBits() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email is string
+      return signedIn()
         && request.auth.token.email.matches(
              '(?i)^[^@]+@(goa|pilani|dubai|hyderabad)[.]bits-pilani[.]ac[.]in$');
     }
 
     function me() { return request.auth.token.email.lower(); }
+    function myName() { return request.auth.token.get('name', ''); }
 
-    // An owner need not be a BITS account (ARCHITECTURE.md §5): the list in
-    // owners/{email} is the only way a non-BITS address gets in.
+    function isBitsAddress(email) {
+      return email.matches('^[^@]+@(goa|pilani|dubai|hyderabad)[.]bits-pilani[.]ac[.]in$');
+    }
+
+    // A student: a letter, the four-digit batch year, the serial, a campus
+    // (ARCHITECTURE.md §4). Faculty and alumni addresses do not match.
+    function isStudent(email) {
+      return email.matches('^[fhp][0-9]{4}[0-9]+@(goa|hyderabad|pilani|dubai)[.]bits-pilani[.]ac[.]in$');
+    }
+
+    // 'goa' from f20230802@goa.bits-pilani.ac.in.
+    function campusOf(email) { return email.split('@')[1].split('[.]')[0]; }
+
+    // Departments are keyed by course prefix; electronics is one (§4).
+    function deptOf(course) {
+      let p = course.split(' ')[0];
+      return p in ['EEE', 'ECE', 'INSTR', 'ECOM'] ? 'ELEC' : p == 'FIN' ? 'ECON' : p;
+    }
+
+    // An owner need not be a BITS account: the list in owners/{email} is the
+    // only way a non-BITS address gets in. A get() on a missing document is an
+    // error, and an error denies — so no exists() first (lookups are capped).
     function isOwner() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email is string
-        && exists(/databases/$(db)/documents/owners/$(me()))
+      return signedIn()
         && get(/databases/$(db)/documents/owners/$(me())).data.active == true;
     }
 
     function mayUse() { return isBits() || isOwner(); }
 
-    // 'goa' from f20230802@goa.bits-pilani.ac.in (ARCHITECTURE.md §4).
-    function campusOf(email) { return email.split('@')[1].split('[.]')[0]; }
-
-    // Anyone may ask whether they are on the list, so sign-in can decide.
-    // Adding and removing owners waits for the audit log; until then it is
-    // done in the Firebase console.
-    match /owners/{email} {
-      allow get: if request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email is string
-        && me() == email;
-      allow list: if isOwner();
-      allow write: if false;
+    function grantPath(role, campus, scope, email) {
+      return /databases/$(db)/documents/grants/$(role + '|' + campus + '|' + scope + '|' + email);
     }
 
-    // The published catalogue (ARCHITECTURE.md §1): not secret, one read per
-    // new version. Written only by an owner's publish.
+    // A live grant, used on the holder's own campus (checked on use as well as
+    // on write, which catches a grant typed by hand in the console).
+    function holds(role, campus, scope) {
+      let g = get(grantPath(role, campus, scope, me())).data;
+      return g.active == true && request.time < g.expiresAt
+        && (campus == 'all' || campusOf(me()) == campus);
+    }
+
+    function isAdmin() { return isBits() && holds('admin', 'all', 'all'); }
+    function isPresident(c, dept) { return isStudent(me()) && holds('dept', c, dept); }
+    function isCr(c, course) { return isStudent(me()) && holds('course', c, course); }
+
+    function staffPath(email) { return /databases/$(db)/documents/staff/$(email); }
+
+    // The staff index says who is a president where. It is trusted for reads
+    // only; every write checks the grant itself.
+    function isPresidentOn(campus) {
+      let s = get(staffPath(me())).data;
+      return s.presidentOf.size() > 0 && s.campus == campus
+        && request.time < s.expiresAt;
+    }
+
+    function readsRoster(campus) {
+      return isOwner() || isAdmin() || isPresidentOn(campus)
+        || (campus == 'all' && isPresidentOn(campusOf(me())));
+    }
+
+    // ---- The audit log (§4) ------------------------------------------------
+
+    // A shared write carries auditId, and the entry it names describes this
+    // very document, written by this very person, in the same batch.
+    function audited(path) {
+      let a = getAfter(/databases/$(db)/documents/audit/$(request.resource.data.auditId)).data;
+      return a.path == path && a.actor.email == me();
+    }
+
+    function afterPath(p) { return path('/databases/' + db + '/documents/' + p); }
+
+    match /audit/{id} {
+      allow create: if mayUse()
+        && request.resource.data.keys().hasAll(['actor', 'action', 'path', 'campus', 'at'])
+        && request.resource.data.actor.email == me()
+        && request.resource.data.actor.name == myName()
+        && request.resource.data.at == request.time
+        && request.resource.data.path is string
+        && getAfter(afterPath(request.resource.data.path)).data.auditId == id;
+      allow read: if readsRoster(resource.data.campus);
+      allow update, delete: if false;
+    }
+
+    // ---- People who have signed in (§16.3 fix 12) ---------------------------
+
+    // Self-written on every first sign-in; checked, never browsed.
+    match /people/{email} {
+      allow get: if email == me() || isOwner() || isAdmin()
+        || isPresidentOn(campusOf(me()));
+      allow list: if false;
+      allow create, update: if mayUse() && email == me()
+        && request.resource.data.keys().hasOnly(['name', 'campus', 'firstSignIn'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && (isBits() ? request.resource.data.campus == campusOf(me())
+                     : request.resource.data.campus in ['goa', 'hyderabad', 'pilani', 'dubai']);
+    }
+
+    // ---- Owners ------------------------------------------------------------
+
+    // Anyone may ask whether they are on the list, so sign-in can decide. An
+    // owner can never deactivate themselves, so there is always one.
+    match /owners/{email} {
+      allow get: if (signedIn() && me() == email) || isOwner();
+      allow list: if isOwner();
+      allow create: if isOwner()
+        && request.resource.data.email == email
+        && request.resource.data.active == true
+        && request.resource.data.addedBy.email == me()
+        && request.resource.data.addedAt == request.time
+        && audited('owners/' + email);
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['active', 'name', 'auditId'])
+        && (email != me() || request.resource.data.active == true)
+        && audited('owners/' + email);
+      allow delete: if false;
+    }
+
+    // ---- Grants and the staff index (§4) -----------------------------------
+
+    function terms() { return get(/databases/$(db)/documents/config/grantTerms).data; }
+
+    function termDays(role) {
+      return role == 'admin' ? terms().adminDays
+           : role == 'dept' ? terms().presidentDays
+           : terms().crDays;
+    }
+
+    // Counted from today; a grant can end sooner, never later.
+    function expiryOk(d) {
+      return d.expiresAt is timestamp && d.expiresAt > request.time
+        && d.expiresAt <= request.time + duration.value(termDays(d.role), 'd');
+    }
+
+    // Who may give or change a grant like [d].
+    function mayGrant(d) {
+      return d.role == 'admin'
+          ? isOwner() && d.campus == 'all' && d.scope == 'all' && isBitsAddress(d.email)
+        : d.role == 'dept'
+          ? (isOwner() || isAdmin())
+            && isStudent(d.email) && campusOf(d.email) == d.campus
+            && d.programme is string
+        : d.role == 'course'
+          ? (isOwner() || isAdmin() || isPresident(d.campus, deptOf(d.scope)))
+            && isStudent(d.email) && campusOf(d.email) == d.campus
+        : false;
+    }
+
+    // The staff index is written in the same batch and agrees with the grant.
+    function staffAgrees(id, d) {
+      let s = getAfter(staffPath(d.email)).data;
+      return s.lastGrant == id
+        && (d.role == 'admin' ? s.admin == d.active
+          : d.role == 'dept' ? (d.scope in s.presidentOf) == d.active
+          : (d.scope in s.courses) == d.active);
+    }
+
+    match /grants/{id} {
+      allow read: if (signedIn() && resource.data.email == me())
+        || readsRoster(resource.data.campus);
+      allow create: if mayUse()
+        && id == request.resource.data.role + '|' + request.resource.data.campus
+                 + '|' + request.resource.data.scope + '|' + request.resource.data.email
+        && mayGrant(request.resource.data)
+        && request.resource.data.active == true
+        && expiryOk(request.resource.data)
+        // Only someone who has signed in can be appointed; the name is theirs.
+        && request.resource.data.name
+             == get(/databases/$(db)/documents/people/$(request.resource.data.email)).data.name
+        && request.resource.data.grantedBy.email == me()
+        && request.resource.data.grantedAt == request.time
+        && staffAgrees(id, request.resource.data)
+        && audited('grants/' + id);
+      // Revoke (active false) or renew (a new expiry); who and what are fixed.
+      allow update: if mayUse()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['active', 'expiresAt', 'name', 'grantedBy', 'grantedAt', 'auditId'])
+        && mayGrant(request.resource.data)
+        && (request.resource.data.active == false || expiryOk(request.resource.data))
+        && staffAgrees(id, request.resource.data)
+        && audited('grants/' + id);
+      allow delete: if false;
+    }
+
+    // staff/{email}: { name, email, campus, owner, admin, presidentOf: [dept],
+    // courses: [courseId], expiresAt, lastGrant }. Changed only beside the
+    // grant it names, and only in that grant's own field, by that scope.
+    function grantChanged(id) {
+      let p = /databases/$(db)/documents/grants/$(id);
+      let before = exists(p) ? get(p).data.get('auditId', '') : '';
+      return getAfter(p).data.auditId != before;
+    }
+
+    function moved(before, after, field) {
+      return after.get(field, []).toSet().difference(before.get(field, []).toSet())
+        .union(before.get(field, []).toSet().difference(after.get(field, []).toSet()));
+    }
+
+    function same(before, after, field, empty) {
+      return after.get(field, empty) == before.get(field, empty);
+    }
+
+    function staffWriteOk(email) {
+      let d = request.resource.data;
+      let before = resource == null ? {} : resource.data;
+      let g = getAfter(/databases/$(db)/documents/grants/$(d.lastGrant)).data;
+      return g.email == email && d.email == email
+        && (resource == null || d.campus == before.campus)
+        && same(before, d, 'owner', false)
+        && (g.role == 'admin'
+            ? same(before, d, 'presidentOf', []) && same(before, d, 'courses', [])
+          : g.role == 'dept'
+            ? moved(before, d, 'presidentOf').hasOnly([g.scope])
+              && same(before, d, 'courses', []) && same(before, d, 'admin', false)
+          : moved(before, d, 'courses').hasOnly([g.scope])
+              && same(before, d, 'presidentOf', []) && same(before, d, 'admin', false));
+    }
+
+    match /staff/{email} {
+      allow get: if (signedIn() && email == me()) || isOwner() || isAdmin()
+        || isPresidentOn(resource.data.campus);
+      allow list: if isOwner() || isAdmin();
+      // Owners are trusted with the index outright (their own owner flag too).
+      allow create, update: if isOwner()
+        || (mayUse() && grantChanged(request.resource.data.lastGrant)
+            && staffWriteOk(email));
+      allow delete: if false;
+    }
+
+    // ---- Configuration (§4, §10.5) -----------------------------------------
+
+    match /config/grantTerms {
+      allow read: if mayUse();
+      allow write: if (isOwner()
+          || (isAdmin() && request.resource.data.get('adminDays', 0)
+                == (resource == null ? 730 : resource.data.adminDays)))
+        && request.resource.data.crDays is int
+        && request.resource.data.crDays > 0 && request.resource.data.crDays <= 400
+        && request.resource.data.presidentDays is int
+        && request.resource.data.presidentDays > 0 && request.resource.data.presidentDays <= 800
+        && request.resource.data.adminDays is int
+        && request.resource.data.adminDays > 0 && request.resource.data.adminDays <= 1500
+        && audited('config/grantTerms');
+    }
+
+    match /config/public {
+      allow read: if mayUse();
+      allow write: if (isOwner() || isAdmin())
+        && request.resource.data.contactMethod in ['whatsapp', 'phone', 'email']
+        && request.resource.data.contactEnabled is bool
+        && audited('config/public');
+    }
+
+    // ---- Shared course data ------------------------------------------------
+
+    // The published catalogue (§1): not secret, one read per new version.
+    // Written only by an owner's publish.
     match /catalog/{doc} {
       allow read: if mayUse();
       allow write: if false;
@@ -55,6 +292,8 @@ service cloud.firestore {
         && (offering.split('_')[0] == campusOf(me()) || isOwner());
       allow write: if false;
     }
+
+    // ---- The user's own data -----------------------------------------------
 
     match /users/{uid} {
       allow read, delete: if mayUse() && request.auth.uid == uid;

@@ -6,3 +6,8 @@
 /calculator/calendar /calculator/index.html 200
 /calculator/settings /calculator/index.html 200
 /calculator/course/* /calculator/index.html 200
+/calculator/roles /calculator/index.html 200
+/calculator/welcome /calculator/index.html 200
+/calculator/admin /calculator/index.html 200
+/calculator/admin/* /calculator/index.html 200
+/calculator/maintain/* /calculator/index.html 200
