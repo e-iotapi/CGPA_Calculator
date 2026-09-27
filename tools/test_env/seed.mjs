@@ -376,19 +376,22 @@ async function seedVolunteers(db, byKey) {
   const student = byKey.student_full;
   const term = '2026-27-1';
   const offers = [
-    // Open, in a department with no CR: student_full volunteers for it.
-    { campus: 'goa', courseId: 'EEE F312', dept: 'ELEC', open: true },
-    // Open in ELEC, so the president can dismiss it.
-    { campus: 'goa', courseId: 'EEE F332', dept: 'ELEC', open: true },
+    // Open, on EEE F311 — one of student_full's own current (3-1) courses
+    // with no CR, so their own Representatives page shows it as taken.
+    // EEE F313, their other current course, is left with no volunteer
+    // record at all, for T6's own live volunteer-then-withdraw spec.
+    { campus: 'goa', courseId: 'EEE F311', dept: 'ELEC', open: true, email: student.email, name: student.name },
+    // Open in ELEC, by someone else, so the president can dismiss it.
+    { campus: 'goa', courseId: 'EEE F332', dept: 'ELEC', open: true, email: 'f20259001@goa.bits-pilani.ac.in', name: 'Seed Volunteer' },
     // Already closed.
-    { campus: 'goa', courseId: 'EEE F341', dept: 'ELEC', open: false },
+    { campus: 'goa', courseId: 'EEE F341', dept: 'ELEC', open: false, email: 'f20259002@goa.bits-pilani.ac.in', name: 'Seed Volunteer 2' },
   ];
   const batch = db.batch();
   for (const o of offers) {
-    const id = `${o.campus}|${o.courseId}|${student.email}`;
+    const id = `${o.campus}|${o.courseId}|${o.email}`;
     const data = s({
-      name: student.name ?? student.key,
-      email: student.email,
+      name: o.name,
+      email: o.email,
       campus: o.campus,
       courseId: o.courseId,
       dept: o.dept,
@@ -397,7 +400,7 @@ async function seedVolunteers(db, byKey) {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     if (!o.open) {
-      data.closedBy = { email: student.email, name: student.name ?? student.key };
+      data.closedBy = { email: o.email, name: o.name };
     }
     batch.set(db.doc(`volunteers/${id}`), data);
   }
