@@ -4,6 +4,7 @@
 /// chose to show the students of their campus.
 library;
 
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -219,12 +220,13 @@ class ContactStore {
   }
 
   /// Every president and CR listed on [campus].
+  // Budget: 1 read per person listed on the campus (P0); no per-campus cap
+  // yet, so this grows with staff count until P2b scopes it.
   Future<List<DirectoryEntry>> directory(String campus) async {
-    final q =
-        await db
-            .collection('directory')
-            .where('campus', isEqualTo: campus)
-            .get();
+    final q = await Perf.time(
+      'contacts.directory',
+      () => db.collection('directory').where('campus', isEqualTo: campus).get(),
+    );
     return [for (final d in q.docs) DirectoryEntry.fromMap(d.id, d.data())];
   }
 
@@ -233,10 +235,14 @@ class ContactStore {
   DocumentReference<Map<String, dynamic>> _offer(String id) =>
       db.collection('volunteers').doc(id);
 
+  // Budget: 1 read per course with no CR, per representatives_page.dart
+  // visit (P0) — run once per course, sequentially, until P2b's helper.
   Future<Volunteer?> myOffer(String campus, String courseId) async {
     try {
-      final m =
-          (await _offer(volunteerId(campus, courseId, roles.me)).get()).data();
+      final m = (await Perf.time(
+        'contacts.myOffer',
+        () => _offer(volunteerId(campus, courseId, roles.me)).get(),
+      )).data();
       return m == null ? null : Volunteer.fromMap(m);
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') return null;

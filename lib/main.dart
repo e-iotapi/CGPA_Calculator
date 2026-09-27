@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/core/env/app_env.dart';
 import 'package:cgpa_calculator/core/env/test_sign_in.dart';
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
@@ -81,15 +82,18 @@ Future<void> startApp(User user) async {
   // Boot from the cached or shipped catalogue; a newer published one is
   // fetched in the background and used from then on (ARCHITECTURE.md §3).
   // Before Sync: stored courses link to it by id.
-  await loadCatalog();
-  await Sync.init(user.uid);
+  // Budget: timing only (P0); loadCatalog/Sync.init read no Firestore
+  // documents worth counting on their own — Sync.pull's users/{uid} get is
+  // counted inside sync.dart.
+  await Perf.time('startup.loadCatalog', loadCatalog);
+  await Perf.time('startup.syncInit', () => Sync.init(user.uid));
   await openOfferings();
   offeringSource = FirestoreOfferingSource();
   unawaited(refreshCatalog(
     FirestoreCatalogSource(),
     beforeUse: relinkStoredCourses,
   ));
-  await basicStartup();
+  await Perf.time('startup.basicStartup', basicStartup);
   unawaited(refreshCurrentOfferings());
   // Roles (ARCHITECTURE.md §4): the last known set opens at once, the live
   // one follows.

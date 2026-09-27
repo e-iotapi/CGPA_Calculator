@@ -3,6 +3,7 @@
 /// with its audit entry; firestore.rules refuses it otherwise.
 library;
 
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -101,15 +102,20 @@ class RoleStore {
 
   // ---- Who I am ------------------------------------------------------------
 
+  // Budget: 2 reads per refresh (P0) — every 6h or on demand (P3.4), not
+  // per app open.
   Future<MyRoles> loadMine({DateTime? now}) async {
     var owner = false;
     try {
-      final o = await db.collection('owners').doc(me).get();
+      final o = await Perf.time('roles.owner', () => db.collection('owners').doc(me).get());
       owner = o.data()?['active'] == true;
     } on FirebaseException {
       owner = false;
     }
-    final q = await db.collection('grants').where('email', isEqualTo: me).get();
+    final q = await Perf.time(
+      'roles.grants',
+      () => db.collection('grants').where('email', isEqualTo: me).get(),
+    );
     final at = now ?? DateTime.now();
     return MyRoles(
       email: me,
@@ -574,7 +580,10 @@ class RoleStore {
   // ---- Public contact ------------------------------------------------------
 
   Future<PublicContact?> publicContact() async {
-    final d = await db.collection('config').doc('public').get();
+    final d = await Perf.time(
+      'roles.publicContact',
+      () => db.collection('config').doc('public').get(),
+    );
     final m = d.data();
     if (m == null) return null;
     return (
