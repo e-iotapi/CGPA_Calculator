@@ -2140,6 +2140,16 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
   behaviour (canvas v68). The icon-only button followed in v69.
 - **Departure**: none. The board was drawn from the code.
 
+
+### 13.5 The fake-data harness and the full guide (27 Sep 2026)
+- **New test files**:
+  - `test/helpers/fake_data.dart`
+  - `test/ui/manager_screens_test.dart`, `student_screens_test.dart`,
+    `sheet_screens_test.dart`
+- **What it covers**: every page renders over full fake data (§14.1). Seeding found seven
+  bugs the empty screens hid (N31–N37). Each is held in its test's `known` map until fixed.
+- **UI.md**: the Group 4–8 cards were rewritten step by step, each with named behaviour tests
+  and its render-test rows. No app code changed.
 ---
 
 # Part 4 — Second audit and the fix guide
@@ -2213,7 +2223,40 @@ four app renders to compare.
 Confirm those on the live site with a signed-in browser (Claude in Chrome, or the Desktop
 app's preview).
 
-## 15 · New findings (N1–N30)
+### 14.1 The committed harness (use this, not the recipe above)
+- **`test/helpers/fake_data.dart`** fills a fake world through the app's own stores:
+  - **People**: an owner, an admin, two Goa presidents (ELEC; CS, 4 days from expiry), two
+    CRs and a student. Each has a `people` row, staff phone and directory entry.
+  - **Firestore**:
+    - four professors, including a duplicate pair
+    - CS F372's published scheme this term (best-of parts, averages, dates, a professor) and
+      an EEE F211 scheme
+    - six reviews: two reported, one hidden
+    - four resources: department links, a course link, one reported
+    - two volunteer offers
+    - two publish drafts: a credit change and a title
+    - four audit entries
+    - the public contact
+  - **The student's device**: a B3 A7 dual degree, batch 23, at Goa:
+    - 16 courses over eight semesters, with graded, NC and this-term courses, and Expected
+      differing from Actual
+    - six Offshoot courses
+    - marks on CS F372 through the offering cache: official parts with marks, one own
+      component, and the class average
+- **`seedAll()`** once in `setUpAll`. It runs in real time and fills one shared fake
+  Firestore. **Seeding inside a widget test can stall**, so don't.
+- Then **`renderScreen(t, name, builder, who: As.cr, tall: 900, open: …)`**, which returns
+  the errors, and **`expectRender(name, errors, known)`**, which checks them.
+  - `As` picks the role: owner, admin, president, president2, cr, student.
+  - `launcher` + `tapLauncher` open a sheet or dialog.
+- The three test files cover **54 renders**: 30 manager, 17 student, 7 sheets and dialogs.
+  Each renders light and dark at 390 and 320, and light at 320 with 2× text. The known
+  issues are N27 and N31–N37. The full suite: 397 passed, 50 skipped in this container
+  (private fixtures absent).
+- To add a screen: add a row to the right file. To add data: add it in `seedFirestore` or
+  `seedDevice`, through a store where one exists.
+
+## 15 · New findings (N1–N37)
 
 Each finding gives what is seen, the cause with file and line (at `8037abc`), and the fix.
 Task cards in §20 reference them.
@@ -2432,6 +2475,34 @@ Task cards in §20 reference them.
       dialog.
     - The list on Expected pads 72 px more so the last row scrolls clear of it.
     - The canvas gained the board **`Expected`** (x 4650, y 0) with a note, canvas version 68.
+
+### Found with the seeded data (N31–N37)
+These appear only when the screens have data. The empty-state audit could not see them. The
+render tests in §14.1 hold each one in a `known` map until it is fixed.
+
+- **N31 · Reported tab (department Resources)**: each reported link's "Fix the link" / "It
+  works · dismiss" `TextButton`s sit in a `Row` that overflows **even at 390** (up to 621 px
+  at 320 with 2× text). Cause: the two buttons in `dept_resources.dart:502-530` with no
+  flex. Fix: a `Wrap` of two 34 tall pills (T8.13).
+- **N32 · Department Resources tabs**: the `FilterChip` holding "Reported" and its
+  `PulsingTab` overflows at 320 with 2× text. Fix: equal pills (T8.13).
+- **N33 · Department Reviews**: the review card's header row overflows by 2.8 px at 320 with
+  2× text, and the TAKE IT tag stretches (G2). Fix: T3.2 + T8.13.
+- **N34 · Marks at 320, normal text**: a component card's trailing cluster (badge, weight,
+  score, copy) squeezes the title to one word a line ("Kernel As/signmen…") and overflows
+  0.85 px. Fix: T5.1 step 3.
+- **N35 · Marks at 200% text**: the TAKEN BY row gives its label about 60 px, so it wraps a
+  word a line ("TAKE/N BY"). Fix: `LabelRow` (T3.9, T5.1).
+- **N36 · Divergence sheet**: the sheet doesn't scroll; it overflows 600 px at 320 with 2×
+  text. Its buttons are Material `TextButton`s (G1). Fix: T5.4 step 1.
+- **N37 · Report this link sheet**: it doesn't scroll (399 px overflow at 320 with 2× text),
+  and its reasons are `RadioListTile`s drawn in no font (G1). Fix: T7.4 step 1.
+- **Seeded Marks also shows**:
+  - "no class avg yet" under the hero, while the hero compares against the class average
+    9.80 the student typed. The line reads the official course average, not the student's.
+    Say which it is ("class avg 9.80 · yours" / "· official"), as the board does. Part of
+    T5.1.
+  - The eyebrow is still lower case (T5.1).
 
 ### Corrections to Part 2
 - **N30**:
@@ -3125,107 +3196,644 @@ Build each in `lib/shared/widgets/`, with a widget test and one `shoot()` in
 
 ---
 
+### How the cards in Groups 4–8 are checked
+
+Each card names its **render test**: a row in one of three committed files. All three read the
+fake data in `test/helpers/fake_data.dart` (§14.1):
+
+| File | What it renders |
+|---|---|
+| `test/ui/student_screens_test.dart` (`s_…`) | the student screens |
+| `test/ui/sheet_screens_test.dart` (`d_…`) | sheets and dialogs, opened from a launcher |
+| `test/ui/manager_screens_test.dart` (`m_…`) | manager screens, each as its role |
+
+Each row renders light and dark at 390 and 320, and 320 at 200% text, and fails on any layout
+error. A screen with a known bug sits in that file's `known` map with its N-number. **When you
+fix it, its test fails until you delete its `known` line**; that is the proof the fix
+landed. Look at the shots with:
+
+```
+SHOTS_DIR=/tmp/shots flutter test test/ui/<file>_test.dart --plain-name <row name>
+```
+
+Put them beside the board: Artifact `read` of `project/<Board>.dc.html`, rendered in a
+browser, or look at the canvas.
+
+Every card also adds **behaviour tests** in the screen's own test file. The card names them
+and gives their key `expect`s.
+
 ### Group 4 · getting in (§4)
 
-- **T4.1 Loading** (§4.2): add the two footer lines in `web/index.html` `.ptr-seo`. No Dart.
-- **T4.2 Sign in** (§4.3, `sign_in_view.dart`): the three numbered fixes in §4.3, including
-  the "button within 120 px of the bottom" test. Use `PrimaryButton.tall`.
-- **T4.3 Your degree** (§4.4, `degree_setup_page.dart`): the six fixes in §4.4 using
-  `ScopeChip` (after T3.3 it is mint), `PillButton(height: 38)`, `Notice`, `CodeBadge`,
-  `BottomAction`.
-- **T4.4 Pick a programme** (§4.5): only the check in §4.5.1. The audit render matches the
-  board.
-- **T4.5 Import** (§4.6, `erp_import_page.dart`): the six fixes in §4.6. The nudge animation
-  uses one `AnimationController`, stopped when `MediaQuery.disableAnimations`.
-- **T4.6 Owner setup** (§10.21; needs T3.6): route `setup/owner`, a new top-level segment
-  `setup`, so **add `landing/_redirects` lines**.
-  - Reuse the campus / batch part of `degree_setup_page.dart:201` with the owner copy from
-    the `OwnerSetup` board.
-  - Show it when `myRoles.value.owner && campusOfAddress(email) == null && no stored campus`.
-  - Test: a non-BITS owner with no campus sees "ONE-TIME SETUP · OWNER".
+**T4.1 · Loading footer** (§4.2)
+- **Files**: `web/index.html` only.
+- **Steps**: inside `.ptr-seo`, before the `h1`, add `<p class="ptr-by">Built By Siddharth
+  Mishra</p><p class="ptr-private">Your grades stay private to your account.</p>`. Style them
+  11.5/700 ink and 10.5/500 `#6E6E63`, 14 apart, with dark-mode colours in the existing
+  `@media (prefers-color-scheme: dark)` block.
+- **Test**: none in Dart; check by opening `web/index.html` in a browser.
+
+**T4.2 · Sign in** (§4.3)
+- **Files**: `lib/features/auth/sign_in_view.dart`, `test/auth/sign_in_test.dart`.
+- **Steps**:
+  1. Replace the outer `Center` with a `LayoutBuilder` →
+     `SingleChildScrollView(child: ConstrainedBox(minHeight: c.maxHeight, child:
+     IntrinsicHeight(child: Column(…))))`, and put a `Spacer()` between the dashed note and
+     the button.
+  2. Top padding: `Space.xxl`.
+  3. After the campus line add `Text('Your grades stay private to your account.\nReviews
+     you write never carry your name.', textAlign: center, 10.5/500 textMuted)`, 10 below
+     it. Then `Text('Built By Siddharth Mishra', 11/700 text)`, 8 below that.
+  4. The button uses `PrimaryButton(tall: true)` (T3.10).
+- **Tests** (`sign_in_test.dart`):
+  - `'the button sits at the bottom'`: at 390 × 844,
+    `t.getBottomLeft(find.text('Continue with Google')).dy > 844 - 120`.
+  - `'privacy lines and footer'`: `find.textContaining('never carry your name')` and
+    `find.text('Built By Siddharth Mishra')` each `findsOneWidget`.
+- **Render test**: `s_sign_in`.
+
+**T4.3 · Your degree** (§4.4)
+- **Files**: `lib/features/setup/degree_setup_page.dart`, `test/setup/setup_test.dart`.
+- **Steps**, following §4.4's six fixes in order:
+  1. The address chips: `ScopeChip(campus, icon: Icons.place_outlined)` and
+     `ScopeChip('$year batch', icon: Icons.calendar_today_rounded)`, height 32 (add a
+     `height` parameter to `ScopeChip`).
+  2. The programme pills: `PillButton(height: 38)` for single and dual. 2+2 is
+     `DashedOutline(color: outline, radius: 19)` around a 62-wide label in faint text.
+  3. Tapping 2+2 shows `Notice(warning: true, text: …)` with §4.4's copy, and changes
+     nothing.
+  4. Each degree row is `CodeBadge(code, tone: first ? CodeTone.first : CodeTone.second)`,
+     then eyebrow and name, then a chevron. Unset: `CodeTone.empty` and "Choose a
+     programme".
+  5. `BottomAction(child: PrimaryButton(tall: true, label: 'Set up $first $second'),
+     caption: 'Changing your first degree later clears your grades.')`. Disabled with "Pick
+     what you are reading" until every degree row is picked.
+- **Tests**:
+  - `'2+2 shows the notice and keeps the choice'`: tap `2+2` → `find.byType(Notice)`
+    `findsOneWidget`, and the Single pill is still selected.
+  - `'button waits for the programme'`: with nothing picked, `PrimaryButton.onPressed ==
+    null`, and its label is 'Pick what you are reading'.
+- **Render test**: `s_setup`.
+
+**T4.4 · Pick a programme** (§4.5)
+- **Files**: `lib/features/setup/degree_setup_page.dart:103` (the call).
+- **Steps**: when picking the **second** degree of a dual, pass only
+  `programmesAt(campus).where((p) => !p.isMsc)`.
+- **Test** (`setup_test.dart`): `'second degree lists only B.E.'`: open the second-degree
+  picker; `find.text('B3')` `findsNothing`, and `find.text('A7')` `findsOneWidget`.
+- **Render test**: `s_pick`.
+
+**T4.5 · Import** (§4.6)
+- **Files**: `lib/features/import/erp_import_page.dart`, new
+  `test/import/erp_import_page_test.dart`.
+- **Steps** (§4.6 fixes 1–5):
+  1. Trim the lead to one sentence.
+  2. `OutlinedPill('Open My Academics in ERP', trailing: Icons.open_in_new_rounded)`.
+  3. The drop zone:
+     - a `DashedOutline(color: Color(0xFF9CC9BA), width: 2, radius: 22)` over
+       `hero.withValues(alpha: .34)`
+     - a 44 white tile with an upload icon, the title, and the sub
+     - the lock line **inside** the zone
+     - web copy "Drop your performance sheet / or choose a file · PDF"; `!kIsWeb` copy
+       "Choose your performance sheet / PDF"
+  4. The install card: `navBackground` fill, a 36 mint tile holding `PointerMark`, "Install
+     Pointer" / "Own icon, full screen, works offline", and a mint 36-tall "Install" button.
+     Nudge: one `AnimationController(duration: 4.5 s)..repeat()`, driving
+     `Transform.scale` of the card (1 → 1.035 → 1 over 76–90%) and `Transform.rotate` of the
+     button (±6°, 80–95%). Build it only when `!MediaQuery.disableAnimationsOf(context)`.
+     Hide the card when `installable == false`.
+  5. `BottomAction` with "Skip — I will enter grades myself" (13/700 `icon` colour, a text
+     button 44 tall) and the caption "You can import any time from Settings → Your data."
+     Only when `onDone != null`.
+- **Tests**:
+  - `'no nudge under reduced motion'`: pump with `MediaQuery(disableAnimations: true)`;
+    `find.byType(AnimatedBuilder)` inside the install card `findsNothing`.
+  - `'Skip calls onDone'`.
+  - `'Settings mode has no Skip'`: `ErpImportPage()` without `onDone`; `find.textContaining('Skip')`
+    `findsNothing`.
+- **Render test**: `s_import`.
+
+**T4.6 · Owner setup** (§10.21; needs T3.6)
+- **Files**: `lib/app/router.dart`, `lib/app/routes.dart`, `landing/_redirects`, new
+  `lib/features/setup/owner_setup_page.dart`, new `test/setup/owner_setup_test.dart`.
+- **Steps**:
+  1. `Routes.ownerSetup = '/setup/owner'`, registered, plus
+     `/calculator/setup/* /calculator/index.html 200` in `landing/_redirects`.
+  2. The page follows the `OwnerSetup` board:
+     - eyebrow "ONE-TIME SETUP · OWNER", the title and the lead
+     - SIGNED IN AS with an OWNER `TierTag`
+     - CAMPUS as a 2 × 2 grid of `PillButton(height: 38)`
+     - BATCH as a label-above number field
+     - `BottomAction` "Continue" with "Both are final once set, as they are for everyone
+       else."
+
+     It saves campus and batch exactly as `degree_setup_page.dart:201` does (reuse that
+     code; don't copy the storage calls).
+  3. In `main.dart`'s start-up (by hand, no format): when `myRoles.value.owner` and
+     `campusOfAddress(email) == null` and no campus is stored, open `ownerSetup` first.
+- **Tests**:
+  - `'owner setup saves campus and batch'`: a unit test on the save function, not through
+    the UI, because of the Hive rule.
+  - `'a non-BITS owner lands on owner setup'`: the redirect function returns
+    `/setup/owner`.
+  - `routes_test` passes (the `_redirects` line).
 
 ### Group 5 · a course (§5)
 
-- **T5.1 Marks** (§5.1 + N28, `marks_page.dart`):
-  - The eyebrow in upper case ("CS F372 · 4 CREDITS").
-  - With no weighted component yet, the hero shows "No marks yet" and hides "/ 0" and the
-    "0% graded · 100% pending" line.
-  - Test: an empty course shows "No marks yet".
-- **T5.2 Edit evaluative, rebuild** (§5.2, `add_evaluative_page.dart`):
-  - Build to the `MarksAdd` board with `PageHeader(close: true)`, `Notice` (official),
-    label-above fields, `SegmentedPair` (One mark / Several parts), mint count pills (Best n
-    of m), the parts grid with `CompactField` and `TagBadge(official)`, the hero, and a
-    bottom Save.
-  - The "/" between Marks and Out of (N9) goes away with the grid.
-  - At 320 with 2× text the parts grid becomes two lines per part (name row, then the four
-    fields).
-- **T5.3 Course setup** (§5.3, `course_setup_page.dart`): `PageHeader(close: true)`;
-  `SegmentedPair` with sublines; the rest as §5.3.
-- **T5.4 Scheme editor and first divergence** (§5.4): build the student scheme editor from
-  the `Divergence` board; restyle `widgets/divergence.dart`'s sheet. Share the widgets with
-  `admin/scheme_editor.dart` (T8.13).
-- **T5.5 After diverging** (§5.5) and **T5.6 Average sources** (§5.6): as specified.
+**T5.1 · Marks** (§5.1, N28, N34, N35)
+- **Files**: `lib/features/marks/marks_page.dart`,
+  `lib/features/marks/widgets/evaluative_card.dart`, `test/marks/marks_test.dart`.
+- **Steps**:
+  1. The eyebrow: `'${code} · ${credits} CREDITS'.toUpperCase()`.
+  2. **N28**: when the course has no weighted component, the hero shows "No marks yet"
+     (`TypeScale.display` at 30) and hides "/ 0" and the graded / pending line.
+  3. **N34**: in `evaluative_card.dart`, when the card is narrower than 340 (`LayoutBuilder`)
+     or the text scale is above 1.3, put the title on its own line and the badge · weight ·
+     score · copy row under it. Otherwise keep one row, with the title `Expanded`,
+     `maxLines: 2` and ellipsized.
+  4. **N35**: the TAKEN BY row uses `LabelRow` (T3.9) with the "Reviews" pill as trailing.
+  5. The "Reviews" `TextButton` becomes `PillButton(height: 34)`.
+- **Tests**:
+  - `'empty course says No marks yet'`: a course with no evaluatives →
+    `find.text('No marks yet')` and `find.textContaining('/ 0')` `findsNothing`.
+  - `'eyebrow is upper case'`: `find.text('CS F372 · 4 CREDITS')`.
+- **Render test**: `s_marks`. **Delete its `known` line** when N34 and N35 are fixed.
+
+**T5.2 · Edit evaluative, rebuild** (§5.2)
+- **Files**: `lib/features/marks/add_evaluative_page.dart` (rewrite the build; keep the save
+  logic and its callers), new widgets in `lib/features/marks/widgets/parts_grid.dart`,
+  `test/marks/marks_test.dart`.
+- **Steps**, top to bottom as the `MarksAdd` board:
+  1. `PageHeader(close: true, eyebrow: '$code · EDIT COMPONENT' | '$code · NEW
+     COMPONENT', title: name or 'New component')`.
+  2. `Notice` "**Official component.** Your marks are always yours. Changing the weight, an
+     out of, a date or an average makes this component yours, and it stops updating." Only
+     when `official != null`.
+  3. A card:
+     - COMPONENT NAME (label-above field)
+     - a row: WEIGHT (86 wide) and "%"; CLASS AVERAGE as a mint-wash value when official
+       ("12.40 of 20 · from parts"), otherwise a field
+  4. A card: `SegmentedPair` One mark / Several parts; HOW MANY COUNT as `PillButton`s "All
+     n" / "Best k of n", with the selected one in the mint count-pill tone.
+  5. A PARTS card with column heads DATE · YOU · OUT OF · AVG (8.5/700). Each part:
+     - a name field with copy and ✕ icon buttons (44)
+     - a row "PART n" · date chip · you · out of · avg, all `CompactField`
+     - the official avg as `TagBadge(official)` with the value
+     - a dropped part dashed and faint
+
+     At a width under 340 or a text scale above 1.3, each part's fields wrap onto a second
+     line (`Wrap`).
+  6. "+ Part" as a dashed pill.
+  7. The mint hero "THIS COMPONENT GIVES YOU", with "best 2 of 3 · class 12.40" and
+     "14.0 / 20".
+  8. `BottomAction(PrimaryButton(label: 'Save'))`.
+- **Tests** (`marks_test.dart`, taps in `t.runAsync` where they save):
+  - `'official shows the notice'`
+  - `'Best 2 of 3 counts two parts'`: set three parts 8, 6, 3 of 10, pick Best 2 → the
+    hero reads '14.0'.
+  - `'copy adds the next part below'`
+  - `'a dropped part is marked DROPPED'`
+- **Render tests**: `s_add_eval`, `s_edit_eval`.
+
+**T5.3 · Course setup** (§5.3)
+- **Files**: `lib/features/marks/course_setup_page.dart`.
+- **Steps**:
+  1. `PageHeader(close: true)`.
+  2. HOW THIS COURSE IS GRADED: `SegmentedPair` 46 tall, with sublines ("each part has a
+     %" / "one big total").
+  3. COURSE IS MARKED OUT OF: an 86 wide field with a helper.
+  4. SHOW IT OUT OF: pills 100 / 200 / 300 / Custom, the selected one mint.
+  5. The mint RIGHT NOW card (entered → shown, and the formula line).
+  6. EACH COMPONENT'S SHARE rows, then a Total row.
+  7. CLASS AVERAGE: a field plus the mint-wash "You are 1.56 ahead…" line.
+  8. The "Save setup" `PrimaryButton`.
+- **Tests**: `'Total marks shows the rescale'`: select Total marks, total 300, show out of
+  100 → `find.textContaining('shown out of 100')`.
+- **Render test**: `s_course_setup`.
+
+**T5.4 · Scheme editor and first divergence** (§5.4, N36)
+- **Files**: `lib/features/marks/widgets/divergence.dart`, new
+  `lib/features/marks/scheme_editor_page.dart` (student), shared parts with
+  `lib/admin/scheme_editor.dart`.
+- **Steps**:
+  1. **N36 first**: wrap the sheet's column in `SingleChildScrollView`; pass
+     `isScrollControlled: true`. Restyle it as the `Divergence` board (eyebrow in
+     `noticeTone.text`, title, body, and two 44 pills: outlined "Keep it official", ink
+     "Make it mine").
+  2. Build the student scheme editor from the `Divergence` board. Its component rows reuse
+     T5.2's `parts_grid.dart`.
+- **Tests**: `'divergence sheet scrolls at 200% text'`, covered by removing `d_divergence`
+  from `known` (the render test then must pass). Plus `'Make it mine returns true'`.
+- **Render test**: `d_divergence`.
+
+**T5.5 · After diverging** (§5.5) and **T5.6 · Average sources** (§5.6)
+- **Files**: `marks_page.dart` (the diverged state),
+  `lib/features/marks/widgets/average_sources.dart`.
+- **Steps**: as §5.5 and §5.6. Each source is a `CardRow` with a `TagBadge` (OFFICIAL /
+  YOURS / FROM PARTS) and the value in a 28 tall ink or mint pill.
+- **Render test**: `d_average_sources`, and `s_marks` (the diverged state comes from the
+  seed's detached component, once T5.4 lets you detach one in the seed).
 
 ### Group 6 · adding (§6)
 
-- **T6.1** Grade menu label (§6.1).
-- **T6.2** Add a course (§6.2).
-- **T6.3** Enter it manually (§6.3).
-- **T6.4 · N29 legacy Home dialogs** (`home_page.dart`, legacy, don't reformat):
-  - The Expected copy button is **done**: it is permanent, restyled and on the `Expected`
-    board (N29).
-  - Replace the two remaining `AlertDialog`s ("Start … from…" and "Clear Grades") with a
-    shared `ConfirmDialog`
-    (new, in `lib/shared/widgets/`: surface, radius 22, title `section`, body `body` w500
-    `textMuted`, two 44 tall pills: outlined Cancel, ink action). Drop every
-    `fontFamily: 'Montserrat'` and `thm.` use in those blocks.
-  - Test: the Clear confirm shows "Clear" and returns true on tap. Don't let it write Hive in
-    the widget test.
-- **T6.5 · Settings discipline picker** (§17, `settings_page.dart:190-215`): open
-  `ProgrammePickPage` (as `degree_setup_page.dart:103` does) instead of `_pick`. Keep
-  `changeDiscipline` and the erase warning as they are. Test: tapping Discipline pushes
-  `ProgrammePickPage`.
+**T6.1 · Grade menu** (§6.1)
+- **Files**: `lib/features/semester/widgets/grade_menu.dart`.
+- **Steps**: §6.1's label fix.
+- **Render test**: `d_grade_menu`.
+
+**T6.2 · Add a course** and **T6.3 · Enter it manually** (§6.2, §6.3)
+- **Files**: `lib/features/semester/add_course_sheet.dart`, `widgets/course_fields.dart`.
+- **Steps**:
+  - Follow §6.2 and §6.3.
+  - Replace the category `showMenu` (`course_fields.dart:108`) with a sheet of `CardRow`s,
+    or with `ChoicePills` when there are five or fewer.
+  - The "Over n credits" confirm becomes `ConfirmDialog` (T6.4).
+- **Tests** (`add_course_test.dart`): `'manual needs code, title and credits'` (Save
+  disabled until all three are set).
+- **Render test**: `d_add_course`.
+
+**T6.4 · The remaining Home dialogs** (`home_page.dart`, legacy, edit by hand)
+- **Files**: new `lib/shared/widgets/confirm_dialog.dart`, `home_page.dart` (`:249`, `:480`),
+  `edit_course_sheet.dart:84`, `add_course_sheet.dart:424`, `settings_page.dart:170`.
+- **Steps**: build `Future<bool> confirmDialog(BuildContext c, {required String title,
+  required String body, required String action, bool danger = false})`:
+  - `surface` fill, radius 22
+  - the title in `section` and the body in `body` w500 `textMuted`
+  - two 44 tall pills: outlined Cancel, and ink `action` (or `behind` text on an outlined
+    pill when `danger`)
+
+  Use it at every listed call site.
+- **Tests** (new `test/shared/confirm_dialog_test.dart`): Cancel → false; the action →
+  true; dark theme text colour == `AppPalette.dark.text`.
+- **Render test**: add a `d_confirm` row to `sheet_screens_test.dart`.
+
+**T6.5 · Settings → Discipline opens Pick a programme** (§17)
+- **Files**: `lib/features/settings/settings_page.dart:190-215`.
+- **Steps**: replace `_pick(…)` with `Navigator.push` of `ProgrammePickPage(heading: dual ?
+  'Dual degree' : 'Discipline', options: …, selected: half)`, using the same options
+  filter as T4.4.
+- **Test** (`settings_test.dart`): `'Discipline opens the programme picker'` → after the
+  tap, `find.byType(ProgrammePickPage)` `findsOneWidget`.
+
+**T6.6 · Edit course sheet** (no board, §17)
+- **Files**: `lib/features/semester/edit_course_sheet.dart`.
+- **Steps**:
+  - Until the user supplies a board, restyle only: the "Counts as" `DropdownButton` becomes
+    a `CardRow` opening a sheet of choices.
+  - "Remove" is an outlined pill with `behind` text, and "Save" an ink pill.
+  - Record a Departure.
+- **Render test**: `d_edit_course`.
 
 ### Group 7 · More and Reviews (§8)
 
-- **T7.1** More as a nav destination, and the leading header (§8.2).
-- **T7.2** Representatives (§8.3).
-- **T7.3 · The Reviews family** (§8.4–§8.10):
-  - **First fix N27**: in `review_widgets.dart` `StatsCard`, make the right column
-    `Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight,
-    child: …))`, and style " / 5" with `TypeScale.caption`.
-  - Then rebuild the card as the board's white summary card (§8.7).
-  - Test: `CourseReviewsPage` at 320 × 640 with `textScale: 2` has no exception.
-- **T7.4** Resources, Report this link, Empty (§8.11–§8.13).
-- **T7.5** The Offshoot checkbox (§8.1).
+**T7.1 · More** (§8.2)
+- **Files**: `lib/features/more/more_page.dart`.
+- **Steps**:
+  - The header eyebrow is "GOA · B3 A7 · 2026-27 SEM 1" (campus, discipline, term) over
+    "More" 27/800.
+  - Three 76 tall rows: surface, radius 22, a 44 mint tile with a 21 px icon, the title
+    14/700 and the subtitle 10.5/500.
+  - Then the "Everything here is for **Goa** only…" note.
+- **Test** (`test/roles/step11_screens_test.dart` already pumps More):
+  `find.textContaining('GOA ·')`.
+- **Render test**: add `s_more` (it exists).
+
+**T7.2 · Representatives** (§8.3)
+- **Files**: `lib/features/more/representatives_page.dart`.
+- **Steps**:
+  - Leading header "GOA · A7" / "Representatives", and the lead copy.
+  - DEPARTMENT card: a 38 mint code tile, the name and "Department president · email and
+    phone shared", and two 36 tall pills (Email; the phone masked "98xxx 41xxx").
+  - A HANDOVER IN n DAYS `TagBadge` when a successor exists.
+  - YOUR COURSES THIS SEMESTER card rows: 32 round icon buttons for each shared channel, or
+    a dashed "Volunteer" pill.
+  - The ink "You are a CR for …" card with a mint Edit pill, for CRs only.
+  - Replace the `TextButton.icon` links (`:182`, `:248`).
+- **Tests**:
+  - `'president card shows shared channels'` (seeded directory: email + WhatsApp).
+  - `'no CR shows Volunteer'`.
+- **Render test**: `m_representatives` (it renders as a student).
+
+**T7.3 · The Reviews family** (§8.4–§8.10, N27)
+- **Files**:
+  - `lib/features/reviews/review_widgets.dart` (`StatsCard`, `ReviewTile`)
+  - `reviews_home.dart`, `course_reviews.dart`, `professor_reviews.dart`,
+    `review_form.dart`
+- **Steps**:
+  1. **N27 first**:
+     - Rebuild `StatsCard` as the `Reviews` board's white summary card: "CS F301 · GOA · 41
+       REVIEWS" label, "this campus only", "3.8 / 5" plus stars, "71% WOULD TAKE IT", and
+       a 7 px mint / ink bar.
+     - The right column is `Flexible` with `FittedBox(fit: BoxFit.scaleDown)`.
+     - Delete `s_course_reviews` and `s_prof_reviews` from `known`.
+  2. `ReviewsHome`:
+     - `SegmentedTrack` "Courses" / "Your reviews · n"
+     - `SearchBox` "Course code, name or professor"
+     - YOUR COURSES THIS SEMESTER and MOST REVIEWED AT GOA card rows, each with 11 px stars,
+       "71% take it · Dr. R. Menon" and a chevron
+  3. `ReviewTile`:
+     - a course chip (ink) and a term chip
+     - stars and "4 of 5"
+     - a TAKE IT (mint, ✓) or DON'T (grey, ✕) tag
+     - the text
+     - Helpful and Report as 32 tall pills (replace `:216`, `:221`)
+  4. `review_form.dart`: follow the `ReviewWrite` and `ReviewEdit` boards; input stars 44
+     hit, take-it `SegmentedPair`, the text field, and a `BottomAction`.
+  5. `professor_reviews.dart`: follow the `ProfessorReviews` board.
+- **Tests** (`reviews_screens_test.dart`):
+  - `'summary card fits at 320 with 2x text'`: covered by the render test.
+  - `'Your reviews tab counts mine'`: seed two reviews by `myUid` → 'Your reviews · 2'.
+- **Render tests**: `s_reviews_home`, `s_your_reviews`, `s_course_reviews`,
+  `s_prof_reviews`, `s_review_form`.
+
+**T7.4 · Resources, Report this link, Empty** (§8.11–§8.13, N37)
+- **Files**: `lib/features/resources/resources_page.dart`.
+- **Steps**:
+  1. **N37 first**: the report sheet (`_ReportSheet`) scrolls; `isScrollControlled: true`.
+     Its `RadioListTile`s become 44 tall `CardRow`s with a radio dot. Delete `d_report_link`
+     from `known`.
+  2. The page follows §8.11: programme pills, link rows (a 30 px tile, the title, "domain ·
+     added by", and ⋯), the ROLLUP explainer, and the `BottomAction` "Add a link" for
+     maintainers.
+  3. The empty state follows §8.13, with the public contact button from `config/public`
+     (hidden when off).
+- **Tests**:
+  - `'report needs a reason'`: Send disabled until a reason is picked.
+  - `'empty department shows the contact'`: from seeded `config/public`.
+- **Render tests**: `s_resources`, `d_report_link`.
+
+**T7.5 · Offshoot checkbox** (§8.1)
+- **Files**: `lib/features/offshoot/offshoot_panel.dart`.
+- **Steps**: §8.1's one fix.
+- **Render test**: `semester_screenshots_test.dart` (the offshoot mode).
 
 ### Group 8 · managers (§10), in the canvas's role order
 
-Every card here:
-- uses `PageHeader` (leading, T3.8), `ScopePills` where the board shows scope, `CardRow`,
-  `TierTag` (T3.2 / T3.3), `ChoicePills(equal:)` or `SegmentedTrack`, `Notice`, and
-  `BottomAction` for the one primary action
-- replaces its file's Material widgets (T3.1 list) with board parts
-- adds a shot of the screen to a **committed** `test/ui/manager_shots_test.dart`, seeded as
-  §14 describes (move the seed into `test/helpers/role_seed.dart`)
+For every card:
+- Replace the file's Material widgets (T3.1 list) with board parts.
+- The render test is already in `manager_screens_test.dart` over seeded data.
+- Behaviour tests go in `test/roles/step11_screens_test.dart`, next to the S1–S14 tests,
+  using its `signIn` / `seedGrant` helpers.
 
-| Card | Screen | Fix list |
-|---|---|---|
-| T8.1 | Controls (`admin_home.dart`) | §10.2 + N11: ink card in `navBackground` with "<name> — every campus, every department" (name from `roleStore.myName`); live subtitles (grant counts from `roster()`; terms from `terms()`; contact from `publicContact()`; Owners "n active"; Publish "n changes waiting" with an amber `CountBadge`); Site analytics row disabled, "Coming later" |
-| T8.2 | Owners | §10.9 + N16 |
-| T8.3 | Publish | §10.10: three cards, the checkbox gating a `BottomAction` "Publish n changes"; "Draft a change" as an `OutlinedPill` |
-| T8.4 | Open as + ViewAsDept + ViewAsCourse | §10.22 + N17: two new routes `admin/open-as/department` and `admin/open-as/course` (under `admin`, so no `_redirects` line), full-screen pickers (campus `ChoicePills(equal)`, searchable list, last opened first, kept in the device box) |
-| T8.5 | Maintainers + Person | §10.3 + N12. **Person has no board** (§17): **Ask the user** for one, or style it with `CardRow`s and record a Departure |
-| T8.6 | Appoint | §10.4 + N18: label-above address field, the found-user mint-wash line, red-brown refusal box, equal tier pills, "Full term · 1 year"; `BottomAction` labelled from the grant it will make |
-| T8.7 | Grant terms | §10.5 + N14: show units, not days. Keep days in storage; display `days ~/ 182` semesters for CR and `days ~/ 365` years for president / admin; − / + step one unit; admin row locked for admins; rule chips; `Notice` |
-| T8.8 | Public contact | §10.6 + N15. **Ask the user** about live vs catalogue first |
-| T8.9 | Before you start, Work as | §10.19, §10.20 + N26 |
-| T8.10 | Audit log | §10.8 + N19 |
-| T8.11 | Roster + Volunteers | §10.16 + N13: `SegmentedTrack`, WHO APPOINTS section (owners from `owners()`, admins from grants, with `staffPhones()`), `BottomAction` "Appoint a CR" |
-| T8.12 | Merge duplicates | §10.7: a president sees their scope as chips; owners and admins pick with the ViewAsDept picker (T8.4), not a dropdown |
-| T8.13 | Your department, Course structures, Reviews, Resources (+ Reported), Professors | §10.11–10.15 + N20–N23. **Ask the user** about DeptHome's "Appoint a CR" row. Bulk upload preview has no board (§17) |
-| T8.14 | Hand over + Confirm | §10.17 + N24 |
-| T8.15 | Course page (CR) | §10.18 + N25. **Ask the user** whether the COURSE AVERAGE card is in scope (ARCHITECTURE §13.3) |
+**T8.1 · Controls** (`admin_home.dart`; §10.2, N11)
+- **Steps**:
+  1. The ink card uses `navBackground`: an OWNER / ADMIN `TierTag` (T3.3 tones), "$name —
+     every campus, every department" 13/600 `onInverse`, and the explanation 10.5/500
+     `#B0B0A4` (add `onInverseMuted` to the palette if missing).
+  2. Rows are `CardRow` with live subtitles, each loaded once in `initState` with a
+     `Future.wait`:
+     - Maintainers: "n presidents · n course managers · n admins", from `roleStore.roster()`
+     - Grant terms: "CR n semester · president n year · admin n years", from `terms()`
+     - Public contact: "name · method · shown on empty pages", with `CountBadge('ON',
+       tone: on)`, from `publicContact()`
+     - Owners: "n active · you cannot remove yourself", from `owners()`
+     - Publish catalogue: "n changes waiting", with `CountBadge('n')` amber, from
+       `CatalogStore.drafts()`
+  3. Site analytics: a disabled row, "Coming later".
+  4. Keep the Roster and Open Pointer as rows (a Departure, already recorded).
+- **Tests**:
+  - `'Controls counts maintainers'`: with the seed → '1 president' appears (as owner:
+    ELEC plus CS = 2 presidents; match the seed).
+  - `'Publish shows waiting changes in amber'`.
+- **Render tests**: `m_admin_home`, `m_admin_home_admin`, `m_admin_home_pres`.
+
+**T8.2 · Owners** (`config_pages.dart` `OwnersPage`; §10.9, N16)
+- **Steps**:
+  - Owner blocks with `TierTag('OWNER')`, `NameEmail`, and the "You · first owner…" or
+    "Added by …, 14 Sep" note.
+  - A 30 tall grey "You can't remove yourself" chip on your own row, and a 32 tall outlined
+    "Remove" pill (`behind` text) on the others.
+  - INACTIVE owners, from `active: false`.
+  - ADD AN OWNER with a label-above field, keeping the Name field (Departure, N16).
+  - `BottomAction` "Add owner".
+- **Tests**: `'Remove is 44 px'`: the hit area is ≥ 44 even though it is drawn 32 tall.
+- **Render test**: `m_owners`.
+
+**T8.3 · Publish** (`publish_page.dart`; §10.10)
+- **Steps**:
+  - Three cards from the drafts:
+    - MOVES CGPAs · n: `noticeTone` fill, with a CONFIRM `TagBadge`
+    - RETIRED · n
+    - a "Titles and default tags · n" `CardRow`
+  - The headcount note.
+  - A `CheckboxListTile`-free checkbox row "I have read the n credit changes. They move
+    CGPAs." that gates the `BottomAction` "Publish n changes".
+  - "Draft a change to a course" as an `OutlinedPill`.
+- **Tests**: `'publish waits for the credit-change checkbox'` (with the seeded CS F211
+  credits draft).
+- **Render test**: `m_publish`.
+
+**T8.4 · Open as + ViewAsDept + ViewAsCourse** (`open_as.dart`; §10.22, N17)
+- **Steps**:
+  1. Build the `RolePick` layout: the ink identity card, then five rows with
+     58-wide `TierTag`s, then an amber `Notice` and the footnote.
+  2. Add the routes `admin/open-as/department` and `admin/open-as/course` under `admin`
+     (no `_redirects` line). Two full pages follow the `ViewAsDept` / `ViewAsCourse`
+     boards:
+     - campus `ChoicePills(equal: true)`
+     - a searchable list of departments (ELEC as one entry "A3 · A8 · AA · AC", with
+       president counts) or of this term's offerings
+     - the last opened on top, stored in `deviceBox`
+  3. Remove the inline dropdown and course field.
+- **Tests**: `'President row opens the department picker'`; `'last opened sits on top'`
+  (unit test on the stored order).
+- **Render test**: `m_open_as`. Add `m_view_as_dept` and `m_view_as_course` rows.
+
+**T8.5 · Maintainers + Person** (`people.dart`; §10.3, N12)
+- **Steps**:
+  - `ChoicePills(equal: true)` filters.
+  - Grant blocks: `TierTag`, `ScopePills`, and expiry on the right; `NameEmail`; the
+    activity line.
+  - A grant expiring within 7 days is a `noticeTone` block with "EXPIRES IN n DAYS" on the
+    right and "Renewing is deliberate…".
+  - `BottomAction` "Appoint someone".
+  - Person: restyle with `CardRow`s and record a Departure until a board exists (§17).
+- **Tests**: `'expiring grant is amber'`, using the seed's CS president with 4 days left.
+- **Render tests**: `m_people`, `m_person`.
+
+**T8.6 · Appoint** (`grant_form.dart`; §10.4, N18)
+- **Steps**:
+  1. BITS STUDENT ADDRESS: a label-above field. Look up on change (debounced 400 ms)
+     instead of a "Look up" button.
+  2. On a hit: `ScopeChip(campus, icon: lock)` and `ScopeChip('Student · 2023')`, plus a
+     mint-wash "✓ Meera Iyer uses Pointer".
+  3. The rule text, with **Can not be found** in `#9A2F14`. Add a `behind` role variant if
+     needed.
+  4. The red-brown refusal box.
+  5. TIER: hugging pills, with Admin only for owners.
+  6. SCOPE · ONE PER GRANT: a select-style `CardRow` opening a sheet (not a Material
+     dropdown). APPOINTED FOR as equal 32 tall pills.
+  7. EXPIRES: "Full term · n" / "Earlier date", then the "Ends …" line.
+  8. `BottomAction(label: grantLabel(tier, scope, campus))`: "Grant" until an address
+     resolves.
+- **Tests**:
+  - `'grant button names the grant'` → 'Grant — president, ELEC Goa'.
+  - `'unknown address says Can not be found'`.
+- **Render tests**: `m_grant`, `m_grant_pres`.
+
+**T8.7 · Grant terms** (`TermsPage`; §10.5, N14)
+- **Steps**:
+  - Rows show a boxed number plus a unit. The CR row shows semesters, `(days / 182).round()`,
+    and − / + add ±182 days. President and admin rows show years with ±365 days.
+  - For an admin, the admin row is locked: a lock icon and "2 years" in a grey pill.
+  - The two rule chips, then a `Notice`.
+  - Each row uses `LabelRow` so it stacks at 2× text (N4).
+- **Tests**:
+  - `'CR term shows semesters'`: seed 183 days → '1' and 'semester'.
+  - `'admin cannot change the admin term'`: as admin, the admin row has no buttons.
+- **Render tests**: `m_terms`, `m_terms_admin`.
+
+**T8.8 · Public contact** (`PublicContactPage`; §10.6, N15; **ask the user first**)
+- **Steps**:
+  - A switch row "Show on empty pages" / "Off hides the whole block, everywhere." (themed
+    switch).
+  - NAME ON THE BUTTON field.
+  - HOW: equal pills WhatsApp / Phone / Email.
+  - The target field.
+  - "Last changed by <name> (role), n days ago."
+  - STUDENTS SEE: a dashed preview card with the "Message <name>" ink pill.
+  - `BottomAction` save, with its label per the user's answer.
+- **Tests**: `'preview names the contact'`.
+- **Render test**: `m_contact`.
+
+**T8.9 · Before you start, Work as** (`rep_profile.dart`, `role_switch_page.dart`; §10.19,
+§10.20, N26)
+- **Steps**:
+  - RepProfile follows its board:
+    - YOU'VE BEEN APPOINTED eyebrow and "Before you start" title
+    - an ink card with tier + scope chips and "Appointed by …"
+    - YOUR NAME and PHONE NUMBER · REQUIRED cards (label-above)
+    - SHOWN TO STUDENTS · AT LEAST ONE: themed switches BITS email / WhatsApp / Phone call
+    - an amber `Notice`
+    - `BottomAction` "Save and continue"
+    - Sign out as a text link in the header when forced
+  - Work as:
+    - "YOUR ROLES · GOA" / "Work as"
+    - rows: a `TierTag`, the title and "ELEC · A3 · until 27 Sep 2027" (`shortDay(year:
+      true)`)
+    - the current row gets a mint "✓ NOW" chip (N26), not an inverted card
+    - a mint-wash `Notice` and a "Your contact details" `CardRow`
+- **Tests**: `'current role shows NOW chip'`; `'expiry reads 27 Sep 2027'`.
+- **Render tests**: `m_rep_profile`, `m_role_switch`.
+
+**T8.10 · Audit log** (`AuditLogPage`; §10.8, N19)
+- **Steps**:
+  - `ScopePills` for a president.
+  - An "Anyone" actor select row, then a course filter shown as an ink chip with ✕ once set.
+  - Entries: `TierTag` + `NameEmail(shortEmail)`, what changed 13/600, before → after chips
+    when the entry has `before` / `after`, and `ago()`.
+- **Tests**: `'1 hour ago'` (T3.9); `'president sees their campus'`.
+- **Render tests**: `m_audit`, `m_audit_pres`.
+
+**T8.11 · Roster + Volunteers** (`roster.dart`, `volunteers.dart`; §10.16, N13)
+- **Steps**:
+  - `SegmentedTrack` "Maintainers" / "Volunteers · n".
+  - WHO APPOINTS · EVERY CAMPUS (owners from `owners()`, admins from grants, with
+    `staffPhones()`).
+  - Campus groups of grant blocks with a phone on the right.
+  - `ChoicePills(equal: true)` filters.
+  - `BottomAction` "Appoint a CR".
+  - Volunteers: grouped by course, with the clipboard icon button, "Appoint as CR" (ink
+    pill) and "Dismiss" (outlined).
+- **Tests**:
+  - `'volunteers tab counts offers'`: the seed has 2 on EEE F212 → 'Volunteers · 2'.
+  - `'/admin/roster/volunteers opens the tab'` (with T3.4).
+- **Render test**: `m_roster`. Add `m_roster_volunteers`, opened with
+  `RosterPage(initialVolunteers: true)`.
+
+**T8.12 · Merge duplicates** (`ProfessorMerge`; §10.7)
+- **Steps**:
+  - A president sees `ScopePills` and the professors directly. Owners and admins pick a
+    department with T8.4's picker, not a dropdown.
+  - Two radio rows with a KEEP tag.
+  - A mint AFTER card: "Ramesh Menon · n reviews" and "Also known as …".
+  - The rewrite sentence ("It rewrites n reviews and n offerings…").
+  - `BottomAction` "Merge into <name>".
+- **Tests**: `'merge names the survivor'`: the seed's p1 / p2 → 'Merge into Ramesh Menon'.
+- **Render tests**: `m_merge`, `m_merge_pres`.
+
+**T8.13 · Your department, Course structures, Reviews, Resources (+ Reported), Professors**
+(`maintain.dart`, `dept_reviews.dart`, `dept_resources.dart`, `professors.dart`;
+§10.11–10.15, N20–N23, N31–N33)
+- **Steps**:
+  1. **DeptHome**:
+     - scope chips including the term
+     - the sharing sentence
+     - five `CardRow`s with live subtitles and amber `CountBadge`s
+     - a separate "Hand over to your successor" card with an amber tile
+     - the ink THIS WEEK card: counts from `audit()`, grouped by you / other presidents /
+       CRs, with a mint "Audit log" link
+     - **Ask** about the Appoint a CR row
+  2. **DeptCourses**:
+     - a dashed mint drop zone
+     - a separate EXTRACTION PROMPT card with a 30 px ink Copy pill and a quoted preview
+       with Show
+     - `SearchBox` with a "No scheme" link
+     - course rows with 20 tall chips, and the leading icon removed
+  3. **DeptReviews** (N33, N10):
+     - a summary card
+     - equal tabs with counts "All n / Reported n / Hidden n"
+     - review cards: course chip, term chip, "n REPORTS", stars, TAKE IT tag, text,
+       "Anonymous to students · attributable to you", 32 tall Keep / Hide pills
+     - the amber Notice
+     - delete `m_dept_reviews` from `known`
+  4. **DeptResources** (N23, N31, N32):
+     - tabs as equal pills; Reported in `noticeTone` with a pulsing 7 px dot
+     - link rows; the rolled-up row on mint-wash with a ROLLED UP tag and an "Unpin" link
+     - the ink ROLLUP card
+     - `BottomAction` "Add a link"
+     - Reported: an amber header card, then per link the reason · count · origin and two
+       34 tall pills (Fix the link ink / It works · dismiss amber outline) in a `Wrap`, so
+       they never overflow
+     - delete `m_dept_resources` and `m_dept_reported` from `known`
+  5. **DeptProfessors**:
+     - `SearchBox` "Search n professors"
+     - rows with a graduation-cap tile and "CS F301, CS F372 · teaching now" or "… · last
+       taught <term>"
+     - an amber ⚠ `Notice`
+     - a mint Merge row
+     - WHO CAN CHANGE THIS card
+     - keep search-first (Departure)
+- **Tests**:
+  - `'reported tab counts reports'`: the seed has 2 reported → 'Reported 2'.
+  - `'Fix / dismiss fit at 320'`: covered by the render test.
+  - `'THIS WEEK counts CR edits'`.
+- **Render tests**: `m_dept_home`, `m_dept_courses`, `m_dept_reviews`,
+  `m_dept_resources`, `m_dept_reported`, `m_dept_profs`.
+
+**T8.14 · Hand over + Confirm** (`succession.dart`; §10.17, N24)
+- **Steps**:
+  - Step 1:
+    - eyebrow "STEP 1 OF 3 · GOA · A7" and the lead sentence
+    - THEIR BITS ADDRESS field with a debounced check line "✓ Goa address — 2024 batch"
+    - the same-campus rule
+    - WHAT HAPPENS: three numbered rows (mint, mint, ink discs)
+    - the amber cancel `Notice`
+    - `BottomAction` "Review the handover"
+  - Step 3:
+    - "STEP 3 OF 3" / "Confirm"
+    - HANDING OVER card (FROM → TO, "A7 Computer Science", "11 CRs move too")
+    - TYPE THE DEPARTMENT CODE TO CONFIRM field
+    - AFTER YOU CONFIRM list
+    - `BottomAction` "Hand A7 Goa to <id>", plus a "Not yet" text button
+- **Tests**:
+  - `'confirm needs the typed code'` (the button is disabled until "ELEC" is typed; this
+    already exists as S-tests; keep them green).
+  - `'timeline names the end date'`.
+- **Render tests**: `m_succession`, `m_succession_confirm`.
+
+**T8.15 · Course page (CR)** (`CrHome`, `scheme_editor.dart`; §10.18, N25)
+- **Steps**:
+  - TAKEN BY, THIS TERM: `LabelRow` with a "Change" link, and the professor row with a mint
+    cap tile.
+  - EVALUATION SCHEME rows: name, a weight pill, and "avg 12.4" mint or a dashed "no avg"
+    pill, from the seeded offering.
+  - The "100% assigned · …" note.
+  - COURSE AVERAGE card, if the user says yes (N25).
+  - COURSE RESOURCES: the pulsing amber "n LINK REPORTED · Open ›" row opening
+    `DeptResources(course:, initialTab: 2)`, IN DEPT tags, and a dashed "Pick from
+    department resources" button.
+- **Tests**: `'scheme shows averages'`: the seeded CS F372 offering → 'avg 12.4'.
+- **Render test**: `m_cr_home`.
 
 ### Group 9 · last pass
 
