@@ -8,6 +8,7 @@ abstract final class Routes {
   static const stats = '/stats';
   static const calendar = '/calendar';
   static const settings = '/settings';
+  static const resources = '/resources';
   static String course(String id) => '/course/${Uri.encodeComponent(id)}';
   static const roles = '/roles';
   static const welcome = '/welcome';
@@ -30,6 +31,8 @@ abstract final class Routes {
   static String dept(String campus, String dept) => '/maintain/$campus/$dept';
   static String deptCourses(String campus, String dept) =>
       '/maintain/$campus/$dept/courses';
+  static String deptResources(String campus, String dept) =>
+      '/maintain/$campus/$dept/resources';
   static String crCourse(String campus, String courseId) =>
       '/maintain/$campus/course/${Uri.encodeComponent(courseId)}';
 }
