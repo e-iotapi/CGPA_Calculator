@@ -32,6 +32,53 @@ class ProfessorStore {
       ..sort((a, b) => a.name.compareTo(b.name));
   }
 
+  /// Professors on [campus] whose name or an alias matches [query], merged
+  /// ones hidden. One indexed query on the most selective word, then every
+  /// word checked here.
+  Future<List<Professor>> search(
+    String campus,
+    String query, {
+    int limit = 20,
+  }) async {
+    final tokens = nameTokens(query);
+    if (tokens.isEmpty) return const [];
+    final key = tokens.reduce((a, b) => b.length > a.length ? b : a);
+    final q =
+        await _col
+            .where('campus', isEqualTo: campus)
+            .where('nameTokens', arrayContains: key)
+            .limit(limit)
+            .get();
+    final all = [for (final d in q.docs) Professor.fromMap(d.id, d.data())];
+    for (final p in all) {
+      _names[p.id] = p;
+    }
+    return all.where((p) => !p.merged && p.matches(query)).toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  /// Every course [p] (and anyone merged into them) is recorded as teaching
+  /// on [campus], with its terms, newest first.
+  Future<Map<String, List<String>>> taught(Professor p, String campus) async {
+    final q =
+        await db
+            .collectionGroup('offerings')
+            .where('campus', isEqualTo: campus)
+            .where('professors', arrayContainsAny: p.allIds.take(10).toList())
+            .get();
+    final out = <String, List<String>>{};
+    for (final d in q.docs) {
+      final m = d.data();
+      if (m['courseId'] case final String c) {
+        (out[c] ??= []).add(m['term'] as String? ?? '');
+      }
+    }
+    for (final l in out.values) {
+      l.sort((a, b) => b.compareTo(a));
+    }
+    return out;
+  }
+
   /// One professor, following a merge to the survivor; cached for the
   /// session.
   Future<Professor?> get(String id) async {

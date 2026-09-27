@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/professors/professor.dart';
+import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
+import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -35,13 +41,32 @@ class ReviewsHome extends StatefulWidget {
 class _ReviewsHomeState extends State<ReviewsHome> {
   late bool _yours = widget.yours;
   final _search = TextEditingController();
+  Timer? _debounce;
+  Future<List<Professor>>? _profs;
   ReviewOrder _order = ReviewOrder.recent;
   int _loads = 0;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  void _searchChanged(String campus) {
+    setState(() {});
+    _debounce?.cancel();
+    final q = _search.text.trim();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(
+        () =>
+            _profs =
+                q.length < 2
+                    ? null
+                    : ProfessorStore(roleStore!.db).search(campus, q),
+      );
+    });
   }
 
   Future<void> _open(String id) async {
@@ -177,12 +202,48 @@ class _ReviewsHomeState extends State<ReviewsHome> {
               const SizedBox(height: Space.sm),
               AppTextField(
                 controller: _search,
-                label: 'Course code or name',
+                label: 'Course or professor',
                 dense: true,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => _searchChanged(campus),
               ),
               const SizedBox(height: Space.sm),
-              if (found.isNotEmpty)
+              if (q.length >= 2 && _profs != null)
+                FutureBuilder<List<Professor>>(
+                  future: _profs,
+                  builder: (context, s) {
+                    final profs = s.data ?? const <Professor>[];
+                    if (profs.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SectionLabel('Professors'),
+                        RowGroup(
+                          children: [
+                            for (final pr in profs)
+                              NavRow(
+                                icon: Icons.school_outlined,
+                                title: pr.name,
+                                subtitle:
+                                    departments[pr.department]?.name ??
+                                    pr.department,
+                                onTap:
+                                    () => openRoute(
+                                      context,
+                                      Routes.professorReviews(pr.id),
+                                      () => ProfessorReviewsPage(
+                                        professorId: pr.id,
+                                      ),
+                                    ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: Space.sm),
+                      ],
+                    );
+                  },
+                ),
+              if (found.isNotEmpty) ...[
+                const SectionLabel('Courses'),
                 RowGroup(
                   children: [
                     for (final m in found)
@@ -192,8 +253,8 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                         onTap: () => _open(m.id),
                       ),
                   ],
-                )
-              else ...[
+                ),
+              ] else if (q.length < 2) ...[
                 if (now.isNotEmpty) ...[
                   const SectionLabel('Your courses this semester'),
                   RowGroup(

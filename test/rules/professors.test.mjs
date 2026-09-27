@@ -2,7 +2,7 @@
 // (ARCHITECTURE.md §10.1, §16.3 fix 7).
 import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, collectionGroup, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
 import { ADMIN, OTHER, PRES, STUDENT, as, days, name, seed, useEmulator } from './helpers.mjs';
 
 useEmulator();
@@ -77,5 +77,25 @@ describe('professors', () => {
     const a = audit(b, db, PRES, 'professors/p2');
     b.update(doc(db, 'professors', 'p2'), { name: 'Back', ...stamp(PRES, a) });
     await assertFails(b.commit());
+  });
+});
+
+describe('Reviews search by professor', () => {
+  test('names are searched on the reader\'s campus only', async () => {
+    const q = (db, campus) => query(collection(db, 'professors'),
+      where('campus', '==', campus), where('nameTokens', 'array-contains', 'men'));
+    await assertSucceeds(getDocs(q(as(STUDENT), 'goa')));
+    await assertFails(getDocs(q(as(OTHER), 'goa')));
+  });
+
+  test('the courses a professor taught, across courses, same campus', async () => {
+    await seed((db) => setDoc(doc(db, 'courses', 'EEE F211', 'offerings', 'goa_2025-26-1'), {
+      courseId: 'EEE F211', campus: 'goa', term: '2025-26-1', professors: ['p1'], components: [],
+    }));
+    const q = (db, campus) => query(collectionGroup(db, 'offerings'),
+      where('campus', '==', campus), where('professors', 'array-contains-any', ['p1']));
+    const r = await assertSucceeds(getDocs(q(as(STUDENT), 'goa')));
+    if (r.size !== 1) throw new Error(`expected 1 offering, got ${r.size}`);
+    await assertFails(getDocs(q(as(OTHER), 'goa')));
   });
 });

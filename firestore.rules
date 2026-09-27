@@ -468,6 +468,12 @@ service cloud.firestore {
 
     // Offerings: a course as taught on one campus in one term (§4, §10.1).
     // Read by that campus; written by whoever maintains it there, logged.
+    // The courses a professor teaches (Reviews search), across courses on
+    // the reader's own campus.
+    match /{path=**}/offerings/{offering} {
+      allow list: if mayUse() && resource.data.campus == campusOf(me());
+    }
+
     match /courses/{courseId}/offerings/{offering} {
       allow read: if mayUse()
         && (offering.split('_')[0] == campusOf(me()) || isOwner());

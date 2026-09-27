@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
+import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
@@ -67,11 +68,20 @@ final List<RouteBase> appRoutes = [
         path: 'reviews',
         builder: (_, _) => const ReviewsHome(),
         routes: [
+          // Before :courseId: no course code is "professor".
+          GoRoute(
+            path: 'professor/:id',
+            builder:
+                (_, s) =>
+                    ProfessorReviewsPage(professorId: s.pathParameters['id']!),
+          ),
           GoRoute(
             path: ':courseId',
             builder:
-                (_, s) =>
-                    CourseReviewsPage(courseId: s.pathParameters['courseId']!),
+                (_, s) => CourseReviewsPage(
+                  courseId: s.pathParameters['courseId']!,
+                  professorId: s.uri.queryParameters['professor'],
+                ),
           ),
         ],
       ),

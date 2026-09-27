@@ -12,8 +12,11 @@ abstract final class Routes {
   static const reviews = '/reviews';
   static const more = '/more';
   static const representatives = '/representatives';
-  static String courseReviews(String id) =>
-      '/reviews/${Uri.encodeComponent(id)}';
+  static String courseReviews(String id, {String? professor}) =>
+      '/reviews/${Uri.encodeComponent(id)}'
+      '${professor == null ? '' : '?professor=${Uri.encodeQueryComponent(professor)}'}';
+  static String professorReviews(String id) =>
+      '/reviews/professor/${Uri.encodeComponent(id)}';
   static String course(String id) => '/course/${Uri.encodeComponent(id)}';
   static const roles = '/roles';
   static const welcome = '/welcome';

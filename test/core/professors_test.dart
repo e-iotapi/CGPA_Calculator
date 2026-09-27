@@ -50,4 +50,52 @@ void main() {
     expect(renamed.id, keep.id);
     expect(renamed.aliases, containsAll(['Dr. R. Menon', 'Ramesh Menon']));
   });
+
+  test(
+    'Reviews search: by any word of a name, and the courses taught',
+    () async {
+      final db = FakeFirebaseFirestore();
+      final store = ProfessorStore(
+        db,
+        roles: RoleStore(db, me: 'p@goa.bits-pilani.ac.in', myName: 'P'),
+      );
+      final keep = await store.add('Ramesh Menon', 'goa', 'CS');
+      final gone = await store.add('Dr. R. Menon', 'goa', 'CS');
+      await store.add('Anita Iyer', 'goa', 'EEE');
+      await store.add('Ramesh Rao', 'pilani', 'CS');
+      await store.merge(keep, gone);
+
+      expect(
+        [for (final p in await store.search('goa', 'men')) p.name],
+        ['Ramesh Menon'],
+      );
+      expect(
+        [for (final p in await store.search('goa', 'ram')) p.name],
+        ['Ramesh Menon'],
+      );
+      expect(await store.search('goa', 'ramesh iyer'), isEmpty);
+      expect(await store.search('goa', ''), isEmpty);
+
+      Future<void> offer(String course, String term, List<String> profs) => db
+          .collection('courses')
+          .doc(course)
+          .collection('offerings')
+          .doc('goa_$term')
+          .set({
+            'courseId': course,
+            'campus': 'goa',
+            'term': term,
+            'professors': profs,
+          });
+      await offer('CS F211', '2025-26-1', [keep.id]);
+      await offer('CS F211', '2024-25-1', [gone.id]);
+      await offer('CS F301', '2025-26-2', [gone.id, 'other']);
+      await offer('CS F303', '2025-26-2', ['other']);
+
+      final survivor = (await store.get(keep.id))!;
+      final taught = await store.taught(survivor, 'goa');
+      expect(taught.keys.toSet(), {'CS F211', 'CS F301'});
+      expect(taught['CS F211'], ['2025-26-1', '2024-25-1']);
+    },
+  );
 }

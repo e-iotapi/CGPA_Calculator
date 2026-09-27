@@ -25,16 +25,24 @@ typedef _Meta =
 /// Board `Reviews`: one course on the student's campus, filtered by
 /// professor — by default whoever teaches it now (§10.3).
 class CourseReviewsPage extends StatefulWidget {
-  const CourseReviewsPage({super.key, required this.courseId});
+  const CourseReviewsPage({
+    super.key,
+    required this.courseId,
+    this.professorId,
+  });
   final String courseId;
+
+  /// Opened from a professor: filtered to them rather than to whoever
+  /// teaches it now.
+  final String? professorId;
 
   @override
   State<CourseReviewsPage> createState() => _CourseReviewsPageState();
 }
 
 class _CourseReviewsPageState extends State<CourseReviewsPage> {
-  String? _prof;
-  bool _picked = false;
+  late String? _prof = widget.professorId;
+  late bool _picked = widget.professorId != null;
   ReviewOrder _order = ReviewOrder.helpful;
   final _reviews = <Review>[];
   DocumentSnapshot? _last;
@@ -70,6 +78,15 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
         _names[id] = p.name;
         groups.putIfAbsent(p.id, () => (p, const ReviewStats()));
         break;
+      }
+    }
+    // Opened from a professor who has no reviews here yet.
+    if (_prof case final id? when !groups.containsKey(id)) {
+      final p = await profs.get(id);
+      if (p != null) {
+        _names[id] = p.name;
+        _prof = p.id;
+        groups.putIfAbsent(p.id, () => (p, const ReviewStats()));
       }
     }
     if (!_picked) _prof = now;
