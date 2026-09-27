@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
@@ -31,6 +32,7 @@ final List<RouteBase> appRoutes = [
       ),
       GoRoute(path: 'calendar', builder: (_, _) => const CalendarPage()),
       GoRoute(path: 'settings', builder: (_, _) => const SettingsPage()),
+      GoRoute(path: 'resources', builder: (_, _) => const ResourcesPage()),
       GoRoute(
         path: 'course/:id',
         // A link to a course this user does not hold goes Home.
@@ -90,6 +92,16 @@ final List<RouteBase> appRoutes = [
               ),
             ),
         routes: [
+          GoRoute(
+            path: 'resources',
+            builder:
+                (_, s) => _deferred(
+                  () => admin.DeptResources(
+                    campus: s.pathParameters['campus']!,
+                    dept: s.pathParameters['dept']!,
+                  ),
+                ),
+          ),
           GoRoute(
             path: 'courses',
             builder:

@@ -606,7 +606,13 @@ Each step ships on its own and is reversible.
    drafts; `core/catalog/publish.dart` applies them, diffs in CGPA terms and writes `v{n}` plus
    the marker. Screens: `DeptHome`, `DeptCourses`, `CrHome`, the scheme editor, the upload
    preview and `Publish`, all in `lib/admin/`.
-7. **Resources**, once editing and audit are proven on the catalogue.
+7. **Resources**, once editing and audit are proven on the catalogue. *Built:* `core/resources/`
+   holds the model, the host allowlist (the rules repeat it as a regex), address matching for
+   the rollup and a store that re-reads a department only when `resourceVersions/{campus}` has
+   moved. A CR links a department resource by adding their course to its `courseIds` — the same
+   document. Reports are `resourceReports/{id}/entries/{sha256(uid + id)}` plus the flag in the
+   same batch; `DeptResources` has Dept / By course / Reported (amber, pulsing while open), and
+   `CrHome` shows its course's links and reports. Students: `/resources`.
 8. **Class averages**, once publishing, the term/component scope and the override rule exist.
 9. **Professors** (§10.1). Before reviews, because a review filed against a typed name cannot
    be repaired later.

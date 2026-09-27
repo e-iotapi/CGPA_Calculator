@@ -344,6 +344,142 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- Resources (§6, §16.3 fixes 3 and 17) ---------------------------------
+
+    // https links to known hosts only, the same list as lib/core/resources.
+    function linkOk(url) {
+      return url is string && url.size() <= 500
+        && url.matches('^https://([a-z0-9-]+[.])*(drive[.]google[.]com|docs[.]google[.]com|sites[.]google[.]com|youtube[.]com|youtu[.]be|github[.]com|notion[.]site|onedrive[.]live[.]com|1drv[.]ms|sharepoint[.]com|dropbox[.]com)([/?#].*)?$');
+    }
+
+    function resourceOk(d) {
+      return d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && linkOk(d.url)
+        && d.scope in ['department', 'course']
+        && d.courseIds is list && d.courseIds.size() <= 20
+        && (d.scope == 'department'
+            || (d.courseIds.size() > 0 && deptOf(d.courseIds[0]) == d.department))
+        && d.removed is bool && d.pinnedToDepartment is bool;
+    }
+
+    function versionsPath(campus) {
+      return /databases/$(db)/documents/resourceVersions/$(campus);
+    }
+
+    // Every resource write moves the campus version in the same batch, so a
+    // cached department is re-read (§6).
+    function versionBumped(campus) {
+      return exists(versionsPath(campus))
+        ? getAfter(versionsPath(campus)).data.v == get(versionsPath(campus)).data.v + 1
+        : getAfter(versionsPath(campus)).data.v == 1;
+    }
+
+    // A CR acting for their course: it must be on the link, before or after.
+    function crOn(campus, a, before, after) {
+      return a is string && a != '' && (a in after || a in before)
+        && isCr(campus, a);
+    }
+
+    match /resources/{id} {
+      allow read: if mayUse()
+        && (resource.data.campus == campusOf(me()) || isOwner());
+      allow create: if mayUse()
+        && resourceOk(request.resource.data)
+        && (isOwner() || request.resource.data.campus == campusOf(me()))
+        && (isOwner()
+            || isPresident(request.resource.data.campus, request.resource.data.department)
+            || (request.resource.data.scope == 'course'
+                && request.resource.data.actingFor == request.resource.data.courseIds[0]
+                && crOn(request.resource.data.campus, request.resource.data.actingFor,
+                        [], request.resource.data.courseIds)))
+        && request.resource.data.addedBy.email == me()
+        && request.resource.data.addedAt == request.time
+        && audited('resources/' + id)
+        && versionBumped(request.resource.data.campus);
+      allow update: if mayUse()
+        && resourceOk(request.resource.data)
+        && request.resource.data.diff(resource.data).unchangedKeys()
+             .hasAll(['campus', 'department', 'scope', 'addedBy', 'addedAt'])
+        && (isOwner() || isPresident(resource.data.campus, resource.data.department)
+            || (crOn(resource.data.campus, request.resource.data.actingFor,
+                     resource.data.courseIds, request.resource.data.courseIds)
+                && ((resource.data.scope == 'course'
+                     && resource.data.courseIds[0] == request.resource.data.actingFor)
+                    || request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['courseIds', 'actingFor', 'auditId']))))
+        && audited('resources/' + id)
+        && versionBumped(resource.data.campus);
+      allow delete: if false;
+    }
+
+    match /resourceVersions/{campus} {
+      allow read: if mayUse();
+      allow create: if mayUse() && request.resource.data.keys().hasOnly(['v'])
+        && request.resource.data.v == 1;
+      allow update: if mayUse() && request.resource.data.keys().hasOnly(['v'])
+        && request.resource.data.v == resource.data.v + 1;
+      allow delete: if false;
+    }
+
+    // Reports: one per person per link, id sha256(uid + resourceId), no uid
+    // stored. Nobody reads entries back; the flag carries the counts.
+    function reportPath(rid) {
+      return /databases/$(db)/documents/resourceReports/$(rid)/entries/$(
+        hashing.sha256(request.auth.uid + rid).toHexString().lower());
+    }
+
+    match /resourceReports/{rid}/entries/{entry} {
+      allow create: if isBits()
+        && entry == hashing.sha256(request.auth.uid + rid).toHexString().lower()
+        && request.resource.data.keys().hasOnly(['reason', 'note', 'campus', 'createdAt'])
+        && request.resource.data.reason in ['broken', 'wrong', 'spam', 'other']
+        && request.resource.data.get('note', '').size() <= 300
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(db)/documents/resourceFlags/$(rid)).data.lastAt == request.time;
+      allow read, update, delete: if false;
+    }
+
+    // The staff index is trusted for reads (§4): who may see a link's reports.
+    function readsFlags(d) {
+      let s = get(staffPath(me())).data;
+      return isOwner() || (s.campus == d.campus && request.time < s.expiresAt
+        && (d.department in s.presidentOf || d.courseIds.hasAny(s.courses)));
+    }
+
+    match /resourceFlags/{rid} {
+      // Anyone on the campus may see a link's count (to report it); the
+      // lists are for the people who can fix it.
+      allow get: if mayUse()
+        && (resource == null || resource.data.campus == campusOf(me()) || readsFlags(resource.data));
+      allow list: if mayUse() && readsFlags(resource.data);
+      // A new report: its entry lands in the same batch, and the count moves
+      // by exactly one.
+      allow create, update: if isBits()
+        && existsAfter(reportPath(rid)) && !exists(reportPath(rid))
+        && request.resource.data.keys().hasOnly(['campus', 'department',
+             'courseIds', 'open', 'count', 'reasons', 'lastAt', 'auditId'])
+        && request.resource.data.open == true
+        && request.resource.data.count
+             == (resource == null ? 0 : resource.data.count) + 1
+        && request.resource.data.lastAt == request.time
+        && request.resource.data.campus == campusOf(me())
+        && get(/databases/$(db)/documents/resources/$(rid)).data.campus == campusOf(me())
+        && request.resource.data.department
+             == get(/databases/$(db)/documents/resources/$(rid)).data.department;
+      // Closing: It works · dismiss, or Fix the link with the resource edit.
+      allow update: if mayUse()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['open', 'auditId'])
+        && request.resource.data.open == false
+        && (isOwner() || isPresident(resource.data.campus, resource.data.department)
+            || (resource.data.courseIds.size() > 0
+                && isCr(resource.data.campus, resource.data.courseIds[0])))
+        && (audited('resourceFlags/' + rid)
+            || getAfter(/databases/$(db)/documents/resources/$(rid)).data.auditId
+                 == request.resource.data.auditId);
+      allow delete: if false;
+    }
+
     // ---- The user's own data -----------------------------------------------
 
     match /users/{uid} {

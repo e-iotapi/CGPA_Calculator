@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/admin/bulk_upload.dart';
+import 'package:cgpa_calculator/admin/dept_resources.dart';
 import 'package:cgpa_calculator/admin/scheme_editor.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
@@ -117,6 +118,12 @@ class DeptHome extends StatelessWidget {
                     await context.push(Routes.deptCourses(campus, dept));
                     reload();
                   },
+                ),
+                NavRow(
+                  icon: Icons.link_rounded,
+                  title: 'Resources',
+                  subtitle: 'Department and course links, and reports',
+                  onTap: () => context.push(Routes.deptResources(campus, dept)),
                 ),
                 NavRow(
                   icon: Icons.badge_outlined,
@@ -510,6 +517,8 @@ class CrHome extends StatelessWidget {
                 style: TypeScale.caption.copyWith(color: p.textMuted),
               ),
             ],
+            const SizedBox(height: Space.md),
+            CourseResources(campus: campus, courseId: courseId),
           ],
         );
       },

@@ -4,6 +4,7 @@ library;
 
 export 'package:cgpa_calculator/admin/admin_home.dart';
 export 'package:cgpa_calculator/admin/config_pages.dart';
+export 'package:cgpa_calculator/admin/dept_resources.dart';
 export 'package:cgpa_calculator/admin/grant_form.dart';
 export 'package:cgpa_calculator/admin/maintain.dart';
 export 'package:cgpa_calculator/admin/open_as.dart';
