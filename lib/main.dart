@@ -100,7 +100,10 @@ Future<void> startApp(User user) async {
   stripNavigate = appRouter.go;
   restoreMyRoles();
   final email = user.email;
-  if (email != null && isBitsAddress(email)) {
+  // startApp only ever runs once mayUseApp(user) was true, i.e. a BITS
+  // address or an owner (auth_util.dart) — never neither, so roleStore
+  // covers a non-BITS owner too. Only recordSignIn below needs a campus.
+  if (email != null) {
     final store = roleStore = RoleStore(
       FirebaseFirestore.instance,
       me: email,
