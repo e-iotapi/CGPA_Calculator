@@ -203,6 +203,21 @@ class ContactStore {
     await b.commit();
   }
 
+  /// Every staff phone number, by address: the roster shows them to other
+  /// privileged roles (fix 8). Empty for anyone the rules keep out.
+  Future<Map<String, String>> staffPhones() async {
+    try {
+      final q = await db.collection('staffContacts').get();
+      return {
+        for (final d in q.docs)
+          if (d.data()['phone'] case final String p) d.id: p,
+      };
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') return const {};
+      rethrow;
+    }
+  }
+
   /// Every president and CR listed on [campus].
   Future<List<DirectoryEntry>> directory(String campus) async {
     final q =

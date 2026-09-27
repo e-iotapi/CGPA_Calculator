@@ -78,6 +78,7 @@ void main() {
       expect(d.summary, 'WhatsApp');
       expect(d.name, 'P');
       expect(await store.profileDue(r), isFalse);
+    expect(await store.staffPhones(), {pres: '+91 98765 43210'});
       expect(
         (await store.directory('goa')).single.liveAt(DateTime(2026)),
         hasLength(1),

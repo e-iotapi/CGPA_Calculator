@@ -652,7 +652,8 @@ Each step ships on its own and is reversible.
     messages verbatim and *Appoint as CR* closing the course's offers in the grant's batch.
     `More` is the bottom bar's fifth item. Not built: notifying both parties and the owners of
     a handover (the audit log has it); the rules cannot check that a course has no live CR when
-    someone volunteers; the roster does not yet show staff phone numbers.
+    someone volunteers (a CR who exists but is not in the app is the president's to fix). The
+    roster shows each maintainer's staff phone beside their appointment, or *No phone yet*.
 
 Step 2 before step 3: prove the new read path against unchanged data before changing the data.
 Step 4 before step 6: have the divergence machinery working before shared data can change.
