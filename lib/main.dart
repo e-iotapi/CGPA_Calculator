@@ -6,10 +6,10 @@ import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
+import 'package:cgpa_calculator/core/reviews/review_store.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
-import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cgpa_calculator/auth_util.dart';
@@ -85,7 +85,8 @@ Future<void> startApp(User user) async {
   // one follows.
   await openDeviceBox();
   await openResources();
-  resourceUid = user.uid;
+  await openReviews();
+  myUid = user.uid;
   stripNavigate = appRouter.go;
   restoreMyRoles();
   final email = user.email;

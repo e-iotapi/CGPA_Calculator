@@ -627,7 +627,16 @@ Each step ships on its own and is reversible.
    audit entry. `DeptProfessors` makes search come before Add and flags likely duplicates;
    `ProfessorMerge` is reached from there and from `/admin`; a CR picks up to two on `CrHome`;
    Marks shows a read-only *Taken by* row.
-10. **Reviews** (§10.3), with the counters and the composite indexes from the start.
+10. **Reviews** (§10.3), with the counters and the composite indexes from the start. *Built:*
+    `core/reviews/` — one review per student per course, its id `sha256(uid + courseId)` so it
+    carries no name and the rules can check ownership; every post, edit, delete, hide and unhide
+    moves the course and professor counters in the same batch, and the rules check the delta.
+    Helpful and Report are once per person (hashed subcollection ids). Term and professor come
+    from the student's grades and that term's offering (fix 5). `/reviews` searches any course
+    and lists yours (fix 4, ids kept in `settingsBox`); `/reviews/:course` filters by professor,
+    merged duplicates counted as their survivor, defaulting to whoever teaches it now.
+    `DeptReviews` is hide-only with a reason, audited. Search is by course, not yet by
+    professor name; a deleted review's vote documents are left behind.
 11. **Succession, Representatives, the More hub.** Last: they are the surface over everything
     above.
 

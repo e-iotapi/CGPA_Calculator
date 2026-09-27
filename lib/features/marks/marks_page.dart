@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
@@ -6,6 +7,7 @@ import 'package:cgpa_calculator/core/grading/official_scheme.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/core/storage/overrides.dart';
@@ -17,6 +19,7 @@ import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/marks/widgets/average_sources.dart';
 import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
 import 'package:cgpa_calculator/features/marks/widgets/taken_by.dart';
+import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/marks/widgets/evaluative_card.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -192,7 +195,18 @@ class _MarksPageState extends State<MarksPage> {
             when off != null ||
                 c.grade1 == GradeCode.ongoing ||
                 c.grade1 == GradeCode.clr)
-          TakenByRow(term: term, professorIds: off?.professors ?? const []),
+          TakenByRow(
+            term: term,
+            professorIds: off?.professors ?? const [],
+            onReviews:
+                roleStore == null
+                    ? null
+                    : () => openRoute(
+                      context,
+                      Routes.courseReviews(c.id),
+                      () => CourseReviewsPage(courseId: c.id),
+                    ),
+          ),
         _Total(
           s: s,
           grade: grade,

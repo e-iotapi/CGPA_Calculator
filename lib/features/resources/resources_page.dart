@@ -15,11 +15,8 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// The signed-in student's uid, for pseudonymous reports; set at startup.
-String? resourceUid;
-
 ResourceStore? get resourceStore => switch (roleStore) {
-  final r? => ResourceStore(r, uid: resourceUid),
+  final r? => ResourceStore(r, uid: myUid),
   null => null,
 };
 

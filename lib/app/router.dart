@@ -7,6 +7,8 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
+import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
+import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
@@ -33,6 +35,18 @@ final List<RouteBase> appRoutes = [
       GoRoute(path: 'calendar', builder: (_, _) => const CalendarPage()),
       GoRoute(path: 'settings', builder: (_, _) => const SettingsPage()),
       GoRoute(path: 'resources', builder: (_, _) => const ResourcesPage()),
+      GoRoute(
+        path: 'reviews',
+        builder: (_, _) => const ReviewsHome(),
+        routes: [
+          GoRoute(
+            path: ':courseId',
+            builder:
+                (_, s) =>
+                    CourseReviewsPage(courseId: s.pathParameters['courseId']!),
+          ),
+        ],
+      ),
       GoRoute(
         path: 'course/:id',
         // A link to a course this user does not hold goes Home.
@@ -98,6 +112,16 @@ final List<RouteBase> appRoutes = [
             builder:
                 (_, s) => _deferred(
                   () => admin.DeptProfessors(
+                    campus: s.pathParameters['campus']!,
+                    dept: s.pathParameters['dept']!,
+                  ),
+                ),
+          ),
+          GoRoute(
+            path: 'reviews',
+            builder:
+                (_, s) => _deferred(
+                  () => admin.DeptReviews(
                     campus: s.pathParameters['campus']!,
                     dept: s.pathParameters['dept']!,
                   ),
