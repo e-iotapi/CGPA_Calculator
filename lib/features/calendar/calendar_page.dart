@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
@@ -47,9 +48,7 @@ class _CalendarPageState extends State<CalendarPage> {
   Future<void> _openCourse(String id) async {
     final c = allCourses().where((c) => c.id == id).firstOrNull;
     if (c == null) return;
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => MarksPage(course: c)));
+    await openRoute(context, Routes.course(id), () => MarksPage(course: c));
     if (mounted) setState(() {});
   }
 

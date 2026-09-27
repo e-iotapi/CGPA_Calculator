@@ -39,12 +39,6 @@ void main() {
       ));
     });
 
-    test('batch clears only across 2025', () {
-      expect(batchErase(24, 25, 0), 1);
-      expect(batchErase(22, 24, 0), 0);
-      expect(batchErase(26, 25, 0), 0);
-    });
-
     test('profile names: empty falls back, nine letters at most', () {
       expect(profileName('  ', 'Profile 1'), 'Profile 1');
       expect(profileName('Optimistic', 'Profile 1'), 'Optimisti');
@@ -77,7 +71,6 @@ void main() {
       ],
       onClose: () => taps.add('close'),
       onPickDiscipline: (d) => taps.add(d ? 'dual' : 'discipline'),
-      onPickBatch: () => taps.add('batch'),
       onTheme: (d) => taps.add('theme $d'),
       onRenameProfile: (i) => taps.add('profile $i'),
       onExport: () => taps.add('export'),
@@ -90,7 +83,6 @@ void main() {
       onGithub: () => taps.add('github'),
       onInstall: () => taps.add('install'),
       campus: 'Goa',
-      onPickCampus: () => taps.add('campus'),
     );
 
     Future<void> pump(Size size, {double scale = 1, bool dark = false}) async {
@@ -130,6 +122,20 @@ void main() {
     expect(find.text('M.Sc. Economics (B3)'), findsOneWidget);
     expect(find.text('Goa'), findsOneWidget);
     expect(find.text('2024'), findsOneWidget);
+    // Campus and batch are final: shown, never offered as a control.
+    for (final label in ['Campus', 'Batch']) {
+      final row = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(Row),
+      );
+      expect(
+        find.descendant(of: row, matching: find.byIcon(Icons.chevron_right_rounded)),
+        findsNothing,
+        reason: label,
+      );
+      expect(find.ancestor(of: find.text(label), matching: find.byType(InkWell)),
+          findsNothing, reason: label);
+    }
     await t.tap(find.text('Discipline'));
     await t.tap(find.text('Dark'));
     await t.tap(find.text('Profile 2'));

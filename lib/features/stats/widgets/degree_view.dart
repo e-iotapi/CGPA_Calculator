@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/stats/stats_controller.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
+import 'package:cgpa_calculator/shared/widgets/retired_tag.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:flutter/material.dart';
@@ -491,6 +492,10 @@ class _Members extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (isRetired(c.id)) ...[
+                  const SizedBox(width: 6),
+                  const RetiredTag(),
+                ],
                 const SizedBox(width: Space.sm),
                 Text(
                   '${spilled.contains(c) ? '${_extra(c)} · ' : ''}'

@@ -1,8 +1,11 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
-import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/roles/rep_profile.dart';
+import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
@@ -22,6 +25,14 @@ class SettingsPage extends StatefulWidget {
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
+}
+
+/// Signs out, clears this device's copy and starts over.
+Future<void> signOut() async {
+  await Sync.stop();
+  await FirebaseAuth.instance.signOut();
+  await Sync.clearLocal();
+  reloadPage();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
@@ -46,9 +57,7 @@ class _SettingsPageState extends State<SettingsPage> {
               profiles: profileNames,
               onClose: () => Navigator.of(context).maybePop(),
               onPickDiscipline: (dual) => _pickDiscipline(context, dual),
-              onPickBatch: () => _pickBatch(context),
               campus: campus?.label,
-              onPickCampus: () => _pickCampus(context),
               onTheme: _setTheme,
               onRenameProfile: (i) => _renameProfile(context, i),
               onExport: () => _exportCsv(context),
@@ -67,6 +76,34 @@ class _SettingsPageState extends State<SettingsPage> {
                     Uri.parse('https://github.com/e-iotapi'),
                     mode: LaunchMode.externalApplication,
                   ),
+              // Your roles (ARCHITECTURE.md §16.4): owners and live grants.
+              workingAs: myRoles.value.owner
+                  ? (viewAs.value?.label ?? 'Owner')
+                  : roleLabel(workingAs.value),
+              onWorkingAs: myRoles.value.privileged
+                  ? () async {
+                      await openRoute(
+                        context,
+                        myRoles.value.owner ? Routes.openAs : Routes.roles,
+                        () => const RoleSwitchPage(),
+                      );
+                      if (mounted) setState(() {});
+                    }
+                  : null,
+              contactSummary: myContactSummary.value ?? 'Not set',
+              onContact: myRoles.value.privileged
+                  ? () async {
+                      await openRoute(
+                        context,
+                        Routes.welcome,
+                        () => const RepProfilePage(),
+                      );
+                      if (mounted) setState(() {});
+                    }
+                  : null,
+              onControls: myRoles.value.reachesAdmin
+                  ? () => openRoute(context, Routes.admin, () => const SizedBox())
+                  : null,
             ),
       ),
     );
@@ -183,35 +220,6 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
-  Future<void> _pickBatch(BuildContext context) async {
-    final v = await _pick(context, 'Batch', [
-      for (final y in batchOptions(DateTime.now()).reversed)
-        (y, '20${y.toString().padLeft(2, '0')}'),
-    ], batch);
-    if (v == null || v == batch || !context.mounted) return;
-    final next = batchErase(batch, v, erase);
-    if (next == 1 &&
-        erase != 1 &&
-        !await _confirm(context, 'Change batch?', eraseWarning(1)!, 'Change')) {
-      return;
-    }
-    erase = next;
-    batch = v;
-    await setdis();
-    await initializeCourses();
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _pickCampus(BuildContext context) async {
-    final v = await _pick(context, 'Campus', [
-      for (final c in Campus.values) (c, c.label),
-    ], campus);
-    if (v == null || v == campus || !context.mounted) return;
-    campus = v;
-    await setdis();
-    if (mounted) setState(() {});
-  }
-
   Future<void> _install(BuildContext context) => offerInstall(context);
 
   Future<void> _setTheme(bool dark) => switchTheme(
@@ -280,12 +288,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (context.mounted) _toast(context, 'Courses reset.');
   }
 
-  Future<void> _signOut() async {
-    await Sync.stop();
-    await FirebaseAuth.instance.signOut();
-    await Sync.clearLocal();
-    reloadPage();
-  }
+  Future<void> _signOut() => signOut();
 
   void _toast(BuildContext context, String msg) {
     ScaffoldMessenger.of(context).showSnackBar(

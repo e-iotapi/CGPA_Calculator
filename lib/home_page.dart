@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/core/grading/minor_progress.dart';
 import 'package:cgpa_calculator/core/storage/minor.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
@@ -6,6 +7,7 @@ import 'package:cgpa_calculator/core/storage/course_order.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/offshoot/minor_panel.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
@@ -98,6 +100,11 @@ class _MyHomePageState extends State<MyHomePage> {
         child: ResponsiveScaffold(
           selectedIndex: selectedprofile - 1,
           onSelected: (index) {
+            // More is a hub above the profiles, not a fifth profile.
+            if (index == 4) {
+              openRoute(context, Routes.more, () => const MorePage());
+              return;
+            }
             setState(() {
               if (index + 1 > selectedprofile) {
                 _isrightswipe = true;
@@ -122,6 +129,7 @@ class _MyHomePageState extends State<MyHomePage> {
               icon: Icons.workspace_premium_outlined,
               label: 'Offshoot',
             ),
+            const NavDestination(icon: Icons.more_horiz_rounded, label: 'More'),
           ],
           body: LayoutBuilder(
             builder: (context, c) {
@@ -332,10 +340,11 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           }
         }
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => MarksPage(course: c, onEditCourse: edit),
-          ),
+        await openRoute(
+          context,
+          Routes.course(c.id),
+          () => MarksPage(course: c, onEditCourse: edit),
+          extra: edit,
         );
         if (mounted) setState(() {});
       },
@@ -358,13 +367,13 @@ class _MyHomePageState extends State<MyHomePage> {
             selectedprofile = next;
           }),
       onOpenAnalytics:
-          () => Navigator.of(
+          () => openRoute(
             context,
-          ).push(MaterialPageRoute(builder: (context) => StatsPage(discipline: selecteddiscipline))),
+            Routes.stats,
+            () => StatsPage(discipline: selecteddiscipline),
+          ),
       onOpenCalendar: () async {
-        await Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => const CalendarPage()));
+        await openRoute(context, Routes.calendar, () => const CalendarPage());
         if (mounted) setState(() {});
       },
       onOpenSettings: _openSettings,
@@ -413,8 +422,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _openSettings() async {
     erase = 0;
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (context) => const SettingsPage()))
+    await openRoute(context, Routes.settings, () => const SettingsPage())
         .then((value) async {
           selected_theme = selected_theme;
           thm = AppPalette.byName(selected_theme);

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/marks.dart';
+import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -110,7 +111,7 @@ void main() {
     test('running total is the sum of the components, over 45 graded', () {
       final s = MarksSummary(_sheet, null);
       expect(s.gradedWeight, 45);
-      // 6 + 14 + 2.76 + 2.60. PLAN.md says 11.36, which leaves out Kernel.
+      // 6 + 14 + 2.76 + 2.60. 11.36 would leave out Kernel.
       expect(s.secured.toStringAsFixed(2), '25.36');
       expect(contribution(_single('Mid Semester', 25)), isNull);
     });
@@ -392,7 +393,8 @@ void main() {
       final fields = find.byType(TextField);
       await t.enterText(fields.at(0), 'Quiz');
       await t.enterText(fields.at(1), '10');
-      await t.enterText(fields.at(3), '20');
+      // Name, weight, class average, marks, out of.
+      await t.enterText(fields.at(4), '20');
       await t.pump();
       expect(
         find.text('Give it a date to see it on the calendar.'),
@@ -525,7 +527,7 @@ void main() {
         }
       }
     });
-    testWidgets('averages live on the Marks page; duplicate copies a card', (
+    testWidgets('Marks shows official averages; the rest are one tap away', (
       t,
     ) async {
       await t.runAsync(() async {
@@ -540,11 +542,19 @@ void main() {
         await saveConfig(CourseConfig(courseId: 'CS F372', classAverage: 5));
       });
       await pump(t, MarksPage(course: _os), const Size(390, 844));
-      expect(find.text('Course average'), findsOneWidget);
-      expect(find.text('Component average'), findsOneWidget);
-      // Derived from the parts, shown as the hint and marked as such.
-      expect(find.text('from parts'), findsOneWidget);
+      // Nothing published: unlabelled, and no typed or derived figure here.
+      expect(find.text('no class avg yet'), findsNWidgets(2));
+      expect(find.text('Course average'), findsNothing);
+      // The comparison still uses the average in play, from the parts.
       expect(find.text('2.00 ahead'), findsOneWidget);
+
+      await t.tap(find.text('Averages'));
+      await t.pumpAndSettle();
+      // The course average and both part averages were typed.
+      expect(find.text('You typed this'), findsNWidgets(3));
+      expect(find.text('Worked out from the 2 part averages'), findsOneWidget);
+      await t.pageBack();
+      await t.pumpAndSettle();
 
       await t.runAsync(() async {
         await t.tap(find.byTooltip('Duplicate Quiz 1'));
@@ -557,6 +567,37 @@ void main() {
 
       await pump(t, CourseSetupPage(course: _os), const Size(390, 844));
       expect(find.text('Class average'), findsNothing);
+    });
+
+    testWidgets('a retired course says so on its Marks page', (t) async {
+      await loadAppFonts();
+      retiredCourses.add('CS F372');
+      addTearDown(retiredCourses.clear);
+      for (final dark in [false, true]) {
+        await pump(
+          t,
+          RepaintBoundary(
+            child: Theme(
+              data: (dark ? AppPalette.dark : AppPalette.light).materialTheme,
+              child: MarksPage(course: _os),
+            ),
+          ),
+          const Size(390, 844),
+        );
+        expect(find.text('Retired'), findsOneWidget);
+        expect(find.textContaining('still counts'), findsOneWidget);
+        final shots = Platform.environment['SHOTS_DIR'];
+        if (shots == null) continue;
+        await t.runAsync(() async {
+          final img = await captureImage(
+            t.element(find.byType(RepaintBoundary).first),
+          );
+          final png = await img.toByteData(format: ui.ImageByteFormat.png);
+          File(
+            '$shots/retired_marks_${dark ? 'dark' : 'light'}.png',
+          ).writeAsBytesSync(png!.buffer.asUint8List());
+        });
+      }
     });
   });
 

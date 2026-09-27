@@ -2,13 +2,13 @@
 /// Pure: [initializeCourses] applies the plan.
 library;
 
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/course.dart';
 
 /// The chart rows for a batch. The Goa and Hyderabad charts are one list;
 /// 2025 onwards follow the current first-year scheme.
-List<Course> chartRows(int batch) =>
-    batch < 25 ? hydCourseList : hydCourseListNew;
+List<Course> chartRows(int batch) => catalog.chart(batch);
 
 /// Duals whose M.Sc. half already teaches these B.E. courses, so they are not
 /// seeded a second time.

@@ -29,10 +29,6 @@ DisciplineChange changeDiscipline(
   );
 }
 
-/// Crossing the 2025 line swaps the course list, so grades are cleared.
-int batchErase(int from, int to, int erase) =>
-    (from < 25) != (to < 25) ? 1 : erase;
-
 /// Empty falls back to the default name; longer than nine is cut.
 String profileName(String text, String fallback) {
   final t = text.trim();
@@ -62,11 +58,6 @@ String disciplineLabel(String half, {required bool dual}) =>
     disciplineOptions(
       dual: dual,
     ).firstWhere((o) => o.$1 == half, orElse: () => (half, half)).$2;
-
-/// Stored as two digits.
-List<int> batchOptions(DateTime now) => [
-  for (var y = 18; y <= now.year % 100 + 1; y++) y,
-];
 
 /// What a change will do, for the confirmation; null when grades stay.
 String? eraseWarning(int erase) => switch (erase) {

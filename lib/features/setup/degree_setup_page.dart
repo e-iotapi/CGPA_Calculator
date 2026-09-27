@@ -49,8 +49,10 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     text: _address.year?.toString() ?? '',
   );
 
-  /// Change was pressed, or the address left something out.
-  late bool _editing = _campus == null || _address.year == null;
+  /// Campus and batch are final once read from the address (ARCHITECTURE.md
+  /// §11); they are asked only when the address has neither, as an owner's
+  /// non-BITS account does.
+  late final bool _asks = _campus == null || _address.year == null;
 
   var _dual = false;
   String? _first, _second;
@@ -117,8 +119,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                       ? null
                       : '${_count(options.length)} run at ${_campus!.label}. '
                           '${elsewhere.map((p) => '${p.code} ${p.name}').join(', ')} '
-                          '${elsewhere.length == 1 ? 'is' : 'are'} elsewhere — '
-                          'change campus to see ${elsewhere.length == 1 ? 'it' : 'them'}.',
+                          '${elsewhere.length == 1 ? 'runs' : 'run'} elsewhere.',
             ),
       ),
     );
@@ -223,32 +224,9 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                 ),
                 const SizedBox(height: Space.md),
                 card([
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.email == null
-                              ? 'CAMPUS AND BATCH'
-                              : 'FROM YOUR SIGN-IN',
-                          style: label,
-                        ),
-                      ),
-                      if (!_editing)
-                        TextButton(
-                          onPressed: () => setState(() => _editing = true),
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(44, 32),
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                          ),
-                          child: Text(
-                            'Change',
-                            style: TypeScale.button.copyWith(
-                              fontSize: 12,
-                              color: p.text,
-                            ),
-                          ),
-                        ),
-                    ],
+                  Text(
+                    _asks ? 'CAMPUS AND BATCH' : 'FROM YOUR SIGN-IN',
+                    style: label,
                   ),
                   if (widget.email != null)
                     Text(
@@ -257,7 +235,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                       style: body.copyWith(color: p.text),
                     ),
                   const SizedBox(height: Space.sm),
-                  if (!_editing)
+                  if (!_asks)
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,

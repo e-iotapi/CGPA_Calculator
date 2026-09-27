@@ -57,7 +57,9 @@ class DefaultFirebaseOptions {
     appId: '1:58021557107:web:06ac1c3f63c3d290984b06',
     messagingSenderId: '58021557107',
     projectId: 'cgpa-calculator-fb90c',
-    authDomain: 'cgpa-calculator-fb90c.firebaseapp.com',
+    // The site serves Firebase's auth helper itself (landing/__/auth/), so
+    // sign-in stays first-party: Safari's storage rules break it otherwise.
+    authDomain: 'pointer-bits-pilani.pages.dev',
     storageBucket: 'cgpa-calculator-fb90c.firebasestorage.app',
     measurementId: 'G-T4151XF1CT',
   );
