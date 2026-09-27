@@ -18,6 +18,11 @@ class Sync {
     'offshootBox',
     'marksBox',
   ];
+  /// The boxes mirrored into users/{uid}. Caches of shared data never
+  /// belong here (core/storage/cache_boxes.dart).
+  @visibleForTesting
+  static List<String> get syncedBoxes => _boxes;
+
   static late Box _meta; // uid, rev, last (last synced snapshot), backup
   static late DocumentReference<Map<String, dynamic>> _doc;
   static Timer? _debounce;
