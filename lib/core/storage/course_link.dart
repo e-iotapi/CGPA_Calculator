@@ -1,11 +1,14 @@
 /// How a stored course is written to users/{uid}: linked to the catalogue by
 /// id, or whole as a custom entry (ARCHITECTURE.md §2, §5; step 3 of §9).
 ///
-/// A course whose title and credits are the catalogue's is stored as its id,
-/// semester, category and grades only; its title and credits are read from
-/// the catalogue when it is loaded, so a published credit correction reaches
-/// it. Anything else — a course the catalogue lacks, or one whose title or
-/// credits differ — keeps those fields, and nothing published changes them.
+/// A course whose title and credits are the catalogue's is marked `linked`;
+/// its title and credits are read from the catalogue when it is loaded, so a
+/// published credit correction reaches it. Anything else — a course the
+/// catalogue lacks, or one whose title or credits differ — is read as
+/// stored, and nothing published changes it.
+///
+/// Title and credits are written either way: an older app still open on
+/// some device reads every entry whole, and would fail on one without them.
 library;
 
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
@@ -29,14 +32,16 @@ final _identities = PerCatalog((c) {
   return out;
 });
 
-/// [c] as a users/{uid} entry. Title and credits are left out when they are
-/// the catalogue's.
+/// [c] as a users/{uid} entry, `linked` when its title and credits are the
+/// catalogue's.
 Map<String, dynamic> encodeCourse(Course c) {
-  final linked = catalogIdentity(c.id);
+  final identity = catalogIdentity(c.id);
   return {
     'id': c.id,
-    if (linked?.title != c.title) 'title': c.title,
-    if (linked?.credits != c.credits) 'credits': c.credits,
+    'title': c.title,
+    'credits': c.credits,
+    if (identity?.title == c.title && identity?.credits == c.credits)
+      'linked': true,
     'grade1': c.grade1,
     'grade2': c.grade2,
     'discipline': c.discipline,
@@ -47,14 +52,24 @@ Map<String, dynamic> encodeCourse(Course c) {
   };
 }
 
-/// A users/{uid} entry as a course; reads the older whole entries too.
+/// A users/{uid} entry as a course. Reads every earlier shape: whole
+/// entries, and linked ones written without title or credits.
 Course decodeCourse(Map m) {
   final id = m['id'] as String;
-  final linked = catalogIdentity(id);
+  final identity = catalogIdentity(id);
+  final linked = m['linked'] == true || !m.containsKey('title');
   return Course(
-    title: m['title'] as String? ?? linked?.title ?? id,
+    title:
+        (linked ? identity?.title : null) ??
+        m['title'] as String? ??
+        identity?.title ??
+        id,
     id: id,
-    credits: (m['credits'] as num?)?.toDouble() ?? linked?.credits ?? 0,
+    credits:
+        (linked ? identity?.credits : null) ??
+        (m['credits'] as num?)?.toDouble() ??
+        identity?.credits ??
+        0,
     grade1: (m['grade1'] as num).toInt(),
     grade2: (m['grade2'] as num).toInt(),
     discipline: m['discipline'] as String,

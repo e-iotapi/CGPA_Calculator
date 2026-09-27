@@ -49,15 +49,50 @@ Catalog _withCredits(double credits) {
   );
 }
 
+/// lib/sync.dart's `_course` on master, verbatim: the app still open on
+/// some devices when this version ships.
+Course _oldCourse(Map m) => Course(
+  title: m['title'],
+  id: m['id'],
+  credits: (m['credits'] as num).toDouble(),
+  grade1: (m['grade1'] as num).toInt(),
+  grade2: (m['grade2'] as num).toInt(),
+  discipline: m['discipline'],
+  sem: m['sem'],
+  elective: m['elective'] ?? 'CDC',
+);
+
 void main() {
   final dsa = catalogIdentity('CS F211')!;
 
-  test('a catalogue course is stored by id, without title or credits', () {
+  test('a catalogue course is marked linked, and still carries its title', () {
     final m = encodeCourse(_c('CS F211', dsa.title, dsa.credits));
-    expect(m.containsKey('title'), isFalse);
-    expect(m.containsKey('credits'), isFalse);
+    expect(m['linked'], isTrue);
+    // An older app, still open somewhere, reads every entry whole.
+    expect(m['title'], dsa.title);
+    expect(m['credits'], dsa.credits);
     expect(m['grade1'], 10);
     expect(_all(decodeCourse(m)), _all(_c('CS F211', dsa.title, dsa.credits)));
+  });
+
+  test('a linked course follows the catalogue over what it carries', () {
+    final m = {
+      ...encodeCourse(_c('CS F211', dsa.title, dsa.credits)),
+      'title': 'Stale Name',
+      'credits': 1,
+    };
+    final c = decodeCourse(m);
+    expect([c.title, c.credits], [dsa.title, dsa.credits]);
+  });
+
+  test('entries written without title or credits still read', () {
+    final m =
+        encodeCourse(_c('CS F211', dsa.title, dsa.credits))
+          ..remove('title')
+          ..remove('credits')
+          ..remove('linked');
+    final c = decodeCourse(m);
+    expect([c.title, c.credits], [dsa.title, dsa.credits]);
   });
 
   test('a custom course, or one with its own credits, stays whole', () {
@@ -65,11 +100,22 @@ void main() {
     final own = _c('CS F211', dsa.title, dsa.credits + 1);
     for (final c in [custom, own]) {
       final m = encodeCourse(c);
-      expect(m.containsKey('credits'), isTrue);
+      expect(m.containsKey('linked'), isFalse);
       expect(_all(decodeCourse(m)), _all(c));
     }
-    expect(encodeCourse(custom).containsKey('title'), isTrue);
-    expect(encodeCourse(own).containsKey('title'), isFalse);
+  });
+
+  test('the older app reads every entry', () {
+    for (final c in [
+      _c('CS F211', dsa.title, dsa.credits),
+      _c('XYZ F999', 'Something Else', 2),
+    ]) {
+      final old = _oldCourse(encodeCourse(c));
+      expect(
+        [old.id, old.title, old.credits, old.grade1],
+        [c.id, c.title, c.credits, c.grade1],
+      );
+    }
   });
 
   test('entries written before the split still read back whole', () {
