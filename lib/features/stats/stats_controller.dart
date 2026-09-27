@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:cgpa_calculator/core/models/semester_kind.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/forecast.dart';
 import 'package:cgpa_calculator/core/grading/requirements.dart';
@@ -79,7 +80,13 @@ class StatsData {
       planned: planned,
       audit: degreeAudit(all, discipline, needs: needs),
       totalSet: totalSet,
-      note: _note(prog.map((p) => (sem: p.sem, sgpa: p.term.gpa)), req),
+      // Summer and Practice School terms are not semesters to repeat.
+      note: _note([
+        for (final p in prog)
+          if (semesterKind(p.sem, all.where((c) => c.sem == p.sem)) ==
+              SemesterKind.regular)
+            (sem: p.sem, sgpa: p.term.gpa),
+      ], req),
     );
   }
 

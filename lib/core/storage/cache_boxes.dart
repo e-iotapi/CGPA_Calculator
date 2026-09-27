@@ -4,4 +4,4 @@
 /// which would push it into users/{uid} and its 500 KB cap (§16.3 fix 13).
 /// Name every new cache box here; test/core/cache_boxes_test.dart holds the
 /// line.
-const cacheBoxes = <String>{'catalogBox'};
+const cacheBoxes = <String>{'catalogBox', 'offeringsBox'};

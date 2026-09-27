@@ -26,6 +26,9 @@ service cloud.firestore {
 
     function mayUse() { return isBits() || isOwner(); }
 
+    // 'goa' from f20230802@goa.bits-pilani.ac.in (ARCHITECTURE.md §4).
+    function campusOf(email) { return email.split('@')[1].split('[.]')[0]; }
+
     // Anyone may ask whether they are on the list, so sign-in can decide.
     // Adding and removing owners waits for the audit log; until then it is
     // done in the Firebase console.
@@ -42,6 +45,14 @@ service cloud.firestore {
     // new version. Written only by an owner's publish.
     match /catalog/{doc} {
       allow read: if mayUse();
+      allow write: if false;
+    }
+
+    // Offerings: a course as taught on one campus in one term (§4, §10.1).
+    // Read by that campus; writes arrive with the maintainer tools.
+    match /courses/{courseId}/offerings/{offering} {
+      allow read: if mayUse()
+        && (offering.split('_')[0] == campusOf(me()) || isOwner());
       allow write: if false;
     }
 

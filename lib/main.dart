@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
+import 'package:cgpa_calculator/core/storage/offerings.dart';
+import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -64,11 +66,14 @@ Future<void> startApp(User user) async {
   // Before Sync: stored courses link to it by id.
   await loadCatalog();
   await Sync.init(user.uid);
+  await openOfferings();
+  offeringSource = FirestoreOfferingSource();
   unawaited(refreshCatalog(
     FirestoreCatalogSource(),
     beforeUse: relinkStoredCourses,
   ));
   await basicStartup();
+  unawaited(refreshCurrentOfferings());
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

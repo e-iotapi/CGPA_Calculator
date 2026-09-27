@@ -2,13 +2,19 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/marks.dart';
+import 'package:cgpa_calculator/core/grading/official_scheme.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
+import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
+import 'package:cgpa_calculator/core/storage/offerings.dart';
+import 'package:cgpa_calculator/core/storage/overrides.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/add_evaluative_page.dart';
 import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_format.dart';
+import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
 import 'package:cgpa_calculator/features/marks/widgets/evaluative_card.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -34,6 +40,34 @@ class MarksPage extends StatefulWidget {
 class _MarksPageState extends State<MarksPage> {
   String get _id => widget.course.id;
 
+  @override
+  void initState() {
+    super.initState();
+    refreshOfferingFor(widget.course).then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  /// Asks before [granule] of [off] becomes the student's; true when it may
+  /// change (it is not official, already theirs, or they said so).
+  Future<bool> _mayChange(
+    Offering? off,
+    String granule,
+    String name,
+    String change,
+  ) async {
+    if (off == null || detachedFor(_id).containsKey(granule)) return true;
+    final mine = await confirmDivergence(context, name: name, change: change);
+    if (mine) await detach(_id, {granule: off.updatedAt});
+    return mine;
+  }
+
+  Future<void> _useOfficial(Offering off, bool Function(String) which) async {
+    await reattach(_id, which);
+    await applyOfficial(_id, off);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _open(Widget page) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
     if (mounted) setState(() {});
@@ -46,6 +80,34 @@ class _MarksPageState extends State<MarksPage> {
     final s = summaryFor(_id);
     final c = widget.course;
     final grade = c.grade1 > 0 ? gradecalc(c.grade1) : null;
+    final off = offeringFor(c);
+    final detached = detachedFor(_id);
+    // What the student made theirs, by name, and what changed since.
+    final yours = <String, bool Function(String)>{};
+    final changed = <String>[];
+    if (off != null) {
+      final stale = staleGranules(detached, off).toSet();
+      for (final (_, e) in evals) {
+        final id = e.sourceId;
+        if (id == null) continue;
+        final gs = detached.keys.where((g) => ofComponent(g, id));
+        if (gs.isEmpty) continue;
+        yours[e.name] = (g) => ofComponent(g, id);
+        if (gs.any(stale.contains)) changed.add(e.name);
+      }
+      if (detached.containsKey(courseAverageGranule)) {
+        yours['course average'] = (g) => g == courseAverageGranule;
+        if (stale.contains(courseAverageGranule)) {
+          changed.add('course average');
+        }
+      }
+    }
+    String? tag(Evaluative e) {
+      final id = e.sourceId;
+      if (off == null || id == null) return null;
+      if (off.component(id) == null) return 'NOT OFFICIAL';
+      return detached.keys.any((g) => ofComponent(g, id)) ? 'YOURS' : null;
+    }
 
     return PageFrame(
       header: PageHeader(
@@ -82,6 +144,22 @@ class _MarksPageState extends State<MarksPage> {
               ],
             ),
           ),
+        if (off != null && yours.isNotEmpty) ...[
+          DivergedCard(
+            yours: yours.keys.toList(),
+            changed: changed,
+            onKeepMine: () async {
+              await keepMine(_id, off.updatedAt);
+              if (mounted) setState(() {});
+            },
+          ),
+          for (final y in yours.entries)
+            UseOfficialButton(
+              name: y.key,
+              onPressed: () => _useOfficial(off, y.value),
+            ),
+          const SizedBox(height: Space.sm),
+        ],
         _Total(
           s: s,
           grade: grade,
@@ -91,6 +169,19 @@ class _MarksPageState extends State<MarksPage> {
         _CourseAverage(
           value: s.config.classAverage,
           onChanged: (v) async {
+            final official = off?.courseAverage;
+            if (official != null &&
+                v != official &&
+                !await _mayChange(
+                  off,
+                  courseAverageGranule,
+                  'the course average',
+                  'Course average ${marks2(official)} → '
+                      '${v == null ? 'blank' : marks2(v)}',
+                )) {
+              if (mounted) setState(() {});
+              return;
+            }
             final config = configFor(_id) ?? CourseConfig(courseId: _id);
             config.classAverage = v;
             await saveConfig(config);
@@ -118,7 +209,21 @@ class _MarksPageState extends State<MarksPage> {
               await saveEvaluative(duplicateEvaluative(e));
               if (mounted) setState(() {});
             },
+            tag: tag(e),
             onAverage: (v) async {
+              final official = off?.component(e.sourceId ?? '')?.average;
+              if (official != null &&
+                  v != official &&
+                  !await _mayChange(
+                    off,
+                    componentAverageGranule(e.sourceId!),
+                    '${e.name}\'s average',
+                    'Class average ${marks2(official)} → '
+                        '${v == null ? 'blank' : marks2(v)}',
+                  )) {
+                if (mounted) setState(() {});
+                return;
+              }
               e.average = v;
               await saveEvaluative(e, key: key);
               if (mounted) setState(() {});
@@ -131,11 +236,30 @@ class _MarksPageState extends State<MarksPage> {
                     unassigned: s.courseTotal - s.assignedWeight + e.weight,
                     existing: e,
                     existingKey: key,
+                    official:
+                        off != null &&
+                                off.component(e.sourceId ?? '') != null &&
+                                !detached.containsKey(
+                                  componentGranule(e.sourceId!),
+                                )
+                            ? off
+                            : null,
                   ),
                 ),
           ),
           const SizedBox(height: 7),
         ],
+        if (off != null && off.hasScheme)
+          Padding(
+            padding: const EdgeInsets.only(top: Space.xs, bottom: Space.sm),
+            child: Text(
+              'Changing a component’s weight, out of, average or date makes it '
+              'yours: it stops updating and you keep it current. Components '
+              'you leave alone keep updating. Your own marks never detach '
+              'anything.',
+              style: TypeScale.caption.copyWith(color: p.textMuted),
+            ),
+          ),
         const SizedBox(height: Space.sm),
         PrimaryButton(
           label: 'Add evaluative',

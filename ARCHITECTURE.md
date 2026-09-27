@@ -580,7 +580,14 @@ Each step ships on its own and is reversible.
    document — the way back.
 4. **Overrides, seeds and the divergence warning (§5).** Before any maintainer can change
    anything, the app must already resolve `override ?? published ?? custom`, treat seeds as
-   placeholders and warn on detach.
+   placeholders and warn on detach. *Built:* `core/grading/official_scheme.dart` is the one
+   resolver. It copies published values into the student's evaluatives (each pinned by
+   `sourceId`) so every screen reads one list, and never over a detached granule. Overrides
+   are `{granule: basedOn}` per course in `settingsBox.overrides`, which syncs inside
+   `users/{uid}` rather than a subcollection. A student's own component with an official one's
+   name is linked on first sight, detached with `basedOn: 0` if its values differ. Offerings
+   cache in `offeringsBox`: read on opening Marks (10 min) and for this term's courses on app
+   open (12 h).
 5. **Owners, grants, staff index, audit, `/admin`.** Rules first, proven against the emulator —
    the `staff/` consistency rule above all. Read-only screens first, then writes. Owners and
    admins only.

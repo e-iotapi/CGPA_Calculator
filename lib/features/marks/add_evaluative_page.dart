@@ -9,6 +9,10 @@ import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/core/grading/official_scheme.dart';
+import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/core/storage/overrides.dart';
+import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
 import 'package:flutter/material.dart';
 
 /// Add or edit one evaluative: a single mark, or several parts of which all
@@ -21,6 +25,7 @@ class AddEvaluativePage extends StatefulWidget {
     required this.unassigned,
     this.existing,
     this.existingKey,
+    this.official,
   });
 
   final String courseId;
@@ -30,6 +35,10 @@ class AddEvaluativePage extends StatefulWidget {
   final double unassigned;
   final Evaluative? existing;
   final String? existingKey;
+
+  /// Set when [existing] follows this offering and is still official: a
+  /// change to what it publishes asks first (ARCHITECTURE.md §5).
+  final Offering? official;
 
   @override
   State<AddEvaluativePage> createState() => _AddEvaluativePageState();
@@ -126,17 +135,47 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
       countBest: _several && _best < parts.length ? _best : 0,
       // Set on the Marks page; kept as it was.
       average: widget.existing?.average,
+      sourceId: widget.existing?.sourceId,
     );
   }
 
+  /// Whether a change to the official component may go ahead: true when it is
+  /// not official, or the student made it theirs just now.
+  Future<bool> _makeMine(String change) async {
+    final off = widget.official, old = widget.existing;
+    if (off == null || old == null) return true;
+    final mine = await confirmDivergence(
+      context,
+      name: old.name,
+      change: change,
+    );
+    if (mine) {
+      await detach(widget.courseId, {
+        componentGranule(old.sourceId!): off.updatedAt,
+      });
+    }
+    return mine;
+  }
+
   Future<void> _save() async {
-    final e = _draft;
+    var e = _draft;
+    final old = widget.existing;
     if (e == null) return;
+    final change =
+        old == null ? null : structuralChange(old, e, widget.weighted);
+    if (change != null && !await _makeMine(change)) {
+      // Keep official: only the marks are saved, on the official structure.
+      e = Evaluative.fromJson(old!.toJson());
+      for (final (i, p) in e.parts.indexed) {
+        if (i < _draft!.parts.length) p.marks = _draft!.parts[i].marks;
+      }
+    }
     await saveEvaluative(e, key: widget.existingKey);
     if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _delete() async {
+    if (!await _makeMine('Removing it')) return;
     await deleteEvaluative(widget.existingKey!);
     if (mounted) Navigator.of(context).pop();
   }
