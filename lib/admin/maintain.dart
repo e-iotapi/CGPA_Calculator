@@ -517,6 +517,32 @@ class CrHome extends StatelessWidget {
                 style: TypeScale.caption.copyWith(color: p.textMuted),
               ),
             ],
+            if (o?.courseAverage case final avg?) ...[
+              const SectionLabel('Course average'),
+              AppCard(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'out of 100',
+                        style: TypeScale.caption.copyWith(color: p.textMuted),
+                      ),
+                    ),
+                    Text(
+                      _n(avg),
+                      style: TypeScale.title.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                'Stored against this term and this component set. An average '
+                'without them compares nothing.',
+                style: TypeScale.caption.copyWith(color: p.textMuted),
+              ),
+            ],
             const SizedBox(height: Space.md),
             CourseResources(campus: campus, courseId: courseId),
           ],

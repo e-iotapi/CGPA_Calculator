@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 /// One evaluative: name, how many parts count, its weight and what it gives.
 /// Groups list their parts, with dropped ones kept visible and labelled;
 /// long dated series collapse to their date range. Under them, the
-/// component's class average, typed or worked out from its parts.
+/// published class average and where you stand against the one in play.
 class EvaluativeCard extends StatelessWidget {
   const EvaluativeCard({
     super.key,
@@ -18,7 +18,8 @@ class EvaluativeCard extends StatelessWidget {
     required this.weighted,
     required this.onTap,
     this.onDuplicate,
-    this.onAverage,
+    this.classAverage,
+    this.showAverage = true,
     this.tag,
   });
 
@@ -29,8 +30,10 @@ class EvaluativeCard extends StatelessWidget {
   /// A copy with the next name and no marks.
   final VoidCallback? onDuplicate;
 
-  /// The typed component average; null clears it. Null hides the field.
-  final ValueChanged<double?>? onAverage;
+  /// The published component average; the Marks screen shows only this,
+  /// unlabelled (§8).
+  final double? classAverage;
+  final bool showAverage;
 
   /// Where it stands against the official scheme: "YOURS", "NOT OFFICIAL",
   /// or null for an official component that updates, or the student's own.
@@ -185,10 +188,10 @@ class EvaluativeCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (onAverage != null)
+          if (showAverage)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-              child: _ComponentAverage(e: e, onChanged: onAverage!),
+              child: _ClassAverage(e: e, official: classAverage),
             ),
         ],
       ),
@@ -199,34 +202,17 @@ class EvaluativeCard extends StatelessWidget {
   }
 }
 
-/// The component's class average: a small field, with the sum of the part
-/// averages as its hint when nothing is typed, and where you stand.
-class _ComponentAverage extends StatefulWidget {
-  const _ComponentAverage({required this.e, required this.onChanged});
+/// "class avg 14.20 / 25", or "no class avg yet", and how far ahead or
+/// behind you are against the average in play.
+class _ClassAverage extends StatelessWidget {
+  const _ClassAverage({required this.e, required this.official});
 
   final Evaluative e;
-  final ValueChanged<double?> onChanged;
-
-  @override
-  State<_ComponentAverage> createState() => _ComponentAverageState();
-}
-
-class _ComponentAverageState extends State<_ComponentAverage> {
-  late final _text = TextEditingController(
-    text: widget.e.average == null ? '' : marks2(widget.e.average!),
-  );
-
-  @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
+  final double? official;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final e = widget.e;
-    final avg = componentAverage(e);
     final delta = componentDelta(e);
     final outOf = e.parts.fold(0.0, (s, x) => s + x.outOf);
     final small = TypeScale.caption.copyWith(
@@ -235,56 +221,17 @@ class _ComponentAverageState extends State<_ComponentAverage> {
     );
     // Wraps rather than overflowing at large text sizes.
     return Wrap(
-      spacing: 6,
+      spacing: 8,
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
-          'Component average',
+          official == null
+              ? 'no class avg yet'
+              : 'class avg ${marks2(official!)}'
+                  '${outOf > 0 ? ' / ${marks2(outOf)}' : ''}',
           style: small.copyWith(fontWeight: FontWeight.w600),
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 64,
-              child: TextField(
-                controller: _text,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                textAlign: TextAlign.center,
-                style: TypeScale.caption.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: p.text,
-                ),
-                onChanged: (t) => widget.onChanged(double.tryParse(t)),
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText:
-                      avg != null && avg.derived ? marks2(avg.value) : '—',
-                  hintStyle: TypeScale.caption.copyWith(
-                    fontSize: 12,
-                    color: p.textMuted,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  filled: true,
-                  fillColor: p.background,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-            if (outOf > 0) ...[
-              const SizedBox(width: 4),
-              Text('/ ${marks2(outOf)}', style: small),
-            ],
-          ],
-        ),
-        if (avg != null && avg.derived) Text('from parts', style: small),
         if (delta != null)
           Semantics(
             label: deltaWords(delta, 'of the class'),

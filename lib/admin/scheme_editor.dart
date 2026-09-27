@@ -11,15 +11,17 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 
 class _Part {
-  _Part(String name, double? outOf, this.date)
+  _Part(String name, double? outOf, this.date, [double? average])
     : name = TextEditingController(text: name),
-      outOf = TextEditingController(text: outOf == null ? '' : _n(outOf));
-  final TextEditingController name, outOf;
+      outOf = TextEditingController(text: outOf == null ? '' : _n(outOf)),
+      average = TextEditingController(text: average == null ? '' : _n(average));
+  final TextEditingController name, outOf, average;
   String? date;
 
   void dispose() {
     name.dispose();
     outOf.dispose();
+    average.dispose();
   }
 }
 
@@ -30,18 +32,19 @@ class _Component {
     double? weight,
     this.parts,
     this.countBest,
-    this.average,
+    double? average,
   ) : name = TextEditingController(text: name),
-      weight = TextEditingController(text: weight == null ? '' : _n(weight));
+      weight = TextEditingController(text: weight == null ? '' : _n(weight)),
+      average = TextEditingController(text: average == null ? '' : _n(average));
   final String id;
-  final TextEditingController name, weight;
+  final TextEditingController name, weight, average;
   final List<_Part> parts;
   int countBest;
-  final double? average;
 
   void dispose() {
     name.dispose();
     weight.dispose();
+    average.dispose();
     for (final p in parts) {
       p.dispose();
     }
@@ -77,13 +80,19 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
   late final _total = TextEditingController(
     text: _n(widget.existing?.totalMarks ?? 100),
   );
+  late final _courseAverage = TextEditingController(
+    text:
+        widget.existing?.courseAverage == null
+            ? ''
+            : _n(widget.existing!.courseAverage!),
+  );
   late final List<_Component> _components = [
     for (final c in widget.existing?.components ?? const <OfferedComponent>[])
       _Component(
         c.id,
         c.name,
         c.weight,
-        [for (final p in c.parts) _Part(p.name, p.outOf, p.date)],
+        [for (final p in c.parts) _Part(p.name, p.outOf, p.date, p.average)],
         c.countBest,
         c.average,
       ),
@@ -94,6 +103,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
   @override
   void dispose() {
     _total.dispose();
+    _courseAverage.dispose();
     for (final c in _components) {
       c.dispose();
     }
@@ -140,6 +150,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
             name: c.parts.length == 1 ? '' : p.name.text.trim(),
             outOf: outOf,
             date: p.date,
+            average: c.parts.length == 1 ? null : _num(p.average),
           ),
         );
       }
@@ -150,7 +161,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
           weight: w,
           parts: parts,
           countBest: c.countBest > parts.length ? 0 : c.countBest,
-          average: c.average,
+          average: _num(c.average),
         ),
       );
     }
@@ -167,7 +178,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
         weighted: _weighted,
         totalMarks: _weighted ? 100 : total!,
         components: comps,
-        courseAverage: e?.courseAverage,
+        courseAverage: _num(_courseAverage),
         professors: e?.professors ?? const [],
         updatedAt: e?.updatedAt ?? 0,
       ),
@@ -275,6 +286,18 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
                       dense: true,
                     ),
                   ),
+                  if (c.parts.length > 1) ...[
+                    const SizedBox(width: Space.sm),
+                    Expanded(
+                      flex: 2,
+                      child: AppTextField(
+                        controller: part.average,
+                        label: 'Avg',
+                        number: true,
+                        dense: true,
+                      ),
+                    ),
+                  ],
                   TextButton(
                     onPressed: () => _pickDate(part),
                     child: Text(part.date ?? 'Date'),
@@ -292,6 +315,16 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
                 ],
               ),
             ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: Space.xs),
+            child: AppTextField(
+              controller: c.average,
+              label: 'Class average for the component',
+              hint: 'Blank until it is out',
+              number: true,
+              dense: true,
+            ),
+          ),
           Wrap(
             spacing: Space.sm,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -358,6 +391,19 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
             onChanged: (_) => setState(() {}),
           ),
         ],
+        const SizedBox(height: Space.sm),
+        AppTextField(
+          controller: _courseAverage,
+          label: 'Course average (out of 100)',
+          hint: 'Blank until it is out',
+          number: true,
+          dense: true,
+        ),
+        Text(
+          'Averages are stored against this term and this component set. An '
+          'average without them compares nothing.',
+          style: TypeScale.caption.copyWith(color: p.textMuted),
+        ),
         const SizedBox(height: Space.md),
         for (final c in _components) ...[
           _component(c, p),

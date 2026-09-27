@@ -614,6 +614,12 @@ Each step ships on its own and is reversible.
    same batch; `DeptResources` has Dept / By course / Reported (amber, pulsing while open), and
    `CrHome` shows its course's links and reports. Students: `/resources`.
 8. **Class averages**, once publishing, the term/component scope and the override rule exist.
+   *Built:* `core/grading/average_sources.dart` says which number is in play at each level and
+   why. Marks shows the published averages only ("class avg 14.20", "no class avg yet") and
+   opens `AverageSources`, where the student's own course average lives; `MarksAdd` carries the
+   component and part averages with their source. Typing over a published average detaches
+   that one granule; clearing it brings the official back. Maintainers set course, component
+   and part averages in the scheme editor.
 9. **Professors** (§10.1). Before reviews, because a review filed against a typed name cannot
    be repaired later.
 10. **Reviews** (§10.3), with the counters and the composite indexes from the start.

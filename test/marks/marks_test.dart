@@ -393,7 +393,8 @@ void main() {
       final fields = find.byType(TextField);
       await t.enterText(fields.at(0), 'Quiz');
       await t.enterText(fields.at(1), '10');
-      await t.enterText(fields.at(3), '20');
+      // Name, weight, class average, marks, out of.
+      await t.enterText(fields.at(4), '20');
       await t.pump();
       expect(
         find.text('Give it a date to see it on the calendar.'),
@@ -526,7 +527,7 @@ void main() {
         }
       }
     });
-    testWidgets('averages live on the Marks page; duplicate copies a card', (
+    testWidgets('Marks shows official averages; the rest are one tap away', (
       t,
     ) async {
       await t.runAsync(() async {
@@ -541,11 +542,19 @@ void main() {
         await saveConfig(CourseConfig(courseId: 'CS F372', classAverage: 5));
       });
       await pump(t, MarksPage(course: _os), const Size(390, 844));
-      expect(find.text('Course average'), findsOneWidget);
-      expect(find.text('Component average'), findsOneWidget);
-      // Derived from the parts, shown as the hint and marked as such.
-      expect(find.text('from parts'), findsOneWidget);
+      // Nothing published: unlabelled, and no typed or derived figure here.
+      expect(find.text('no class avg yet'), findsNWidgets(2));
+      expect(find.text('Course average'), findsNothing);
+      // The comparison still uses the average in play, from the parts.
       expect(find.text('2.00 ahead'), findsOneWidget);
+
+      await t.tap(find.text('Averages'));
+      await t.pumpAndSettle();
+      // The course average and both part averages were typed.
+      expect(find.text('You typed this'), findsNWidgets(3));
+      expect(find.text('Worked out from the 2 part averages'), findsOneWidget);
+      await t.pageBack();
+      await t.pumpAndSettle();
 
       await t.runAsync(() async {
         await t.tap(find.byTooltip('Duplicate Quiz 1'));

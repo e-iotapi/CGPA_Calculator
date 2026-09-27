@@ -11,7 +11,9 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/core/grading/official_scheme.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/core/storage/overrides.dart';
+import 'package:cgpa_calculator/core/grading/average_sources.dart';
 import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
 import 'package:flutter/material.dart';
 
@@ -26,6 +28,7 @@ class AddEvaluativePage extends StatefulWidget {
     this.existing,
     this.existingKey,
     this.official,
+    this.averagesFrom,
   });
 
   final String courseId;
@@ -39,6 +42,10 @@ class AddEvaluativePage extends StatefulWidget {
   /// Set when [existing] follows this offering and is still official: a
   /// change to what it publishes asks first (ARCHITECTURE.md §5).
   final Offering? official;
+
+  /// The course's offering, for where each class average comes from and
+  /// the way back to a published one (§8).
+  final Offering? averagesFrom;
 
   @override
   State<AddEvaluativePage> createState() => _AddEvaluativePageState();
@@ -95,6 +102,12 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
   late final _weight = TextEditingController(
     text: widget.existing == null ? '' : marks2(widget.existing!.weight),
   );
+  late final _average = TextEditingController(
+    text:
+        widget.existing?.average == null
+            ? ''
+            : marks2(widget.existing!.average!),
+  );
   late final List<_PartFields> _parts = [
     for (final p in widget.existing?.parts ?? const <EvalPart>[])
       _PartFields(p),
@@ -113,6 +126,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
   void dispose() {
     _name.dispose();
     _weight.dispose();
+    _average.dispose();
     for (final p in _parts) {
       p.dispose();
     }
@@ -133,8 +147,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
       weight: w,
       parts: parts.cast<EvalPart>(),
       countBest: _several && _best < parts.length ? _best : 0,
-      // Set on the Marks page; kept as it was.
-      average: widget.existing?.average,
+      average: double.tryParse(_average.text.trim()),
       sourceId: widget.existing?.sourceId,
     );
   }
@@ -170,14 +183,73 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
         if (i < _draft!.parts.length) p.marks = _draft!.parts[i].marks;
       }
     }
+    final back = old == null ? false : await _averages(old, e);
     await saveEvaluative(e, key: widget.existingKey);
+    if (back && widget.averagesFrom != null) {
+      await applyOfficial(widget.courseId, widget.averagesFrom!);
+    }
     if (mounted) Navigator.of(context).pop();
+  }
+
+  /// Typing over a published average detaches that one average, with the
+  /// same warning; clearing one you typed brings the official back (§8).
+  /// Keep official puts the averages back as they were. True when an
+  /// official average should be restored after saving.
+  Future<bool> _averages(Evaluative old, Evaluative e) async {
+    final off = widget.averagesFrom;
+    final changes = averageChanges(old, e);
+    if (off == null || changes.isEmpty) return false;
+    final detached = detachedFor(widget.courseId);
+    final cleared = <String>{
+      for (final g in changes.keys)
+        if (detached.containsKey(g) &&
+            (g == componentAverageGranule(old.sourceId!)
+                ? e.average == null
+                : e.parts[int.parse(g.split('.').last)].average == null))
+          g,
+    };
+    if (cleared.isNotEmpty) await reattach(widget.courseId, cleared.contains);
+    final typed = {
+      for (final g in changes.keys)
+        if (!cleared.contains(g) && !detached.containsKey(g)) g,
+    };
+    if (typed.isEmpty) return cleared.isNotEmpty;
+    if (!mounted) return false;
+    final mine = await confirmDivergence(
+      context,
+      name: '${old.name}\'s average',
+      change: changes[typed.first]!,
+    );
+    if (mine) {
+      await detach(widget.courseId, {for (final g in typed) g: off.updatedAt});
+    } else {
+      e.average = old.average;
+      for (final (i, p) in e.parts.indexed) {
+        if (i < old.parts.length) p.average = old.parts[i].average;
+      }
+    }
+    return cleared.isNotEmpty;
   }
 
   Future<void> _delete() async {
     if (!await _makeMine('Removing it')) return;
     await deleteEvaluative(widget.existingKey!);
     if (mounted) Navigator.of(context).pop();
+  }
+
+  /// Whether part [i]'s average is still the published one.
+  bool _partOfficial(int i) {
+    final e = widget.existing;
+    if (e == null || widget.averagesFrom == null || i >= e.parts.length) {
+      return false;
+    }
+    return partAverageOf(
+          e,
+          i,
+          widget.averagesFrom,
+          detachedFor(widget.courseId),
+        )?.source ==
+        AverageSource.official;
   }
 
   Future<void> _pickDate(_PartFields f) async {
@@ -189,6 +261,43 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
       lastDate: DateTime(now.year + 5),
     );
     if (d != null) setState(() => f.date = isoDate(d));
+  }
+
+  Widget _averageField(Evaluative? draft, TextStyle muted) {
+    final a =
+        draft == null
+            ? null
+            : componentAverageOf(
+              draft,
+              widget.averagesFrom,
+              detachedFor(widget.courseId),
+            );
+    final derived = draft == null ? null : componentAverage(draft);
+    final outOf = draft?.parts.fold<double>(0, (s, x) => s + x.outOf) ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppTextField(
+          controller: _average,
+          label: 'Class average for the component',
+          hint:
+              derived != null && derived.derived
+                  ? marks2(derived.value)
+                  : 'Optional',
+          number: true,
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          [
+            if (outOf > 0) 'of ${marks2(outOf)}',
+            if (a != null) a.source.label.toLowerCase(),
+            if (a != null && a.source != AverageSource.official) sourceLine(a),
+          ].join(' · '),
+          style: muted,
+        ),
+      ],
+    );
   }
 
   @override
@@ -237,6 +346,8 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
             style: muted,
           ),
         ],
+        const FieldLabel('Class average'),
+        _averageField(draft, muted),
         const FieldLabel('Structure'),
         Row(
           children: [
@@ -413,7 +524,9 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
           const SizedBox(height: 6),
           AppTextField(
             controller: f.average,
-            label: 'Class average for this part',
+            label:
+                'Class average for this part'
+                '${_partOfficial(i) ? ' · official' : ''}',
             number: true,
             dense: true,
             onChanged: changed,
