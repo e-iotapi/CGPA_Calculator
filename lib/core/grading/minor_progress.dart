@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/requirements.dart';
 import 'package:cgpa_calculator/core/models/course_graph.dart';
@@ -5,7 +6,6 @@ import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/models/minors.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:cgpa_calculator/mastercourselist.dart';
 
 /// Where a minor's course stands, on the Actual profile.
 enum MinorState {
@@ -40,7 +40,7 @@ class MinorSlotStatus {
 
   String get title =>
       course?.title ??
-      mcourselist
+      catalog.master
           .where((m) => sameCourseId(m.id, slot.first))
           .firstOrNull
           ?.title ??
@@ -48,7 +48,7 @@ class MinorSlotStatus {
 
   double get units =>
       course?.credits ??
-      mcourselist
+      catalog.master
           .where((m) => sameCourseId(m.id, slot.first))
           .firstOrNull
           ?.credits ??

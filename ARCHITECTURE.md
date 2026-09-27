@@ -125,6 +125,10 @@ it a network dependency, and the app is used on campus wifi.
   **committed with each release**. It can lag the live bundle by one release — that is fine,
   because the first online open replaces it.
 - The version check is one small document read, not the whole bundle.
+- *Built (step 2):* `catalog/marker` `{version, schema}` and one `catalog/v{n}` per publish,
+  whose `json` field is the bundle as a **string** — 2,400 nested rows would pass Firestore's
+  per-document index-entry limit. Rows are arrays; the asset is 126 KB. Reverting a publish is
+  pointing the marker back. Code: `lib/core/catalog/`.
 
 Net effect: the app becomes *less* network-dependent than it is now, because the user
 document no longer has to carry the catalogue.

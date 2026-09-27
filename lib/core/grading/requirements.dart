@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_graph.dart';
@@ -190,11 +191,14 @@ bool countsTowardDegree(Course c) =>
 
 /// Codes of the common core: first-year and shared courses the chart gives
 /// no half. They count as the first degree's core (B3 in B3A7).
-final Set<String> commonCore = {
-  ...nonelist,
-  for (final c in [...hydCourseList, ...hydCourseListNew])
-    if (Elective.fromTag(c.elective) == null) c.id,
-};
+Set<String> get commonCore => _commonCore.of(catalog);
+final _commonCore = PerCatalog(
+  (c) => {
+    ...nonelist,
+    for (final r in [...c.chartOld, ...c.chartNew])
+      if (Elective.fromTag(r.elective) == null) r.id,
+  },
+);
 
 /// [c] counts toward the degree but toward no requirement: no CDC or
 /// elective category, and not common core. The Degree page lists these to

@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_graph.dart';
@@ -98,7 +99,7 @@ List<CourseHit> searchCourses(
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return const [];
   final compact = q.replaceAll(' ', '');
-  final byId = {for (final m in master ?? mcourselist) m.id: m};
+  final byId = {for (final m in master ?? catalog.master) m.id: m};
   bool codeStarts(Mastercourselist m) =>
       m.id.toLowerCase().replaceAll(' ', '').startsWith(compact);
   final found =
