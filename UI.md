@@ -2124,17 +2124,20 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Why**: at the user's request. The copy button on Expected hid itself two seconds after
   the tab opened (`setfab()`'s timer). It now stays for as long as Expected is open.
 - **Files**:
-  - new `lib/features/semester/widgets/copy_profile_button.dart`: an ink extended FAB with
-    the copy icon, "Copy from <Actual>" in 13/700, a tooltip, and the confirm dialog in the
-    palette and Montserrat
+  - new `lib/features/semester/widgets/copy_profile_button.dart`: a 56 px round ink FAB with
+    a 22 px copy icon and no text. Its tooltip and semantics label is "Copy every <Actual>
+    grade into <Expected>". The confirm dialog is in the palette and Montserrat.
   - `lib/home_page.dart`: `_showFab` and `setfab()` removed. The button shows whenever
     `selectedprofile == 2`, and the body's bottom padding grows by 72 on Expected so the
     list clears it.
-  - new `test/semester/expected_copy_test.dart`: it stays after 5 s; Cancel copies
-    nothing; Import copies once; ink fill; ≥ 44 tall; a long profile name fits at 320
-    (5 tests).
-- **Board**: the canvas gained `Expected` (Light · Expected, copy from Actual) beside Home's
-  behaviour note, with a note of its behaviour (canvas v68).
+  - new `test/semester/expected_copy_test.dart` (5 tests):
+    - it stays after 5 s
+    - it has no text, only the tooltip
+    - Cancel copies nothing
+    - Import copies once
+    - it is ink, round and ≥ 44 px
+- **Board**: the canvas gained `Expected` beside Home's behaviour note, with a note of its
+  behaviour (canvas v68). The icon-only button followed in v69.
 - **Departure**: none. The board was drawn from the code.
 
 ---
@@ -2423,8 +2426,10 @@ Task cards in §20 reference them.
   - **Resolved 27 Sep 2026, at the user's request**:
     - The button stays (it used to hide itself two seconds after Expected opened).
     - It is now a permanent `CopyProfileButton`
-      (`lib/features/semester/widgets/copy_profile_button.dart`): an ink extended FAB
-      "Copy from Actual" with a palette-styled confirm dialog.
+      (`lib/features/semester/widgets/copy_profile_button.dart`): a round ink button with
+      only a copy icon (the text was removed at the user's request, canvas v69), named by
+      its tooltip "Copy every Actual grade into Expected", with a palette-styled confirm
+      dialog.
     - The list on Expected pads 72 px more so the last row scrolls clear of it.
     - The canvas gained the board **`Expected`** (x 4650, y 0) with a note, canvas version 68.
 
