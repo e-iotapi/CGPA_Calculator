@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:cgpa_calculator/core/models/marks.dart';
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -106,7 +107,7 @@ class Sync {
 
   static Future<void> pull() async {
     try {
-      final s = await _doc.get();
+      final s = await Perf.time('sync.pull', () => _doc.get());
       final cur = snapshot();
       final String? last = _meta.get('last');
       if (!s.exists) {
@@ -135,6 +136,7 @@ class Sync {
       final newRev = await FirebaseFirestore.instance
           .runTransaction<int?>((tx) async {
             final s = await tx.get(_doc);
+            Perf.mark('sync.push.read');
             final int serverRev = s.exists ? s.data()!['rev'] : 0;
             if (serverRev != base) return null; // conflict
             // The last whole-course snapshot is kept once, so the move to
@@ -148,6 +150,7 @@ class Sync {
               if (v1 != null) 'v1': v1,
               'updatedAt': FieldValue.serverTimestamp(),
             });
+            Perf.markWrite('sync.push.write');
             return base + 1;
           });
       if (newRev == null) {

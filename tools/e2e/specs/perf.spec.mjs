@@ -1,14 +1,15 @@
 // Cold and warm timing budgets under throttling (PERF_TEST_PLAN.md T6).
-// window.pointerPerf (P0) isn't built yet, so the read-count assertions are
-// skipped until then; the timing budgets run regardless.
+// window.pointerPerf (P0) counts by store-method name (rule 3 keeps P0 out
+// of lib/features/**, so there is no per-route counter): the read-count
+// check compares window.pointerPerf.summary().reads before and after the
+// second visit. "Second open" is real client-side navigation (a tap, then
+// Back), not page.goto() — goto() is a fresh browser navigation, which
+// would reload the whole app and reset every in-memory counter, defeating
+// the point of testing a cache-first *second* open.
 import { expect, test } from '@playwright/test';
 import { installLocalCanvasKit, signIn } from './helpers.mjs';
 
-const MORE_ROWS = [
-  { name: 'Representatives', path: '/representatives' },
-  { name: 'Course reviews', path: '/reviews' },
-  { name: 'Resources', path: '/resources' },
-];
+const MORE_ROWS = ['Representatives', 'Course reviews', 'Resources'];
 
 async function throttle(page) {
   const client = await page.context().newCDPSession(page);
@@ -32,29 +33,35 @@ test.describe('perf', () => {
     expect(Date.now() - start).toBeLessThan(3000);
   });
 
-  for (const row of MORE_ROWS) {
-    test(`${row.name}: first open under 1.5s, second under 300ms`, async ({ page }) => {
+  for (const rowTitle of MORE_ROWS) {
+    test(`${rowTitle}: first open under 1.5s, second under 300ms`, async ({ page }) => {
       await installLocalCanvasKit(page);
       await throttle(page);
       await signIn(page, 'student_full');
+      await page.getByText('More', { exact: true }).click();
+      const row = page.getByText(rowTitle, { exact: true });
+      await expect(row).toBeVisible({ timeout: 10_000 });
 
       const firstStart = Date.now();
-      await page.goto(row.path);
+      await row.click();
       await page.waitForLoadState('networkidle');
       const firstMs = Date.now() - firstStart;
 
-      await page.goto('/more');
+      const before = await page.evaluate(() => window.pointerPerf?.summary?.()?.reads ?? null);
+      await page.goBack(); // client-side, back to /more — not a reload
+      await expect(row).toBeVisible({ timeout: 10_000 });
+
       const secondStart = Date.now();
-      await page.goto(row.path);
+      await row.click();
       await page.waitForLoadState('networkidle');
       const secondMs = Date.now() - secondStart;
 
-      expect(firstMs, `${row.name} first open`).toBeLessThan(1500);
-      expect(secondMs, `${row.name} second open`).toBeLessThan(300);
+      expect(firstMs, `${rowTitle} first open`).toBeLessThan(1500);
+      expect(secondMs, `${rowTitle} second open`).toBeLessThan(300);
 
-      const reads = await page.evaluate((p) => window.pointerPerf?.reads?.(p) ?? null, row.path);
-      test.skip(reads == null, 'window.pointerPerf not built yet (P0)');
-      expect(reads, `${row.name} second open should be 0 blocking reads`).toBe(0);
+      test.skip(before == null, 'window.pointerPerf not built yet (P0)');
+      const after = await page.evaluate(() => window.pointerPerf.summary().reads);
+      expect(after - before, `${rowTitle} second open should be 0 blocking reads`).toBe(0);
     });
   }
 });
