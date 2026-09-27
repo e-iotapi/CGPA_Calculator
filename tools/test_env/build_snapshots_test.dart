@@ -252,8 +252,10 @@ Future<void> _seedStudentFull(DateTime now) async {
 
   await setStatsTarget(8.5);
   await setStatsPlan({'3 - 2': 8.0, '4 - 1': 8.0});
-  await pinCategory(current.first.id);
-  await rememberReview(current.first.id);
+  // Matches the review tools/test_env/seed.mjs writes for this account, so
+  // "Your reviews" (backed by the local myReviews list) finds it.
+  await pinCategory('EEE F311');
+  await rememberReview('EEE F311');
 }
 
 /// `B3A7` (Economics/CS dual), batch 22, currently in Practice School-II at
