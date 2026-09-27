@@ -598,7 +598,14 @@ Each step ships on its own and is reversible.
    a strip at the top). `config/grantTerms` must exist before the first grant: an owner saving
    Terms creates it.
 6. **Maintainer editing + publish.** Presidents next, CRs last — the narrowest tier is the
-   largest group and the least reviewed.
+   largest group and the least reviewed. *Built:* offerings are written with their audit entry
+   by an owner, the president in scope or the course's CR, checked against the grant
+   (`test/rules/maintain.test.mjs`). `core/grading/eval_import.dart` reads `pointer.eval.v1`,
+   rejects the whole file on one bad row and ships the prompt verbatim; component ids are kept
+   by name. Uploads write five courses a batch under one `uploadId`. `courses/{id}` holds
+   drafts; `core/catalog/publish.dart` applies them, diffs in CGPA terms and writes `v{n}` plus
+   the marker. Screens: `DeptHome`, `DeptCourses`, `CrHome`, the scheme editor, the upload
+   preview and `Publish`, all in `lib/admin/`.
 7. **Resources**, once editing and audit are proven on the catalogue.
 8. **Class averages**, once publishing, the term/component scope and the override rule exist.
 9. **Professors** (§10.1). Before reviews, because a review filed against a typed name cannot

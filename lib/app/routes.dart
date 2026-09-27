@@ -28,6 +28,8 @@ abstract final class Routes {
 
   // Presidents and CRs: the scope is in the path (§16.1).
   static String dept(String campus, String dept) => '/maintain/$campus/$dept';
+  static String deptCourses(String campus, String dept) =>
+      '/maintain/$campus/$dept/courses';
   static String crCourse(String campus, String courseId) =>
       '/maintain/$campus/course/${Uri.encodeComponent(courseId)}';
 }

@@ -3,7 +3,7 @@
   "private": true,
   "description": "firestore.rules against the emulator (ARCHITECTURE.md §9 step 5). Run: npm test",
   "scripts": {
-    "test": "cd ../.. && firebase emulators:exec --only firestore --project demo-pointer 'node --test test/rules/*.test.mjs'"
+    "test": "cd ../.. && firebase emulators:exec --only firestore --project demo-pointer 'node --test --test-concurrency=1 test/rules/*.test.mjs'"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
