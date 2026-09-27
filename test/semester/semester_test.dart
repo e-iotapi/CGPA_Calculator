@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
 import 'package:cgpa_calculator/features/semester/widgets/semester_pills.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/stat_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -274,7 +275,7 @@ void main() {
       expect(find.text('A'), findsOneWidget); // Actual
       expect(find.text('A-'), findsOneWidget); // Expected
       expect(find.bySemanticsLabel('Export gradesheet'), findsNothing);
-      expect(find.text('Add courses'), findsNothing);
+      expect(find.widgetWithText(PillButton, 'Add'), findsNothing);
     });
 
     testWidgets('compare shows any two of five profiles and picks them', (
@@ -335,16 +336,14 @@ void main() {
       expect(taps, [('CS F351', 2)]);
     });
 
-    testWidgets('add card is reachable and fires', (t) async {
+    // Board `Main`: Add sits beside the sort and export pills; the card at
+    // the foot of the list only shows while the semester is empty.
+    testWidgets('the Add pill fires', (t) async {
       var adds = 0;
       await _pump(t, _data(SemesterMode.actual), onAdd: () => adds++);
-      await t.scrollUntilVisible(
-        find.text('Add courses'),
-        200,
-        scrollable: _page,
-      );
-      await t.tap(find.text('Add courses'));
+      await t.tap(find.widgetWithText(PillButton, 'Add'));
       expect(adds, 1);
+      expect(find.text('Add a course'), findsNothing);
     });
 
     testWidgets('no overflow at 320, 768, 1440 or 200% text', (t) async {

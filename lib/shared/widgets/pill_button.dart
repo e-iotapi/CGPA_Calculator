@@ -15,6 +15,7 @@ class PillButton extends StatelessWidget {
     this.selected = false,
     this.height = Sizes.pill,
     this.expand = false,
+    this.padding = 15,
   }) : semanticLabel = null;
 
   /// Round, icon-only. [semanticLabel] is what a screen reader announces.
@@ -26,7 +27,8 @@ class PillButton extends StatelessWidget {
     this.selected = false,
     this.height = Sizes.pillSmall,
   }) : label = null,
-       expand = false;
+       expand = false,
+       padding = 0;
 
   final String? label;
   final IconData? icon;
@@ -37,6 +39,9 @@ class PillButton extends StatelessWidget {
 
   /// Fill the available width, for equal-width toggle pairs.
   final bool expand;
+
+  /// Space either side of the label.
+  final double padding;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +71,7 @@ class PillButton extends StatelessWidget {
       // it is offered instead of hugging the label.
       content = Container(
         height: height,
-        padding: const EdgeInsets.symmetric(horizontal: 15),
+        padding: EdgeInsets.symmetric(horizontal: padding),
         child: Row(
           mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,

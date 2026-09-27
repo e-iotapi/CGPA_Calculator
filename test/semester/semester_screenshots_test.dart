@@ -63,6 +63,7 @@ void main() {
     ]) {
       for (final (name, size) in const [
         ('320', Size(320, 640)),
+        ('390', Size(390, 844)),
         ('768', Size(768, 1024)),
         ('1440', Size(1440, 900)),
       ]) {
@@ -85,12 +86,16 @@ void main() {
                       label: 'Expected',
                     ),
                     NavDestination(
-                      icon: Icons.compare_arrows_rounded,
+                      icon: Icons.open_in_full_rounded,
                       label: 'Compare',
                     ),
                     NavDestination(
                       icon: Icons.workspace_premium_outlined,
                       label: 'Offshoot',
+                    ),
+                    NavDestination(
+                      icon: Icons.more_horiz_rounded,
+                      label: 'More',
                     ),
                   ],
                   selectedIndex: mode.index,

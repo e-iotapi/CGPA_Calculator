@@ -58,7 +58,14 @@ class StatCard extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(value, style: TypeScale.display.copyWith(color: fg)),
+            child: Text(
+              value,
+              // Dark mode sets the number a weight heavier (`DarkMain`).
+              style: TypeScale.display.copyWith(
+                color: fg,
+                fontWeight: p.isDark ? FontWeight.w800 : FontWeight.w700,
+              ),
+            ),
           ),
           if (caption != null) ...[
             const SizedBox(height: 1),

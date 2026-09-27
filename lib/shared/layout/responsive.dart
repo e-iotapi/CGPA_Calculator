@@ -64,31 +64,72 @@ class ResponsiveScaffold extends StatelessWidget {
             ),
           );
         }
+        // The pill floats over the page (boards `Main`, `More`): the body
+        // runs underneath it, and a fade to the ground keeps the last row
+        // from colliding with it. `extendBody` hands the pill's height to the
+        // body as bottom padding, so a list pads by
+        // `MediaQuery.paddingOf(context).bottom` to clear it.
         return Scaffold(
           backgroundColor: p.background,
+          extendBody: true,
           floatingActionButton: floatingActionButton,
           body: SafeArea(bottom: false, child: body),
-          bottomNavigationBar: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                Space.lg,
-                Space.xs,
-                Space.lg,
-                Space.md,
-              ),
-              child: Center(
-                heightFactor: 1,
-                child: AppNav.pill(
-                  destinations: destinations,
-                  selectedIndex: selectedIndex,
-                  onSelected: onSelected,
-                ),
-              ),
+          bottomNavigationBar: _FloatingPill(
+            fade: p.background,
+            child: AppNav.pill(
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
             ),
           ),
         );
       },
+    );
+  }
+}
+
+/// The pill, inset from the edges and the home indicator, over a fade to
+/// [fade]. The fade is a plain gradient — no blur, no layer — and ignores
+/// taps, so the content under it stays reachable.
+class _FloatingPill extends StatelessWidget {
+  const _FloatingPill({required this.fade, required this.child});
+
+  final Color fade;
+  final Widget child;
+
+  /// How far above the pill the fade starts.
+  static const double fadeHeight = 40;
+
+  @override
+  Widget build(BuildContext context) {
+    final side =
+        MediaQuery.sizeOf(context).width < AppNav.narrowWidth
+            ? Space.lg
+            : Space.gutter;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [fade.withValues(alpha: 0), fade],
+                  stops: const [0, 0.6],
+                ),
+              ),
+            ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(side, fadeHeight, side, Space.md),
+            child: Center(heightFactor: 1, child: child),
+          ),
+        ),
+      ],
     );
   }
 }

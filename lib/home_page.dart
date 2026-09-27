@@ -122,7 +122,7 @@ class _MyHomePageState extends State<MyHomePage> {
             NavDestination(icon: Icons.home_outlined, label: profile1n),
             NavDestination(icon: Icons.bar_chart_rounded, label: profile2n),
             const NavDestination(
-              icon: Icons.compare_arrows_rounded,
+              icon: Icons.open_in_full_rounded,
               label: 'Compare',
             ),
             const NavDestination(

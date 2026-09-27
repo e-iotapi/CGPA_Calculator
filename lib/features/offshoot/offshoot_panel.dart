@@ -52,11 +52,12 @@ class OffshootPanel extends StatelessWidget {
 
         if (!wide) {
           return ListView(
-            padding: const EdgeInsets.fromLTRB(
+            // Clears the floating nav pill.
+            padding: EdgeInsets.fromLTRB(
               Space.gutter,
               Space.sm,
               Space.gutter,
-              Space.xxl,
+              Space.xxl + MediaQuery.paddingOf(context).bottom,
             ),
             children: [
               ...summary,
@@ -73,11 +74,11 @@ class OffshootPanel extends StatelessWidget {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   Space.gutter,
                   Space.sm,
                   Space.gutter,
-                  Space.xxl,
+                  Space.xxl + MediaQuery.paddingOf(context).bottom,
                 ),
                 children: [
                   _note(context),
