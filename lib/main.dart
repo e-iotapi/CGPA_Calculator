@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
+import 'package:cgpa_calculator/core/env/app_env.dart';
+import 'package:cgpa_calculator/core/env/test_sign_in.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
@@ -17,6 +19,7 @@ import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/firebase_options.dart';
+import 'package:cgpa_calculator/firebase_options_staging.dart';
 import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
@@ -38,7 +41,12 @@ void main() async {
   // Phone browsers deliver touches out of step with frames, so a drag moves
   // the list unevenly. Resampling lines the touches up with the frames.
   GestureBinding.instance.resamplingEnabled = true;
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: appEnv == AppEnv.staging
+        ? StagingFirebaseOptions.currentPlatform
+        : DefaultFirebaseOptions.currentPlatform,
+  );
+  configureEnv();
   await Hive.initFlutter();
   Hive.registerAdapter(CourseAdapter());
   registerMarksAdapters();
@@ -52,6 +60,7 @@ void main() async {
       message = 'Sign-in failed: ${e.message ?? e.code}';
     }
   }
+  if (isTestEnv) await testSignIn();
   final user = await FirebaseAuth.instance.authStateChanges().first;
   final allowed = user == null ? false : await mayUseApp(user);
   if (user == null || allowed != true) {
