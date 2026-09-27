@@ -273,14 +273,34 @@ class _MarksPageState extends State<MarksPage> {
           const SizedBox(height: 7),
         ],
         if (off != null && off.hasScheme)
-          Padding(
-            padding: const EdgeInsets.only(top: Space.xs, bottom: Space.sm),
-            child: Text(
-              'Changing a component’s weight, out of, average or date makes it '
-              'yours: it stops updating and you keep it current. Components '
-              'you leave alone keep updating. Your own marks never detach '
-              'anything.',
-              style: TypeScale.caption.copyWith(color: p.textMuted),
+          Container(
+            margin: const EdgeInsets.only(top: Space.xs, bottom: Space.sm),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: p.noticeTone.fill,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text.rich(
+              const TextSpan(
+                text: 'Changing a component’s ',
+                children: [
+                  TextSpan(
+                    text: 'weight, out of, average or date',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  TextSpan(
+                    text:
+                        ' makes it yours: it stops updating and you keep it '
+                        'current. Components you leave alone keep updating. '
+                        'Your own marks never detach anything.',
+                  ),
+                ],
+              ),
+              style: TypeScale.caption.copyWith(
+                fontSize: 10,
+                height: 1.45,
+                color: p.noticeTone.text,
+              ),
             ),
           ),
         const SizedBox(height: Space.sm),
@@ -429,9 +449,15 @@ class _Total extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
+            _VersusBar(
+              you: s.secured,
+              classAverage: avg,
+              outOf: s.gradedWeight,
+            ),
+            const SizedBox(height: 5),
             Text(
-              'You ${s.secured.toStringAsFixed(2)} · course average '
+              'You ${s.secured.toStringAsFixed(2)} · class average '
               '${avg.toStringAsFixed(2)}',
               style: muted.copyWith(fontSize: 10, fontWeight: FontWeight.w600),
             ),
@@ -474,6 +500,76 @@ class _Total extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Board `Marks`: your share of what is graded as a bar, with a tick where
+/// the class average falls.
+class _VersusBar extends StatelessWidget {
+  const _VersusBar({
+    required this.you,
+    required this.classAverage,
+    required this.outOf,
+  });
+
+  final double you;
+  final double classAverage;
+  final double outOf;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    if (outOf <= 0) return const SizedBox.shrink();
+    final a = (you / outOf).clamp(0.0, 1.0);
+    final b = (classAverage / outOf).clamp(0.0, 1.0);
+    return ExcludeSemantics(
+      child: SizedBox(
+        height: 11,
+        child: LayoutBuilder(
+          builder:
+              (_, c) => Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 3,
+                    height: 5,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: p.onHero.withValues(alpha: 0.13),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    top: 3,
+                    height: 5,
+                    width: c.maxWidth * a,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: p.onHero,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: (c.maxWidth * b - 1).clamp(0.0, c.maxWidth - 2),
+                    top: 0,
+                    width: 2,
+                    height: 11,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: p.onHero.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+        ),
       ),
     );
   }

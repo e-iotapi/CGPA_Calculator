@@ -10,9 +10,16 @@ import 'package:cgpa_calculator/course.dart';
 /// A point on the chart.
 typedef CgpaPoint = ({String sem, double cgpa});
 
-/// One future semester the user can plan.
+/// One future semester the user can plan. One left out of the forecast
+/// ([included] false) keeps its SGPA but moves nothing.
 typedef PlannedSemester =
-    ({String sem, double credits, double sgpa, double cgpaAfter});
+    ({
+      String sem,
+      double credits,
+      double sgpa,
+      double cgpaAfter,
+      bool included,
+    });
 
 /// Everything the Stats screen shows. Pure; built from the stored courses.
 class StatsData {
@@ -34,6 +41,7 @@ class StatsData {
     required String discipline,
     double? target,
     Map<String, double> plan = const {},
+    Set<String> skipped = const {},
     DegreeNeeds? needs,
     int? totalSet,
   }) {
@@ -61,12 +69,14 @@ class StatsData {
     final planned = <PlannedSemester>[];
     for (final f in futureSemesters(all, discipline, order)) {
       final sgpa = plan[f.sem] ?? _snap(done.gpa);
-      running = withPlanned(running, f.credits, sgpa);
+      final included = !skipped.contains(f.sem);
+      if (included) running = withPlanned(running, f.credits, sgpa);
       planned.add((
         sem: f.sem,
         credits: f.credits,
         sgpa: sgpa,
         cgpaAfter: running.gpa,
+        included: included,
       ));
     }
 
@@ -113,11 +123,17 @@ class StatsData {
 
   double get cgpa => done.gpa;
   double get finish => planned.isEmpty ? cgpa : planned.last.cgpaAfter;
+
+  /// The chart's dashed line: only the semesters in the forecast.
+  List<PlannedSemester> get _forecasted => [
+    for (final p in planned)
+      if (p.included) p,
+  ];
   double get delta => finish - cgpa;
 
   List<CgpaPoint> get forecast => [
     if (actual.isNotEmpty) actual.last,
-    for (final p in planned) (sem: p.sem, cgpa: p.cgpaAfter),
+    for (final p in _forecasted) (sem: p.sem, cgpa: p.cgpaAfter),
   ];
 
   /// Credits the degree still needs: from the sheet's requirements when

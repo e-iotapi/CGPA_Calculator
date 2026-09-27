@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/features/stats/stats_controller.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
 import 'package:cgpa_calculator/features/stats/widgets/cgpa_chart.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:flutter/material.dart';
 
 /// Chart, the average needed for the target, and a slider per future
@@ -15,11 +16,15 @@ class ProgressionView extends StatelessWidget {
     required this.data,
     required this.onTargetChanged,
     required this.onPlanChanged,
+    this.onIncludeChanged,
   });
 
   final StatsData data;
   final ValueChanged<double> onTargetChanged;
   final void Function(String sem, double sgpa) onPlanChanged;
+
+  /// Null hides the tick boxes: every future semester is forecast.
+  final void Function(String sem, bool included)? onIncludeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +38,7 @@ class ProgressionView extends StatelessWidget {
     return StatsBody(
       footer: StatsFooter(
         label: 'ON THIS PLAN YOU FINISH AT',
+        emphasis: true,
         value: '${data.finish.toStringAsFixed(2)} CGPA',
         trailing: Semantics(
           label:
@@ -123,12 +129,24 @@ class ProgressionView extends StatelessWidget {
                   style: TypeScale.section.copyWith(color: p.text),
                 ),
               ),
-              Text('drag to adjust', style: muted),
+              Text(
+                onIncludeChanged == null
+                    ? 'drag to adjust'
+                    : 'Tick what to forecast',
+                style: muted,
+              ),
             ],
           ),
           const SizedBox(height: Space.sm),
           for (final s in data.planned) ...[
-            _PlanCard(s: s, onChanged: (v) => onPlanChanged(s.sem, v)),
+            _PlanCard(
+              s: s,
+              onChanged: (v) => onPlanChanged(s.sem, v),
+              onInclude:
+                  onIncludeChanged == null
+                      ? null
+                      : (on) => onIncludeChanged!(s.sem, on),
+            ),
             const SizedBox(height: Space.sm),
           ],
         ],
@@ -242,24 +260,46 @@ class ProgressionView extends StatelessWidget {
 }
 
 class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.s, required this.onChanged});
+  const _PlanCard({required this.s, required this.onChanged, this.onInclude});
 
   final PlannedSemester s;
   final ValueChanged<double> onChanged;
+  final ValueChanged<bool>? onInclude;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return AppCard(
+    final include = onInclude;
+    // Board `Stats`: a semester left out is a dashed, faded card.
+    final out = !s.included;
+    final card = AppCard(
       radius: Radii.row - 2,
+      color: out ? p.surface.withValues(alpha: 0.55) : null,
       padding: const EdgeInsets.fromLTRB(15, 13, 15, 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
             children: [
+              if (include != null) ...[
+                SizedBox.square(
+                  dimension: 28,
+                  child: Checkbox(
+                    value: s.included,
+                    onChanged: (v) => include(v ?? false),
+                    semanticLabel: 'Forecast ${s.sem}',
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                    visualDensity: VisualDensity.compact,
+                    activeColor: p.inverse,
+                    checkColor: p.onInverse,
+                    side: BorderSide(color: p.textMuted, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+              ],
               Expanded(
                 child: Text.rich(
                   TextSpan(
@@ -323,15 +363,20 @@ class _PlanCard extends StatelessWidget {
             ),
           ),
           Text.rich(
-            TextSpan(
-              text: 'CGPA moves to ',
-              children: [
-                TextSpan(
-                  text: s.cgpaAfter.toStringAsFixed(2),
-                  style: TextStyle(fontWeight: FontWeight.w700, color: p.text),
+            out
+                ? const TextSpan(text: 'Not in this forecast · tick to include')
+                : TextSpan(
+                  text: 'CGPA moves to ',
+                  children: [
+                    TextSpan(
+                      text: s.cgpaAfter.toStringAsFixed(2),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: p.text,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
             style: TypeScale.caption.copyWith(
               fontSize: 10.5,
               color: p.textMuted,
@@ -340,6 +385,9 @@ class _PlanCard extends StatelessWidget {
         ],
       ),
     );
+    return out
+        ? DashedOutline(color: p.outline, radius: Radii.row - 2, child: card)
+        : card;
   }
 }
 

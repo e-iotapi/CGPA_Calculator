@@ -52,6 +52,7 @@ Future<void> _pump(
   AppPalette palette = AppPalette.light,
   VoidCallback? onEditTotal,
   AssignCourse? onAssign,
+  void Function(String, bool)? onInclude,
 }) async {
   t.view.physicalSize = size * (_shots == null ? 1 : 2);
   t.view.devicePixelRatio = _shots == null ? 1 : 2;
@@ -74,6 +75,7 @@ Future<void> _pump(
           onViewChanged: (_) {},
           onTargetChanged: (_) {},
           onPlanChanged: (_, _) {},
+          onIncludeChanged: onInclude ?? (_, _) {},
           onBack: () {},
           onAssign: onAssign,
           onEditTotal: onEditTotal,
@@ -129,6 +131,49 @@ void main() {
       expect(d.planned.map((p) => p.cgpaAfter), [139 / 15, 163 / 19]);
       expect(d.finish, 163 / 19);
       expect(d.actual.last.cgpa, d.cgpa);
+    });
+
+    // Board `Stats`: an unticked semester keeps its SGPA but moves nothing.
+    test('a semester ticked out of the forecast is skipped', () {
+      final d = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3--',
+        target: 9,
+        plan: {'2 - 1': 10, '2 - 2': 6},
+        skipped: {'2 - 1'},
+      );
+      expect(d.planned.map((p) => p.included), [false, true]);
+      expect(d.planned.map((p) => p.cgpaAfter), [9, (99 + 24) / 15]);
+      expect(d.finish, (99 + 24) / 15);
+      expect(d.forecast.map((f) => f.sem), [d.actual.last.sem, '2 - 2']);
+    });
+
+    testWidgets('tick boxes report the semester and its new state', (t) async {
+      final calls = <(String, bool)>[];
+      final d = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3--',
+        target: 9,
+        skipped: {'2 - 2'},
+      );
+      await _pump(
+        t,
+        d,
+        StatsView.progression,
+        size: const Size(390, 1400),
+        onInclude: (s, on) => calls.add((s, on)),
+      );
+      expect(find.text('Tick what to forecast'), findsOneWidget);
+      expect(
+        find.text('Not in this forecast · tick to include'),
+        findsOneWidget,
+      );
+      Finder box(String sem) => find.byWidgetPredicate(
+        (w) => w is Checkbox && w.semanticLabel == 'Forecast $sem',
+      );
+      await t.tap(box('2 - 1'));
+      await t.tap(box('2 - 2'));
+      expect(calls, [('2 - 1', false), ('2 - 2', true)]);
     });
 
     test(
@@ -352,8 +397,9 @@ void main() {
             all: loadTranscript(),
             discipline: 'B3A7',
             target: 8,
+            skipped: {'5 - 1'},
           );
-          await _pump(t, real, v, size: const Size(390, 844), palette: palette);
+          await _pump(t, real, v, size: const Size(390, 950), palette: palette);
           await t.runAsync(() async {
             final img = await captureImage(
               t.element(find.byType(RepaintBoundary).first),

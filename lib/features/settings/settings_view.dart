@@ -167,17 +167,16 @@ class SettingsView extends StatelessWidget {
                     strong: true,
                     onTap: () => onPickDiscipline(true),
                   ),
+                  _Item(label: 'Campus', value: campus ?? 'Not set'),
                   _Item(
                     label: 'Batch',
                     value: '20${batch.toString().padLeft(2, '0')}',
                   ),
-                  _Item(label: 'Campus', value: campus ?? 'Not set'),
                 ]),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, Space.xs, 4, 0),
                   child: Text(
-                    'Changing a discipline reloads the course list and clears '
-                    'grades.',
+                    'Changing the first discipline clears your grades.',
                     style: TypeScale.caption.copyWith(
                       fontSize: 10.5,
                       color: p.behind,
@@ -302,11 +301,25 @@ class SettingsView extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: Space.sm),
-                  child: Text(
-                    'Pointer by Siddharth Mishra',
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Built By Siddharth Mishra',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: p.text,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: ' · your grades stay private to your account',
+                        ),
+                      ],
+                    ),
                     textAlign: TextAlign.center,
                     style: TypeScale.caption.copyWith(
                       fontSize: 10,
+                      height: 1.5,
                       color: p.textMuted,
                     ),
                   ),
@@ -501,32 +514,8 @@ class _Item extends StatelessWidget {
               const SizedBox(width: 10),
             ],
             Expanded(
-              child: Text(
-                label,
-                style: TypeScale.body.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: p.text,
-                ),
-              ),
+              child: _LabelValue(label: label, value: value, strong: strong),
             ),
-            if (value case final v?) ...[
-              const SizedBox(width: Space.sm),
-              // Capped rather than flexed, so it sits at the right edge.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 150),
-                child: Text(
-                  v,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TypeScale.caption.copyWith(
-                    fontSize: 12.5,
-                    fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
-                    color: strong ? p.accent : p.textMuted,
-                  ),
-                ),
-              ),
-            ],
             if (chevron && onTap != null) ...[
               const SizedBox(width: Space.xs),
               Icon(Icons.chevron_right_rounded, size: 18, color: p.textMuted),
@@ -610,6 +599,68 @@ class _Choice extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A settings label and its value on one line. The label keeps its natural
+/// width (up to 60% of the row) so a word like "Discipline" never breaks
+/// mid-word; the value takes the rest, right-aligned, and ellipsizes.
+class _LabelValue extends StatelessWidget {
+  const _LabelValue({required this.label, this.value, this.strong = false});
+
+  final String label;
+  final String? value;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final labelStyle = TypeScale.body.copyWith(
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: p.text,
+    );
+    final v = value;
+    if (v == null) return Text(label, style: labelStyle);
+    return LayoutBuilder(
+      builder: (context, c) {
+        final painter = TextPainter(
+          // Merged as Text merges it, or the measure misses the theme's
+          // letter spacing.
+          text: TextSpan(
+            text: label,
+            style: DefaultTextStyle.of(context).style.merge(labelStyle),
+          ),
+          maxLines: 1,
+          textScaler: MediaQuery.textScalerOf(context),
+          textDirection: Directionality.of(context),
+        )..layout();
+        final natural = painter.width + 1;
+        painter.dispose();
+        return Row(
+          children: [
+            SizedBox(
+              width: natural.clamp(0, c.maxWidth * 0.6).toDouble(),
+              child: Text(label, style: labelStyle),
+            ),
+            const SizedBox(width: Space.sm),
+            Expanded(
+              child: Text(
+                v,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: TypeScale.caption.copyWith(
+                  fontSize: 12.5,
+                  fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
+                  color: strong ? p.accent : p.textMuted,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

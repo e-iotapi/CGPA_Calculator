@@ -199,7 +199,10 @@ class _SelectedPill extends StatelessWidget {
         builder: (context, c) {
           // Shows the label only when it fits whole.
           final label = TextPainter(
-            text: TextSpan(text: destination.label, style: style),
+            text: TextSpan(
+              text: destination.label,
+              style: DefaultTextStyle.of(context).style.merge(style),
+            ),
             maxLines: 1,
             textScaler: MediaQuery.textScalerOf(context),
             textDirection: Directionality.of(context),
