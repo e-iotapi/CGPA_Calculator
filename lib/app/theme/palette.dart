@@ -94,6 +94,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
     return tones[grade] ?? tones['']!;
   }
 
+  /// Amber: something the student should look at — a value they made theirs,
+  /// an official change waiting, a reported link.
+  GradeTone get noticeTone =>
+      isDark
+          ? const GradeTone(Color(0xFF3B2F16), Color(0xFFF1C77A))
+          : const GradeTone(Color(0xFFFAEFD8), Color(0xFF7A5410));
+
   /// Tone for a course that exists but does not count (e.g. a dropped
   /// offshoot course).
   GradeTone get mutedTone => (isDark ? _darkTones : _lightTones)['']!;

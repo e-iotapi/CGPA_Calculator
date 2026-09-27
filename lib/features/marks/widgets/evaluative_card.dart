@@ -19,6 +19,7 @@ class EvaluativeCard extends StatelessWidget {
     required this.onTap,
     this.onDuplicate,
     this.onAverage,
+    this.tag,
   });
 
   final Evaluative e;
@@ -30,6 +31,10 @@ class EvaluativeCard extends StatelessWidget {
 
   /// The typed component average; null clears it. Null hides the field.
   final ValueChanged<double?>? onAverage;
+
+  /// Where it stands against the official scheme: "YOURS", "NOT OFFICIAL",
+  /// or null for an official component that updates, or the student's own.
+  final String? tag;
 
   @override
   Widget build(BuildContext context) {
@@ -51,8 +56,20 @@ class EvaluativeCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                e.name,
+              Text.rich(
+                TextSpan(
+                  text: e.name,
+                  children: [
+                    if (tag != null)
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: _Tag(tag!),
+                        ),
+                      ),
+                  ],
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TypeScale.body.copyWith(
@@ -395,6 +412,32 @@ class _PartLine extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _Tag extends StatelessWidget {
+  const _Tag(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppPalette.of(context).noticeTone;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: t.fill,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TypeScale.caption.copyWith(
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.3,
+          color: t.text,
+        ),
       ),
     );
   }
