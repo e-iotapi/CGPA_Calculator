@@ -5,7 +5,43 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Mirrors check.yml's job (T7): needs cannot cross workflow files, and
+  # check.yml must still run standalone on PRs. Keep the two in sync.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm install -g firebase-tools
+      - run: flutter pub get
+      - name: flutter analyze (no new issues vs. tools/analyze_baseline.txt)
+        run: |
+          flutter analyze --no-fatal-infos > /tmp/analyze.out 2>&1 || true
+          cat /tmp/analyze.out
+          node tools/check_analyze_baseline.mjs < /tmp/analyze.out
+      - run: flutter test
+      - name: firestore.rules tests
+        run: |
+          cd test/rules
+          npm ci
+          npm test
+      - name: production build + prod guard (T1)
+        run: |
+          flutter build web --release --base-href /calculator/
+          if grep -q 'pointer-test-only' build/web/main.dart.js; then
+            echo "Test-only sign-in leaked into the production build." >&2
+            exit 1
+          fi
+
   web:
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
