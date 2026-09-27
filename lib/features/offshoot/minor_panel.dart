@@ -40,11 +40,12 @@ class MinorPanel extends StatelessWidget {
     );
     final pr = progress;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      // Clears the floating nav pill.
+      padding: EdgeInsets.fromLTRB(
         Space.gutter,
         Space.sm,
         Space.gutter,
-        Space.xxl,
+        Space.xxl + MediaQuery.paddingOf(context).bottom,
       ),
       children:
           pr == null

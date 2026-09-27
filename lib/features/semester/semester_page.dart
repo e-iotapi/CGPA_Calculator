@@ -254,15 +254,19 @@ class _SemesterViewState extends State<SemesterView> {
                   ),
             ),
           ),
+          // Clears the floating nav pill.
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               Space.gutter,
               9,
               Space.gutter,
-              Space.xxl,
+              Space.xxl + MediaQuery.paddingOf(context).bottom,
             ),
             sliver: SliverToBoxAdapter(
-              child: _single ? _addCard() : const SizedBox.shrink(),
+              child:
+                  _single && d.courses.isEmpty
+                      ? _addCard()
+                      : const SizedBox.shrink(),
             ),
           ),
         ],
@@ -357,7 +361,7 @@ class _SemesterViewState extends State<SemesterView> {
         ),
         const SizedBox(width: Space.sm),
         CircleIconButton(
-          icon: Icons.insert_chart_outlined_rounded,
+          icon: Icons.show_chart_rounded,
           tooltip: 'Stats',
           onPressed: widget.onOpenAnalytics,
           size: btn,
@@ -552,34 +556,59 @@ class _SemesterViewState extends State<SemesterView> {
       );
     }
 
-    return Row(
+    // The count and the pills share a line while they fit; on a narrow
+    // phone or at large text the pills drop below and wrap themselves.
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: Space.sm,
       children: [
-        title,
-        MenuAnchor(
-          menuChildren: [
-            for (final s in CourseSort.values)
-              MenuItemButton(
-                onPressed: () => widget.onSortSelected(s),
-                leadingIcon: Icon(
-                  s == d.sort ? Icons.check_rounded : null,
-                  size: 18,
-                ),
-                child: Text(s.label, style: TypeScale.button),
-              ),
-          ],
-          builder:
-              (_, menu, _) => PillButton(
-                label: d.sort.label,
-                icon: Icons.sort_rounded,
-                height: Sizes.pillSmall,
-                onPressed: () => menu.isOpen ? menu.close() : menu.open(),
-              ),
+        Text(
+          '$n course${n == 1 ? '' : 's'}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TypeScale.section.copyWith(color: p.text),
         ),
-        const SizedBox(width: Space.sm),
-        PillButton.icon(
-          icon: Icons.download_rounded,
-          semanticLabel: 'Export gradesheet',
-          onPressed: widget.onExport,
+        Wrap(
+          spacing: Space.sm,
+          runSpacing: Space.sm,
+          children: [
+            if (_single)
+              PillButton(
+                label: 'Add',
+                icon: Icons.add_rounded,
+                selected: true,
+                height: Sizes.pillSmall,
+                padding: 13,
+                onPressed: widget.onAddCourse,
+              ),
+            MenuAnchor(
+              menuChildren: [
+                for (final s in CourseSort.values)
+                  MenuItemButton(
+                    onPressed: () => widget.onSortSelected(s),
+                    leadingIcon: Icon(
+                      s == d.sort ? Icons.check_rounded : null,
+                      size: 18,
+                    ),
+                    child: Text(s.label, style: TypeScale.button),
+                  ),
+              ],
+              builder:
+                  (_, menu, _) => PillButton(
+                    label: d.sort.label,
+                    icon: Icons.sort_rounded,
+                    height: Sizes.pillSmall,
+                    padding: 13,
+                    onPressed: () => menu.isOpen ? menu.close() : menu.open(),
+                  ),
+            ),
+            PillButton.icon(
+              icon: Icons.download_rounded,
+              semanticLabel: 'Export gradesheet',
+              onPressed: widget.onExport,
+            ),
+          ],
         ),
       ],
     );
@@ -643,7 +672,7 @@ class _SemesterViewState extends State<SemesterView> {
             child: Text(
               d.courses.isEmpty
                   ? 'No courses in ${d.sem} yet — add some'
-                  : 'Add courses',
+                  : 'Add a course',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TypeScale.body.copyWith(color: p.text),

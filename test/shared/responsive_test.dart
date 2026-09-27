@@ -14,6 +14,12 @@ const _destinations = [
   NavDestination(icon: Icons.workspace_premium_outlined, label: 'Offshoot'),
 ];
 
+const _destinationsTail = [
+  NavDestination(icon: Icons.bar_chart_rounded, label: 'Expected'),
+  NavDestination(icon: Icons.compare_arrows_rounded, label: 'Compare'),
+  NavDestination(icon: Icons.workspace_premium_outlined, label: 'Offshoot'),
+];
+
 Future<void> _pump(
   WidgetTester t,
   Size size, {
@@ -69,7 +75,10 @@ void main() {
 
   final labels = _destinations.map((d) => d.label).toList();
 
-  testWidgets('320px: bottom pill, four legible labels, no overflow', (
+  // Boards `Main` and `More`: on the pill only the selected destination
+  // shows its label; the others are 50px icons named by tooltip and
+  // semantics.
+  testWidgets('320px: bottom pill, selected label legible, no overflow', (
     t,
   ) async {
     await _pump(t, const Size(320, 640));
@@ -83,11 +92,13 @@ void main() {
     );
     expect(nav.left, greaterThanOrEqualTo(0));
     expect(nav.right, lessThanOrEqualTo(320));
-    _expectLabelsLegible(t, labels);
-    // No label was ellipsized at this width.
-    for (final l in labels) {
-      final p = t.renderObject<RenderParagraph>(find.text(l));
-      expect(p.didExceedMaxLines, isFalse, reason: '$l was truncated');
+    _expectLabelsLegible(t, labels.take(1).toList());
+    final p = t.renderObject<RenderParagraph>(find.text(labels.first));
+    expect(p.didExceedMaxLines, isFalse, reason: 'selected label truncated');
+    for (final l in labels.skip(1)) {
+      expect(find.text(l), findsNothing, reason: l);
+      expect(find.byTooltip(l), findsOneWidget, reason: l);
+      expect(find.bySemanticsLabel(l), findsOneWidget, reason: l);
     }
   });
 
@@ -99,7 +110,7 @@ void main() {
     final nav = t.getRect(find.byType(AppNav));
     expect(nav.width, AppNav.pillMaxWidth);
     expect(nav.center.dx, closeTo(384, 0.5));
-    _expectLabelsLegible(t, labels);
+    _expectLabelsLegible(t, labels.take(1).toList());
   });
 
   testWidgets('1099px is still the pill; 1100px is the rail', (t) async {
@@ -147,11 +158,30 @@ void main() {
     }
   });
 
+  testWidgets('a selected label that cannot fit drops to its icon', (t) async {
+    const long = [
+      NavDestination(icon: Icons.home_outlined, label: 'My actual grades 2026'),
+      ..._destinationsTail,
+    ];
+    await _pump(t, const Size(320, 640), destinations: long);
+    expect(t.takeException(), isNull);
+    expect(find.text('My actual grades 2026'), findsNothing);
+    expect(find.bySemanticsLabel('My actual grades 2026'), findsOneWidget);
+    final items = find.descendant(
+      of: find.byType(AppNav),
+      matching: find.byType(InkWell),
+    );
+    // 44px, the touch minimum, under AppNav.narrowWidth.
+    for (var i = 0; i < 4; i++) {
+      expect(t.getSize(items.at(i)).width, greaterThanOrEqualTo(44));
+    }
+  });
+
   testWidgets('tapping a destination reports its index', (t) async {
     final taps = <int>[];
     await _pump(t, const Size(320, 640), onSelected: taps.add);
-    await t.tap(find.text('Offshoot'));
-    await t.tap(find.text('Expected'));
+    await t.tap(find.byTooltip('Offshoot'));
+    await t.tap(find.byTooltip('Expected'));
     expect(taps, [3, 1]);
   });
 
