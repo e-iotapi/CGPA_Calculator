@@ -2000,6 +2000,11 @@ pushes and deploys. Groups 3–9 are not started. **Build from the task cards in
 break each group below into steps with files, code and tests, and add the second audit's
 findings (N1–N30).
 
+**Speed on old phones** is a separate guide, `UI_OPT.md`, built in sequence on this branch
+by the same agent (never in parallel). Its phases slot into the groups below as UI_OPT §1.4
+says: Group 2 → T3.1 → **UI_OPT O0, O1, O2, O7** → the rest of Group 3 → Groups 4–8 →
+**UI_OPT O3–O6, O8** → Group 9.
+
 | Group | Contents | Sections |
 |---|---|---|
 | **2 · finish** | Uncommitted work (see 13.2). Then: the Stats axes (7.1), Degree names and order (7.2), the Settings discipline label (7.3). Delete `test/ui/zz_audit_shots_test.dart` and `test/reviews/zz_audit_reviews_test.dart` (audit-only, never commit). Commit. | 7.1–7.3, 6.4, 5.1 (done parts) |
@@ -2028,6 +2033,7 @@ A screen is done when all of these hold:
 6. **Checks**: `flutter analyze` shows only the 7 existing infos; `flutter test` passes;
    `cd test/rules && npm test` passes when rules or storage changed.
 7. **Log**: a **Built** entry in §13 naming the files and any departure.
+8. **Speed**: the per-screen checklist in UI_OPT.md §12 holds.
 
 **Screenshot tests.** Put one per screen group in `test/ui/` (as `board_shots_test.dart`
 does) using `shoot()`, with the sizes the board is drawn at. Fixtures for the Firestore-backed
@@ -2150,6 +2156,12 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
   bugs the empty screens hid (N31–N37). Each is held in its test's `known` map until fixed.
 - **UI.md**: the Group 4–8 cards were rewritten step by step, each with named behaviour tests
   and its render-test rows. No app code changed.
+
+### 13.6 UI_OPT.md, the old-phone speed guide (27 Sep 2026) · docs only
+- **New**: `UI_OPT.md`. Same UI, circle reveal kept on every device; targets low-end Android
+  Chrome and old iPhone Safari. Phases O0 (measuring) to O8 (iOS), a per-screen checklist
+  (§12), and merge notes for `pointer-refactor` and its Appendix U (§13).
+- **UI.md**: §11 now says where the UI_OPT phases go; §12 adds item 8 (speed).
 ---
 
 # Part 4 — Second audit and the fix guide
