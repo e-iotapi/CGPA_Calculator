@@ -76,6 +76,8 @@ class Grant {
     this.grantedByEmail = '',
     this.grantedByName = '',
     this.grantedAt,
+    this.handedTo,
+    this.expiresBefore,
   });
 
   final GrantRole role;
@@ -87,6 +89,11 @@ class Grant {
   final DateTime expiresAt;
   final String grantedByEmail, grantedByName;
   final DateTime? grantedAt;
+
+  /// A president's handover in progress (§13.4): the successor's address,
+  /// and the expiry this grant had before, which a cancel restores.
+  final String? handedTo;
+  final DateTime? expiresBefore;
 
   String get id => grantId(role, campus, scope, email);
 
@@ -111,6 +118,8 @@ class Grant {
     grantedByEmail: (m['grantedBy'] as Map?)?['email'] as String? ?? '',
     grantedByName: (m['grantedBy'] as Map?)?['name'] as String? ?? '',
     grantedAt: asDate(m['grantedAt']),
+    handedTo: m['handedTo'] as String?,
+    expiresBefore: asDate(m['expiresBefore']),
   );
 }
 

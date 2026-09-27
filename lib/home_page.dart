@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/storage/course_order.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/offshoot/minor_panel.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
@@ -99,6 +100,11 @@ class _MyHomePageState extends State<MyHomePage> {
         child: ResponsiveScaffold(
           selectedIndex: selectedprofile - 1,
           onSelected: (index) {
+            // More is a hub above the profiles, not a fifth profile.
+            if (index == 4) {
+              openRoute(context, Routes.more, () => const MorePage());
+              return;
+            }
             setState(() {
               if (index + 1 > selectedprofile) {
                 _isrightswipe = true;
@@ -123,6 +129,7 @@ class _MyHomePageState extends State<MyHomePage> {
               icon: Icons.workspace_premium_outlined,
               label: 'Offshoot',
             ),
+            const NavDestination(icon: Icons.more_horiz_rounded, label: 'More'),
           ],
           body: LayoutBuilder(
             builder: (context, c) {

@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
 import 'package:cgpa_calculator/core/reviews/review_store.dart';
+import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -102,7 +103,7 @@ Future<void> startApp(User user) async {
           .recordSignIn(name: user.displayName ?? '', campus: campus)
           .catchError((_) {}));
     }
-    unawaited(refreshMyRoles());
+    unawaited(refreshMyRoles().then((_) => checkProfile()));
   }
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

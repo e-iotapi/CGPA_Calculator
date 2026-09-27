@@ -45,6 +45,14 @@ final viewAs = ValueNotifier<ViewAs?>(null);
 /// reports), never stored beside them. Set at startup.
 String? myUid;
 
+/// RepProfile must come first (§16.3 fix 8): the router sends every
+/// location to `welcome` while this is true.
+final profileDue = ValueNotifier<bool>(false);
+
+/// "Email, WhatsApp" — what the person's contact details show students; for
+/// Settings › Contact details.
+final myContactSummary = ValueNotifier<String?>(null);
+
 Box? get _device =>
     Hive.isBoxOpen(deviceBoxName) ? Hive.box(deviceBoxName) : null;
 

@@ -162,13 +162,32 @@ service cloud.firestore {
       return d.role == 'admin'
           ? isOwner() && d.campus == 'all' && d.scope == 'all' && isBitsAddress(d.email)
         : d.role == 'dept'
-          ? (isOwner() || isAdmin())
+          ? (isOwner() || isAdmin() || handsOver(d) || cancelsHandover(d))
             && isStudent(d.email) && campusOf(d.email) == d.campus
             && d.programme is string
         : d.role == 'course'
           ? (isOwner() || isAdmin() || isPresident(d.campus, deptOf(d.scope)))
             && isStudent(d.email) && campusOf(d.email) == d.campus
         : false;
+    }
+
+    // Succession (§13.4): a live president names the next one. Their own
+    // grant, in the same batch, records the successor — once: a second
+    // handover while one runs is refused.
+    function handsOver(d) {
+      let mine = grantPath('dept', d.campus, d.scope, me());
+      return isPresident(d.campus, d.scope)
+        && get(mine).data.get('handedTo', null) == null
+        && getAfter(mine).data.get('handedTo', '') == d.email
+        && d.get('programme', '') == get(mine).data.get('programme', '');
+    }
+
+    // The outgoing president cancels while the overlap runs.
+    function cancelsHandover(d) {
+      let mine = grantPath('dept', d.campus, d.scope, me());
+      return d.active == false && isPresident(d.campus, d.scope)
+        && get(mine).data.get('handedTo', '') == d.email
+        && getAfter(mine).data.get('handedTo', null) == null;
     }
 
     // The staff index is written in the same batch and agrees with the grant.
@@ -204,7 +223,38 @@ service cloud.firestore {
         && (request.resource.data.active == false || expiryOk(request.resource.data))
         && staffAgrees(id, request.resource.data)
         && audited('grants/' + id);
+      // A president's own grant during succession: shortened to at most
+      // twenty days — never extended — beside the successor's new grant; or
+      // restored, beside its revocation, by a cancel.
+      allow update: if mayUse()
+        && resource.data.role == 'dept' && resource.data.email == me()
+        && isPresident(resource.data.campus, resource.data.scope)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['expiresAt', 'handedTo', 'expiresBefore', 'auditId'])
+        && request.resource.data.active == true
+        && (handingOver(resource.data, request.resource.data)
+            || cancellingHandover(resource.data, request.resource.data))
+        && staffAgrees(id, request.resource.data)
+        && audited('grants/' + id);
       allow delete: if false;
+    }
+
+    function handingOver(before, d) {
+      return before.get('handedTo', null) == null
+        && d.handedTo is string && d.handedTo != me()
+        && d.expiresBefore == before.expiresAt
+        && d.expiresAt > request.time
+        && d.expiresAt <= before.expiresAt
+        && d.expiresAt <= request.time + duration.value(20, 'd')
+        && getAfter(grantPath('dept', d.campus, d.scope, d.handedTo)).data.active == true;
+    }
+
+    function cancellingHandover(before, d) {
+      return before.get('handedTo', null) is string
+        && d.get('handedTo', null) == null
+        && d.get('expiresBefore', null) == null
+        && d.expiresAt == before.expiresBefore
+        && getAfter(grantPath('dept', d.campus, d.scope, before.handedTo)).data.active == false;
     }
 
     // staff/{email}: { name, email, campus, owner, admin, presidentOf: [dept],
@@ -243,12 +293,100 @@ service cloud.firestore {
 
     match /staff/{email} {
       allow get: if (signedIn() && email == me()) || isOwner() || isAdmin()
-        || isPresidentOn(resource.data.campus);
+        || isPresidentOn(resource == null ? campusOf(me()) : resource.data.campus);
       allow list: if isOwner() || isAdmin();
       // Owners are trusted with the index outright (their own owner flag too).
       allow create, update: if isOwner()
         || (mayUse() && grantChanged(request.resource.data.lastGrant)
             && staffWriteOk(email));
+      allow delete: if false;
+    }
+
+    // ---- Contacts (§13.5, §16.3 fix 8) --------------------------------------
+
+    // Privileged: an owner, or a live entry in the staff index.
+    function privileged() {
+      return isOwner()
+        || (signedIn() && exists(staffPath(me()))
+            && request.time < get(staffPath(me())).data.expiresAt);
+    }
+
+    function nameOk(n) { return n is string && n.size() > 0 && n.size() <= 80; }
+    function phoneOk(n) { return n is string && n.matches('^[+0-9 ()-]{7,20}$'); }
+
+    // Owners, admins, presidents and CRs reach each other here.
+    match /staffContacts/{email} {
+      allow read: if privileged();
+      allow create, update: if email == me() && privileged()
+        && request.resource.data.keys().hasOnly(['name', 'phone', 'email', 'updatedAt'])
+        && request.resource.data.email == me()
+        && nameOk(request.resource.data.name)
+        && phoneOk(request.resource.data.phone)
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // A listed role: a live grant of the writer's, with its expiry as it
+    // stands after this batch (a handover rewrites it).
+    function listed(r) {
+      let g = getAfter(grantPath(r.role, campusOf(me()), r.scope, me())).data;
+      return r.role in ['dept', 'course'] && g.active == true
+        && request.time < g.expiresAt && r.until == g.expiresAt;
+    }
+
+    function listedAt(l, i) { return l.size() <= i || listed(l[i]); }
+
+    // What a president or CR shows the students of their campus: at least
+    // one way to reach them, each chosen separately.
+    match /directory/{email} {
+      allow get, list: if mayUse() && resource.data.campus == campusOf(me());
+      allow create, update: if isStudent(me()) && email == me()
+        && request.resource.data.keys().hasOnly(
+             ['name', 'campus', 'roles', 'email', 'whatsapp', 'phone', 'updatedAt'])
+        && nameOk(request.resource.data.name)
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.roles is list
+        && request.resource.data.roles.size() > 0
+        && request.resource.data.roles.size() <= 4
+        && listedAt(request.resource.data.roles, 0)
+        && listedAt(request.resource.data.roles, 1)
+        && listedAt(request.resource.data.roles, 2)
+        && listedAt(request.resource.data.roles, 3)
+        && ('email' in request.resource.data || 'whatsapp' in request.resource.data
+            || 'phone' in request.resource.data)
+        && request.resource.data.get('email', me()) == me()
+        && (!('whatsapp' in request.resource.data) || phoneOk(request.resource.data.whatsapp))
+        && (!('phone' in request.resource.data) || phoneOk(request.resource.data.phone));
+      allow delete: if signedIn() && email == me();
+    }
+
+    // ---- Volunteers (§16.3 fix 16) -----------------------------------------
+
+    function readsOffers(d) {
+      return isOwner() || isAdmin() || isPresident(d.campus, d.dept);
+    }
+
+    match /volunteers/{id} {
+      allow get: if (signedIn() && resource.data.email == me()) || readsOffers(resource.data);
+      allow list: if readsOffers(resource.data);
+      // Offered, or offered again, by the student themselves.
+      allow create, update: if isStudent(me())
+        && id == request.resource.data.campus + '|' + request.resource.data.courseId + '|' + me()
+        && request.resource.data.keys().hasOnly(
+             ['name', 'email', 'campus', 'courseId', 'dept', 'term', 'open', 'createdAt', 'closedBy'])
+        && request.resource.data.email == me()
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.dept == deptOf(request.resource.data.courseId)
+        && nameOk(request.resource.data.name)
+        && request.resource.data.term is string
+        && request.resource.data.open == true
+        && request.resource.data.createdAt == request.time;
+      // Withdrawn by them; dismissed, or closed by an appointment, by a reader.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['open', 'closedBy'])
+        && request.resource.data.open == false
+        && ((signedIn() && resource.data.email == me()) || readsOffers(resource.data));
       allow delete: if false;
     }
 
