@@ -50,7 +50,11 @@ service cloud.firestore {
       allow create, update: if mayUse() && request.auth.uid == uid
         && request.resource.data.rev is int
         && request.resource.data.data is string
-        && request.resource.data.data.size() < 500000;
+        && request.resource.data.data.size() < 500000
+        // The pre-step-3 snapshot, kept once so the migration can be undone.
+        && (!('v1' in request.resource.data)
+            || (request.resource.data.v1 is string
+                && request.resource.data.v1.size() < 500000));
     }
 
     // Bug reports / course requests. Write-only from the app: a signed-in user

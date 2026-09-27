@@ -71,9 +71,14 @@ Future<Catalog> loadCatalog({
 }
 
 /// Checks the marker and, when a newer bundle this build understands is
-/// published, fetches it, caches it and uses it. Returns whether it changed.
+/// published, fetches it, caches it and uses it; [beforeUse] runs first, with
+/// the old and new catalogues. Returns whether it changed.
 /// Failures leave the current catalogue alone.
-Future<bool> refreshCatalog(CatalogSource source, {Box? cache}) async {
+Future<bool> refreshCatalog(
+  CatalogSource source, {
+  Box? cache,
+  Future<void> Function(Catalog previous, Catalog next)? beforeUse,
+}) async {
   try {
     final marker = await source.marker();
     if (marker == null) return false;
@@ -81,6 +86,7 @@ Future<bool> refreshCatalog(CatalogSource source, {Box? cache}) async {
     if (catalogLoaded && marker.version <= catalog.version) return false;
     final json = await source.bundle(marker.version);
     final next = Catalog.fromJson(json);
+    if (catalogLoaded) await beforeUse?.call(catalog, next);
     final box = cache ?? await Hive.openBox(catalogBoxName);
     await box.put('json', json);
     useCatalog(next);
