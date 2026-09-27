@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/core/grading/minor_progress.dart';
 import 'package:cgpa_calculator/core/storage/minor.dart';
 import 'package:cgpa_calculator/core/storage/offshoot.dart';
@@ -332,10 +333,11 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           }
         }
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => MarksPage(course: c, onEditCourse: edit),
-          ),
+        await openRoute(
+          context,
+          Routes.course(c.id),
+          () => MarksPage(course: c, onEditCourse: edit),
+          extra: edit,
         );
         if (mounted) setState(() {});
       },
@@ -358,13 +360,13 @@ class _MyHomePageState extends State<MyHomePage> {
             selectedprofile = next;
           }),
       onOpenAnalytics:
-          () => Navigator.of(
+          () => openRoute(
             context,
-          ).push(MaterialPageRoute(builder: (context) => StatsPage(discipline: selecteddiscipline))),
+            Routes.stats,
+            () => StatsPage(discipline: selecteddiscipline),
+          ),
       onOpenCalendar: () async {
-        await Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => const CalendarPage()));
+        await openRoute(context, Routes.calendar, () => const CalendarPage());
         if (mounted) setState(() {});
       },
       onOpenSettings: _openSettings,
@@ -413,8 +415,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _openSettings() async {
     erase = 0;
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (context) => const SettingsPage()))
+    await openRoute(context, Routes.settings, () => const SettingsPage())
         .then((value) async {
           selected_theme = selected_theme;
           thm = AppPalette.byName(selected_theme);
