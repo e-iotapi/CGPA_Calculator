@@ -30,6 +30,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # The fallback catalogue (tools/export_catalog.dart, ARCHITECTURE.md §3).
+    - assets/catalog.json
   fonts:
     - family: Montserrat
       fonts:

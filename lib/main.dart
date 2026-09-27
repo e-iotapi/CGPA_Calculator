@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
+import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -56,6 +59,10 @@ void main() async {
 /// Pulls the user's data down before basicStartup() reads settings into globals.
 Future<void> startApp(User user) async {
   await Sync.init(user.uid);
+  // Boot from the cached or shipped catalogue; a newer published one is
+  // fetched in the background and used from then on (ARCHITECTURE.md §3).
+  await loadCatalog();
+  unawaited(refreshCatalog(FirestoreCatalogSource()));
   await basicStartup();
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

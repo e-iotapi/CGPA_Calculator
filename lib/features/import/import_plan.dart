@@ -2,6 +2,7 @@
 /// Settings page shows the plan, then applies it.
 library;
 
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/requirements.dart';
@@ -11,7 +12,6 @@ import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/import/performance_sheet.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
-import 'package:cgpa_calculator/mastercourselist.dart';
 
 class ImportPlan {
   const ImportPlan({
@@ -145,7 +145,7 @@ ImportPlan planImport(
 
     if (match == null) {
       final master =
-          mcourselist.where((m) => sameCourseId(m.id, r.id)).firstOrNull;
+          catalog.master.where((m) => sameCourseId(m.id, r.id)).firstOrNull;
       // The same course under another code: cross-listed ("BITS F493" taken
       // as "ECON F355"), or a chart course renumbered since, in the same
       // semester, same title, never graded. The sheet's code replaces it.

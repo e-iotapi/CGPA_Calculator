@@ -38,6 +38,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The published catalogue (ARCHITECTURE.md §1): not secret, one read per
+    // new version. Written only by an owner's publish.
+    match /catalog/{doc} {
+      allow read: if mayUse();
+      allow write: if false;
+    }
+
     match /users/{uid} {
       allow read, delete: if mayUse() && request.auth.uid == uid;
       allow create, update: if mayUse() && request.auth.uid == uid

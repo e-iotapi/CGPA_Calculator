@@ -7,6 +7,7 @@
 /// once, wherever any code of it is asked for.
 library;
 
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 
@@ -100,4 +101,5 @@ class CourseGraph {
 }
 
 /// The graph of every course on offer.
-final courseGraph = CourseGraph.fromTitles(mcourselist);
+CourseGraph get courseGraph => _graph.of(catalog);
+final _graph = PerCatalog((c) => CourseGraph.fromTitles(c.master));
