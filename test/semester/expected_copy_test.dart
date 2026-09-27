@@ -1,18 +1,17 @@
-// The Expected profile's "Copy from Actual" button (board `Expected`).
+// The Expected profile's round copy button (board `Expected`).
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/features/semester/widgets/copy_profile_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Future<List<int>> pump(
-    WidgetTester t, {
-    AppPalette p = AppPalette.light,
-  }) async {
+  final button = find.byIcon(Icons.copy_rounded);
+
+  Future<List<int>> pump(WidgetTester t) async {
     final copies = <int>[];
     await t.pumpWidget(
       MaterialApp(
-        theme: p.materialTheme,
+        theme: AppPalette.light.materialTheme,
         home: Scaffold(
           floatingActionButton: CopyProfileButton(
             from: 'Actual',
@@ -27,14 +26,23 @@ void main() {
 
   testWidgets('stays up: no timer hides it', (t) async {
     await pump(t);
-    expect(find.text('Copy from Actual'), findsOneWidget);
+    expect(button, findsOneWidget);
     await t.pump(const Duration(seconds: 5));
-    expect(find.text('Copy from Actual'), findsOneWidget);
+    expect(button, findsOneWidget);
+  });
+
+  testWidgets('an icon only, named by its tooltip', (t) async {
+    await pump(t);
+    expect(find.textContaining('Copy from'), findsNothing);
+    expect(
+      find.byTooltip('Copy every Actual grade into Expected'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('asks first; Cancel copies nothing', (t) async {
     final copies = await pump(t);
-    await t.tap(find.text('Copy from Actual'));
+    await t.tap(button);
     await t.pumpAndSettle();
     expect(find.text('Import from Actual?'), findsOneWidget);
     await t.tap(find.text('Cancel'));
@@ -44,41 +52,22 @@ void main() {
 
   testWidgets('Import copies once', (t) async {
     final copies = await pump(t);
-    await t.tap(find.text('Copy from Actual'));
+    await t.tap(button);
     await t.pumpAndSettle();
     await t.tap(find.text('Import'));
     await t.pumpAndSettle();
     expect(copies, [1]);
   });
 
-  testWidgets('ink in light, and fits a 44 px touch target', (t) async {
+  testWidgets('ink, round, and at least a 44 px target', (t) async {
     await pump(t);
     final fab = t.widget<FloatingActionButton>(
       find.byType(FloatingActionButton),
     );
     expect(fab.backgroundColor, AppPalette.light.inverse);
-    expect(
-      t.getSize(find.byType(FloatingActionButton)).height,
-      greaterThanOrEqualTo(44),
-    );
-  });
-
-  testWidgets('a long profile name is cut, not overflowed, at 320', (t) async {
-    t.view.physicalSize = const Size(320, 640);
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.reset);
-    await t.pumpWidget(
-      MaterialApp(
-        theme: AppPalette.dark.materialTheme,
-        home: Scaffold(
-          floatingActionButton: CopyProfileButton(
-            from: 'My very long renamed profile',
-            to: 'Expected',
-            onCopy: () async {},
-          ),
-        ),
-      ),
-    );
-    expect(t.takeException(), isNull);
+    expect(fab.shape, isA<CircleBorder>());
+    final size = t.getSize(find.byType(FloatingActionButton));
+    expect(size.width, greaterThanOrEqualTo(44));
+    expect(size.height, greaterThanOrEqualTo(44));
   });
 }
