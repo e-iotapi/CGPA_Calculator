@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
 import '../helpers/fonts.dart';
+import '../helpers/shots.dart';
 
 final _today = DateTime(2026, 9, 26);
 
@@ -85,6 +86,12 @@ void main() {
       );
       await t.pumpAndSettle();
     }
+
+    testWidgets('screenshots', skip: shotsDir == null, (t) async {
+      await loadAppFonts();
+      await t.runAsync(() => saveEvaluative(_labs()));
+      await shoot(t, 'calendar', () => CalendarPage(today: _today));
+    });
 
     testWidgets('a date entered in Marks appears without a second entry', (
       t,

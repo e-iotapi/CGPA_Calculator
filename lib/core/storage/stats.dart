@@ -32,6 +32,20 @@ Map<String, double> get statsPlan {
 Future<void> setStatsPlan(Map<String, double> plan) =>
     _settings.put('stats_plan', jsonEncode(plan));
 
+/// Future semesters left out of the forecast (Stats › Plan the rest).
+Set<String> get statsSkipped {
+  final raw = _settings.get('stats_skipped');
+  if (raw is! String || raw.isEmpty) return {};
+  try {
+    return {for (final s in jsonDecode(raw) as List) s as String};
+  } catch (_) {
+    return {};
+  }
+}
+
+Future<void> setStatsSkipped(Set<String> skipped) =>
+    _settings.put('stats_skipped', jsonEncode(skipped.toList()));
+
 /// Elective requirements from the last imported performance sheet.
 DegreeNeeds? get degreeNeeds {
   final raw = _settings.get('degree_needs');

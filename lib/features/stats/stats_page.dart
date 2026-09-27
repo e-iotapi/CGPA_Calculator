@@ -31,12 +31,14 @@ class _StatsPageState extends State<StatsPage> {
   var _view = StatsView.progression;
   late double? _target = statsTarget;
   late final Map<String, double> _plan = statsPlan;
+  late final Set<String> _skipped = statsSkipped;
 
   StatsData get _data => StatsData.from(
     all: allCourses(),
     discipline: widget.discipline,
     target: _target,
     plan: _plan,
+    skipped: _skipped,
     needs: degreeNeeds,
     totalSet: degreeTotalFor(widget.discipline),
   );
@@ -113,6 +115,10 @@ class _StatsPageState extends State<StatsPage> {
         setState(() => _plan[sem] = sgpa);
         setStatsPlan(_plan);
       },
+      onIncludeChanged: (sem, on) {
+        setState(() => on ? _skipped.remove(sem) : _skipped.add(sem));
+        setStatsSkipped(_skipped);
+      },
       onBack: () => Navigator.of(context).maybePop(),
       onEditTotal: _editTotal,
       onAssign: (course, tag) async {
@@ -136,6 +142,7 @@ class StatsScreen extends StatelessWidget {
     required this.onViewChanged,
     required this.onTargetChanged,
     required this.onPlanChanged,
+    this.onIncludeChanged,
     required this.onBack,
     this.onEditTotal,
     this.onAssign,
@@ -147,6 +154,9 @@ class StatsScreen extends StatelessWidget {
   final ValueChanged<StatsView> onViewChanged;
   final ValueChanged<double> onTargetChanged;
   final void Function(String sem, double sgpa) onPlanChanged;
+
+  /// A future semester ticked into, or out of, the forecast.
+  final void Function(String sem, bool included)? onIncludeChanged;
   final VoidCallback onBack;
   final VoidCallback? onEditTotal;
   final AssignCourse? onAssign;
@@ -271,6 +281,7 @@ class StatsScreen extends StatelessWidget {
                             data: data,
                             onTargetChanged: onTargetChanged,
                             onPlanChanged: onPlanChanged,
+                            onIncludeChanged: onIncludeChanged,
                           ),
                 ),
               ],
@@ -289,11 +300,16 @@ class StatsFooter extends StatelessWidget {
     required this.label,
     required this.value,
     required this.trailing,
+    this.emphasis = false,
   });
 
   final String label;
   final String value;
   final Widget trailing;
+
+  /// The value is the headline (board `Stats`: "8.10 CGPA", large, mint);
+  /// otherwise it is a line of detail and [trailing] is the number.
+  final bool emphasis;
 
   @override
   Widget build(BuildContext context) {
@@ -324,10 +340,19 @@ class StatsFooter extends StatelessWidget {
                   value,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TypeScale.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: p.isDark ? p.text : p.onInverse,
-                  ),
+                  style:
+                      emphasis
+                          ? TypeScale.title.copyWith(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                            color: p.hero,
+                          )
+                          : TypeScale.body.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: p.isDark ? p.text : p.onInverse,
+                          ),
                 ),
               ],
             ),

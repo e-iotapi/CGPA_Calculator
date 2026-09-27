@@ -37,19 +37,23 @@ class CgpaChart extends StatelessWidget {
     return Semantics(
       label: label,
       excludeSemantics: true,
-      child: SizedBox(
-        height: 170,
-        child: CustomPaint(
-          size: Size.infinite,
-          painter: _ChartPainter(
-            actual: actual,
-            forecast: forecast,
-            target: target,
-            line: p.text,
-            forecastLine: forecastColor(p),
-            targetLine: p.behind,
-            grid: p.divider,
-            label: p.textMuted,
+      // Its own layer: the sliders below repaint on every drag.
+      child: RepaintBoundary(
+        child: SizedBox(
+          height: 170,
+          child: CustomPaint(
+            size: Size.infinite,
+            painter: _ChartPainter(
+              actual: actual,
+              forecast: forecast,
+              target: target,
+              line: p.text,
+              forecastLine: forecastColor(p),
+              targetLine: p.behind,
+              grid: p.divider,
+              label: p.textMuted,
+              surface: p.surface,
+            ),
           ),
         ),
       ),
@@ -67,12 +71,13 @@ class _ChartPainter extends CustomPainter {
     required this.targetLine,
     required this.grid,
     required this.label,
+    required this.surface,
   });
 
   final List<CgpaPoint> actual;
   final List<CgpaPoint> forecast;
   final double target;
-  final Color line, forecastLine, targetLine, grid, label;
+  final Color line, forecastLine, targetLine, grid, label, surface;
 
   /// 1 when the forecast starts on the last actual point.
   int get _lead => actual.isEmpty ? 0 : 1;
@@ -97,13 +102,13 @@ class _ChartPainter extends CustomPainter {
         left + (sems.length == 1 ? w / 2 : w * i / (sems.length - 1));
     double y(double v) => top + h * (1 - (v - lo) / (hi - lo));
 
-    TextPainter text(String s, [Color? c]) => TextPainter(
+    TextPainter text(String s, [Color? c, bool bold = false]) => TextPainter(
       text: TextSpan(
         text: s,
         style: TextStyle(
           fontFamily: TypeScale.family,
-          fontSize: 9,
-          fontWeight: FontWeight.w600,
+          fontSize: bold ? 9.5 : 9,
+          fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
           color: c ?? label,
         ),
       ),
@@ -162,8 +167,22 @@ class _ChartPainter extends CustomPainter {
         }
       }
       final dot = Paint()..color = c;
+      final ring =
+          Paint()
+            ..color = c
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.2;
+      final fill = Paint()..color = surface;
       for (var i = 0; i < vs.length; i++) {
-        canvas.drawCircle(Offset(x(from + i), y(vs[i])), 3, dot);
+        final o = Offset(x(from + i), y(vs[i]));
+        if (dashed) {
+          // Board `Stats`: forecast points are hollow.
+          if (i == 0 && _lead == 1) continue;
+          canvas.drawCircle(o, 3.4, fill);
+          canvas.drawCircle(o, 3.4, ring);
+        } else {
+          canvas.drawCircle(o, 2.8, dot);
+        }
       }
     }
 
@@ -174,6 +193,30 @@ class _ChartPainter extends CustomPainter {
       dashed: true,
     );
     path(actual.map((a) => a.cgpa).toList(), 0, line);
+
+    /// A value beside a point, kept inside the chart. The target line is
+    /// named by the legend, not labelled on the chart.
+    void tag(double v, int i, Color c, {bool above = true}) {
+      final t = text(v.toStringAsFixed(2), c, true);
+      final dx =
+          (x(i) - t.width / 2).clamp(left, size.width - t.width).toDouble();
+      final dy = above ? y(v) - t.height - 6 : y(v) + 6;
+      t.paint(
+        canvas,
+        Offset(dx, dy.clamp(0, size.height - bottom - t.height).toDouble()),
+      );
+    }
+
+    // Today, ringed and labelled; the forecast's end, labelled.
+    if (actual.isNotEmpty) {
+      final now = Offset(x(actual.length - 1), y(actual.last.cgpa));
+      canvas.drawCircle(now, 5 + 2.4, Paint()..color = surface);
+      canvas.drawCircle(now, 5, Paint()..color = line);
+      tag(actual.last.cgpa, actual.length - 1, line, above: false);
+    }
+    if (forecast.length > 1) {
+      tag(forecast.last.cgpa, sems.length - 1, forecastLine);
+    }
   }
 
   @override

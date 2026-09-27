@@ -212,8 +212,9 @@ class _CalendarPageState extends State<CalendarPage> {
               ? p.onInverse
               : marked
               ? p.onHero
+              // Board `Calendar`: days gone by fade back.
               : past
-              ? p.textMuted
+              ? p.navIcon
               : p.icon;
       return Semantics(
         button: true,
@@ -262,7 +263,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           width: 4,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: past ? p.textMuted : p.text,
+                            color: past ? p.navIcon : p.text,
                             shape: BoxShape.circle,
                           ),
                         ),
