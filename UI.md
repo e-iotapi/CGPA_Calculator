@@ -12,6 +12,9 @@ ARCHITECTURE.md wins. PLAN.md is retired; don't read it.
   file, its layout from top to bottom with sizes and copy, its states, its behaviour (tap,
   hold, drag, swipe), its tests, and its current status.
 - **Part 3**: build order, the definition of done, and the log of what is already built (§11–§13).
+- **Part 4** (second audit, 27 Sep 2026): new findings N1–N30 (§15), every board → Dart file
+  (§16), every reachable screen → board (§17), the route check (§18), redundant code (§19),
+  and **the task cards to build from (§20)**. A builder starts at §20.
 
 Numbers are CSS px on a 390 × 844 board, which is the same as Flutter logical px. "Ink" is
 `#17170F`, "mint" is `#B4DED0`, "ground" is `#F2F2EF`.
@@ -407,9 +410,10 @@ Each screen has these parts:
   - ⬜ **Missing**: not built at all.
 
 **How each screen was audited (27 Sep 2026).**
-- The live site (`pointer-bits-pilani.pages.dev`) runs the build from **before** commit
-  `fd3f390`: it still shows labels under every nav icon and has no Add pill. Where the local
-  code is newer than the live site, the audit says so.
+- The live site (`pointer-bits-pilani.pages.dev`) runs `master` at `3061a67`, which is
+  `1c6f0c0` plus the merge: the build from **before** commit `fd3f390`. It still shows labels
+  under every nav icon and has no Add pill. Where the local code is newer than the live site,
+  the audit says so. The manager screens are identical to the live site (§14).
 - Screens that need a signed-out or first-run account (Sign in, setup, import) can't be
   reached live without signing the user out. They were rendered from the current code with
   a temporary screenshot test at 390 × 844, light and dark, with the real fonts.
@@ -1739,8 +1743,8 @@ the code visibly lacks.
   27 Mar 2027"; "Only owners change the admin term".
 - **Live**: the title is "How long a grant lasts" under "CONFIG · GRANT TERMS"; the preview
   lines "Given today → ends 29 Mar 2027" **are present**. But each tier tag stretches (G2)
-  and the length between − and + is invisible in dark (G1). Use the board's title
-  "Grant terms".
+  and the length between − and + is invisible in dark (G1). *(Corrected in §15 N30: the
+  board's title is "How long a grant lasts", as the code has; keep it.)*
 
 ### 10.6 Public contact — `PublicContact` · 🔧 layout (small)
 - **Code**: `config_pages.dart`.
@@ -1758,8 +1762,8 @@ the code visibly lacks.
   rewrites 3 reviews and 2 offerings and cannot be undone", and the confirm.
 - **Live**: "OWNERS, ADMINS, PRESIDENTS" / "Merge duplicates"; the four campuses stacked
   (G2); a Material dropdown with an invisible "Department" hint (G1); "Pick a department."
-- **Code differs**: show the counts and the exact rewrite sentence before confirming. Use the
-  board title "Merge professors".
+- **Code differs**: show the counts and the exact rewrite sentence before confirming. *(The
+  board's title is "Merge duplicates", as the code has; see N30.)*
 
 ### 10.8 Audit log — `AuditLog` · 🔧 layout
 - **Board**: entries grouped by day. Each has the actor (name + tier badge, never
@@ -1954,7 +1958,7 @@ the code visibly lacks.
   - The chosen role persists, with the strip (3.29) to switch back.
 - **Live** ("Work as", as an owner with no grants): YOUR ROLES / "Work as", only Student
   (NOW), and the two notes. For an owner, Settings should lead to Open as, not here (board
-  note). Use the board's title "Switch role".
+  note). *(The board's title is "Work as", as the code has; see N30.)*
 - **Code differs**: the expiry is there but as "until 27/9/2027"; write it as "until 27 Sep
   2027" (the app's date style).
 
@@ -1992,7 +1996,9 @@ the code visibly lacks.
 ## 11 · Build order
 
 One group at a time. Each group ends with a local commit (specific files only); the user
-pushes and deploys. Groups 3–9 are not started.
+pushes and deploys. Groups 3–9 are not started. **Build from the task cards in §20**, which
+break each group below into steps with files, code and tests, and add the second audit's
+findings (N1–N30).
 
 | Group | Contents | Sections |
 |---|---|---|
@@ -2100,3 +2106,1121 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
   shoots Settings, `test/stats/stats_test.dart` the three Stats views and
   `test/marks/marks_test.dart` the Marks page.
 - **Still to do in this group**: see §11, Group 2.
+
+
+### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
+- At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
+  passed, analyze clean) and reverted; it is written out in §20 T2.1.
+- Rendered 40 screens with fake data (manager screens with a fake Firestore) and 59 boards
+  with Chromium, and compared each pair. The new findings are N1–N30 in §15.
+- Mapped boards ↔ code (§16, §17), checked every navigation target (§18), and searched for
+  dead code (§19): nothing is dead. The legacy `thm` layer and the Home dialogs are
+  redundant.
+- Found the exact G4 index (N10) and two overflows at 320 with 2× text (N27).
+- The audit harnesses `test/ui/zz_audit_managers_test.dart` and `zz_audit_students_test.dart`
+  stay untracked; §14 has the recipe.
+
+---
+
+# Part 4 — Second audit and the fix guide
+
+Written 27 Sep 2026 after a second, code-level audit. **Part 4 is the work list.** Part 2
+says what each screen must look like; Part 4 says what is wrong in the code today, where, and
+how to fix it, in an order that a smaller model can follow one task at a time.
+
+- §14: how this audit was done, and how to repeat it.
+- §15: new findings (N1–N30). They add to G1–G6 (§3.30).
+- §16: every board mapped to its Dart file, with whether it renders today.
+- §17: everything a user can reach, with its board or "no board".
+- §18: button and route check.
+- §19: code that is loaded but redundant.
+- §20: the task cards, in build order. **Start here when building.**
+
+## 14 · How the second audit was done
+
+**Live code.** The deployed site is `master` at `3061a67`: PR 11 merged from `1c6f0c0`,
+deployed by `.github/workflows/deploy.yml` on 27 Sep 2026. `pointer-rebuild` is two commits
+ahead (`fd3f390`, `8037abc`), and both touch student screens only (17 files). **Nothing under
+`lib/admin/`, `lib/features/roles/`, Reviews, Resources, More or `main.dart` differs from the
+live site**, so every manager screen rendered below is exactly what is live. (§Part 2's intro
+says the live build is "older than `fd3f390`"; it is `1c6f0c0` plus the merge commit.)
+
+**Screens.** Every screen was rendered from the current code with fake data, and nothing was
+changed in `lib/`. Two untracked test files did this:
+- `test/ui/zz_audit_managers_test.dart`: 28 manager and More-row screens.
+- `test/ui/zz_audit_students_test.dart`: 12 Page 1 screens with no screenshot test.
+
+Each screen was pumped into a `MaterialApp` with `palette.materialTheme`, the global
+`roleStore` set to `RoleStore(FakeFirebaseFirestore(), me: …)` and `myRoles` set to the role
+under test. The shots are light and dark at 390, dark at 320, and light at 320 with 2× text.
+The seed data:
+- five grants: an admin on Hyderabad; presidents of ELEC and CS on Goa, the CS one 9 days from
+  expiry; CRs for CS F372 and MATH F211
+- one owner, four `people` rows, a directory entry, four audit entries, and two professors
+  ("Dr. R. Menon", "R. Menon")
+
+Hive was opened with `Sync.openBoxes()`, `marksBox` and `cacheBoxes`. Any Flutter error was
+recorded instead of failing. **To repeat it**, recreate the files from this recipe (they must
+never be committed); `test/roles/step11_screens_test.dart` shows the same seeding.
+
+```dart
+// in audit(t, name, screen, roles:, me:):
+final db = FakeFirebaseFirestore();
+await t.runAsync(() => seed(db));            // grants, owners, people, directory, audit, professors
+roleStore = RoleStore(db, me: me, myName: 'Me');
+myRoles.value = roles;                        // e.g. MyRoles(email: owner, owner: true)
+t.view.physicalSize = size * 2; t.view.devicePixelRatio = 2;
+await t.pumpWidget(RepaintBoundary(child: MaterialApp(theme: palette.materialTheme,
+    builder: (c, child) => MediaQuery(data: MediaQuery.of(c).copyWith(
+        textScaler: TextScaler.linear(scale)), child: child!), home: screen())));
+for (var i = 0; i < 6; i++) {                 // not pumpAndSettle: PulsingTab never settles
+  await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+  await t.pump(const Duration(milliseconds: 100));
+}
+// then captureImage(...) as test/helpers/shots.dart does
+```
+
+**Boards.** Each board file was read with the Artifact tool and rendered by headless Chromium
+at 2×, with the repo's Montserrat injected by `@font-face`. Each render was put beside its
+four app renders to compare.
+
+**Limits.** These screens can't be seen this way:
+- G5 needs a real non-BITS sign-in.
+- G4 needs real Firestore; the fake one doesn't enforce indexes.
+- The publish draft, reported reviews and volunteer offers were not seeded, so those screens
+  show their empty states.
+
+Confirm those on the live site with a signed-in browser (Claude in Chrome, or the Desktop
+app's preview).
+
+## 15 · New findings (N1–N30)
+
+Each finding gives what is seen, the cause with file and line (at `8037abc`), and the fix.
+Task cards in §20 reference them.
+
+### Global (every screen or many)
+- **N1 · G1 confirmed on every manager screen in dark.** Every `NavRow` title, name, row
+  title and dropdown hint is invisible. Material widgets (`TextButton`, `SwitchListTile`,
+  `DropdownButtonFormField`, `FilterChip`, `CheckboxListTile`, `AlertDialog`) draw their
+  labels in no font: boxes in tests, Roboto on the web. The full list of such widgets, by
+  file, is in §20 T3.1. After G1 they render in Montserrat. **Each still needs restyling to the
+  board's chip or button** in its screen's task.
+- **N2 · The mint tags are drawn in dark green.** `TierTag` (PRESIDENT), `ScopeChip` (the
+  campus chip) and `NavRow(accent: true)` (the Appoint tile) fill with `p.accent` (`#1F5C4D`
+  in light) and draw ink `p.onHero` text on it. That is unreadable in light: see the
+  PRESIDENT tags on Maintainers and Roster, and the "Goa" chips everywhere. The boards use
+  mint (`hero`). Cause: `lib/admin/widgets.dart:84`, `:87`, `:145`, `:175`, `:182`, `:190`.
+  Fix: `p.hero` fill with `p.onHero` text (T3.3).
+- **N3 · Titles break mid-word at 320 with 200% text.** Seen as "Maintaine/rs", "Your
+  depa/rtment", "Professor/s", "Represen/tatives", "Resource/s" and "Course manag/er".
+  Cause: `PageHeader` (`lib/shared/widgets/page_header.dart:39-44`) gives the title
+  `maxLines: 2` in an `Expanded` beside a 42 px Back button; one long word can't fit a line,
+  so Flutter breaks it. The boards also put Back **on the left** for pushed screens (the
+  leading header, §10.1.3), and **on the right** only for top-level screens (Controls, Your
+  department, Stats, Marks). Fix: T3.8.
+- **N4 · A label beside a wide action wraps one word per line at 200% text.** Seen on:
+  - CrHome: "TAKEN BY, / THIS / TERM" beside "Change"
+  - DeptCourses: "EXTRA / CTION / PROMP / T" beside Copy
+  - Terms: the row title and "183 / d" squeezed between − and +
+  - Merge: the campus pills
+
+  Cause: `Row(Expanded(label), trailing)` where the trailing is a `TextButton` or a stepper
+  that doesn't shrink. Fix: the `LabelRow` pattern in T3.9, which stacks the trailing under
+  the label when the label would get less than 96 px.
+- **N5 · Email addresses wrap mid-address** ("f20220003@goa.bits- / pilani.ac.in") on
+  Maintainers and Roster, and at 200% the name is cut to "Owner O…" on Audit log while the
+  email keeps its room. The boards keep the name whole (`flex-shrink: 0`) and cut the email
+  to one line (`.ell`). Fix: the `NameEmail` widget in T3.9.
+- **N6 · "1 hours ago"**. `ago()` in `lib/admin/widgets.dart:302-303` never uses the
+  singular. Fix: "1 minute ago", "1 hour ago", "1 day ago" (T3.9).
+- **N7 · Raw errors reach the screen.** `problem()` (`widgets.dart:331`) returns `That did
+  not work: $e`, which is how G4 shows a Firestore console URL. Fix in T3.5.
+- **N8 · Switches and dialogs are Material green.** `SwitchListTile` on Public contact,
+  Before you start and the Publish draft sheet uses the seed colour; the boards draw an ink
+  track with a white or mint thumb (RepProfile). Date pickers
+  (`grant_form.dart:383`, `scheme_editor.dart:210`, `add_evaluative_page.dart:257`) and all
+  `AlertDialog`s use Material defaults. Fix: `switchTheme`, `dialogTheme` and
+  `datePickerTheme` in the G1 theme (T3.1).
+- **N9 · A bare `TextStyle` with no font.** `review_widgets.dart:116` (" / 5") and the "/"
+  between Marks and Out of on Add evaluative draw as boxes in tests (Roboto on the web).
+  G1's `fontFamily` fixes both; also use `TypeScale` styles there.
+
+### G4, exactly
+- **N10 · Department Reviews needs a collection-group index on (campus, department, hidden,
+  reports desc).** The screen opens on **Reported**, which calls
+  `moderation(hidden: false, reportedOnly: true)` (`dept_reviews.dart:32-37`). That runs
+  `collectionGroup('entries')` with `campus ==`, `department ==`, `hidden == false`,
+  `reports > 0`, ordered by `reports desc` (`review_store.dart:293-314`).
+  `firestore.indexes.json` has (campus, department, reports desc) **without** `hidden`, so the
+  query fails.
+  - Add a `COLLECTION_GROUP` index on `entries`: campus ASC, department ASC, hidden ASC,
+    reports DESC.
+  - The user deploys it with `firebase deploy --only firestore:indexes`.
+  - The All and Hidden tabs' indexes already exist.
+
+### Manager screens (Page 2), seen with data
+- **N11 · Controls**:
+  - The owner card drops the name: it reads "Every campus, every department", where the
+    board has "<name> — every campus, every department".
+  - The card is `inverse`, so it turns light in dark mode.
+  - The OWNER tag stretches (G2).
+  - The Appoint tile is dark green (N2).
+  - The rows are 46 tall with 11 px titles; the board has 48–56 tall rows and 13/700 titles.
+- **N12 · Maintainers**:
+  - The five filters stack full width (G2).
+  - The tier tags stretch (G2).
+  - EXPIRES IN n DAYS sits inline in the chip row. The board puts it right-aligned, followed
+    by "Renewing is deliberate…".
+  - The activity line reads "Appointed by X · until 5 Jan 2027", not the board's live "9
+    edits this week · expires 31 Dec". Keep the code's line unless an edit count exists.
+    Departure.
+  - No bottom "Appoint someone" action (it is inline).
+- **N13 · Roster**:
+  - **Missing the "WHO APPOINTS · EVERY CAMPUS" section** (the owners and admins, with their
+    staff phones) above the campus groups.
+  - Maintainers / Volunteers are two stacked pills. The board has a `SegmentedTrack`: a
+    40 px grey track with the selected half in ink, labelled "Volunteers · 3".
+  - The four filters stack (G2).
+  - No bottom "Appoint a CR".
+- **N14 · Grant terms**:
+  - The lengths are in **days** ("183 d", "365 d", "730 d"), and − / + change a day at a time
+    (`config_pages.dart:189-240`). The board has a boxed number plus a unit: "1 semester",
+    "1 year", and a locked "🔒 2 years" for an admin looking at the admin term.
+  - Missing: the two rule chips ("Admins change CR and president terms" in mint, "Only
+    owners change the admin term" in grey), and the amber notice.
+  - The title is "How long a grant lasts" and the board agrees; §10.5's "use Grant terms" is
+    wrong (see N30).
+  - In dark the value and the − / + icons are invisible (G1).
+- **N15 · Public contact**:
+  - The toggle is a `SwitchListTile` whose text draws in no font (G1).
+  - The preview's "Message …" button is a `FilledButton` (G1).
+  - WhatsApp / Phone / Email stack (G2).
+  - No "Last changed by …" line.
+  - The save button says "students see it at once", and the code does read `config/public`
+    live (`resources_page.dart:281`). The board and ARCHITECTURE §10.5 say it travels in the
+    catalogue ("after the next publish"). **ARCHITECTURE decides behaviour**: either move the
+    contact into the published catalogue, or record the live read as a Departure and keep the
+    code's copy. **Ask the user.**
+- **N16 · Owners**:
+  - The OWNER tag stretches, and the names are invisible in dark.
+  - "Add an owner" asks for an email **and** a name; the board asks for the address only.
+    Keep the name field, since `RoleStore.addOwner(email, name)` needs it and a new owner may
+    never have signed in. Departure.
+  - The board's INACTIVE rows and 32 px "Remove" button need data to check.
+  - There is no bottom "Add owner" action.
+- **N17 · Open as**:
+  - No ink identity card ("S · <name> · Signed in as an owner").
+  - Icons instead of tier tags (OWNER / ADMIN / PRES / CR / STUDENT, each 58 wide).
+  - The warning is plain text; the board has an amber notice with a bold lead.
+  - The titles are invisible in dark.
+- **N18 · Appoint someone**:
+  - The address card has an empty gap with a `TextButton` ("Look up") drawn in no font.
+  - There is no red-brown refusal box.
+  - The tier pills stack.
+  - With no address the disabled button reads "Grant — CR, …" (ellipsized). It should read
+    "Grant" until an address resolves, then "Grant — course manager, CS F372 Goa".
+  - The button is inline; the board has a bottom action.
+- **N19 · Audit log**:
+  - Missing the scope chips.
+  - Missing the "Anyone" actor dropdown.
+  - The course filter is a field plus a filter icon; the board has an ink chip "EEE F211 ✕"
+    once one is set.
+  - Missing the before → after value chips ("30%" struck in red-brown → "35%" in mint).
+  - The actor's email should be the short form ("f20230456@goa").
+  - "1 hours ago" (N6).
+- **N20 · Your department**:
+  - The badge "131" is mint (G6).
+  - There is a 7th "Appoint a CR" row the board doesn't have. The board reaches it through
+    People → Roster → Appoint a CR; remove the row or record a Departure.
+  - "Hand over" is inside the list; the board has a separate card with an amber tile, "Hand
+    over to your successor".
+  - The **THIS WEEK ink card is missing**; the code shows an "Audit log" row instead.
+  - The term is plain text; the board has a third chip.
+- **N21 · Course structures**:
+  - The extraction-prompt card is **nested inside** the upload card; the board has them as
+    separate cards.
+  - The upload card is plain; the board has a dashed mint drop zone.
+  - Each course row has a leading radio or check icon (`maintain.dart:304-305`) that the
+    board doesn't have. The board has a row of chips instead ("4 components", "100%
+    assigned", "avg 3 of 4", "CR: f2023…", or dashed "No scheme yet").
+  - All / No scheme stack; the board has a "No scheme" link in the search box.
+- **N22 · Professors**:
+  - A person icon; the board uses a graduation cap.
+  - The "never type a name twice" warning is plain text; the board has an amber notice
+    with ⚠.
+  - Subtitles read "Not teaching this term"; the board has "CS F301, CS F372 · teaching now"
+    or "… · last taught 2024-25 Sem 2".
+  - The button is "Search first, then add" (disabled until a search). The board has a bottom
+    "Add a professor". Keep the search-first rule (it is the point of the screen). Departure.
+- **N23 · Resources (department)**:
+  - The tabs are Material `FilterChip`s. In dark they are **light chips on the dark ground**,
+    with a tick on the selected one, and at 320 they wrap to two lines.
+  - "Add a link" is inline; the board has a bottom action.
+  - No ROLLUP ink card.
+- **N24 · Hand over (step 1)**:
+  - Only the address field and a "Look up" `TextButton` exist.
+  - Missing:
+    - the lead sentence
+    - the "✓ Goa address — 2024 batch" line
+    - the same-campus rule
+    - the WHAT HAPPENS timeline, three numbered steps (mint, mint, ink)
+    - the amber cancel notice
+    - the bottom "Review the handover"
+  - The eyebrow is "ELEC · GOA"; the board has "STEP 1 OF 3 · GOA · A7".
+- **N25 · Course page (CR)**:
+  - **No COURSE AVERAGE card.** The board has an input "out of 100" with "Stored against
+    this term and this component set…". Check ARCHITECTURE §13.3 for whether a CR enters it
+    here; if so, build it.
+  - "Change", "Add" and "Pick from department resources" are `TextButton`s. The board has
+    "Change" / "Add" as text links in accent 700, and "Pick from department resources" as a
+    dashed full-width button.
+  - The scheme components have no "10%" / "avg 12.4" chips.
+- **N26 · Work as / Before you start**:
+  - Work as draws the current role as an **inverted card** with "NOW" in `accent`. In dark
+    that is pale green on near-white, which can't be read (`role_switch_page.dart:92`). The
+    board has a plain row with a mint "✓ NOW" chip.
+  - Work as has no amber-mint "This is really you" notice and no "Your contact details" row.
+  - Before you start (non-forced, as "Contact details"):
+    - no ink "appointed" card with tier + scope chips and "Appointed by …"
+    - Material floating-label fields; the board has labels above
+    - Email / Phone switches; the board has BITS email / WhatsApp / Phone call
+    - the privacy note is plain; the board has an amber notice
+    - the Save button is inline
+
+### Student screens (Page 1), seen with data
+- **N27 · Course reviews and Professor reviews overflow at 320 with 200% text** (110 px). The
+  summary card (`StatsCard`, `review_widgets.dart:105-139`) is a `Row` of a 30 px number, "
+  / 5", a `Spacer` and a column with no flex. Fix: wrap the right column in `Flexible` with a
+  `FittedBox(fit: BoxFit.scaleDown)`, and give " / 5" a `TypeScale` style (N9). The board's
+  summary card is also **white** with a mint "would take it" bar (§8.7); the code's card is
+  `inverse`.
+- **N28 · Marks, empty course**: the hero reads "0.00 / 0 · 0% of the course graded · 100%
+  pending". With nothing weighted yet it should read "No marks yet" (or "—"), not a
+  zero-over-zero figure. The eyebrow is "CS F372 · 4 credits" in lower case (§5 common
+  fix).
+- **N29 · A legacy floating button on Expected.** `home_page.dart:153-210` shows an elevated
+  Material FAB (legacy `thm` colours, `'Montserrat'` SemiBold) on the Expected profile that
+  opens a legacy `AlertDialog` "Import from <Actual>?". No board has it: `Main` has no FAB,
+  and the boards give copying profiles to Settings → Grade profiles and the empty-profile
+  prompt. See §17 and T6.4.
+
+### Corrections to Part 2
+- **N30**:
+  - **§10.7** says to use the title "Merge professors"; the board's title is **"Merge
+    duplicates"**, which the code already uses. No change.
+  - **§10.20** says "Switch role"; the board's title is **"Work as"**, which the code
+    already uses. No change.
+  - **§10.5** says to use "Grant terms"; the board's title is **"How long a grant lasts"**
+    under "CONFIG · GRANT TERMS", which the code uses. No change.
+  - **§10.3** says to change "Hyderabad" to "Hyd": the code already labels it "Hyd"
+    (`people.dart:171`).
+  - **Privacy**: `lib/features/settings/settings_page.dart:73` hard-codes the owner's personal
+    email in a `mailto:` for Report a bug. Move it to `config/public` (or a const read from
+    the catalogue) so no personal address sits in source (§1.3). Don't copy the address into
+    any doc or test.
+
+## 16 · Every board → its Dart file, and whether it renders today
+
+"Renders" means it pumps with no exception. For shots marked A, that was checked at 390 and
+320, light and dark, and at 320 with 2× text. For the others it comes from the existing test,
+which passes, but not every existing test pumps at 320 with 2× text. "Shot" names the render: an existing test (`test/…`) or the audit (A). "Match" is the
+board comparison: ✅ matches, 🟡 close, 🔧 needs work, ⬜ not built.
+
+| Board | Dart | Renders | Shot | Match | Section |
+|---|---|---|---|---|---|
+| Landing | `landing/index.html` (static) | n/a | live | ✅ | 4.1 |
+| Loading | `web/index.html #ptr-loading` (CSS) | n/a | source | 🔧 footer | 4.2 |
+| SignIn | `features/auth/sign_in_view.dart` | ✅ | A | 🔧 | 4.3 |
+| Discipline | `features/setup/degree_setup_page.dart` | ✅ | A | 🔧 | 4.4 |
+| DisciplinePick | `features/setup/programme_pick_page.dart` | ✅ | A | ✅ | 4.5 |
+| Import | `features/import/erp_import_page.dart` | ✅ | A | 🔧 | 4.6 |
+| Main, DarkMain | `features/semester/semester_page.dart` in `home_page.dart` | ✅ | `semester_screenshots_test` | 🟡 | 4.7, 9.1 |
+| Marks | `features/marks/marks_page.dart` | ✅ | `marks_test`, A | 🔧 (N28) | 5.1 |
+| MarksAdd | `features/marks/add_evaluative_page.dart` | ✅ | A | ⬜ rebuild | 5.2 |
+| MarksSetup | `features/marks/course_setup_page.dart` | ✅ | A | 🔧 | 5.3 |
+| Divergence | `features/marks/widgets/divergence.dart` (sheet) | not pumped | — | ⬜ editor, 🔧 sheet | 5.4 |
+| Diverged | state of `marks_page.dart` | not pumped | — | 🔧 | 5.5 |
+| AverageSources | sheet from Marks "Averages ›" | not pumped | — | 🔧 | 5.6 |
+| GradeMenu | `features/semester/widgets/grade_menu.dart` | ✅ | `semester_test` | ✅ | 6.1 |
+| AddCourse | `features/semester/add_course_sheet.dart` | ✅ | `add_course_screenshots_test` | 🔧 | 6.2 |
+| AddManual | the manual tab of `add_course_sheet.dart` | ✅ | `add_course_screenshots_test` | 🔧 | 6.3 |
+| Calendar | `features/calendar/calendar_page.dart` | ✅ | `calendar_test` | 🟡 | 6.4 |
+| Stats | `features/stats/stats_page.dart` + `widgets/progression_view.dart` | ✅ | A (`stats_test` shots need the private transcript) | 🟡 axes | 7.1 |
+| StatsDegree | `features/stats/widgets/degree_view.dart` | ✅ | `stats_test` | 🟡 names, order | 7.2 |
+| Settings | `features/settings/settings_view.dart` (+ `settings_page.dart`) | ✅ | `board_shots_test` | 🟡 label | 7.3 |
+| Offshoot, DarkOffshoot | `features/offshoot/offshoot_panel.dart`, `minor_panel.dart` | ✅ | `semester_screenshots_test` | ✅ | 8.1, 9.2 |
+| More | `features/more/more_page.dart` | ✅ | A | 🔧 | 8.2 |
+| Representatives | `features/more/representatives_page.dart` | ✅ | A | 🔧 | 8.3 |
+| ReviewsSearch, YourReviews | `features/reviews/reviews_home.dart` (`yours:`) | ✅ | A | 🔧 | 8.4, 8.9 |
+| ReviewsSearchProfessor | search mode of `reviews_home.dart` | ✅ | `reviews_screens_test` | 🔧 | 8.5 |
+| ProfessorReviews | `features/reviews/professor_reviews.dart` | ❌ **overflow** at 320 2× (N27) | A | 🔧 | 8.6 |
+| Reviews | `features/reviews/course_reviews.dart` | ❌ **overflow** at 320 2× (N27) | A | 🔧 | 8.7 |
+| ReviewWrite, ReviewEdit | `features/reviews/review_form.dart` (`existing:`) | ✅ | A | 🔧 | 8.8, 8.10 |
+| Resources, ResourcesEmpty | `features/resources/resources_page.dart` | ✅ | A | 🔧 | 8.11, 8.13 |
+| ReportLink | `_ReportSheet` in `resources_page.dart:125` | not pumped | — | 🔧 | 8.12 |
+| Responsive | `shared/layout/responsive.dart`, `breakpoints.dart` | ✅ | `nav_screenshots_test`, `responsive_test` | 🟡 | 9.3 |
+| Logo | `shared/widgets/pointer_mark.dart` | ✅ | — | ✅ | 9.4 |
+| Owners | `admin/config_pages.dart` `OwnersPage` | ✅ | A | 🔧 (N16) | 10.9 |
+| Publish | `admin/publish_page.dart` | ✅ (empty state) | A | 🔧 | 10.10 |
+| OwnerSetup | none for owners (`degree_setup_page.dart:201` asks campus/batch for a non-BITS address) | — | — | ⬜ | 10.21 |
+| RolePick | `admin/open_as.dart` | ✅ | A | 🔧 (N17) | 10.22 |
+| ViewAsDept, ViewAsCourse | none: inline dropdown and text field in `open_as.dart:104` | — | — | ⬜ | 10.22 |
+| AdminHome | `admin/admin_home.dart` | ✅ | A | 🔧 (N11) | 10.2 |
+| AdminPeople | `admin/people.dart` `AdminPeople` | ✅ | A | 🔧 (N12) | 10.3 |
+| AdminGrant | `admin/grant_form.dart` | ✅ | A | 🔧 (N18) | 10.4 |
+| Terms | `admin/config_pages.dart` `TermsPage` | ✅ (but N4 squeeze) | A | 🔧 (N14) | 10.5 |
+| PublicContact | `admin/config_pages.dart` `PublicContactPage` | ✅ | A | 🔧 (N15) | 10.6 |
+| RepProfile | `features/roles/rep_profile.dart` | ✅ | A | 🔧 (N26) | 10.19 |
+| RoleSwitch | `features/roles/role_switch_page.dart` | ✅ | A | 🔧 (N26) | 10.20 |
+| AuditLog | `admin/config_pages.dart` `AuditLogPage` | ✅ | A | 🔧 (N19) | 10.8 |
+| Roster | `admin/roster.dart` | ✅ | A | 🔧 (N13) | 10.16 |
+| RosterVolunteers | `admin/volunteers.dart` `VolunteersTab` (a tab) | ✅ as a tab; **its route 404s** (G3) | A (empty) | 🔧 | 10.16 |
+| ProfessorMerge | `admin/professors.dart` `ProfessorMerge` | ✅ | A | 🔧 | 10.7 |
+| DeptHome | `admin/maintain.dart` `DeptHome` | ✅ | A | 🔧 (N20) | 10.11 |
+| DeptCourses | `admin/maintain.dart` `DeptCourses`, `bulk_upload.dart` | ✅ | A | 🔧 (N21) | 10.12 |
+| DeptReviews | `admin/dept_reviews.dart` | ✅ in tests; **fails live** (N10) | A (empty) | 🔧 | 10.13 |
+| DeptResources | `admin/dept_resources.dart` | ✅ | A | 🔧 (N23) | 10.14 |
+| DeptResourcesReported | Reported tab of `dept_resources.dart` | ✅ as a tab | — | 🔧 | 10.14 |
+| DeptProfessors | `admin/professors.dart` `DeptProfessors` | ✅ | A | 🔧 (N22) | 10.15 |
+| Succession | `admin/succession.dart` `Succession` | ✅ | A | 🔧 (N24) | 10.17 |
+| SuccessionConfirm | `admin/succession.dart` `SuccessionConfirm` | ✅ | A | 🔧 | 10.17 |
+| CrHome | `admin/maintain.dart` `CrHome`, `scheme_editor.dart` | ✅ | A | 🔧 (N25) | 10.18 |
+
+**Summary.**
+- 63 boards: 59 have a Dart file.
+- **Four have none**: OwnerSetup (for owners), ViewAsDept, ViewAsCourse, and the student scheme
+  editor half of Divergence.
+- **Two screens don't render cleanly**: Reviews and ProfessorReviews overflow at 320 with 2×
+  text (N27).
+- **One fails live**: DeptReviews (N10).
+- **One route is missing**: RosterVolunteers (G3).
+
+## 17 · Everything a user can reach → its board
+
+Routes, pushed pages, sheets and dialogs, found by searching `lib/` for `openRoute`,
+`context.go` / `push`, `MaterialPageRoute`, `showDialog`, `showModalBottomSheet`,
+`showGeneralDialog`, `showDatePicker`, `showMenu` and `launchUrl`. **"No board"** rows have no
+board on the canvas; each needs one (ask the user to add it), or a decision to style it with
+the shared parts and record a Departure.
+
+**Full screens with no board**:
+
+| Screen | Reached from | Code | Proposal |
+|---|---|---|---|
+| **Compare** view of Home | nav pill → Compare | `semester_page.dart` (two stat cards, profile picker sheet `:466`) | needs a board; `Main` only shows its nav icon |
+| **Person** (one maintainer: what they changed, revoke) | Maintainers or Roster → a row | `admin/people.dart:215` `PersonPage` | needs a board; the AdminPeople note describes it ("Tap anyone to see what they have changed, and revoke from that same screen") |
+| **Bulk upload preview** (created / changed / untouched, then confirm) | Course structures → Choose a file / Paste | `admin/bulk_upload.dart` | needs a board; the DeptCourses note describes it |
+| **Scheme editor** (president / CR) | Course page → Add / edit scheme | `admin/scheme_editor.dart` | shares §5.4; draw it from `Divergence` + `MarksAdd` parts |
+| **Install guide** | Import → Install, Settings → Install app | `settings/install_guide.dart` (sheet) | needs a board, or restyle with Notice / steps as on `Import` |
+| **Import preview** (what the sheet creates or changes) | Import → a PDF | `import/import_preview.dart` (sheet) | needs a board (the Import note describes it) |
+| **Edit course** (title, credits, category, remove) | Marks → pencil | `semester/edit_course_sheet.dart` | needs a board; `Marks` draws the pencil but no target |
+| **Minor picker** | Offshoot → Minor | `offshoot/minor_panel.dart:95` (sheet) | reuse the `DisciplinePick` list style |
+| **Site analytics** | none (no row in the code) | — | the `AdminHome` board has the row; show it disabled, "Coming later" (§10.2) |
+
+**Sheets and dialogs with no board** (restyle each with the shared parts after G1):
+- **Settings**:
+  - the discipline picker is a generic list sheet (`settings_page.dart:112-160`). **The board
+    note says the picker is `DisciplinePick`**: open `ProgrammePickPage` instead.
+  - the other Settings dialogs:
+    - the confirm-change dialog `:170`
+    - rename profile `:234`
+    - Import from old site `:365`
+    - Report a problem `:409`
+- **Stats**: "Credits your degree needs" (`stats_page.dart:51`; StatsDegree's BEHAVIOUR note
+  says tap the total card to edit — no board for the dialog).
+- **Home**:
+  - "Over n credits" confirm (`add_course_sheet.dart:424`)
+  - "Remove this course?" (`edit_course_sheet.dart:84`)
+  - category `showMenu` (`course_fields.dart:108`)
+- **Legacy, on Home** (`home_page.dart`), all Material `AlertDialog`s with the legacy `thm`
+  colours and the SemiBold-only `'Montserrat'`:
+  - "Import from <profile>?" from the Expected FAB (`:178`, N29)
+  - "Start <profile> from…" (`:249`)
+  - "Clear Grades" (`:480`, the pull-to-clear confirm)
+- **ERP import**: its confirm (`erp_import_page.dart:173`).
+- **Managers**:
+  - revoke (`people.dart:227`)
+  - Paste JSON (`maintain.dart:214`)
+  - "Write n schemes?" (`bulk_upload.dart:88`)
+  - add or rename a professor (`professors.dart:30`)
+  - the course picker sheet (`professors.dart:469`)
+  - hide reason (`dept_reviews.dart:53`)
+  - add a link (`dept_resources.dart:33`)
+  - pick from department resources (`dept_resources.dart:576`)
+  - draft a change (`publish_page.dart:68`)
+- **Date pickers**: `grant_form.dart:383`, `scheme_editor.dart:210`,
+  `add_evaluative_page.dart:257`. Theme them in G1 (N8).
+
+**Screens that have a board but are drawn differently from how the code reaches them**:
+- Open as → President / CR: the code has inline pickers; the boards have `ViewAsDept` and
+  `ViewAsCourse` screens (10.22).
+- Settings → Discipline: the code has a list sheet; the board has `DisciplinePick`.
+
+## 18 · Button and route check
+
+Every `context.go` / `push` / `openRoute` / `stripNavigate` target was traced to a
+registered `GoRoute` (`lib/app/router.dart`):
+- ✅ `stats`, `calendar`, `settings`, `resources`, `more`, `representatives`, `welcome`,
+  `roles`, `reviews`, `reviews/professor/:id`, `reviews/:courseId`, `course/:id`
+- ✅ every `admin/…` child: people, grant, owners, terms, contact, audit, roster, open-as,
+  publish, professors/merge
+- ✅ `maintain/:campus/course/:courseId`
+- ✅ `maintain/:campus/:dept` and its courses, professors, reviews, resources, succession,
+  succession/confirm
+
+Broken or risky:
+1. **`Routes.adminVolunteers` (`/admin/roster/volunteers`) has no `GoRoute`** (G3). Nothing
+   in the code links to it today, but a typed or shared URL shows GoRouter's red error page,
+   because the router has no `errorBuilder`. Fix: T3.4.
+2. **Any unknown path** (a mistyped `/maintain/goa`, an old bookmark) shows the same raw
+   error page (G3).
+3. **`course/:id` with an id that isn't in the user's courses** (a shared link, or a course
+   removed in another tab) redirects Home without a word (`router.dart:90`). That's safe;
+   T3.4 adds a snackbar ("That course isn't in your list") so the user knows why.
+4. **Role redirects send people Home silently**: `/admin` for a non-staff account, or
+   `/maintain/…` for the wrong scope. That's correct (the RolePick note), but with G5 a
+   non-BITS owner is sent Home too. Fix G5 first (T3.6).
+5. **Settings → Controls** passes `() => const SizedBox()` as the no-router fallback
+   (`settings_page.dart:105`). In the app the router exists, so it works, but a widget test
+   that taps it shows a blank page. Pass `() => const AdminHome()` via the deferred loader,
+   or drop the row in tests.
+6. **External links** (`launchUrl`): Representatives' email / phone / WhatsApp, Resources'
+   links, the ERP link, Report a bug's `mailto:` (N30 privacy). These are fine, apart from
+   Report a bug's hard-coded address.
+7. **New routes the boards imply** (ARCHITECTURE §16.1): `admin/open-as/department`,
+   `admin/open-as/course`, `setup/owner`, `maintain/…/resources/reported`. Add them with
+   their screens (T8.x). **Each new top-level segment needs a line in `landing/_redirects`**
+   (only `setup` is new at top level; `admin` and `maintain` already exist). Check with
+   `test/app/routes_test.dart`.
+
+## 19 · Loaded but redundant
+
+An import graph from `lib/main.dart` was built over all 147 Dart files. Every file is reached:
+the two web-only files come in through conditional imports. Every one of the 161 widget
+classes is constructed somewhere, and no top-level function is dead; `earnedCredits` and
+`earnedCourses` in `requirements.dart` are used only by tests. **So nothing can simply be
+deleted.** What is redundant is the legacy layer that still loads and still draws:
+
+| What | Where | Why it's redundant | Fix |
+|---|---|---|---|
+| The legacy `thm` global and its colour aliases `backcolor`, `textcolor`, `sepcolor`, `highcolor`, `cardcolor`, `bordcolor` | `script.dart:280`, `palette.dart:156-161`; used 17 times in `main.dart`, `home_page.dart`, `script.dart` | a second, older name for `AppPalette` | replace each use with `AppPalette.of(context)` roles, then delete the aliases (T9.2) |
+| The `'Montserrat'` font family (SemiBold only) | `pubspec.yaml`; used by the sign-in snackbar (`main.dart:242`) and the legacy dialogs in `home_page.dart` | `MontserratFull` has every weight | move those to `TypeScale`, then drop the family from `pubspec.yaml` (same file, so no size change; it removes a second font name) |
+| Legacy Home dialogs and the Expected FAB | `home_page.dart:153-210`, `:249`, `:480` | not on any board (N29) | replace with shared-part dialogs, or remove the FAB (Settings → Grade profiles copies) (T6.4) |
+| `saveDataAsImage` (a PNG of the semester) | `script.dart:366`; called by Home's Export pill (`home_page.dart:305` → `_exportSemester` `:443`) | **not redundant**: it is what the board's Export pill does. Its result snackbar uses the legacy font | keep; restyle the snackbar with `TypeScale` (T9.2) |
+| `setnavcolor()` | `script.dart:232`, called from `home_page.dart:90`, `:436` | sets the legacy system nav bar colour; the new nav has its own colours | keep until the theme work (T9.2) moves it to `SystemUiOverlayStyle` from the palette |
+| Generic list picker in Settings | `settings_page.dart:112-160` | duplicates `ProgrammePickPage` for disciplines | use `ProgrammePickPage` for the two degree rows; keep `_pick` for Campus and Batch |
+
+Retired features have no leftovers: the retired-tag tests (`test/shared/retired_test.dart`)
+cover the one intentional legacy state.
+
+## 20 · Task cards, in build order
+
+### 20.0 How to work a card
+Every card has **Goal**, **Files**, **Steps**, **Tests**, **Check** and **Done**. Do one card
+at a time, in order: later cards assume the shared parts from earlier ones. Don't start a
+group until the previous group is committed.
+
+**Setup, once per session**:
+- `export PATH=<flutter>/bin:$PATH`: Flutter **3.47.5**, Dart 3.7. If git complains about
+  "dubious ownership" of the SDK, run `git config --global --add safe.directory <flutter dir>`.
+- `flutter pub get`.
+- Baseline at `8037abc`:
+  - `flutter analyze`: 7 infos, all in legacy files: `home_page.dart:20`, `script.dart`
+    (217, 229, 310, 311), `add_course_test.dart:16`, `edit_course_test.dart:11`. Any new
+    issue is yours.
+  - `flutter test`: 345 passed, 43 skipped. The skips need private fixtures, which are
+    gitignored.
+
+**The loop for each card**:
+1. Read the card, the Part 2 section it names, and the board (Artifact tool, `path:
+   project/<Board>.dc.html`). The board wins unless a Departure is written down.
+2. Change only the files the card names. If you must touch another file, say why in the log.
+3. Write the tests the card lists.
+4. Run `flutter analyze` and `flutter test <the files you touched>`. At the end of each group,
+   run `flutter test` in full. Run `cd test/rules && npm test` when `firestore.rules`,
+   `storage.rules` or `firestore.indexes.json` changed.
+5. Shoot: `SHOTS_DIR=<scratch dir> flutter test <the screen's shot test>`. Look at light and
+   dark at 390 and 320, and at 320 with `textScale: 2`, beside the board.
+6. Add a line to §13 (the build log): the card id, the files, and any Departure.
+
+**Rules that bind every card** (§1.3 and the user's rules):
+- Dart 3.7: no null-aware elements (`?x` inside a list literal).
+- `dart format` only on new files or files already formatted at HEAD; never on CRLF or legacy
+  files (`home_page.dart`, `script.dart`, `course.dart`, `mastercourselist.dart`, `sync.dart`,
+  `main.dart`). Check a file with `dart format --output=none --set-exit-if-changed <file>` at
+  HEAD first.
+- Widget tests never trigger Hive writes through the UI. Test storage in unit tests; where a
+  UI test must save, wrap the tap in `t.runAsync` as `marks_test.dart` does.
+- A new top-level route segment needs a line in `landing/_redirects`.
+- No real emails in code, docs or tests. Use made-up BITS-style addresses
+  (`f20230802@goa.bits-pilani.ac.in`).
+- Don't touch sign-in for the iPhone `redirect_uri_mismatch` issue.
+- **Git**:
+  - Stage named files only (never `git add -A`).
+  - Never commit `test/fixtures/transcript.csv`, `test/fixtures/performance_sheet.json`, any
+    `*.pdf`, `PLAN.md`, `idthp`, screenshots or `test/ui/zz_*`.
+  - Commit once per group, with the trailer `Co-Authored-By: Claude Opus 5.5
+    <noreply@anthropic.com>`.
+  - The user pushes, merges and deploys.
+- **Stop and ask the user** when a card says **Ask**, when a board and ARCHITECTURE disagree
+  on behaviour, or when a fix would change stored data.
+
+---
+
+### Group 2 · finish (Stats, Settings)
+
+**T2.1 · Stats axes (§7.1)**
+- **Goal**: y shows only the whole numbers the data spans, labelled "9.0"; x labels only
+  first, current, last and a landmark (Practice School).
+- **Files**: `lib/features/stats/widgets/cgpa_chart.dart`, `test/stats/stats_test.dart`.
+- **Steps** (this exact change was tested on 27 Sep 2026 and then reverted, as the user asked
+  for a guide first; re-apply it):
+  1. Add two top-level functions above `_ChartPainter`:
+     ```dart
+     /// The y axis: the whole numbers the [values] span, at least one apart,
+     /// within 0–10.
+     (double, double) yRange(Iterable<double> values) {
+       final lo = math.max(0.0, values.reduce(math.min).floorToDouble());
+       final hi = math.min(10.0, values.reduce(math.max).ceilToDouble());
+       if (hi - lo >= 1) return (lo, hi);
+       return hi < 10 ? (lo, lo + 1) : (hi - 1, hi);
+     }
+
+     /// The x labels, most important first: the first semester, the current one
+     /// ([current], -1 with none), the last, and a landmark (Practice School).
+     List<int> xLabels(List<String> sems, int current) {
+       final ps = sems.indexWhere((s) => s.trim().toUpperCase().startsWith('PS'));
+       final out = <int>[];
+       for (final i in [0, current, sems.length - 1, ps]) {
+         if (i >= 0 && i < sems.length && !out.contains(i)) out.add(i);
+       }
+       return out;
+     }
+     ```
+  2. In `paint`:
+     - Replace the `lo` / `hi` lines with `final (lo, hi) = yRange(values);`.
+     - Set the paddings to `left = 22, bottom = 16`.
+     - Change `text()` to take a size: `TextPainter text(String s, [Color? c, double size =
+       9.5])`, with weight `c == null ? w500 : w700`.
+  3. Grid: step 0.5 while `hi - lo <= 3`, else 1. Label only whole numbers, with
+     `v.toStringAsFixed(1)` at size 8.
+  4. X labels: `for (final i in xLabels(sems, actual.length - 1))`, at size 7.5. Clamp each
+     label inside the chart, and skip one whose rect (inflated by 3) overlaps a label already
+     drawn. That keeps first, current and last when they are close.
+  5. Board strokes:
+     - target: 2 wide, dashes 5 on / 4 off (`d += 9`, `d + 5`)
+     - actual and forecast: 2.6 wide
+     - forecast: dashes 6 on / 5 off (`d += 11`, `d + 6`)
+  6. `tag()` calls `text(v.toStringAsFixed(2), c)`.
+- **Tests**: add a group `chart axes (board Stats)`:
+  - `yRange([8.76, 7.28, 7.71, 8.10, 8.0]) == (7.0, 9.0)`
+  - `yRange([8.2, 8.4]) == (8.0, 9.0)`
+  - `yRange([9.0, 9.0]) == (9.0, 10.0)`
+  - `yRange([10.0]) == (9.0, 10.0)`
+  - With `sems = ['1 - 1','1 - 2','2 - 1','2 - 2','PS 1','3 - 1','3 - 2','4 - 1','4 - 2','5 - 1']`:
+    `xLabels(sems, 7) == [0, 7, 9, 4]` and `xLabels(['1 - 1','1 - 2'], -1) == [0, 1]`.
+- **Check**: the Stats shot. Four x labels at most, and y labels like "8.0".
+- **Done**: `flutter test test/stats` passes (19 at the time of writing) and analyze is clean.
+
+**T2.2 · Degree names and order (§7.2)**
+- **Goal**:
+  - Order: the first degree (B…, `cdc1` / `del1`), then the second (A…, `cdc2` / `del2`),
+    then Humanity and Open.
+  - Names: "B3 Core" with a muted " · CDC1" suffix, "A7 Core · CDC2", "Disciplinary
+    Elective 1" / "Disciplinary Elective 2".
+  - A single degree: "A7 Core" and "Disciplinary Electives", with no suffix and no number.
+- **Files**: `lib/core/grading/requirements.dart` (the `cards` list at `:378-414`),
+  `lib/features/stats/widgets/degree_view.dart` (titles at `:236` and `:264`), and these tests:
+  - `test/grading/requirements_test.dart` (102, 103, 108, 126, 141, 142, 267, 295)
+  - `test/stats/stats_test.dart` (214, 275, 308, 312, 360, 363, 455, 460)
+  - `test/shared/retired_test.dart:136`
+- **Steps**:
+  1. In `cards`, move the `if (hasB) ...[...]` block **above** `if (hasA) ...[...]`.
+  2. Labels:
+     - `hasB` core: `'$first Core · CDC1'`
+     - `hasA` core: `dual ? '$second Core · CDC2' : '$second Core'`
+     - electives: `dual ? 'Disciplinary Elective 1' : 'Disciplinary Electives'` for `del1`,
+       and the same with "2" for `del2`
+     - The sheet-based `'Core courses (CDC)'` card is unchanged.
+  3. In `degree_view.dart`, split the title on `' · '`: the first part in the title style,
+     and `· CDC1` in the same size at w500 `textMuted` (`Text.rich`). The label stays one
+     string for semantics.
+  4. Leave `categoryLabel` in `add_course_controller.dart` as it is (a different screen).
+- **Tests**:
+  - Update the listed expectations to the new strings.
+  - Add `test('dual degree order and names')`: for `'B3A7'` the labels start `['B3 Core ·
+    CDC1', 'Disciplinary Elective 1', 'A7 Core · CDC2', 'Disciplinary Elective 2',
+    'Humanity Electives', 'Open Electives']`.
+  - For `'--A7'`: `['A7 Core', 'Disciplinary Electives', 'Humanity Electives', 'Open
+    Electives']`.
+- **Check**: the StatsDegree shot: B3 first, suffix muted.
+
+**T2.3 · Settings discipline value (§7.3)**
+- **Goal**: "A7 · Computer Science": the code first, the degree prefix dropped, ellipsized,
+  with the full name as tooltip and semantics.
+- **Files**: `lib/features/settings/settings_controller.dart`,
+  `lib/features/settings/settings_view.dart:160-166`, `test/settings/settings_test.dart`.
+- **Steps**:
+  1. Add `String shortProgrammeLabel(String code)` to `settings_controller.dart`:
+     - `'--'`, `'B-'` or empty → the existing "None" / "Other" text
+     - anything else → `'$code · ${programmeName(code).replaceFirst(RegExp(r'^(B\.E\.|M\.Sc\.|B\.Pharm\.)\s*'), '')}'`.
+       Today's names start with "B.E." (11), "M.Sc." (6) or "B.Pharm." (1).
+  2. Use it for both `value:` lines. Wrap the value `Text` in `Tooltip(message:
+     disciplineLabel(...))` and give it `semanticsLabel` with the full name.
+     `maxLines: 1, overflow: ellipsis` (it already ellipsizes).
+- **Tests**:
+  - Unit: `shortProgrammeLabel('A7') == 'A7 · Computer Science'` and
+    `shortProgrammeLabel('B3')` starts with `'B3 · '`.
+  - Widget: at 320 the value `Text` shows `A7 · Computer Science`.
+- **Check**: the Settings shot at 320: no "Scienc…".
+
+**T2.4 · Close Group 2**
+- Delete nothing tracked. Leave `test/ui/zz_audit_*.dart` untracked, or delete them.
+- Add §13.2's final entry: T2.1–T2.3, files, and "Departures: none".
+- Run the whole suite, then commit:
+  ```
+  git add lib/features/stats/widgets/cgpa_chart.dart lib/core/grading/requirements.dart \
+    lib/features/stats/widgets/degree_view.dart lib/features/settings/settings_controller.dart \
+    lib/features/settings/settings_view.dart test/stats/stats_test.dart \
+    test/grading/requirements_test.dart test/shared/retired_test.dart \
+    test/settings/settings_test.dart UI.md
+  git commit -m "UI group 2: Stats axes, degree names and order, discipline label"
+  ```
+  with the trailer. Hand the user: `git push -u origin pointer-rebuild`.
+
+---
+
+### Group 3 · global fixes and shared parts
+
+**T3.1 · G1 + N8: one Material theme per palette**
+- **Goal**: in dark mode, every `Text` without a colour is readable. Every Material widget is
+  in Montserrat. Switches, dialogs, sheets, snackbars and date pickers use the palette.
+- **Files**: `lib/app/theme/palette.dart` (`materialTheme`, `:108-117`),
+  `test/theme/palette_test.dart`.
+- **Steps**: replace the getter with:
+  ```dart
+  ThemeData get materialTheme {
+    final b = isDark ? Brightness.dark : Brightness.light;
+    final scheme = ColorScheme.fromSeed(seedColor: accent, brightness: b).copyWith(
+      primary: inverse, onPrimary: onInverse, secondary: accent,
+      surface: surface, onSurface: text, onSurfaceVariant: textMuted,
+      outline: outline, outlineVariant: divider, error: behind,
+    );
+    final base = ThemeData(
+      brightness: b, colorScheme: scheme, fontFamily: TypeScale.family,
+    );
+    TextStyle btn(Color c) =>
+        TypeScale.button.copyWith(fontWeight: FontWeight.w700, color: c);
+    return base.copyWith(
+      scaffoldBackgroundColor: background,
+      textTheme: base.textTheme.apply(
+        fontFamily: TypeScale.family, bodyColor: text, displayColor: text),
+      primaryTextTheme: base.primaryTextTheme.apply(fontFamily: TypeScale.family),
+      iconTheme: IconThemeData(color: icon),
+      dividerColor: divider,
+      textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(
+        foregroundColor: accent, textStyle: btn(accent),
+        minimumSize: const Size(Sizes.minTouch, Sizes.minTouch))),
+      filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(
+        backgroundColor: inverse, foregroundColor: onInverse,
+        textStyle: btn(onInverse), shape: const StadiumBorder())),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
+        foregroundColor: text, side: BorderSide(color: text, width: 1.5),
+        textStyle: btn(text), shape: const StadiumBorder())),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? hero : surface),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? inverse : divider),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent)),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? inverse : null),
+        checkColor: WidgetStatePropertyAll(onInverse)),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.row)),
+        titleTextStyle: TypeScale.section.copyWith(color: text),
+        contentTextStyle: TypeScale.body.copyWith(
+          color: textMuted, fontWeight: FontWeight.w500)),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: background, dragHandleColor: outline),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: inverse, behavior: SnackBarBehavior.floating,
+        contentTextStyle: TypeScale.body.copyWith(color: onInverse)),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: surface, headerForegroundColor: text),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TypeScale.body.copyWith(color: textMuted, fontWeight: FontWeight.w500),
+        labelStyle: TypeScale.body.copyWith(color: textMuted)),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: text),
+      extensions: [this],
+      pageTransitionsTheme: base.pageTransitionsTheme, // keep the existing builders map
+    );
+  }
+  ```
+  - Keep the existing `PageTransitionsTheme` with `CircleRevealTransitionsBuilder`; don't
+    drop it.
+  - If a named parameter doesn't exist in 3.47 (for example `DialogThemeData`), use
+    whatever `flutter analyze` suggests.
+  - `palette.dart` imports `tokens.dart` (it may already).
+- **Tests** (`test/theme/palette_test.dart`):
+  - `AppPalette.dark.materialTheme.brightness == Brightness.dark`
+  - `...textTheme.bodyMedium!.color == AppPalette.dark.text`
+  - `...textTheme.bodyMedium!.fontFamily == TypeScale.family`
+  - pump a `TextButton(child: Text('x'))` under the dark theme and check the `RenderParagraph`
+    font family is `MontserratFull`
+- **Check**: re-shoot Controls (`AdminHome`) in dark: every row title is readable. The
+  audit's `m_admin_home_dark_390` showed them missing.
+- **Material widgets to restyle later**. After T3.1 they are readable; each screen's card
+  replaces them with board parts:
+  - `admin/bulk_upload.dart:98,102`
+  - `admin/config_pages.dart:106,370,422`
+  - `admin/dept_resources.dart:393,502,518,624,697`
+  - `admin/dept_reviews.dart:110,120,128,192,196`
+  - `admin/grant_form.dart:224,307`
+  - `admin/maintain.dart:231,235,391,428,446,508`
+  - `admin/open_as.dart:104`
+  - `admin/people.dart:238,242`
+  - `admin/professors.dart:64,68,304,489,553`
+  - `admin/publish_page.dart:185,209,328`
+  - `admin/scheme_editor.dart:301,332,343,412`
+  - `admin/succession.dart:174`
+  - `admin/volunteers.dart:171,193`
+  - `features/roles/rep_profile.dart:135,231`
+  - `features/roles/role_switch_page.dart:171,182`
+  - `features/more/representatives_page.dart:182,248`
+  - `features/reviews/course_reviews.dart:262`
+  - `features/reviews/review_widgets.dart:216,221`
+  - `features/resources/resources_page.dart:207,273`
+
+**T3.2 · G2: pills and tags hug their text; equal tab rows**
+- **Files**: `lib/admin/widgets.dart` (`TierTag :128-159`, `ChoicePills :237-294`),
+  `test/shared/widgets_test.dart`.
+- **Steps**:
+  1. `TierTag`: remove `alignment: Alignment.center` from the `Container`, and wrap the
+     `Text` in `Center(widthFactor: 1, heightFactor: 1, child: …)`.
+  2. `ChoicePills`: the same for the inner `Container` (`:273-287`). Add `final bool equal;`
+     (default false). When `equal` is true, build a `Row` of `Expanded` children with 6 px
+     gaps instead of the `Wrap`. Also add `final String Function(T)? count` (optional),
+     rendered after the label as " 214".
+  3. Use `equal: true` for tab rows:
+     - Maintainers' five filters (`people.dart:169`)
+     - Roster's filters
+     - DeptReviews' All / Reported / Hidden
+     - Open as' campuses
+     - Merge's campuses
+
+     Leave choice rows (tiers on Appoint, methods on Public contact) as a hugging `Wrap`.
+- **Tests**:
+  - A `TierTag('OWNER')` inside a 300-wide `Wrap` is narrower than 100.
+  - `ChoicePills(equal: true)` with 4 values in 320 gives 4 children of equal width.
+- **Check**: Maintainers and Roster shots: one row of filters, tags hugging.
+
+**T3.3 · N2: mint, not dark green**
+- **Files**: `lib/admin/widgets.dart:84,87` (NavRow tile), `:145,154` (TierTag),
+  `:175,182,190` (ScopeChip).
+- **Steps**: replace `p.accent` with `p.hero` for those fills; keep `p.onHero` for their
+  text and icons. Then set `TierTag`'s tones from the boards:
+  - `strong` (OWNER, ADMIN, CR): `navBackground` fill (ink in both modes) with `hero` text
+  - PRESIDENT: `hero` with `onHero`
+
+  In dark, `navBackground` on `surface` needs a 1 px `divider` border so the tag's edge shows.
+  Board variants (RolePick's blue ADMIN, grey CR) are a Departure: one tone set.
+- **Tests**: `TierTag(strong: false)`'s `BoxDecoration.color == AppPalette.light.hero`.
+- **Check**: the Maintainers light shot: PRESIDENT is mint with ink text.
+
+**T3.4 · G3: router error page, the volunteers route, and the missing-course message**
+- **Files**: `lib/app/router.dart:28-32` and the `admin` routes (`:104-129`),
+  `lib/admin/roster.dart` (add `initialVolunteers`), `test/app/routes_test.dart`.
+- **Steps**:
+  1. `GoRouter(errorBuilder: (c, s) => const NotFoundPage())`. `NotFoundPage` is a new
+     widget in `lib/shared/widgets/page_header.dart` or its own file: a `PageFrame` with
+     eyebrow "POINTER", title "This page doesn't exist", a `Note` "The link may be old, or
+     the page moved.", and a `PrimaryButton` "Home" → `context.go(Routes.home)`. No red
+     text, no exception string.
+  2. `RosterPage` gains `this.initialVolunteers = false`; in `initState`,
+     `_volunteers = widget.initialVolunteers`.
+  3. Register `_admin('roster/volunteers', () => admin.RosterPage(initialVolunteers:
+     true, volunteersTab: (c) => admin.VolunteersTab(campus: c)), _staff)` **before**
+     `'roster'`. `admin` is already in `_redirects`, so no new line is needed.
+  4. `course/:id` redirect (`:90`): keep the redirect Home, and also show a snackbar "That
+     course isn't in your list." once. Use the root `ScaffoldMessenger` via a global key
+     already used in `main.dart`, or skip this step if none exists and record it.
+- **Tests**:
+  - `appRouter` resolves `/admin/roster/volunteers` to `RosterPage` with
+    `initialVolunteers` (with `myRoles` = owner).
+  - `/nope` builds `NotFoundPage`.
+- **Check**: `routes_test.dart` passes; the `_redirects` test still passes.
+
+**T3.5 · G4 + N7 + N10: the missing index and friendly errors**
+- **Files**: `firestore.indexes.json`, `lib/admin/widgets.dart` (`problem()`, `Loaded`),
+  `test/rules` (only if the emulator loads indexes).
+- **Steps**:
+  1. Add to `indexes`:
+     ```json
+     { "collectionGroup": "entries", "queryScope": "COLLECTION_GROUP",
+       "fields": [ {"fieldPath": "campus", "order": "ASCENDING"},
+                   {"fieldPath": "department", "order": "ASCENDING"},
+                   {"fieldPath": "hidden", "order": "ASCENDING"},
+                   {"fieldPath": "reports", "order": "DESCENDING"} ] }
+     ```
+     Keep the 2-space JSON style of the file.
+  2. `problem(e)`:
+     - keep the two plain messages
+     - otherwise `debugPrint('$e')` and return `"Couldn't load this. Try again."`
+     - if `'$e'.contains('failed-precondition')`, return `"This list needs a database update
+       an owner has to deploy. Try again later."`
+     - never include `$e`
+  3. `Loaded`'s error branch: show that text with the palette's `noticeTone` in a `Notice`
+     (T3.10), plus a 44 px "Try again" button that calls `reload`.
+- **Tests**:
+  - `problem(Exception('[cloud_firestore/failed-precondition] … https://console…'))`
+    contains no "http".
+  - A widget test: `Loaded(load: () async => throw …)` shows "Try again", and tapping it
+    calls `load` again.
+- **Hand the user**: `firebase deploy --only firestore:indexes` (the index takes minutes to
+  build). The user runs deploys.
+
+**T3.6 · G5: a non-BITS owner gets their roles (§10.0)**
+- **Files**: `lib/main.dart:93-107`, `test/roles/…` (new test file
+  `test/roles/non_bits_owner_test.dart` for the pure part).
+- **Steps**:
+  1. Pull the block into a function in `lib/core/roles/session.dart`:
+     `@visibleForTesting RoleStore startRoles(FirebaseFirestore db, {required String email,
+     required String name})`. It creates the `RoleStore` for **any** signed-in email.
+     `recordSignIn` runs only when `campusOfAddress(email)` is non-null, as now. Then call
+     `refreshMyRoles().then((_) => checkProfile())` for everyone.
+  2. Keep `mayUseApp` as it is (`auth_util.dart:33`): a non-BITS account is let in only if
+     `isOwner`. So this change affects owners only.
+  3. `main.dart` is legacy-formatted: edit by hand, don't `dart format` it.
+- **Tests**: with a `FakeFirebaseFirestore` holding `owners/{x@example.com}` active, and
+  `startRoles(db, email: 'x@example.com', name: 'X')`, then `await refreshMyRoles()`:
+  `myRoles.value.owner == true`, `roleStore != null`, and no `people` doc was written.
+- **Check**: a manual check on the live site after deploy. **Ask the user** to sign in with
+  the non-BITS owner account and open `/calculator/admin`.
+- **Then**: OwnerSetup (T4.6).
+
+**T3.7 · G6: amber badges for waiting work**
+- **Files**: new `lib/shared/widgets/count_badge.dart`; `lib/admin/maintain.dart` (the
+  scheme count on DeptHome) and `admin_home.dart` (Publish, when T8.1 feeds it).
+- **Steps**: `CountBadge(String text, {CountTone tone = CountTone.waiting})` with the tones:
+  - `waiting`: `noticeTone.fill` / `.text`
+  - `on`: `hero` / `onHero` ("ON")
+  - `neutral`: `mutedTone`
+
+  Size 24 tall, radius 12, padding 0 10, 10.5/800. Replace the mint badge on DeptHome
+  ("131 have no scheme") with `waiting`.
+- **Tests**: `CountBadge('3')` decoration colour `== noticeTone.fill`.
+
+**T3.8 · N3: the leading header, and titles that never break mid-word**
+- **Files**: `lib/shared/widgets/page_header.dart`, `test/shared/widgets_test.dart`.
+- **Steps**:
+  1. `PageHeader` gains `final bool leading;` (default **true** for pushed screens) and
+     `final bool close;`.
+     - `leading: true` lays out `[Back 44] 12 [eyebrow / title]`.
+     - `leading: false` keeps today's `[eyebrow / title] [actions] [Back]` (top-level
+       screens: Controls, Your department, Stats, Marks).
+     - `close: true` draws ✕ (`Icons.close_rounded`, tooltip "Close") instead of the arrow
+       (Course setup, Edit evaluative).
+  2. Title at 21/700 −0.5 for pushed screens (board `.lbl` + 21px), and 22 for the rest as
+     today.
+  3. Words never break: wrap the title in a `LayoutBuilder`. Measure the **longest word** with
+     a `TextPainter` using the title style merged into `DefaultTextStyle.of(context).style`,
+     at `MediaQuery.textScalerOf(context)`. If it is wider than `constraints.maxWidth`, wrap
+     the title in `MediaQuery(data: …copyWith(textScaler:
+     TextScaler.linear(fit)))`, where `fit = maxWidth / longestWordWidthAtScale1` (floored
+     at 1.0). The title still wraps between words.
+  4. Don't add a new widget per screen. Pushed screens pick the leading layout by default.
+     Check each `PageHeader(` call (`grep -rn "PageHeader(" lib`) and pass `leading: false`
+     only for the four top-level screens.
+- **Tests**: at 320 wide and `textScale: 2`, `PageHeader(title: 'Maintainers')` renders the
+  title on **one** line (`RenderParagraph.didExceedMaxLines == false` and one line).
+  "Representatives" likewise.
+- **Check**: re-run the audit shots at 320 2×: no split words.
+
+**T3.9 · N4, N5, N6: small helpers**
+- **Files**: `lib/admin/widgets.dart`, and the call sites named.
+- **Steps**:
+  1. **`ago()`**: `'${n} minute${n == 1 ? '' : 's'} ago'`, the same for hours; "1 day ago"
+     is covered by "Yesterday".
+  2. **`LabelRow(label: Widget, trailing: Widget)`**: a `LayoutBuilder`. If `maxWidth -
+     trailingIntrinsicWidth < 96`, show a `Column(label, 6, Align(right, trailing))`;
+     otherwise a `Row(Expanded(label), 8, trailing)`. Use it for:
+     - CrHome's section heads with Change / Add (`maintain.dart` near `:508`)
+     - DeptCourses' EXTRACTION PROMPT head (`:391`)
+     - each Terms row (`config_pages.dart:189-240`)
+  3. **`NameEmail(name, email)`**: `Row(Text(name, 13/700, maxLines 1), 8, Flexible(Text(email,
+     11/500 textMuted, maxLines: 1, overflow: ellipsis, softWrap: false)))`. The name keeps its
+     width up to 60% of the row (`ConstrainedBox(maxWidth: c.maxWidth * .6)`) and ellipsizes
+     past that. Use it in:
+     - Maintainers' and Roster's grant blocks (`people.dart`, `roster.dart`)
+     - Owners (`config_pages.dart`)
+     - Audit log (`AuditTile`)
+
+     Add `shortEmail(e)` = the part before `.bits-pilani.ac.in` ("f20230456@goa") for the
+     Audit log only.
+- **Tests**:
+  - `ago(now - 1h) == '1 hour ago'`
+  - `LabelRow` at 200 wide with a 150-wide trailing stacks
+  - `NameEmail` at 320 × 2× text: the email is one line
+
+**T3.10 · The shared parts from §3 that later groups need**
+
+Build each in `lib/shared/widgets/`, with a widget test and one `shoot()` in
+`test/ui/board_shots_test.dart`. APIs:
+
+| Part (§3) | API | Notes |
+|---|---|---|
+| `CardLabel` (3.4) | `CardLabel(String text)` | 10.5/700 +0.5, upper case, `textMuted`, no padding |
+| `SegmentedPair` (3.7) | `SegmentedPair<T>({required (T,String) a, required (T,String) b, required T value, required ValueChanged<T> onChanged, double height = 44})` | two equal buttons, radius 14; selected ink |
+| `SegmentedTrack` (Roster, ReviewsSearch) | `SegmentedTrack<T>({required List<(T,String)> tabs, required T value, required ValueChanged<T> onChanged})` | 40 tall, radius 20, `mutedTone.fill` track, padding 3, selected ink radius 17 |
+| `TagBadge` (3.9) | `TagBadge(String text, {TagTone tone})`; tones `official`, `yours`, `updated`, `fromParts`, `dropped`, `confirm` | 20–22 tall, radius 10–11, 9.5–10/800 +0.3 upper case |
+| `Notice` (3.10) | `Notice({required InlineSpan text, IconData icon = Icons.info_outline_rounded, bool warning = false})` | `noticeTone`; radius 16; padding 9/12; move Marks' inline notice here |
+| `CardRow` + `CardDivider` (3.13) | `CardRow({Widget? leading, required String title, String? subtitle, Widget? trailing, VoidCallback? onTap, double minHeight = 52})` | the admin `NavRow` becomes a thin wrapper over it (tile + CardRow) |
+| `CodeBadge` (3.14) | `CodeBadge(String code, {CodeTone tone})`; tones `neutral`, `first` (mint), `second` (ink / mint), `selected`, `empty` (dashed) | 38 × 28–30, radius 9–10 |
+| `SearchBox` (3.20) | `SearchBox({required TextEditingController controller, required String hint, Widget? trailing})` | 46 tall, radius 23, surface, 16 px search icon; `trailing` for the "No scheme" link |
+| `BottomAction` (3.24) | `BottomAction({required Widget child, String? caption, double fade = 132})` | a `Stack` overlay: fade gradient `IgnorePointer`, then the child 44 above the safe bottom; the scroll view pads by `BottomAction.heightOf(context)` |
+| compact field (3.19) | `CompactField({required TextEditingController c, String? hint, bool official = false})` | 36 tall, radius 11 |
+| `AppTextField` label-above style (3.18) | `AppTextField(labelAbove: true)` | label 9.5–10/700 +0.4 upper case above a 46 tall box |
+| `PrimaryButton.tall` (3.21) | `PrimaryButton(tall: true)` | 56 tall, 14.5/700 |
+| `OutlinedPill` (3.22) | `OutlinedPill({required String label, IconData? trailing, required VoidCallback? onPressed})` | 42 tall, 1.5 px ink border |
+| `CountBadge` | T3.7 | |
+
+**T3.11 · Close Group 3**
+- Re-run both audit harnesses (§14) and compare with the board sheets. In dark, every text
+  must be readable.
+- Log T3.1–T3.10 in §13, commit, and hand the user the push command and
+  `firebase deploy --only firestore:indexes`.
+
+---
+
+### Group 4 · getting in (§4)
+
+- **T4.1 Loading** (§4.2): add the two footer lines in `web/index.html` `.ptr-seo`. No Dart.
+- **T4.2 Sign in** (§4.3, `sign_in_view.dart`): the three numbered fixes in §4.3, including
+  the "button within 120 px of the bottom" test. Use `PrimaryButton.tall`.
+- **T4.3 Your degree** (§4.4, `degree_setup_page.dart`): the six fixes in §4.4 using
+  `ScopeChip` (after T3.3 it is mint), `PillButton(height: 38)`, `Notice`, `CodeBadge`,
+  `BottomAction`.
+- **T4.4 Pick a programme** (§4.5): only the check in §4.5.1. The audit render matches the
+  board.
+- **T4.5 Import** (§4.6, `erp_import_page.dart`): the six fixes in §4.6. The nudge animation
+  uses one `AnimationController`, stopped when `MediaQuery.disableAnimations`.
+- **T4.6 Owner setup** (§10.21; needs T3.6): route `setup/owner`, a new top-level segment
+  `setup`, so **add `landing/_redirects` lines**.
+  - Reuse the campus / batch part of `degree_setup_page.dart:201` with the owner copy from
+    the `OwnerSetup` board.
+  - Show it when `myRoles.value.owner && campusOfAddress(email) == null && no stored campus`.
+  - Test: a non-BITS owner with no campus sees "ONE-TIME SETUP · OWNER".
+
+### Group 5 · a course (§5)
+
+- **T5.1 Marks** (§5.1 + N28, `marks_page.dart`):
+  - The eyebrow in upper case ("CS F372 · 4 CREDITS").
+  - With no weighted component yet, the hero shows "No marks yet" and hides "/ 0" and the
+    "0% graded · 100% pending" line.
+  - Test: an empty course shows "No marks yet".
+- **T5.2 Edit evaluative, rebuild** (§5.2, `add_evaluative_page.dart`):
+  - Build to the `MarksAdd` board with `PageHeader(close: true)`, `Notice` (official),
+    label-above fields, `SegmentedPair` (One mark / Several parts), mint count pills (Best n
+    of m), the parts grid with `CompactField` and `TagBadge(official)`, the hero, and a
+    bottom Save.
+  - The "/" between Marks and Out of (N9) goes away with the grid.
+  - At 320 with 2× text the parts grid becomes two lines per part (name row, then the four
+    fields).
+- **T5.3 Course setup** (§5.3, `course_setup_page.dart`): `PageHeader(close: true)`;
+  `SegmentedPair` with sublines; the rest as §5.3.
+- **T5.4 Scheme editor and first divergence** (§5.4): build the student scheme editor from
+  the `Divergence` board; restyle `widgets/divergence.dart`'s sheet. Share the widgets with
+  `admin/scheme_editor.dart` (T8.13).
+- **T5.5 After diverging** (§5.5) and **T5.6 Average sources** (§5.6): as specified.
+
+### Group 6 · adding (§6)
+
+- **T6.1** Grade menu label (§6.1).
+- **T6.2** Add a course (§6.2).
+- **T6.3** Enter it manually (§6.3).
+- **T6.4 · N29 legacy Home dialogs** (`home_page.dart`, legacy, don't reformat):
+  - **Ask the user** whether to keep the Expected FAB ("Import from Actual"). The boards have
+    no FAB; copying profiles lives in Settings → Grade profiles and the empty-profile
+    prompt.
+  - If it stays, restyle it as a `PillButton` in the section row.
+  - Replace the three `AlertDialog`s (`:178`, `:249`, `:480`) with a shared `ConfirmDialog`
+    (new, in `lib/shared/widgets/`: surface, radius 22, title `section`, body `body` w500
+    `textMuted`, two 44 tall pills: outlined Cancel, ink action). Drop every
+    `fontFamily: 'Montserrat'` and `thm.` use in those blocks.
+  - Test: the Clear confirm shows "Clear" and returns true on tap. Don't let it write Hive in
+    the widget test.
+- **T6.5 · Settings discipline picker** (§17, `settings_page.dart:190-215`): open
+  `ProgrammePickPage` (as `degree_setup_page.dart:103` does) instead of `_pick`. Keep
+  `changeDiscipline` and the erase warning as they are. Test: tapping Discipline pushes
+  `ProgrammePickPage`.
+
+### Group 7 · More and Reviews (§8)
+
+- **T7.1** More as a nav destination, and the leading header (§8.2).
+- **T7.2** Representatives (§8.3).
+- **T7.3 · The Reviews family** (§8.4–§8.10):
+  - **First fix N27**: in `review_widgets.dart` `StatsCard`, make the right column
+    `Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight,
+    child: …))`, and style " / 5" with `TypeScale.caption`.
+  - Then rebuild the card as the board's white summary card (§8.7).
+  - Test: `CourseReviewsPage` at 320 × 640 with `textScale: 2` has no exception.
+- **T7.4** Resources, Report this link, Empty (§8.11–§8.13).
+- **T7.5** The Offshoot checkbox (§8.1).
+
+### Group 8 · managers (§10), in the canvas's role order
+
+Every card here:
+- uses `PageHeader` (leading, T3.8), `ScopePills` where the board shows scope, `CardRow`,
+  `TierTag` (T3.2 / T3.3), `ChoicePills(equal:)` or `SegmentedTrack`, `Notice`, and
+  `BottomAction` for the one primary action
+- replaces its file's Material widgets (T3.1 list) with board parts
+- adds a shot of the screen to a **committed** `test/ui/manager_shots_test.dart`, seeded as
+  §14 describes (move the seed into `test/helpers/role_seed.dart`)
+
+| Card | Screen | Fix list |
+|---|---|---|
+| T8.1 | Controls (`admin_home.dart`) | §10.2 + N11: ink card in `navBackground` with "<name> — every campus, every department" (name from `roleStore.myName`); live subtitles (grant counts from `roster()`; terms from `terms()`; contact from `publicContact()`; Owners "n active"; Publish "n changes waiting" with an amber `CountBadge`); Site analytics row disabled, "Coming later" |
+| T8.2 | Owners | §10.9 + N16 |
+| T8.3 | Publish | §10.10: three cards, the checkbox gating a `BottomAction` "Publish n changes"; "Draft a change" as an `OutlinedPill` |
+| T8.4 | Open as + ViewAsDept + ViewAsCourse | §10.22 + N17: two new routes `admin/open-as/department` and `admin/open-as/course` (under `admin`, so no `_redirects` line), full-screen pickers (campus `ChoicePills(equal)`, searchable list, last opened first, kept in the device box) |
+| T8.5 | Maintainers + Person | §10.3 + N12. **Person has no board** (§17): **Ask the user** for one, or style it with `CardRow`s and record a Departure |
+| T8.6 | Appoint | §10.4 + N18: label-above address field, the found-user mint-wash line, red-brown refusal box, equal tier pills, "Full term · 1 year"; `BottomAction` labelled from the grant it will make |
+| T8.7 | Grant terms | §10.5 + N14: show units, not days. Keep days in storage; display `days ~/ 182` semesters for CR and `days ~/ 365` years for president / admin; − / + step one unit; admin row locked for admins; rule chips; `Notice` |
+| T8.8 | Public contact | §10.6 + N15. **Ask the user** about live vs catalogue first |
+| T8.9 | Before you start, Work as | §10.19, §10.20 + N26 |
+| T8.10 | Audit log | §10.8 + N19 |
+| T8.11 | Roster + Volunteers | §10.16 + N13: `SegmentedTrack`, WHO APPOINTS section (owners from `owners()`, admins from grants, with `staffPhones()`), `BottomAction` "Appoint a CR" |
+| T8.12 | Merge duplicates | §10.7: a president sees their scope as chips; owners and admins pick with the ViewAsDept picker (T8.4), not a dropdown |
+| T8.13 | Your department, Course structures, Reviews, Resources (+ Reported), Professors | §10.11–10.15 + N20–N23. **Ask the user** about DeptHome's "Appoint a CR" row. Bulk upload preview has no board (§17) |
+| T8.14 | Hand over + Confirm | §10.17 + N24 |
+| T8.15 | Course page (CR) | §10.18 + N25. **Ask the user** whether the COURSE AVERAGE card is in scope (ARCHITECTURE §13.3) |
+
+### Group 9 · last pass
+
+- **T9.1**: §11 row 9. Every screen in dark at 390 and 320; 768 and 1440 for Home, Stats,
+  Marks and More; 200% text at 320; the old-device frame check (§1.4); landing and loading
+  against the live deploy.
+- **T9.2 · Legacy layer (§19)**:
+  - Replace every `thm.<x>color` with `AppPalette.of(context)` roles.
+  - Move `setnavcolor()` to a `SystemUiOverlayStyle` from the palette.
+  - Drop the `'Montserrat'` SemiBold family from `pubspec.yaml` once nothing names it
+    (`grep -rn "'Montserrat'" lib` is empty).
+  - Delete the six colour aliases in `palette.dart:156-161`.
+  - Move the Report-a-bug address out of `settings_page.dart:73` (N30).
+- **T9.3 · Unboarded screens (§17)**: send the user the list in §17 and ask for boards, or
+  for approval to style each with the shared parts. Until then, each gets only the T3.1 theme
+  and the shared dialog.
+
+### 20.1 · Questions for the user (collected)
+1. Public contact: live read (the code) or catalogue-carried (the board and ARCHITECTURE)?
+   (N15)
+2. The Expected FAB "Import from Actual": keep it or remove it? (N29)
+3. DeptHome's extra "Appoint a CR" row: keep it as a Departure or remove it? (N20)
+4. The CR course page's COURSE AVERAGE card: build it now? (N25)
+5. Boards for the §17 screens: Compare, Person, Bulk upload preview, Import preview, Edit
+   course, Install guide, Minor picker, and the dialogs. Draw them, or approve shared-part
+   styling?
+6. Owners: keep the Name field on Add owner? (N16)
