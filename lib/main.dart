@@ -3,7 +3,7 @@ import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/firebase_options.dart';
-import 'package:cgpa_calculator/home_page.dart';
+import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,11 +12,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
 
 void main() async {
+  // Real paths (/calculator/stats), not #/stats (ARCHITECTURE.md §7).
+  usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   // Phone browsers deliver touches out of step with frames, so a drag moves
   // the list unevenly. Resampling lines the touches up with the frames.
@@ -218,13 +221,13 @@ class MyApp extends StatelessWidget {
     return ValueListenableBuilder(
       valueListenable: themeVersion,
       builder:
-          (_, _, _) => MaterialApp(
+          (_, _, _) => MaterialApp.router(
             title: 'Pointer',
             theme: thm.materialTheme,
+            routerConfig: appRouter,
             builder:
                 (_, child) =>
                     ThemeReveal.root(TapOriginTracker(child: child!)),
-            home: const MyHomePage(title: 'Pointer'),
           ),
     );
   }
