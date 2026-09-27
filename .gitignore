@@ -56,3 +56,9 @@ test/fixtures/performance_sheet.json
 
 # Rules tests (test/rules)
 node_modules/
+
+# Firebase emulators (test/rules, tools/test_env)
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
+.firebase/
