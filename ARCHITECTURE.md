@@ -638,7 +638,17 @@ Each step ships on its own and is reversible.
     `DeptReviews` is hide-only with a reason, audited. Search is by course, not yet by
     professor name; a deleted review's vote documents are left behind.
 11. **Succession, Representatives, the More hub.** Last: they are the surface over everything
-    above.
+    above. *Built:* `RoleStore.handOver` writes both grants, both staff entries and
+    both audit entries in one batch; the outgoing grant records `handedTo` and `expiresBefore`,
+    and the rules allow its expiry only to shrink, to at most twenty days, once at a time, and
+    restore it on a cancel. `SuccessionConfirm` needs the department code typed.
+    `core/roles/contacts.dart` holds `staffContacts/` and `directory/` (one batch, from
+    `RepProfile` at `/welcome`, which the router forces while `profileDue` holds; a renewal or
+    a new role brings it back) and `volunteers/`, with Roster › Volunteers copying the two
+    messages verbatim and *Appoint as CR* closing the course's offers in the grant's batch.
+    `More` is the bottom bar's fifth item. Not built: notifying both parties and the owners of
+    a handover (the audit log has it); the rules cannot check that a course has no live CR when
+    someone volunteers; the roster does not yet show staff phone numbers.
 
 Step 2 before step 3: prove the new read path against unchanged data before changing the data.
 Step 4 before step 6: have the divergence machinery working before shared data can change.

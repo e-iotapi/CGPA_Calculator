@@ -213,10 +213,28 @@ class RoleStore {
   }
 
   /// Writes [g] (new, renewed or revoked) with the staff index and the audit
-  /// entry, in one batch.
-  Future<void> _writeGrant(Grant g, String summary, {Grant? before}) async {
+  /// entry, in one batch. [also] adds to that batch: Appoint as CR closes
+  /// the course's volunteer offers in it (§16.3 fix 16).
+  Future<void> _writeGrant(
+    Grant g,
+    String summary, {
+    Grant? before,
+    void Function(WriteBatch b)? also,
+  }) async {
     final staff = await _staff(g.email);
     final b = db.batch();
+    _grantInto(b, g, staff, summary, before: before);
+    also?.call(b);
+    await b.commit();
+  }
+
+  void _grantInto(
+    WriteBatch b,
+    Grant g,
+    StaffEntry staff,
+    String summary, {
+    Grant? before,
+  }) {
     final id = logInto(
       b,
       path: 'grants/${g.id}',
@@ -247,13 +265,16 @@ class RoleStore {
     } else {
       b.update(ref, data);
     }
+    _staffInto(b, staff, g);
+  }
+
+  void _staffInto(WriteBatch b, StaffEntry staff, Grant g) {
     final s = staff.after(g);
     b.set(db.collection('staff').doc(g.email), {
       ...s,
       if (s['expiresAt'] case final DateTime e)
         'expiresAt': Timestamp.fromDate(e),
     });
-    await b.commit();
   }
 
   static Map<String, Object?> _grantSummary(Grant g) => {
@@ -270,6 +291,7 @@ class RoleStore {
     required String scope,
     required DateTime expiresAt,
     String? programme,
+    List<String> closeOffers = const [],
   }) async {
     final address = email.trim().toLowerCase();
     final name = await personName(address);
@@ -300,6 +322,14 @@ class RoleStore {
       g,
       '${data == null ? 'Appointed' : 'Renewed'} $name $what',
       before: data == null ? null : Grant.fromMap(data),
+      also: (b) {
+        for (final o in closeOffers) {
+          b.update(db.collection('volunteers').doc(o), {
+            'open': false,
+            'closedBy': {'email': me, 'name': myName},
+          });
+        }
+      },
     );
     return true;
   }
@@ -319,6 +349,169 @@ class RoleStore {
     'Revoked ${g.name} as ${g.role.label.toLowerCase()} (${g.scopeLabel})',
     before: g,
   );
+
+  // ---- Succession (§13.4) ---------------------------------------------------
+
+  /// How long both presidents hold the department.
+  static const overlap = Duration(days: 20);
+
+  /// The outgoing expiry: never later than the one already held, so a
+  /// handover cannot extend a term. A minute short, for clock drift.
+  static DateTime outgoingExpiry(Grant mine, DateTime now) {
+    final end = now.add(overlap - const Duration(minutes: 1));
+    return end.isBefore(mine.expiresAt) ? end : mine.expiresAt;
+  }
+
+  /// Why [email] cannot succeed [mine], or null when they can.
+  static String? successorProblem(Grant mine, String email) {
+    final a = email.trim().toLowerCase();
+    if (mine.handedTo != null) {
+      return 'A handover to ${mine.handedTo} is already running.';
+    }
+    if (!isStudentAddress(a)) return 'Enter a BITS student address.';
+    if (a == mine.email) return 'That is you.';
+    if (campusOfAddress(a) != mine.campus) {
+      return 'A successor must be on ${campusName(mine.campus)}.';
+    }
+    return null;
+  }
+
+  /// Hands [mine] (a presidency) to [email]: their grant starts now, mine
+  /// ends at [outgoingExpiry]. Both grants, both staff entries and both
+  /// audit entries in one batch. False when nobody by that address has
+  /// signed in.
+  Future<bool> handOver(Grant mine, String email, {DateTime? now}) async {
+    final address = email.trim().toLowerCase();
+    final problem = successorProblem(mine, address);
+    if (problem != null) throw StateError(problem);
+    final name = await personName(address);
+    if (name == null) return false;
+    final at = now ?? DateTime.now();
+    final t = await terms();
+    final next = Grant(
+      role: GrantRole.dept,
+      email: address,
+      name: name,
+      campus: mine.campus,
+      scope: mine.scope,
+      programme: mine.programme,
+      active: true,
+      expiresAt: at.add(Duration(days: t.presidentDays)),
+    );
+    final ends = outgoingExpiry(mine, at);
+    final shortened = Grant(
+      role: mine.role,
+      email: mine.email,
+      name: mine.name,
+      campus: mine.campus,
+      scope: mine.scope,
+      programme: mine.programme,
+      active: true,
+      expiresAt: ends,
+    );
+    final theirs = await _staff(address);
+    final ours = await _staff(mine.email);
+    final b = db.batch();
+    _grantInto(b, next, theirs, 'Handed ${mine.scope} to $name');
+    final id = logInto(
+      b,
+      path: 'grants/${mine.id}',
+      summary: 'Handing over ${mine.scope} to $name; access ends ${_day(ends)}',
+      campus: mine.campus,
+      before: _grantSummary(mine),
+      after: _grantSummary(shortened),
+    );
+    b.update(db.collection('grants').doc(mine.id), {
+      'expiresAt': Timestamp.fromDate(ends),
+      'handedTo': address,
+      'expiresBefore': Timestamp.fromDate(mine.expiresAt),
+      'auditId': id,
+    });
+    _staffInto(b, ours, shortened);
+    await _relist(b, shortened);
+    await b.commit();
+    return true;
+  }
+
+  /// Cancels a running handover: the successor's grant is revoked and mine
+  /// gets its old expiry back.
+  Future<void> cancelHandover(Grant mine) async {
+    final to = mine.handedTo!;
+    final before = mine.expiresBefore!;
+    final d =
+        await db
+            .collection('grants')
+            .doc(grantId(GrantRole.dept, mine.campus, mine.scope, to))
+            .get();
+    final next = Grant.fromMap(d.data()!);
+    final revoked = Grant(
+      role: next.role,
+      email: next.email,
+      name: next.name,
+      campus: next.campus,
+      scope: next.scope,
+      programme: next.programme,
+      active: false,
+      expiresAt: next.expiresAt,
+    );
+    final restored = Grant(
+      role: mine.role,
+      email: mine.email,
+      name: mine.name,
+      campus: mine.campus,
+      scope: mine.scope,
+      programme: mine.programme,
+      active: true,
+      expiresAt: before,
+    );
+    final theirs = await _staff(to);
+    final ours = await _staff(mine.email);
+    final b = db.batch();
+    _grantInto(
+      b,
+      revoked,
+      theirs,
+      'Cancelled the handover of ${mine.scope} to ${next.name}',
+      before: next,
+    );
+    final id = logInto(
+      b,
+      path: 'grants/${mine.id}',
+      summary: 'Kept ${mine.scope}; the handover was cancelled',
+      campus: mine.campus,
+      before: _grantSummary(mine),
+      after: _grantSummary(restored),
+    );
+    b.update(db.collection('grants').doc(mine.id), {
+      'expiresAt': Timestamp.fromDate(before),
+      'handedTo': FieldValue.delete(),
+      'expiresBefore': FieldValue.delete(),
+      'auditId': id,
+    });
+    _staffInto(b, ours, restored);
+    await _relist(b, restored);
+    await b.commit();
+  }
+
+  /// Keeps the directory's copy of [g]'s expiry in step, so Representatives
+  /// shows the handover (§13.5).
+  Future<void> _relist(WriteBatch b, Grant g) async {
+    final ref = db.collection('directory').doc(g.email);
+    final m = (await ref.get()).data();
+    if (m == null) return;
+    b.update(ref, {
+      'roles': [
+        for (final r in m['roles'] as List? ?? const [])
+          if (r is Map && r['role'] == g.role.key && r['scope'] == g.scope)
+            {...r, 'until': Timestamp.fromDate(g.expiresAt)}
+          else
+            r,
+      ],
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  static String _day(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
   /// Every grant the reader may see: all of them for owners and admins,
   /// [campus] plus the every-campus ones for a president.

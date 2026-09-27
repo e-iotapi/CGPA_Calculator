@@ -18,8 +18,11 @@ typedef GrantPrefill = ({GrantRole? role, String? email, String? scope});
 /// can be appointed; campus is read from the address, never picked; one
 /// scope per grant (§4, §16.3 fix 12).
 class AdminGrant extends StatefulWidget {
-  const AdminGrant({super.key, this.prefill});
+  const AdminGrant({super.key, this.prefill, this.closeOffers = const []});
   final GrantPrefill? prefill;
+
+  /// Volunteer offers the appointment closes, in its batch (§16.3 fix 16).
+  final List<String> closeOffers;
 
   @override
   State<AdminGrant> createState() => _AdminGrantState();
@@ -149,6 +152,7 @@ class _AdminGrantState extends State<AdminGrant> {
         scope: _scope!,
         programme: _role == GrantRole.dept ? _programme : null,
         expiresAt: _early && _earlier != null ? _earlier! : _fullTerm,
+        closeOffers: widget.closeOffers,
       );
       if (!mounted) return;
       if (!ok) {

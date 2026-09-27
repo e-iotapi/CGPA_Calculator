@@ -140,6 +140,13 @@ class DeptHome extends StatelessWidget {
                       () => context.push(Routes.deptProfessors(campus, dept)),
                 ),
                 NavRow(
+                  icon: Icons.swap_horiz_rounded,
+                  title: 'Hand over',
+                  subtitle: 'Name the next president; twenty days together',
+                  onTap:
+                      () => context.push(Routes.deptSuccession(campus, dept)),
+                ),
+                NavRow(
                   icon: Icons.badge_outlined,
                   title: 'People',
                   subtitle: 'Presidents and CRs on your campus',

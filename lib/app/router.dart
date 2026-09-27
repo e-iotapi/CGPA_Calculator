@@ -6,7 +6,10 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/more/more_page.dart';
+import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
+import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
@@ -21,7 +24,16 @@ export 'package:cgpa_calculator/app/routes.dart';
 
 /// Every screen is nested under Home, so a deep link still has Home beneath
 /// it and Back behaves exactly as the old pushed routes did.
-final GoRouter appRouter = GoRouter(routes: appRoutes);
+final GoRouter appRouter = GoRouter(
+  routes: appRoutes,
+  // RepProfile comes first after an appointment (§16.3 fix 8).
+  refreshListenable: profileDue,
+  redirect:
+      (_, s) =>
+          profileDue.value && s.matchedLocation != Routes.welcome
+              ? Routes.welcome
+              : null,
+);
 
 final List<RouteBase> appRoutes = [
   GoRoute(
@@ -34,7 +46,23 @@ final List<RouteBase> appRoutes = [
       ),
       GoRoute(path: 'calendar', builder: (_, _) => const CalendarPage()),
       GoRoute(path: 'settings', builder: (_, _) => const SettingsPage()),
-      GoRoute(path: 'resources', builder: (_, _) => const ResourcesPage()),
+      GoRoute(
+        path: 'resources',
+        builder:
+            (c, _) => ResourcesPage(
+              onRepresentatives: () => c.push(Routes.representatives),
+            ),
+      ),
+      GoRoute(path: 'more', builder: (_, _) => const MorePage()),
+      GoRoute(
+        path: 'representatives',
+        builder: (_, _) => const RepresentativesPage(),
+      ),
+      GoRoute(
+        path: 'welcome',
+        redirect: (_, _) => roleStore == null ? Routes.home : null,
+        builder: (_, _) => const RepProfilePage(onSignOut: signOut),
+      ),
       GoRoute(
         path: 'reviews',
         builder: (_, _) => const ReviewsHome(),
@@ -77,7 +105,13 @@ final List<RouteBase> appRoutes = [
           _admin('terms', () => admin.TermsPage(), _adminOnly),
           _admin('contact', () => admin.PublicContactPage(), _adminOnly),
           _admin('audit', () => admin.AuditLogPage(), _staff),
-          _admin('roster', () => admin.RosterPage(), _staff),
+          _admin(
+            'roster',
+            () => admin.RosterPage(
+              volunteersTab: (c) => admin.VolunteersTab(campus: c),
+            ),
+            _staff,
+          ),
           _admin('open-as', () => admin.OpenAsPage(), _ownerOnly),
           _admin('publish', () => admin.PublishPage(), _ownerOnly),
           _admin('professors/merge', () => admin.ProfessorMerge(), _staff),
@@ -116,6 +150,29 @@ final List<RouteBase> appRoutes = [
                     dept: s.pathParameters['dept']!,
                   ),
                 ),
+          ),
+          GoRoute(
+            path: 'succession',
+            builder:
+                (_, s) => _deferred(
+                  () => admin.Succession(
+                    campus: s.pathParameters['campus']!,
+                    dept: s.pathParameters['dept']!,
+                  ),
+                ),
+            routes: [
+              GoRoute(
+                path: 'confirm',
+                builder:
+                    (_, s) => _deferred(
+                      () => admin.SuccessionConfirm(
+                        campus: s.pathParameters['campus']!,
+                        dept: s.pathParameters['dept']!,
+                        to: s.uri.queryParameters['to'] ?? '',
+                      ),
+                    ),
+              ),
+            ],
           ),
           GoRoute(
             path: 'reviews',
