@@ -126,17 +126,10 @@ void useCatalog(Catalog c) {
 }
 
 /// A value derived from the catalogue, recomputed when a newer one is used.
-class PerCatalog<T> {
+class PerCatalog<T extends Object> {
   PerCatalog(this._build);
   final T Function(Catalog) _build;
-  Catalog? _for;
-  late T _value;
+  final _values = Expando<T>();
 
-  T of(Catalog c) {
-    if (!identical(c, _for)) {
-      _value = _build(c);
-      _for = c;
-    }
-    return _value;
-  }
+  T of(Catalog c) => _values[c] ??= _build(c);
 }

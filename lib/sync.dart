@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:cgpa_calculator/core/models/marks.dart';
+import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -82,46 +83,26 @@ class Sync {
   }
 
   static String snapshot() => jsonEncode({
+    // 2: catalogue courses stored by id (course_link.dart).
+    'format': 2,
     for (final n in _boxes)
       n: [
         for (final k in _box(n).keys) [k, _enc(_box(n).get(k))],
       ],
   });
 
+  // Catalogue courses are stored by id; title and credits come from the
+  // catalogue (core/storage/course_link.dart, ARCHITECTURE.md §2).
   static dynamic _enc(dynamic v) =>
       v is Course
-          ? {
-            'title': v.title,
-            'id': v.id,
-            'credits': v.credits,
-            'grade1': v.grade1,
-            'grade2': v.grade2,
-            'discipline': v.discipline,
-            'sem': v.sem,
-            'elective': v.elective,
-            if (v.more.isNotEmpty)
-              'more': {for (final e in v.more.entries) '${e.key}': e.value},
-          }
+          ? encodeCourse(v)
           : v is Evaluative
           ? v.toJson()
           : v is CourseConfig
           ? v.toJson()
           : v;
 
-  static Course _course(Map m) => Course(
-    title: m['title'],
-    id: m['id'],
-    credits: (m['credits'] as num).toDouble(),
-    grade1: (m['grade1'] as num).toInt(),
-    grade2: (m['grade2'] as num).toInt(),
-    discipline: m['discipline'],
-    sem: m['sem'],
-    elective: m['elective'] ?? 'CDC',
-    more: {
-      for (final e in Map<String, dynamic>.from(m['more'] ?? {}).entries)
-        int.parse(e.key): (e.value as num).toInt(),
-    },
-  );
+  static Course _course(Map m) => decodeCourse(m);
 
   static Future<void> pull() async {
     try {
@@ -156,9 +137,15 @@ class Sync {
             final s = await tx.get(_doc);
             final int serverRev = s.exists ? s.data()!['rev'] : 0;
             if (serverRev != base) return null; // conflict
+            // The last whole-course snapshot is kept once, so the move to
+            // courses stored by id can be undone (ARCHITECTURE.md §9 step 3).
+            final String? old = s.data()?['data'];
+            final v1 = s.data()?['v1'] ??
+                (old != null && !old.contains('"format":2') ? old : null);
             tx.set(_doc, {
               'rev': base + 1,
               'data': cur,
+              if (v1 != null) 'v1': v1,
               'updatedAt': FieldValue.serverTimestamp(),
             });
             return base + 1;

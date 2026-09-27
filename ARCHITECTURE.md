@@ -573,7 +573,11 @@ Each step ships on its own and is reversible.
    identically — that is the test.
 3. **Split the user document.** Grades keyed by id, custom entries for courses outside the
    catalogue; stop syncing the catalogue. The one step that touches user data: it needs a backup
-   path and a reversible rollout.
+   path and a reversible rollout. *Built:* the snapshot is `format: 2`; a course whose title and
+   credits are the catalogue's is stored without them and read back from it, anything else stays
+   whole (`core/storage/course_link.dart`). A published correction relinks stored courses before
+   the bundle is cached. The first format-2 push keeps the old snapshot once as `v1` on the user
+   document — the way back.
 4. **Overrides, seeds and the divergence warning (§5).** Before any maintainer can change
    anything, the app must already resolve `override ?? published ?? custom`, treat seeds as
    placeholders and warn on detach.
