@@ -41,6 +41,10 @@ class ViewAs {
 
 final viewAs = ValueNotifier<ViewAs?>(null);
 
+/// The signed-in uid: the salt of every pseudonymous id (reviews, votes,
+/// reports), never stored beside them. Set at startup.
+String? myUid;
+
 Box? get _device =>
     Hive.isBoxOpen(deviceBoxName) ? Hive.box(deviceBoxName) : null;
 

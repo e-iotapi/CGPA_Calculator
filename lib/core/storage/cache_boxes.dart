@@ -8,6 +8,7 @@ const cacheBoxes = <String>{
   'catalogBox',
   'offeringsBox',
   'resourcesBox',
+  'reviewsBox',
   deviceBoxName,
 };
 

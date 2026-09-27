@@ -127,6 +127,12 @@ class DeptHome extends StatelessWidget {
                   onTap: () => context.push(Routes.deptResources(campus, dept)),
                 ),
                 NavRow(
+                  icon: Icons.rate_review_outlined,
+                  title: 'Reviews',
+                  subtitle: 'Reported reviews; hide with a reason',
+                  onTap: () => context.push(Routes.deptReviews(campus, dept)),
+                ),
+                NavRow(
                   icon: Icons.school_outlined,
                   title: 'Professors',
                   subtitle: 'Add, rename, merge duplicates',

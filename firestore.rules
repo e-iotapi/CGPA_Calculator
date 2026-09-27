@@ -390,6 +390,170 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- Reviews (§10.3, §16.3 fixes 4–6) --------------------------------------
+
+    // Pseudonymous by construction: the id is sha256(uid + course), and the
+    // review stores no uid. Votes and reports use sha256(uid + review id).
+    function hashOf(key) {
+      return hashing.sha256(request.auth.uid + key).toHexString().lower();
+    }
+
+    function statsPath(c, s) {
+      return /databases/$(db)/documents/courses/$(c)/stats/$(s);
+    }
+
+    // The counter at s moved by exactly these amounts in this batch.
+    function statMoved(c, s, dc, ds, dr) {
+      let p = statsPath(c, s);
+      let after = getAfter(p).data;
+      return exists(p)
+        ? after.count == get(p).data.count + dc
+          && after.starSum == get(p).data.starSum + ds
+          && after.recommendCount == get(p).data.recommendCount + dr
+        : after.count == dc && after.starSum == ds && after.recommendCount == dr;
+    }
+
+    // The course's counter, and the professor's when there is one.
+    function counted(c, d, dc, ds, dr) {
+      return statMoved(c, d.campus, dc, ds, dr)
+        && (d.professorId == null || statMoved(c, d.campus + '_' + d.professorId, dc, ds, dr));
+    }
+
+    function rec(d) { return d.recommend ? 1 : 0; }
+
+    function reviewOk(d) {
+      return d.stars is int && d.stars >= 1 && d.stars <= 5
+        && d.recommend is bool
+        && (!('text' in d) || (d.text is string && d.text.size() <= 600));
+    }
+
+    // Taking a course is self-declared (fix 5): the term must have an
+    // offering on the writer's campus, and the professor must be on it.
+    function offeringOk(c, d) {
+      let o = get(/databases/$(db)/documents/courses/$(c)/offerings/$(d.campus + '_' + d.term)).data;
+      return d.professorId == null ? o.professors.size() == 0 : d.professorId in o.professors;
+    }
+
+    // Moderators read through the staff index; writes check the grant.
+    function readsModeration(d) {
+      let s = get(staffPath(me())).data;
+      return isOwner() || (s.campus == d.campus && request.time < s.expiresAt
+        && d.department in s.presidentOf);
+    }
+
+    function reviewPath(c, id) {
+      return /databases/$(db)/documents/reviews/$(c)/entries/$(id);
+    }
+
+    // DeptReviews lists a department's reviews across its courses.
+    match /{path=**}/entries/{id} {
+      allow list: if mayUse() && readsModeration(resource.data);
+    }
+
+    match /reviews/{c}/entries/{id} {
+      allow get: if mayUse()
+        && (id == hashOf(c)
+            || (resource.data.campus == campusOf(me()) && resource.data.hidden == false)
+            || readsModeration(resource.data));
+      allow list: if mayUse()
+        && ((resource.data.campus == campusOf(me()) && resource.data.hidden == false)
+            || readsModeration(resource.data));
+
+      allow create: if isStudent(me()) && id == hashOf(c)
+        && request.resource.data.keys().hasOnly(['courseId', 'department', 'stars',
+             'recommend', 'text', 'campus', 'term', 'professorId', 'hidden',
+             'helpful', 'reports', 'createdAt', 'updatedAt'])
+        && reviewOk(request.resource.data)
+        && request.resource.data.courseId == c
+        && request.resource.data.department == deptOf(c)
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.hidden == false
+        && request.resource.data.helpful == 0
+        && request.resource.data.reports == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && offeringOk(c, request.resource.data)
+        && counted(c, request.resource.data, 1, request.resource.data.stars,
+                   rec(request.resource.data));
+
+      // The author edits: the counters move by the difference, not at all
+      // while it is hidden. Votes are kept (fix 6).
+      allow update: if isStudent(me()) && id == hashOf(c)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['stars', 'recommend', 'text', 'updatedAt'])
+        && reviewOk(request.resource.data)
+        && request.resource.data.updatedAt == request.time
+        && (resource.data.hidden
+            || counted(c, resource.data, 0,
+                       request.resource.data.stars - resource.data.stars,
+                       rec(request.resource.data) - rec(resource.data)));
+
+      // Helpful and report: one each per person, the counter by one.
+      allow update: if isBits() && resource.data.campus == campusOf(me())
+        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['helpful'])
+             && request.resource.data.helpful == resource.data.helpful + 1
+             && existsAfter(/databases/$(db)/documents/reviews/$(c)/entries/$(id)/votes/$(hashOf(id)))
+             && !exists(/databases/$(db)/documents/reviews/$(c)/entries/$(id)/votes/$(hashOf(id))))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reports'])
+             && request.resource.data.reports == resource.data.reports + 1
+             && existsAfter(/databases/$(db)/documents/reviews/$(c)/entries/$(id)/reports/$(hashOf(id)))
+             && !exists(/databases/$(db)/documents/reviews/$(c)/entries/$(id)/reports/$(hashOf(id)))));
+
+      // Moderation is hide-only, with a reason and an audit entry; a hide
+      // takes the review off the counters and an unhide puts it back.
+      allow update: if mayUse()
+        && (isOwner() || isPresident(resource.data.campus, deptOf(c)))
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['hidden', 'reason', 'hiddenBy', 'reports', 'auditId', 'moderatedAt'])
+        && request.resource.data.moderatedAt == request.time
+        && audited('reviews/' + c + '/entries/' + id)
+        && (request.resource.data.hidden == resource.data.hidden
+            || (request.resource.data.hidden
+                ? request.resource.data.reason is string
+                  && request.resource.data.reason.size() > 0
+                  && request.resource.data.hiddenBy.email == me()
+                  && counted(c, resource.data, -1, -resource.data.stars, -rec(resource.data))
+                : counted(c, resource.data, 1, resource.data.stars, rec(resource.data))));
+
+      // The author deletes; the counters go back (fix 6).
+      allow delete: if isStudent(me()) && id == hashOf(c)
+        && (resource.data.hidden
+            || counted(c, resource.data, -1, -resource.data.stars, -rec(resource.data)));
+
+      match /votes/{v} {
+        allow get: if isBits() && v == hashOf(id);
+        allow create: if isBits() && v == hashOf(id)
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && getAfter(reviewPath(c, id)).data.helpful == get(reviewPath(c, id)).data.helpful + 1;
+      }
+
+      match /reports/{v} {
+        allow create: if isBits() && v == hashOf(id)
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && getAfter(reviewPath(c, id)).data.reports == get(reviewPath(c, id)).data.reports + 1;
+      }
+    }
+
+    // Counters: written only in a batch that also writes the review they
+    // count, whose rule checks the amounts.
+    function reviewTouched(c, rid) {
+      let p = reviewPath(c, rid);
+      return !existsAfter(p)
+        ? exists(p)
+        : getAfter(p).data.updatedAt == request.time
+          || getAfter(p).data.get('moderatedAt', null) == request.time;
+    }
+
+    match /courses/{c}/stats/{s} {
+      allow read: if mayUse();
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['count', 'starSum', 'recommendCount',
+             'campus', 'courseId', 'scope', 'professorId', 'touchedBy'])
+        && request.resource.data.courseId == c
+        && reviewTouched(c, request.resource.data.touchedBy);
+      allow delete: if false;
+    }
+
     // ---- Resources (§6, §16.3 fixes 3 and 17) ---------------------------------
 
     // https links to known hosts only, the same list as lib/core/resources.
