@@ -2120,6 +2120,23 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - The audit harnesses `test/ui/zz_audit_managers_test.dart` and `zz_audit_students_test.dart`
   stay untracked; §14 has the recipe.
 
+### 13.4 Expected: a permanent "Copy from Actual" button (27 Sep 2026)
+- **Why**: at the user's request. The copy button on Expected hid itself two seconds after
+  the tab opened (`setfab()`'s timer). It now stays for as long as Expected is open.
+- **Files**:
+  - new `lib/features/semester/widgets/copy_profile_button.dart`: an ink extended FAB with
+    the copy icon, "Copy from <Actual>" in 13/700, a tooltip, and the confirm dialog in the
+    palette and Montserrat
+  - `lib/home_page.dart`: `_showFab` and `setfab()` removed. The button shows whenever
+    `selectedprofile == 2`, and the body's bottom padding grows by 72 on Expected so the
+    list clears it.
+  - new `test/semester/expected_copy_test.dart`: it stays after 5 s; Cancel copies
+    nothing; Import copies once; ink fill; ≥ 44 tall; a long profile name fits at 320
+    (5 tests).
+- **Board**: the canvas gained `Expected` (Light · Expected, copy from Actual) beside Home's
+  behaviour note, with a note of its behaviour (canvas v68).
+- **Departure**: none. The board was drawn from the code.
+
 ---
 
 # Part 4 — Second audit and the fix guide
@@ -2403,6 +2420,13 @@ Task cards in §20 reference them.
   opens a legacy `AlertDialog` "Import from <Actual>?". No board has it: `Main` has no FAB,
   and the boards give copying profiles to Settings → Grade profiles and the empty-profile
   prompt. See §17 and T6.4.
+  - **Resolved 27 Sep 2026, at the user's request**:
+    - The button stays (it used to hide itself two seconds after Expected opened).
+    - It is now a permanent `CopyProfileButton`
+      (`lib/features/semester/widgets/copy_profile_button.dart`): an ink extended FAB
+      "Copy from Actual" with a palette-styled confirm dialog.
+    - The list on Expected pads 72 px more so the last row scrolls clear of it.
+    - The canvas gained the board **`Expected`** (x 4650, y 0) with a note, canvas version 68.
 
 ### Corrections to Part 2
 - **N30**:
@@ -2435,6 +2459,7 @@ board comparison: ✅ matches, 🟡 close, 🔧 needs work, ⬜ not built.
 | DisciplinePick | `features/setup/programme_pick_page.dart` | ✅ | A | ✅ | 4.5 |
 | Import | `features/import/erp_import_page.dart` | ✅ | A | 🔧 | 4.6 |
 | Main, DarkMain | `features/semester/semester_page.dart` in `home_page.dart` | ✅ | `semester_screenshots_test` | 🟡 | 4.7, 9.1 |
+| Expected (added v68) | `home_page.dart` on profile 2 + `features/semester/widgets/copy_profile_button.dart` | ✅ | `test/semester/expected_copy_test.dart` | ✅ | N29 |
 | Marks | `features/marks/marks_page.dart` | ✅ | `marks_test`, A | 🔧 (N28) | 5.1 |
 | MarksAdd | `features/marks/add_evaluative_page.dart` | ✅ | A | ⬜ rebuild | 5.2 |
 | MarksSetup | `features/marks/course_setup_page.dart` | ✅ | A | 🔧 | 5.3 |
@@ -2534,7 +2559,7 @@ the shared parts and record a Departure.
   - category `showMenu` (`course_fields.dart:108`)
 - **Legacy, on Home** (`home_page.dart`), all Material `AlertDialog`s with the legacy `thm`
   colours and the SemiBold-only `'Montserrat'`:
-  - "Import from <profile>?" from the Expected FAB (`:178`, N29)
+  - ~~"Import from <profile>?"~~: now `CopyProfileButton`, on the `Expected` board (N29)
   - "Start <profile> from…" (`:249`)
   - "Clear Grades" (`:480`, the pull-to-clear confirm)
 - **ERP import**: its confirm (`erp_import_page.dart:173`).
@@ -2605,7 +2630,7 @@ deleted.** What is redundant is the legacy layer that still loads and still draw
 |---|---|---|---|
 | The legacy `thm` global and its colour aliases `backcolor`, `textcolor`, `sepcolor`, `highcolor`, `cardcolor`, `bordcolor` | `script.dart:280`, `palette.dart:156-161`; used 17 times in `main.dart`, `home_page.dart`, `script.dart` | a second, older name for `AppPalette` | replace each use with `AppPalette.of(context)` roles, then delete the aliases (T9.2) |
 | The `'Montserrat'` font family (SemiBold only) | `pubspec.yaml`; used by the sign-in snackbar (`main.dart:242`) and the legacy dialogs in `home_page.dart` | `MontserratFull` has every weight | move those to `TypeScale`, then drop the family from `pubspec.yaml` (same file, so no size change; it removes a second font name) |
-| Legacy Home dialogs and the Expected FAB | `home_page.dart:153-210`, `:249`, `:480` | not on any board (N29) | replace with shared-part dialogs, or remove the FAB (Settings → Grade profiles copies) (T6.4) |
+| Legacy Home dialogs | `home_page.dart` "Start … from…" and "Clear Grades" | not on any board | replace with a shared `ConfirmDialog` (T6.4). The Expected copy button is done (N29, §13.4) |
 | `saveDataAsImage` (a PNG of the semester) | `script.dart:366`; called by Home's Export pill (`home_page.dart:305` → `_exportSemester` `:443`) | **not redundant**: it is what the board's Export pill does. Its result snackbar uses the legacy font | keep; restyle the snackbar with `TypeScale` (T9.2) |
 | `setnavcolor()` | `script.dart:232`, called from `home_page.dart:90`, `:436` | sets the legacy system nav bar colour; the new nav has its own colours | keep until the theme work (T9.2) moves it to `SystemUiOverlayStyle` from the palette |
 | Generic list picker in Settings | `settings_page.dart:112-160` | duplicates `ProgrammePickPage` for disciplines | use `ProgrammePickPage` for the two degree rows; keep `_pick` for Campus and Batch |
@@ -3142,11 +3167,10 @@ Build each in `lib/shared/widgets/`, with a widget test and one `shoot()` in
 - **T6.2** Add a course (§6.2).
 - **T6.3** Enter it manually (§6.3).
 - **T6.4 · N29 legacy Home dialogs** (`home_page.dart`, legacy, don't reformat):
-  - **Ask the user** whether to keep the Expected FAB ("Import from Actual"). The boards have
-    no FAB; copying profiles lives in Settings → Grade profiles and the empty-profile
-    prompt.
-  - If it stays, restyle it as a `PillButton` in the section row.
-  - Replace the three `AlertDialog`s (`:178`, `:249`, `:480`) with a shared `ConfirmDialog`
+  - The Expected copy button is **done**: it is permanent, restyled and on the `Expected`
+    board (N29).
+  - Replace the two remaining `AlertDialog`s ("Start … from…" and "Clear Grades") with a
+    shared `ConfirmDialog`
     (new, in `lib/shared/widgets/`: surface, radius 22, title `section`, body `body` w500
     `textMuted`, two 44 tall pills: outlined Cancel, ink action). Drop every
     `fontFamily: 'Montserrat'` and `thm.` use in those blocks.
@@ -3217,7 +3241,7 @@ Every card here:
 ### 20.1 · Questions for the user (collected)
 1. Public contact: live read (the code) or catalogue-carried (the board and ARCHITECTURE)?
    (N15)
-2. The Expected FAB "Import from Actual": keep it or remove it? (N29)
+2. ~~The Expected FAB~~: answered. Keep it, permanent (N29, done).
 3. DeptHome's extra "Appoint a CR" row: keep it as a Departure or remove it? (N20)
 4. The CR course page's COURSE AVERAGE card: build it now? (N25)
 5. Boards for the §17 screens: Compare, Person, Bulk upload preview, Import preview, Edit
