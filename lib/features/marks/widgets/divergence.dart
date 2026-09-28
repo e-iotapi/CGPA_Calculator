@@ -12,46 +12,102 @@ Future<bool> confirmDivergence(
   required String change,
 }) async {
   final p = AppPalette.of(context);
-  final t = p.noticeTone;
+  final body = TypeScale.body.copyWith(
+    fontSize: 12.5,
+    fontWeight: FontWeight.w500,
+    height: 1.5,
+    color: p.icon,
+  );
+  final strong = body.copyWith(fontWeight: FontWeight.w700, color: p.text);
   final mine = await showModalBottomSheet<bool>(
     context: context,
-    showDragHandle: true,
-    backgroundColor: p.background,
+    isScrollControlled: true,
+    backgroundColor: p.surface,
+    barrierColor: p.inverse.withValues(alpha: 0.42),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
     constraints: const BoxConstraints(maxWidth: 640),
     builder:
         (c) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              Space.gutter,
-              0,
-              Space.gutter,
-              Space.lg,
-            ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 12,
               children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: p.outline,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
                 Text(
                   'YOU ARE CHANGING AN OFFICIAL VALUE',
-                  style: TypeScale.label.copyWith(color: t.text),
+                  style: TypeScale.label.copyWith(color: p.textMuted),
                 ),
-                const SizedBox(height: Space.sm),
-                Text('Make $name yours?', style: TypeScale.title),
-                const SizedBox(height: Space.sm),
-                Text(
-                  '$change. Official changes to $name will stop arriving and '
-                  'you keep it current. The other components, the credits and '
-                  'your own marks are not affected.',
-                  style: TypeScale.body.copyWith(color: p.textMuted),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'Make $name yours?',
+                    style: TypeScale.title.copyWith(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      color: p.text,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: Space.xs),
-                Text(
-                  'You can switch back any time with Use the official '
-                  'version.',
-                  style: TypeScale.caption.copyWith(color: p.textMuted),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: '$change. Official changes to '),
+                      TextSpan(text: name, style: strong),
+                      const TextSpan(
+                        text:
+                            ' will stop arriving and you keep it current. The '
+                            'other components, the credits and your own marks '
+                            'are not affected.',
+                      ),
+                    ],
+                  ),
+                  style: body,
                 ),
-                const SizedBox(height: Space.lg),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  decoration: BoxDecoration(
+                    color: p.background,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(
+                          text: 'You can switch back any time with ',
+                        ),
+                        TextSpan(
+                          text: 'Use the official version',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: p.text,
+                          ),
+                        ),
+                        const TextSpan(text: '.'),
+                      ],
+                    ),
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 11,
+                      color: p.textMuted,
+                    ),
+                  ),
+                ),
                 Row(
+                  spacing: 8,
                   children: [
                     Expanded(
                       child: OutlinedButton(
@@ -59,11 +115,12 @@ Future<bool> confirmDivergence(
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(52),
                           shape: const StadiumBorder(),
+                          foregroundColor: p.text,
+                          side: BorderSide(color: p.text, width: 1.5),
                         ),
                         child: const Text('Keep official'),
                       ),
                     ),
-                    const SizedBox(width: Space.sm),
                     Expanded(
                       child: FilledButton(
                         onPressed: () => Navigator.pop(c, true),
