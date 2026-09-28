@@ -1,6 +1,6 @@
 {
-  "current": "Done",
-  "note": "Every card is done, and the UI-only demo is live: sign in (you become the owner) and click through every screen on made-up data. Nothing reaches a server. Two UI_OPT device checks (O8.2, O8.4) still need an iPhone.",
+  "current": "Fixes from your demo testing",
+  "note": "Fixed from your testing: department lists show each branch (never ELEC) and read one campus-wise list; Merge duplicates suggests likely pairs on load; the Audit log finds courses by name; links can point at any website; Hand over shows the real screen when you preview a department; iPhone no longer zooms into text fields. The demo is rebuilt with all of it. The per-campus departments, duplicate suggestions and open links each need a matching backend change on the logic branch (listed in the handoff).",
   "groups": [
     [
       "Group 2 · finish",
