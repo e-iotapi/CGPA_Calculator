@@ -25,6 +25,7 @@ import 'package:hive/src/binary/binary_reader_impl.dart';
 // ignore: implementation_imports
 import 'package:hive/src/binary/binary_writer_impl.dart';
 
+import '../helpers/fake_data.dart' show takingId, takingOffering;
 import '../helpers/fonts.dart';
 
 EvalPart _p(String n, double? m, double o, [String? d]) =>
@@ -384,13 +385,104 @@ void main() {
       expect(find.text('CS F372 · 3 CREDITS'), findsOneWidget);
     });
 
+    testWidgets('official shows the notice', (t) async {
+      await pump(
+        t,
+        AddEvaluativePage(
+          courseId: takingId,
+          weighted: true,
+          unassigned: 0,
+          existing: _kernel(),
+          existingKey: 'k',
+          official: takingOffering(),
+        ),
+        const Size(390, 844),
+      );
+      expect(
+        find.textContaining('Official component', findRichText: true),
+        findsOneWidget,
+      );
+      await pump(
+        t,
+        AddEvaluativePage(
+          courseId: 'CS F372',
+          weighted: true,
+          unassigned: 0,
+          existing: _kernel(),
+        ),
+        const Size(390, 844),
+      );
+      expect(
+        find.textContaining('Official component', findRichText: true),
+        findsNothing,
+      );
+    });
+
+    testWidgets('Best 2 of 3 counts two parts', (t) async {
+      await pump(
+        t,
+        AddEvaluativePage(
+          courseId: 'CS F372',
+          weighted: true,
+          unassigned: 0,
+          existing: _kernel()..countBest = 0,
+        ),
+        const Size(390, 844),
+      );
+      final hero = find.text('THIS COMPONENT GIVES YOU');
+      await t.scrollUntilVisible(
+        hero,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('11.3', findRichText: true), findsOneWidget);
+      await t.tap(find.text('Best 2 of 3'));
+      await t.pump();
+      expect(find.textContaining('14.0', findRichText: true), findsOneWidget);
+    });
+
+    testWidgets('copy adds the next part below', (t) async {
+      await pump(
+        t,
+        AddEvaluativePage(
+          courseId: 'CS F372',
+          weighted: true,
+          unassigned: 0,
+          existing: _kernel(),
+        ),
+        const Size(390, 844),
+      );
+      expect(find.byTooltip('Remove part 4'), findsNothing);
+      await t.tap(find.byTooltip('Duplicate part 1'));
+      await t.pump();
+      expect(find.byTooltip('Remove part 4'), findsOneWidget);
+      final y = t.getTopLeft(find.text('CPU Scheduling 2')).dy;
+      expect(y, greaterThan(t.getTopLeft(find.text('CPU Scheduling')).dy));
+      expect(y, lessThan(t.getTopLeft(find.text('Memory Management')).dy));
+    });
+
+    testWidgets('a dropped part is marked DROPPED', (t) async {
+      await pump(
+        t,
+        AddEvaluativePage(
+          courseId: 'CS F372',
+          weighted: true,
+          unassigned: 0,
+          existing: _kernel(),
+        ),
+        const Size(390, 844),
+      );
+      expect(find.text('PART 3 · DROPPED'), findsOneWidget);
+      expect(find.text('PART 1 · DROPPED'), findsNothing);
+    });
+
     testWidgets('the weight is the component\'s, not the course\'s', (t) async {
       await pump(
         t,
         const AddEvaluativePage(courseId: 'X', weighted: true, unassigned: 100),
         const Size(390, 844),
       );
-      expect(find.text('Weight of the component'), findsOneWidget);
+      expect(find.text('WEIGHT'), findsOneWidget);
       expect(find.text('Weight of the course'), findsNothing);
     });
 
@@ -408,11 +500,7 @@ void main() {
       // Name, weight, class average, marks, out of.
       await t.enterText(fields.at(4), '20');
       await t.pump();
-      expect(
-        find.text('Give it a date to see it on the calendar.'),
-        findsOneWidget,
-      );
-      await t.tap(find.text('Add a date'));
+      await t.tap(find.text('Date'));
       await t.pumpAndSettle();
       await t.tap(find.text('OK'));
       await t.pumpAndSettle();
@@ -421,16 +509,16 @@ void main() {
 
       await t.tap(find.byTooltip('Clear date'));
       await t.pump();
-      expect(find.text('Add a date'), findsOneWidget);
-      await t.tap(find.text('Add a date'));
+      expect(find.text('Date'), findsOneWidget);
+      await t.tap(find.text('Date'));
       await t.pumpAndSettle();
       await t.tap(find.text('OK'));
       await t.pumpAndSettle();
 
-      await t.ensureVisible(find.text('Save evaluative'));
+      await t.ensureVisible(find.text('Save'));
       // The save writes to Hive, which needs real time.
       await t.runAsync(() async {
-        await t.tap(find.text('Save evaluative'));
+        await t.tap(find.text('Save'));
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await t.pumpAndSettle();
