@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/pointer_mark.dart';
 import 'package:flutter/material.dart';
@@ -55,17 +56,18 @@ class SignInView extends StatelessWidget {
     return Scaffold(
       backgroundColor: p.background,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder:
-              (context, c) => SingleChildScrollView(
-                // Scrolls rather than overflowing on short windows.
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: c.maxHeight),
-                  child: Center(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: LayoutBuilder(
+              builder:
+                  (context, c) => SingleChildScrollView(
+                    // Scrolls rather than overflowing on short windows.
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
+                      constraints: BoxConstraints(minHeight: c.maxHeight),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(26, 40, 26, 24),
+                        padding: EdgeInsets.fromLTRB(26, Space.xxl, 26, 24),
                         child: IntrinsicHeight(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -171,15 +173,48 @@ class SignInView extends StatelessWidget {
                               ),
                               const Spacer(),
                               const SizedBox(height: 20),
-                              entrance(4, _button(p)),
+                              entrance(
+                                4,
+                                PrimaryButton(
+                                  tall: true,
+                                  label:
+                                      busy
+                                          ? 'Signing in…'
+                                          : 'Continue with Google',
+                                  onPressed: busy ? null : onSignIn,
+                                ),
+                              ),
                               const SizedBox(height: 14),
                               Text(
                                 'Use your BITS campus ID — Pilani, Goa, '
                                 'Hyderabad or Dubai.',
                                 textAlign: TextAlign.center,
                                 style: TypeScale.caption.copyWith(
-                                  height: 1.5,
+                                  height: 1.1,
                                   color: p.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Your grades stay private to your account.\n'
+                                'Reviews you write never carry your name.',
+                                textAlign: TextAlign.center,
+                                style: TypeScale.caption.copyWith(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.1,
+                                  color: p.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Built By Siddharth Mishra',
+                                textAlign: TextAlign.center,
+                                style: TypeScale.caption.copyWith(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.2,
+                                  color: p.text,
                                 ),
                               ),
                             ],
@@ -188,73 +223,10 @@ class SignInView extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-              ),
-        ),
-      ),
-    );
-  }
-
-  Widget _button(AppPalette p) => Semantics(
-    button: true,
-    label: busy ? 'Signing in' : 'Continue with Google',
-    excludeSemantics: true,
-    child: Material(
-      color: p.inverse,
-      shape: const StadiumBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: busy ? null : onSignIn,
-        child: SizedBox(
-          height: 56,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            // Shrinks rather than overflowing at large text sizes.
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (busy)
-                    SizedBox.square(
-                      dimension: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: p.onInverse,
-                      ),
-                    )
-                  else
-                    Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: p.background,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'G',
-                        style: TypeScale.body.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: p.accent,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 11),
-                  Text(
-                    busy ? 'Signing in…' : 'Continue with Google',
-                    style: TypeScale.body.copyWith(
-                      fontSize: 15,
-                      color: p.onInverse,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
