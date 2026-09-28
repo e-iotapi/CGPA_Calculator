@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:cgpa_calculator/admin/admin_home.dart' show termSpan;
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
@@ -8,8 +12,28 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+/// The bottom action's words: "Grant" until an address resolves, then the
+/// grant it will make, e.g. "Grant — president, ELEC Goa" (N18).
+String grantLabel(GrantRole? role, String? scope, String? campus) {
+  if (role == null || campus == null) return 'Grant';
+  final where = campus == 'all' ? '' : ' ${campusName(campus)}';
+  return switch (role) {
+    GrantRole.admin => 'Grant — admin',
+    GrantRole.dept =>
+      scope == null ? 'Grant — president' : 'Grant — president, $scope$where',
+    GrantRole.course =>
+      scope == null
+          ? 'Grant — course manager'
+          : 'Grant — course manager, $scope$where',
+  };
+}
 
 /// What the form opens with, e.g. from Roster › Volunteers: Appoint as CR.
 typedef GrantPrefill = ({GrantRole? role, String? email, String? scope});
@@ -44,6 +68,7 @@ class _AdminGrantState extends State<AdminGrant> {
   bool _looked = false, _busy = false, _early = false;
   DateTime? _earlier;
   GrantTerms _terms = defaultTerms;
+  Timer? _debounce;
 
   final _roles = myRoles.value;
 
@@ -70,9 +95,36 @@ class _AdminGrantState extends State<AdminGrant> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _email.dispose();
     _course.dispose();
     super.dispose();
+  }
+
+  /// Looks the address up 400 ms after typing stops; no button (N18).
+  void _typed(String _) {
+    _debounce?.cancel();
+    setState(() {
+      _looked = false;
+      _found = null;
+    });
+    _debounce = Timer(const Duration(milliseconds: 400), _lookUp);
+  }
+
+  Future<void> _pickDept() async {
+    final v = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _DeptSheet(selected: _dept),
+    );
+    if (v == null || !mounted) return;
+    setState(() {
+      _dept = v;
+      _programme =
+          departments[v]?.programmes.length == 1
+              ? departments[v]!.programmes.single
+              : null;
+    });
   }
 
   Future<void> _lookUp() async {
@@ -94,8 +146,8 @@ class _AdminGrantState extends State<AdminGrant> {
       return isBitsAddress(a) ? null : 'Admins hold a BITS address.';
     }
     if (!isStudentAddress(a)) {
-      return 'Refused: presidents and CRs are students. Faculty addresses, '
-          'alumni addresses and non-BITS accounts cannot hold either.';
+      return 'Refused: this is not a student address. Presidents and CRs '
+          'are students.';
     }
     if (_role == GrantRole.course && !_roles.owner && !_roles.admin) {
       final course = _course.text.trim();
@@ -180,56 +232,54 @@ class _AdminGrantState extends State<AdminGrant> {
     final batch = batchOfAddress(_address);
     final refusal = _refusal;
     final role = _role;
-    final label = switch (role) {
-      GrantRole.admin => 'admin',
-      GrantRole.dept =>
-        'president, ${_dept ?? '…'} ${campusName(_campus ?? '')}',
-      GrantRole.course => 'CR, ${_scope ?? '…'} ${campusName(_campus ?? '')}',
-      null => '…',
-    };
+    final canTerms = _roles.owner || _roles.admin;
+    final ends = _early && _earlier != null ? _earlier! : null;
+    final muted = TypeScale.caption.copyWith(
+      fontSize: 11,
+      height: 1.45,
+      color: p.textMuted,
+    );
 
     return PageFrame(
       header: const PageHeader(eyebrow: 'NEW GRANT', title: 'Appoint someone'),
+      bottom: BottomAction(
+        child: PrimaryButton(
+          label:
+              _busy
+                  ? 'Granting…'
+                  : grantLabel(role, _scope, _found == null ? null : _campus),
+          onPressed: _ready ? _grant : null,
+        ),
+      ),
       children: [
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionLabel('BITS student address'),
               AppTextField(
                 controller: _email,
-                label: 'Email',
+                label: 'BITS student address',
                 hint: 'f20230802@goa.bits-pilani.ac.in',
-                onChanged:
-                    (_) => setState(() {
-                      _looked = false;
-                      _found = null;
-                    }),
+                labelAbove: true,
+                onChanged: _typed,
               ),
-              const SizedBox(height: Space.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        if (campusOfAddress(_address) case final c?)
-                          ScopeChip(campusName(c), icon: Icons.lock_outline),
-                        if (batch != null)
-                          ScopeChip('Student · $batch', muted: true),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _address.isEmpty ? null : _lookUp,
-                    child: const Text('Look up'),
-                  ),
-                ],
-              ),
-              if (_looked)
+              if (campusOfAddress(_address) != null || batch != null) ...[
+                const SizedBox(height: Space.sm),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (campusOfAddress(_address) case final c?)
+                      ScopeChip(campusName(c), icon: Icons.lock_outline),
+                    if (batch != null)
+                      ScopeChip('Student · $batch', muted: true),
+                  ],
+                ),
+              ],
+              if (_looked) ...[
+                const SizedBox(height: Space.sm),
                 Container(
-                  margin: const EdgeInsets.only(top: Space.sm),
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 11,
                     vertical: 9,
@@ -238,41 +288,91 @@ class _AdminGrantState extends State<AdminGrant> {
                     color:
                         _found == null
                             ? p.behind.withValues(alpha: 0.12)
-                            : p.accent.withValues(alpha: 0.35),
+                            : p.hero.withValues(alpha: p.isDark ? 0.22 : 0.45),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    _found == null
-                        ? 'Can not be found'
-                        : '$_found · uses Pointer',
-                    style: TypeScale.body.copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: _found == null ? p.behind : p.text,
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _found == null
+                            ? Icons.close_rounded
+                            : Icons.check_rounded,
+                        size: 15,
+                        color: _found == null ? p.behind : p.text,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _found == null
+                              ? 'Can not be found'
+                              : '$_found uses Pointer',
+                          style: TypeScale.body.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _found == null ? p.behind : p.text,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              if (refusal != null)
-                Container(
-                  margin: const EdgeInsets.only(top: Space.sm),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: p.noticeTone.fill,
-                    borderRadius: BorderRadius.circular(12),
+              ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, Space.sm, 4, 0),
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(
+                        text:
+                            'Only someone who has signed in to Pointer can be '
+                            'appointed; any other address shows ',
+                      ),
+                      TextSpan(
+                        text: 'Can not be found',
+                        style: TextStyle(
+                          color: p.behind,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const TextSpan(
+                        text:
+                            '. Campus is read from the address and cannot be '
+                            'picked.',
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    refusal,
-                    style: TypeScale.caption.copyWith(
-                      color: p.noticeTone.text,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  style: muted,
+                ),
+              ),
+              const SizedBox(height: Space.sm),
+              // The board's red-brown box: what this form refuses, or why
+              // this address is refused.
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: p.behind.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      refusal == null
+                          ? null
+                          : Border.all(color: p.behind.withValues(alpha: 0.6)),
+                ),
+                child: Text(
+                  refusal ??
+                      (role == GrantRole.admin
+                          ? 'Refused on this form: accounts outside BITS. '
+                              'Admins hold a BITS address.'
+                          : 'Refused on this form: faculty addresses, alumni '
+                              'addresses and non-BITS accounts. Presidents and '
+                              'CRs are students.'),
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 11,
+                    height: 1.45,
+                    color: p.behind,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              const Note(
-                'Only someone who has signed in to Pointer can be appointed; '
-                'any other address shows Can not be found. Campus is read from '
-                'the address and cannot be picked. On their next sign-in they '
-                'fill in their name and contact details before anything else.',
               ),
             ],
           ),
@@ -286,7 +386,8 @@ class _AdminGrantState extends State<AdminGrant> {
               ChoicePills<GrantRole>(
                 values: _tiers,
                 selected: role,
-                label: (r) => r.label,
+                // "President" keeps the three on one line (N18, G2).
+                label: (r) => r == GrantRole.dept ? 'President' : r.label,
                 onSelected: (r) => setState(() => _role = r),
               ),
               const Note(
@@ -304,25 +405,13 @@ class _AdminGrantState extends State<AdminGrant> {
               children: [
                 const SectionLabel('Scope · one per grant'),
                 if (role == GrantRole.dept) ...[
-                  DropdownButtonFormField<String>(
-                    initialValue: _dept,
-                    isExpanded: true,
-                    hint: const Text('Department'),
-                    items: [
-                      for (final e in departments.entries)
-                        DropdownMenuItem(
-                          value: e.key,
-                          child: Text('${e.key} · ${e.value.name}'),
-                        ),
-                    ],
-                    onChanged:
-                        (v) => setState(() {
-                          _dept = v;
-                          _programme =
-                              departments[v]?.programmes.length == 1
-                                  ? departments[v]!.programmes.single
-                                  : null;
-                        }),
+                  _Select(
+                    text:
+                        _dept == null
+                            ? 'Choose a department'
+                            : '$_dept · ${departments[_dept]!.name}',
+                    placeholder: _dept == null,
+                    onTap: _pickDept,
                   ),
                   if (_dept != null) ...[
                     const SectionLabel('Appointed for'),
@@ -331,6 +420,7 @@ class _AdminGrantState extends State<AdminGrant> {
                       selected: _programme,
                       label: (c) => c,
                       onSelected: (c) => setState(() => _programme = c),
+                      equal: true,
                     ),
                     Note(
                       _dept == 'ELEC'
@@ -346,18 +436,23 @@ class _AdminGrantState extends State<AdminGrant> {
                     controller: _course,
                     label: 'Course code',
                     hint: 'EEE F211',
+                    labelAbove: true,
                     onChanged: (_) => setState(() {}),
                   ),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      for (final id in _suggestions)
-                        ActionChip(
-                          label: Text(id),
-                          onPressed: () => setState(() => _course.text = id),
-                        ),
-                    ],
-                  ),
+                  if (_suggestions.isNotEmpty) ...[
+                    const SizedBox(height: Space.sm),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final id in _suggestions)
+                          PillButton(
+                            label: id,
+                            onPressed: () => setState(() => _course.text = id),
+                          ),
+                      ],
+                    ),
+                  ],
                   const Note(
                     'A CR\'s scope is the course, never a section. A CR of '
                     'three courses holds three grants.',
@@ -377,7 +472,11 @@ class _AdminGrantState extends State<AdminGrant> {
                 ChoicePills<bool>(
                   values: const [false, true],
                   selected: _early,
-                  label: (e) => e ? 'Earlier date' : 'Full term',
+                  label:
+                      (e) =>
+                          e
+                              ? 'Earlier date'
+                              : 'Full term · ${termSpan(termDays(_terms, role))}',
                   onSelected: (e) async {
                     if (!e) return setState(() => _early = false);
                     final d = await showDatePicker(
@@ -395,20 +494,163 @@ class _AdminGrantState extends State<AdminGrant> {
                   },
                 ),
                 Note(
-                  'Ends ${shortDay(_early && _earlier != null ? _earlier! : _fullTerm, year: true)}: '
-                  'counted from today (Grant terms). A grant can end sooner, '
-                  'never later.',
+                  'Ends ${shortDay(ends ?? _fullTerm, year: true)}'
+                  '${ends == null ? ', counted from today' : ''}. A grant can '
+                  'end sooner than its term, never later.',
                 ),
+                if (canTerms)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => context.push(Routes.adminTerms),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 44),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Grant terms',
+                                style: TypeScale.caption.copyWith(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: p.text,
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 16,
+                                color: p.text,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ],
-        const SizedBox(height: Space.lg),
-        PrimaryButton(
-          label: _busy ? 'Granting…' : 'Grant — $label',
-          onPressed: _ready ? _grant : null,
-        ),
       ],
+    );
+  }
+}
+
+/// A 44-tall select: the choice and a chevron, opening a sheet (not a
+/// Material dropdown).
+class _Select extends StatelessWidget {
+  const _Select({
+    required this.text,
+    required this.onTap,
+    this.placeholder = false,
+  });
+  final String text;
+  final VoidCallback onTap;
+  final bool placeholder;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Material(
+      color: p.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: p.outline),
+      ),
+      child: InkWell(
+        customBorder: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    text,
+                    style: TypeScale.body.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: placeholder ? p.textMuted : p.text,
+                    ),
+                  ),
+                ),
+                Icon(Icons.expand_more_rounded, color: p.textMuted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Every department, the chosen one ticked.
+class _DeptSheet extends StatelessWidget {
+  const _DeptSheet({this.selected});
+  final String? selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.7,
+      maxChildSize: 0.92,
+      builder:
+          (context, scroll) => ListView(
+            controller: scroll,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: p.outline,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 11),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Department',
+                  style: TypeScale.title.copyWith(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: Space.sm),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final (i, e) in departments.entries.indexed) ...[
+                      if (i > 0) const CardDivider(),
+                      CardRow(
+                        title: '${e.key} · ${e.value.name}',
+                        titleLines: 2,
+                        trailing:
+                            e.key == selected
+                                ? Icon(Icons.check_rounded, color: p.text)
+                                : const SizedBox.shrink(),
+                        onTap: () => Navigator.of(context).pop(e.key),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
     );
   }
 }
