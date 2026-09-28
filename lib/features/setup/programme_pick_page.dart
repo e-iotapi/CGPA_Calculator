@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
@@ -38,6 +39,15 @@ class ProgrammePickPage extends StatefulWidget {
 
 class _ProgrammePickPageState extends State<ProgrammePickPage> {
   var _query = '';
+
+  /// The list follows the search after a pause in typing (UI_OPT O5.2).
+  final _typed = Debouncer();
+
+  @override
+  void dispose() {
+    _typed.dispose();
+    super.dispose();
+  }
 
   List<Programme> get _shown {
     final q = _query.trim().toLowerCase();
@@ -102,7 +112,10 @@ class _ProgrammePickPageState extends State<ProgrammePickPage> {
                 ),
                 const SizedBox(height: Space.md),
                 TextField(
-                  onChanged: (v) => setState(() => _query = v),
+                  onChanged:
+                      (v) => _typed(() {
+                        if (mounted) setState(() => _query = v);
+                      }),
                   style: TypeScale.body.copyWith(fontSize: 13, color: p.text),
                   decoration: InputDecoration(
                     hintText: 'Code or name — A7, mechanical…',

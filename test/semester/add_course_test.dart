@@ -188,7 +188,8 @@ void main() {
         ),
       );
       await t.enterText(find.byType(TextField), 'long');
-      await t.pump();
+      // Hits follow a pause in typing (UI_OPT O5.2).
+      await t.pump(const Duration(milliseconds: 200));
       await t.tap(find.text(_long).last);
       await t.pump();
       expect(t.takeException(), isNull);
@@ -226,7 +227,8 @@ void main() {
       ),
     );
     await t.enterText(find.byType(TextField), 'long');
-    await t.pump();
+    // Hits follow a pause in typing (UI_OPT O5.2).
+    await t.pump(const Duration(milliseconds: 200));
     await t.tap(find.text(_long).last);
     await t.pump();
     // The title wraps to two lines before it gives up.

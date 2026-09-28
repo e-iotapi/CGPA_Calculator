@@ -16,7 +16,9 @@ import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
+import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
 import 'package:flutter/material.dart';
 
 ProfessorStore get _store => ProfessorStore(roleStore!.db, roles: roleStore);
@@ -130,10 +132,14 @@ class DeptProfessors extends StatefulWidget {
 
 class _DeptProfessorsState extends State<DeptProfessors> {
   final _search = TextEditingController();
+
+  /// The list follows the search after a pause in typing (UI_OPT O5.2).
+  final _typed = Debouncer();
   int _loads = 0;
 
   @override
   void dispose() {
+    _typed.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -198,47 +204,44 @@ class _DeptProfessorsState extends State<DeptProfessors> {
             SearchBox(
               controller: _search,
               hint: 'Search ${data.profs.length} professors',
-              onChanged: (_) => setState(() {}),
+              onChanged:
+                  (_) => _typed(() {
+                    if (mounted) setState(() {});
+                  }),
             ),
             const SizedBox(height: Space.sm),
             if (shown.isNotEmpty)
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    for (final (i, x) in shown.indexed) ...[
-                      if (i > 0) const CardDivider(),
-                      CardRow(
-                        leading: const IconTile(Icons.school_outlined),
-                        title: x.name,
-                        titleLines: 2,
-                        subtitle: switch ((
-                          data.teaching[x.id],
-                          data.last[x.id],
-                        )) {
-                          (final c?, _) => '${c.join(', ')} · teaching now',
-                          (null, final t?) => 'Last taught ${termLabel(t)}',
-                          _ => 'Not taught here yet',
-                        },
-                        minHeight: 58,
-                        onTap: () async {
-                          final name = await _nameDialog(
-                            context,
-                            title: 'Rename',
-                            initial: x.name,
-                          );
-                          if (name == null || name == x.name) return;
-                          try {
-                            await _store.rename(x, name);
-                            setState(() => _loads++);
-                          } catch (e) {
-                            if (context.mounted) _say(context, problem(e));
-                          }
-                        },
-                      ),
-                    ],
-                  ],
-                ),
+              SliverRowGroup(
+                count: shown.length,
+                inset: 13,
+                row: (context, i) {
+                  final x = shown[i];
+                  return CardRow(
+                    leading: const IconTile(Icons.school_outlined),
+                    title: x.name,
+                    titleLines: 2,
+                    subtitle: switch ((data.teaching[x.id], data.last[x.id])) {
+                      (final c?, _) => '${c.join(', ')} · teaching now',
+                      (null, final t?) => 'Last taught ${termLabel(t)}',
+                      _ => 'Not taught here yet',
+                    },
+                    minHeight: 58,
+                    onTap: () async {
+                      final name = await _nameDialog(
+                        context,
+                        title: 'Rename',
+                        initial: x.name,
+                      );
+                      if (name == null || name == x.name) return;
+                      try {
+                        await _store.rename(x, name);
+                        setState(() => _loads++);
+                      } catch (e) {
+                        if (context.mounted) _say(context, problem(e));
+                      }
+                    },
+                  );
+                },
               ),
             if (shown.isEmpty)
               Note(
