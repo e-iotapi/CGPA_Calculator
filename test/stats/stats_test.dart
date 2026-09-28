@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/stats/stats_controller.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
+import 'package:cgpa_calculator/features/stats/widgets/cgpa_chart.dart';
 import 'package:cgpa_calculator/features/stats/widgets/degree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -194,6 +195,32 @@ void main() {
     );
   });
 
+  group('chart axes (board Stats)', () {
+    test('yRange spans the whole numbers the data spans', () {
+      expect(yRange([8.76, 7.28, 7.71, 8.10, 8.0]), (7.0, 9.0));
+      expect(yRange([8.2, 8.4]), (8.0, 9.0));
+      expect(yRange([9.0, 9.0]), (9.0, 10.0));
+      expect(yRange([10.0]), (9.0, 10.0));
+    });
+
+    test('xLabels picks first, current, last and a landmark', () {
+      const sems = [
+        '1 - 1',
+        '1 - 2',
+        '2 - 1',
+        '2 - 2',
+        'PS 1',
+        '3 - 1',
+        '3 - 2',
+        '4 - 1',
+        '4 - 2',
+        '5 - 1',
+      ];
+      expect(xLabels(sems, 7), [0, 7, 9, 4]);
+      expect(xLabels(['1 - 1', '1 - 2'], -1), [0, 1]);
+    });
+  });
+
   group('StatsScreen', () {
     final d = StatsData.from(all: _synthetic, discipline: 'B3A7', target: 9);
 
@@ -211,7 +238,7 @@ void main() {
     testWidgets('degree shows requirement cards', (t) async {
       await _pump(t, d, StatsView.degree);
       expect(find.text('CREDITS EARNED'), findsOneWidget);
-      expect(find.text('CDC (B3)'), findsOneWidget);
+      expect(find.text('B3 Core · CDC1', findRichText: true), findsOneWidget);
     });
 
     test('a total set by hand decides what is left', () {
@@ -272,7 +299,7 @@ void main() {
         expect(d.audit.ongoingCredits, 4);
         expect(d.audit.totalCredits, 4 + 4 + 3 + 3 + 2);
         final core = d.audit.categories.firstWhere(
-          (a) => a.label == 'CDC (A7)',
+          (a) => a.label == 'A7 Core',
         );
         // Its own core, and the common courses as the first degree's.
         expect(core.credits, 14);
@@ -305,11 +332,11 @@ void main() {
         );
         final scroll = find.byType(Scrollable).first;
         await t.scrollUntilVisible(
-          find.text('CDC (A7)'),
+          find.text('A7 Core'),
           200,
           scrollable: scroll,
         );
-        await t.tap(find.text('CDC (A7)'));
+        await t.tap(find.text('A7 Core'));
         await t.pumpAndSettle();
         expect(
           find.textContaining('CS F212', findRichText: true),
@@ -357,10 +384,10 @@ void main() {
           discipline: 'B3A7',
         );
         final b3 = dual.audit.categories.firstWhere(
-          (a) => a.label == 'CDC (B3)',
+          (a) => a.label == 'B3 Core · CDC1',
         );
         expect(b3.members.map((m) => m.id), ['MATH F111', 'BITS F111']);
-        final a7 = d.audit.categories.firstWhere((a) => a.label == 'CDC (A7)');
+        final a7 = d.audit.categories.firstWhere((a) => a.label == 'A7 Core');
         expect(a7.members.map((m) => m.id), containsAll(['MATH F111']));
       });
 
@@ -452,12 +479,12 @@ void main() {
       expect(idsIn('Open Electives'), ['EEE F311']);
       final eee = allCourses().firstWhere((m) => m.id == 'EEE F311');
       await setCourseCategory(eee, Elective.del2.tag);
-      expect(idsIn('Disciplinary Electives (A7)'), ['EEE F311']);
+      expect(idsIn('Disciplinary Electives'), ['EEE F311']);
       expect(idsIn('Open Electives'), isEmpty);
       // Survives a reload of the settings.
       pinnedCategories = {};
       loadPinnedCategories(Hive.box('settingsBox'));
-      expect(idsIn('Disciplinary Electives (A7)'), ['EEE F311']);
+      expect(idsIn('Disciplinary Electives'), ['EEE F311']);
     });
 
     testWidgets('the Unassigned course moves once assigned', (t) async {

@@ -157,13 +157,15 @@ class SettingsView extends StatelessWidget {
                 _Group([
                   _Item(
                     label: 'Discipline',
-                    value: disciplineLabel(second, dual: false),
+                    value: shortProgrammeLabel(second),
+                    valueTooltip: disciplineLabel(second, dual: false),
                     strong: true,
                     onTap: () => onPickDiscipline(false),
                   ),
                   _Item(
                     label: 'Dual degree',
-                    value: disciplineLabel(first, dual: true),
+                    value: shortProgrammeLabel(first),
+                    valueTooltip: disciplineLabel(first, dual: true),
                     strong: true,
                     onTap: () => onPickDiscipline(true),
                   ),
@@ -471,6 +473,7 @@ class _Item extends StatelessWidget {
     required this.label,
     this.onTap,
     this.value,
+    this.valueTooltip,
     this.strong = false,
     this.icon,
     this.swatch,
@@ -479,6 +482,9 @@ class _Item extends StatelessWidget {
 
   final String label;
   final String? value;
+
+  /// The full text, when [value] is shortened (e.g. the discipline code).
+  final String? valueTooltip;
 
   /// Accent the value, for the settings that define the degree.
   final bool strong;
@@ -514,7 +520,12 @@ class _Item extends StatelessWidget {
               const SizedBox(width: 10),
             ],
             Expanded(
-              child: _LabelValue(label: label, value: value, strong: strong),
+              child: _LabelValue(
+                label: label,
+                value: value,
+                valueTooltip: valueTooltip,
+                strong: strong,
+              ),
             ),
             if (chevron && onTap != null) ...[
               const SizedBox(width: Space.xs),
@@ -607,10 +618,18 @@ class _Choice extends StatelessWidget {
 /// width (up to 60% of the row) so a word like "Discipline" never breaks
 /// mid-word; the value takes the rest, right-aligned, and ellipsizes.
 class _LabelValue extends StatelessWidget {
-  const _LabelValue({required this.label, this.value, this.strong = false});
+  const _LabelValue({
+    required this.label,
+    this.value,
+    this.valueTooltip,
+    this.strong = false,
+  });
 
   final String label;
   final String? value;
+
+  /// The full text, when [value] is shortened (e.g. the discipline code).
+  final String? valueTooltip;
   final bool strong;
 
   @override
@@ -646,16 +665,24 @@ class _LabelValue extends StatelessWidget {
             ),
             const SizedBox(width: Space.sm),
             Expanded(
-              child: Text(
-                v,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: TypeScale.caption.copyWith(
-                  fontSize: 12.5,
-                  fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
-                  color: strong ? p.accent : p.textMuted,
-                ),
+              child: Builder(
+                builder: (context) {
+                  final text = Text(
+                    v,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    semanticsLabel: valueTooltip ?? v,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
+                      color: strong ? p.accent : p.textMuted,
+                    ),
+                  );
+                  return valueTooltip == null
+                      ? text
+                      : Tooltip(message: valueTooltip, child: text);
+                },
               ),
             ),
           ],

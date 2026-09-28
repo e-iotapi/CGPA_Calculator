@@ -2113,6 +2113,26 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
   `test/marks/marks_test.dart` the Marks page.
 - **Still to do in this group**: see §11, Group 2.
 
+### 13.2.1 Group 2 closed — T2.1–T2.3 (28 Sep 2026)
+- **T2.1 Stats axes**: `cgpa_chart.dart` gains `yRange`/`xLabels`; y shows only whole
+  numbers the data spans, x shows first/current/last/landmark only, overlap-clamped.
+  Stroke widths and dashes matched to the board. Tests: `test/stats/stats_test.dart`
+  group `chart axes (board Stats)`.
+- **T2.2 Degree names and order**: `requirements.dart`'s `cards` now builds the first
+  degree (`hasB`) before the second (`hasA`); labels are `'<code> Core · CDC1/CDC2'`
+  and `'Disciplinary Elective 1/2'` for a dual, `'<code> Core'` / `'Disciplinary
+  Electives'` for a single degree. `degree_view.dart` renders the `· CDCn` suffix
+  muted via a new `_categoryLabelText` (`Text.rich`, one string for semantics).
+  Updated `requirements_test.dart`, `stats_test.dart`, `retired_test.dart` labels and
+  indices; added `'dual degree order and names'`.
+- **T2.3 Settings discipline label**: new `shortProgrammeLabel()` in
+  `settings_controller.dart` ("A7 · Computer Science", degree prefix dropped).
+  `settings_view.dart`'s `_Item`/`_LabelValue` gain an optional `valueTooltip`,
+  shown as a `Tooltip` and the value's `semanticsLabel`, so the full name is still
+  reachable. Both discipline rows use it.
+- **Departures**: none.
+- **Checks**: `flutter analyze` 7 infos (baseline); `flutter test` 401 passed, 49
+  skipped.
 
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19

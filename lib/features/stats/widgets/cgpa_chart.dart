@@ -61,6 +61,26 @@ class CgpaChart extends StatelessWidget {
   }
 }
 
+/// The y axis: the whole numbers the [values] span, at least one apart,
+/// within 0–10.
+(double, double) yRange(Iterable<double> values) {
+  final lo = math.max(0.0, values.reduce(math.min).floorToDouble());
+  final hi = math.min(10.0, values.reduce(math.max).ceilToDouble());
+  if (hi - lo >= 1) return (lo, hi);
+  return hi < 10 ? (lo, lo + 1) : (hi - 1, hi);
+}
+
+/// The x labels, most important first: the first semester, the current one
+/// ([current], -1 with none), the last, and a landmark (Practice School).
+List<int> xLabels(List<String> sems, int current) {
+  final ps = sems.indexWhere((s) => s.trim().toUpperCase().startsWith('PS'));
+  final out = <int>[];
+  for (final i in [0, current, sems.length - 1, ps]) {
+    if (i >= 0 && i < sems.length && !out.contains(i)) out.add(i);
+  }
+  return out;
+}
+
 class _ChartPainter extends CustomPainter {
   _ChartPainter({
     required this.actual,
@@ -94,21 +114,20 @@ class _ChartPainter extends CustomPainter {
       ...forecast.map((a) => a.cgpa),
       target,
     ];
-    final lo = math.max(0.0, (values.reduce(math.min) - 0.4).floorToDouble());
-    final hi = math.min(10.0, (values.reduce(math.max) + 0.4).ceilToDouble());
-    const left = 26.0, bottom = 18.0, top = 6.0, right = 6.0;
+    final (lo, hi) = yRange(values);
+    const left = 22.0, bottom = 16.0, top = 6.0, right = 6.0;
     final w = size.width - left - right, h = size.height - top - bottom;
     double x(int i) =>
         left + (sems.length == 1 ? w / 2 : w * i / (sems.length - 1));
     double y(double v) => top + h * (1 - (v - lo) / (hi - lo));
 
-    TextPainter text(String s, [Color? c, bool bold = false]) => TextPainter(
+    TextPainter text(String s, [Color? c, double size = 9.5]) => TextPainter(
       text: TextSpan(
         text: s,
         style: TextStyle(
           fontFamily: TypeScale.family,
-          fontSize: bold ? 9.5 : 9,
-          fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+          fontSize: size,
+          fontWeight: c == null ? FontWeight.w500 : FontWeight.w700,
           color: c ?? label,
         ),
       ),
@@ -119,27 +138,36 @@ class _ChartPainter extends CustomPainter {
         Paint()
           ..color = grid
           ..strokeWidth = 1;
-    for (var v = lo; v <= hi + 0.001; v += 1) {
+    final gridStep = hi - lo <= 3 ? 0.5 : 1.0;
+    for (var v = lo; v <= hi + 0.001; v += gridStep) {
       canvas.drawLine(Offset(left, y(v)), Offset(left + w, y(v)), gridPaint);
-      final t = text(v.toStringAsFixed(0));
-      t.paint(canvas, Offset(0, y(v) - t.height / 2));
+      if ((v - v.roundToDouble()).abs() < 0.001) {
+        final t = text(v.toStringAsFixed(1), null, 8);
+        t.paint(canvas, Offset(0, y(v) - t.height / 2));
+      }
     }
-    // Every other label when crowded.
-    final step = sems.length > 8 ? 2 : 1;
-    for (var i = 0; i < sems.length; i += step) {
-      final t = text(sems[i].replaceAll(' ', ''));
-      t.paint(canvas, Offset(x(i) - t.width / 2, size.height - t.height));
+    // First, current, last and a landmark only; drop any that would overlap.
+    final drawnLabels = <Rect>[];
+    for (final i in xLabels(sems, actual.length - 1)) {
+      final t = text(sems[i].replaceAll(' ', ''), null, 7.5);
+      final dx =
+          (x(i) - t.width / 2).clamp(left, size.width - t.width).toDouble();
+      final dy = size.height - t.height;
+      final rect = Rect.fromLTWH(dx, dy, t.width, t.height).inflate(3);
+      if (drawnLabels.any((r) => r.overlaps(rect))) continue;
+      drawnLabels.add(rect);
+      t.paint(canvas, Offset(dx, dy));
     }
 
     // Target, dashed.
     final tp =
         Paint()
           ..color = targetLine
-          ..strokeWidth = 1.5;
-    for (var d = left; d < left + w; d += 8) {
+          ..strokeWidth = 2;
+    for (var d = left; d < left + w; d += 9) {
       canvas.drawLine(
         Offset(d, y(target)),
-        Offset(math.min(d + 4, left + w), y(target)),
+        Offset(math.min(d + 5, left + w), y(target)),
         tp,
       );
     }
@@ -154,15 +182,15 @@ class _ChartPainter extends CustomPainter {
           Paint()
             ..color = c
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.5
+            ..strokeWidth = 2.6
             ..strokeCap = StrokeCap.round
             ..strokeJoin = StrokeJoin.round;
       if (!dashed) {
         canvas.drawPath(pth, paint);
       } else {
         for (final PathMetric m in pth.computeMetrics()) {
-          for (var d = 0.0; d < m.length; d += 9) {
-            canvas.drawPath(m.extractPath(d, d + 5), paint);
+          for (var d = 0.0; d < m.length; d += 11) {
+            canvas.drawPath(m.extractPath(d, d + 6), paint);
           }
         }
       }
@@ -197,7 +225,7 @@ class _ChartPainter extends CustomPainter {
     /// A value beside a point, kept inside the chart. The target line is
     /// named by the legend, not labelled on the chart.
     void tag(double v, int i, Color c, {bool above = true}) {
-      final t = text(v.toStringAsFixed(2), c, true);
+      final t = text(v.toStringAsFixed(2), c);
       final dx =
           (x(i) - t.width / 2).clamp(left, size.width - t.width).toDouble();
       final dy = above ? y(v) - t.height - 6 : y(v) + 6;

@@ -383,22 +383,27 @@ DegreeAudit degreeAudit(
         core,
         counts: {null, Elective.cdc1, Elective.cdc2},
       ),
-    if (hasA) ...[
-      if (core == null) card(Elective.cdc2, 'CDC ($second)', cdc(a)),
-      card(
-        Elective.del2,
-        'Disciplinary Electives ($second)',
-        del2Need,
-        courses: del2.keep,
-      ),
-    ],
     if (hasB) ...[
-      if (core == null) card(Elective.cdc1, 'CDC ($first)', cdc(b)),
+      if (core == null) card(Elective.cdc1, '$first Core · CDC1', cdc(b)),
       card(
         Elective.del1,
-        'Disciplinary Electives ($first)',
+        dual ? 'Disciplinary Elective 1' : 'Disciplinary Electives',
         del1Need,
         courses: del1.keep,
+      ),
+    ],
+    if (hasA) ...[
+      if (core == null)
+        card(
+          Elective.cdc2,
+          dual ? '$second Core · CDC2' : '$second Core',
+          cdc(a),
+        ),
+      card(
+        Elective.del2,
+        dual ? 'Disciplinary Elective 2' : 'Disciplinary Electives',
+        del2Need,
+        courses: del2.keep,
       ),
     ],
     card(Elective.humanity, 'Humanity Electives', helNeed, courses: hel.keep),

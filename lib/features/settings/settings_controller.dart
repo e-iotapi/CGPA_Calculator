@@ -59,6 +59,17 @@ String disciplineLabel(String half, {required bool dual}) =>
       dual: dual,
     ).firstWhere((o) => o.$1 == half, orElse: () => (half, half)).$2;
 
+/// "A7 · Computer Science": the code first, the degree prefix dropped.
+String shortProgrammeLabel(String code) {
+  if (code == '--' || code == 'B-' || code.isEmpty) {
+    return disciplineLabel(code, dual: true);
+  }
+  final name = programmeName(
+    code,
+  ).replaceFirst(RegExp(r'^(B\.E\.|M\.Sc\.|B\.Pharm\.)\s*'), '');
+  return '$code · $name';
+}
+
 /// What a change will do, for the confirmation; null when grades stay.
 String? eraseWarning(int erase) => switch (erase) {
   1 => 'This reloads the course list and clears all your grades.',

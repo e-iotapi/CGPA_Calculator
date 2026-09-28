@@ -186,6 +186,25 @@ class DegreeView extends StatelessWidget {
   };
 }
 
+/// A category label with its "· CDC1" / "· CDC2" suffix muted, if it has one.
+/// The label stays one string for semantics.
+Widget _categoryLabelText(String label, TextStyle style, Color muted) {
+  final i = label.indexOf(' · ');
+  if (i < 0) return Text(label, style: style);
+  return Text.rich(
+    TextSpan(
+      style: style,
+      children: [
+        TextSpan(text: label.substring(0, i)),
+        TextSpan(
+          text: label.substring(i),
+          style: style.copyWith(fontWeight: FontWeight.w500, color: muted),
+        ),
+      ],
+    ),
+  );
+}
+
 class _CategoryCard extends StatefulWidget {
   const _CategoryCard({
     required this.c,
@@ -233,7 +252,7 @@ class _CategoryCardState extends State<_CategoryCard> {
       said = '${c.label}: $courses, $cr credits';
       head = Row(
         children: [
-          Expanded(child: Text(c.label, style: title)),
+          Expanded(child: _categoryLabelText(c.label, title, p.textMuted)),
           Text(courses, style: small),
           const SizedBox(width: Space.sm),
           Text('$cr cr', style: title.copyWith(fontSize: 11)),
@@ -261,7 +280,7 @@ class _CategoryCardState extends State<_CategoryCard> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(c.label, style: title)),
+              Expanded(child: _categoryLabelText(c.label, title, p.textMuted)),
               if (c.complete) ...[
                 Icon(Icons.check_circle_rounded, size: 14, color: p.ahead),
                 const SizedBox(width: 4),
