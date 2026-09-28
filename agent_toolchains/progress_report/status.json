@@ -1,6 +1,6 @@
 {
-  "current": "Fixes from your demo testing",
-  "note": "Fixed from your testing: department lists show each branch (never ELEC) and read one campus-wise list; Merge duplicates suggests likely pairs on load; the Audit log finds courses by name; links can point at any website; Hand over shows the real screen when you preview a department; iPhone no longer zooms into text fields. The demo is rebuilt with all of it. The per-campus departments, duplicate suggestions and open links each need a matching backend change on the logic branch (listed in the handoff).",
+  "current": "Handoff final: ready for the backend refactor",
+  "note": "The UI rebuild is finished and the handoff to the backend branch is final. All 555 tests and the full screen check pass (354 screens, no issues). UI_REBUILD_HANDOFF.md lists every place the UI waits on backend work, the decisions not to undo, and how to check nothing breaks after merging. The demo stays live for more testing.",
   "groups": [
     [
       "Group 2 · finish",
