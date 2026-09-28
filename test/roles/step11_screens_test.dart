@@ -908,7 +908,9 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Choose a department'));
     await t.pumpAndSettle();
-    await t.tap(find.textContaining('ELEC · '));
+    // The shared list: ELEC shows as its branches, never as "ELEC".
+    expect(find.textContaining('ELEC'), findsNothing);
+    await t.tap(find.text('A3'));
     await t.pumpAndSettle();
     await t.tap(find.text('A3'));
     await t.pumpAndSettle();
@@ -1079,6 +1081,17 @@ void main() {
     expect(find.text(label), findsOneWidget);
   });
 
+  testWidgets('audit finds a course by name through the catalogue', (t) async {
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    await t.pumpWidget(app(const AuditLogPage()));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField), 'electrical machines');
+    await t.pump(const Duration(milliseconds: 200));
+    await t.tap(find.text('Electrical Machines').first);
+    await t.pumpAndSettle();
+    expect(find.textContaining(' · Electrical Machines'), findsOneWidget);
+  });
+
   // ---- T8.11 Roster --------------------------------------------------------
 
   testWidgets('volunteers tab counts offers', (t) async {
@@ -1120,6 +1133,18 @@ void main() {
     expect(find.text('KEEP'), findsOneWidget);
     expect(find.text('Merge into Ramesh Menon'), findsOneWidget);
     expect(find.textContaining('Also known as Dr. R. Menon'), findsOneWidget);
+  });
+
+  testWidgets('merge suggests likely duplicates and picks both', (t) async {
+    await t.runAsync(() => seedFirestore(db));
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    await t.pumpWidget(app(const ProfessorMerge(campus: 'goa', dept: 'CS')));
+    await t.pumpAndSettle();
+    expect(find.text('Possible duplicates'.toUpperCase()), findsOneWidget);
+    await t.tap(find.textContaining('Tap to pick both').first);
+    await t.pump();
+    expect(find.text('KEEP'), findsOneWidget);
+    expect(find.text('MERGE'), findsOneWidget);
   });
 
   testWidgets('reported tab counts reports', (t) async {

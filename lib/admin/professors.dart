@@ -2,6 +2,8 @@ import 'package:cgpa_calculator/admin/grant_form.dart';
 import 'package:cgpa_calculator/admin/maintain.dart';
 import 'package:cgpa_calculator/admin/offering_scale.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/admin/dept_list.dart';
+import 'package:cgpa_calculator/admin/duplicates.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
@@ -354,19 +356,24 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
       'goa';
   late String? _dept =
       widget.dept ?? myRoles.value.presidencies.firstOrNull?.scope;
+
+  /// The row picked from the shared department list; its label.
+  Branch? _branch;
   String? _keep, _gone;
   bool _busy = false;
   int _loads = 0;
 
   Future<void> _pickDept() async {
-    final v = await showModalBottomSheet<String>(
+    final v = await showModalBottomSheet<Branch>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DeptSheet(selected: _dept),
+      builder: (_) => DeptSheet(campus: _campus, selected: _branch),
     );
     if (v == null || !mounted) return;
     setState(() {
-      _dept = v;
+      // Professors are listed per department: every ELEC branch shares one.
+      _branch = v;
+      _dept = v.dept;
       _keep = _gone = null;
     });
   }
@@ -414,7 +421,8 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
             text:
                 dept == null
                     ? 'Department'
-                    : '$dept · ${departments[dept]?.name ?? dept}',
+                    : '${branchName(_branch ?? (dept: dept, programme: null))} · '
+                        '${branchCodes(_branch ?? (dept: dept, programme: null))}',
             placeholder: dept == null,
             onTap: _pickDept,
           ),
@@ -437,7 +445,9 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
     );
     final dept = _dept;
     if (dept == null) return _frame(const [Note('Pick a department.')]);
-    return Loaded<(List<Professor>, Map<String, (int, int)>)>(
+    return Loaded<
+      (List<Professor>, Map<String, (int, int)>, List<DuplicatePair>)
+    >(
       key: ValueKey('$_campus|$dept|$_loads'),
       load: () async {
         final profs = await _store.department(_campus, dept);
@@ -446,10 +456,11 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
           final t = await _store.taught(x, _campus);
           counts[x.id] = (t.length, t.values.fold(0, (a, l) => a + l.length));
         }
-        return (profs, counts);
+        final dups = await duplicateSource.possible(_campus, dept, profs);
+        return (profs, counts, dups);
       },
       builder: (context, data, _) {
-        final (profs, counts) = data;
+        final (profs, counts, dups) = data;
         final keep = profs.where((x) => x.id == _keep).firstOrNull;
         final gone = profs.where((x) => x.id == _gone).firstOrNull;
         String offerings(int n) => '$n offering${n == 1 ? '' : 's'}';
@@ -498,6 +509,35 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
               style: caption,
             ),
             const SizedBox(height: Space.sm),
+            if (dups.isNotEmpty) ...[
+              const SectionLabel('Possible duplicates'),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final (i, d) in dups.indexed) ...[
+                      if (i > 0) const CardDivider(),
+                      CardRow(
+                        title: '${d.a.name} · ${d.b.name}',
+                        titleLines: 2,
+                        subtitle: 'Tap to pick both',
+                        onTap:
+                            () => setState(() {
+                              // Keep the one with more offerings.
+                              final aRuns = counts[d.a.id]?.$2 ?? 0;
+                              final bRuns = counts[d.b.id]?.$2 ?? 0;
+                              final (k, g) =
+                                  aRuns >= bRuns ? (d.a, d.b) : (d.b, d.a);
+                              _keep = k.id;
+                              _gone = g.id;
+                            }),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SectionLabel('Everyone listed'),
+            ],
             if (profs.isEmpty)
               const Note('No professors listed here yet.')
             else

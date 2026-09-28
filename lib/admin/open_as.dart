@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/admin/dept_list.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
@@ -6,7 +7,6 @@ import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
-import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
@@ -293,33 +293,25 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Loaded<List<Grant>>(
+  Widget build(BuildContext context) => Loaded<(List<Grant>, List<String>)>(
     key: ValueKey(_campus),
-    load: () => roleStore!.roster(campus: _campus),
-    builder: (context, grants, _) {
+    load:
+        () async => (
+          await roleStore!.roster(campus: _campus),
+          await departmentSource.at(_campus),
+        ),
+    builder: (context, data, _) {
+      final (grants, depts) = data;
       final now = DateTime.now();
       final q = _search.text.trim().toLowerCase();
       final recent = [
         for (final r in openedRecently())
           if (r.startsWith('dept:$_campus:')) r.split(':').last,
       ];
-      final keys = recentFirst(departments.keys.toList(), recent);
-      // (department, programme or null for the whole department).
+      final keys = recentFirst(depts, recent);
       final shown = [
-        for (final k in keys)
-          for (final prog
-              in departments[k]!.programmes.length > 1
-                  ? departments[k]!.programmes
-                  : const [null])
-            if (q.isEmpty ||
-                k.toLowerCase().contains(q) ||
-                departments[k]!.name.toLowerCase().contains(q) ||
-                (prog != null &&
-                    programmeName(prog).toLowerCase().contains(q)) ||
-                (prog ?? departments[k]!.programmes.join(' '))
-                    .toLowerCase()
-                    .contains(q))
-              (k, prog),
+        for (final b in deptBranches(keys))
+          if (branchMatches(b, q)) b,
       ];
       int presidents(String d, String? prog) =>
           grants
@@ -342,25 +334,21 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
         children: [
           SectionLabel(
             '${campusName(_campus)} · '
-            '${departments.values.fold<int>(0, (n, d) => n + d.programmes.length)} '
+            '${deptBranches(depts).length} '
             'branches',
           ),
           if (shown.isEmpty)
             const Note('No department matches.')
           else
             _rows([
-              for (final (k, prog) in shown)
+              for (final b in shown)
                 (
-                  // A branch goes by its own name ("Electrical & Electronics").
-                  prog == null
-                      ? departments[k]!.name
-                      : programmeName(prog).replaceFirst('B.E. ', ''),
-                  // Branch codes only, never the department's course code.
-                  '${prog ?? departments[k]!.programmes.join(' · ')} · '
-                      '${presidents(k, prog)} president'
-                      '${presidents(k, prog) == 1 ? '' : 's'}'
-                      '${recent.contains(k) ? ' · opened recently' : ''}',
-                  () => _open(k),
+                  branchName(b),
+                  '${branchCodes(b)} · '
+                      '${presidents(b.dept, b.programme)} president'
+                      '${presidents(b.dept, b.programme) == 1 ? '' : 's'}'
+                      '${recent.contains(b.dept) ? ' · opened recently' : ''}',
+                  () => _open(b.dept),
                 ),
             ]),
         ],

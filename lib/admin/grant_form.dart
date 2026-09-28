@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cgpa_calculator/admin/admin_home.dart' show termSpan;
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/admin/dept_list.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
@@ -89,6 +90,16 @@ class _AdminGrantState extends State<AdminGrant> {
   late String? _dept =
       widget.prefill?.role == GrantRole.dept ? widget.prefill?.scope : null;
   String? _programme;
+
+  /// The picked row of the shared department list, for its label and tick.
+  Branch? get _branch => switch (_dept) {
+    null => null,
+    final d => (
+      dept: d,
+      programme:
+          (departments[d]?.programmes.length ?? 0) > 1 ? _programme : null,
+    ),
+  };
   String? _found; // the person's name
   bool _looked = false, _busy = false, _early = false;
   DateTime? _earlier;
@@ -147,18 +158,15 @@ class _AdminGrantState extends State<AdminGrant> {
   }
 
   Future<void> _pickDept() async {
-    final v = await showModalBottomSheet<String>(
+    final v = await showModalBottomSheet<Branch>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DeptSheet(selected: _dept),
+      builder: (_) => DeptSheet(campus: _campus, selected: _branch),
     );
     if (v == null || !mounted) return;
     setState(() {
-      _dept = v;
-      _programme =
-          departments[v]?.programmes.length == 1
-              ? departments[v]!.programmes.single
-              : null;
+      _dept = v.dept;
+      _programme = v.programme ?? departments[v.dept]?.programmes.single;
     });
   }
 
@@ -459,7 +467,8 @@ class _AdminGrantState extends State<AdminGrant> {
                     text:
                         _dept == null
                             ? 'Choose a department'
-                            : '$_dept · ${departments[_dept]!.name}',
+                            : '${branchName(_branch!)} · '
+                                '${branchCodes(_branch!)}',
                     placeholder: _dept == null,
                     onTap: _pickDept,
                   ),
@@ -473,10 +482,11 @@ class _AdminGrantState extends State<AdminGrant> {
                       equal: true,
                     ),
                     Note(
-                      _dept == 'ELEC'
-                          ? 'Every electronics president controls all of ELEC, '
-                              'as equals. The programme is kept for the '
-                              'roster and for handover.'
+                      departments[_dept]!.programmes.length > 1
+                          ? 'Every ${departmentName(_dept!).toLowerCase()} '
+                              'president controls all its branches, as '
+                              'equals. The branch is kept for the roster and '
+                              'for handover.'
                           : '${programmeName(_programme ?? '')} — kept for the '
                               'roster and for handover.',
                     ),
@@ -596,9 +606,17 @@ class _AdminGrantState extends State<AdminGrant> {
 }
 
 /// Every department, the chosen one ticked.
+/// The shared department list ([deptBranches]) as a sheet: a row per
+/// branch, so ELEC shows as its four branches. Pops the [Branch].
 class DeptSheet extends StatelessWidget {
-  const DeptSheet({super.key, this.selected});
-  final String? selected;
+  const DeptSheet({super.key, required this.campus, this.selected, this.only});
+
+  /// Whose departments to list ([campusBranches]); null lists them all.
+  final String? campus;
+  final Branch? selected;
+
+  /// Of those, the departments to offer; every one when null.
+  final List<String>? only;
 
   @override
   Widget build(BuildContext context) {
@@ -634,24 +652,38 @@ class DeptSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: Space.sm),
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    for (final (i, e) in departments.entries.indexed) ...[
-                      if (i > 0) const CardDivider(),
-                      CardRow(
-                        title: '${e.key} · ${e.value.name}',
-                        titleLines: 2,
-                        trailing:
-                            e.key == selected
-                                ? Icon(Icons.check_rounded, color: p.text)
-                                : const SizedBox.shrink(),
-                        onTap: () => Navigator.of(context).pop(e.key),
-                      ),
-                    ],
-                  ],
-                ),
+              FutureBuilder<List<Branch>>(
+                future: campusBranches(campus),
+                builder: (context, snap) {
+                  final rows = [
+                    for (final b in snap.data ?? const <Branch>[])
+                      if (only == null || only!.contains(b.dept)) b,
+                  ];
+                  if (!snap.hasData) return const SizedBox(height: 120);
+                  if (rows.isEmpty) {
+                    return const Note('No departments on this campus yet.');
+                  }
+                  return AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        for (final (i, b) in rows.indexed) ...[
+                          if (i > 0) const CardDivider(),
+                          CardRow(
+                            title: branchName(b),
+                            subtitle: branchCodes(b),
+                            titleLines: 2,
+                            trailing:
+                                b == selected
+                                    ? Icon(Icons.check_rounded, color: p.text)
+                                    : const SizedBox.shrink(),
+                            onTap: () => Navigator.of(context).pop(b),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           ),

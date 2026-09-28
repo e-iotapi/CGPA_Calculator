@@ -1,8 +1,12 @@
+import 'package:cgpa_calculator/admin/maintain.dart' show courseTitle;
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
+import 'package:cgpa_calculator/script.dart' show selecteddiscipline;
+import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
@@ -779,12 +783,30 @@ class _AuditLogPageState extends State<AuditLogPage> {
   String? _actor; // an email; null is anyone
   List<({String email, String name})> _actors = const [];
   final _courseField = TextEditingController();
+  final _debounce = Debouncer();
+
+  /// Courses matching the field by code or name, from the catalogue (the
+  /// published id-to-name mapping), so "operating" finds CS F372.
+  List<CourseHit> _hits = const [];
 
   @override
   void dispose() {
     _courseField.dispose();
+    _debounce.dispose();
     super.dispose();
   }
+
+  void _typed(String t) => _debounce(
+    () => setState(
+      () =>
+          _hits = searchCourses(
+            t,
+            held: const [],
+            discipline: selecteddiscipline,
+            limit: 6,
+          ),
+    ),
+  );
 
   Future<List<AuditEntry>> _load(String? campus) async {
     final entries = await roleStore!.audit(
@@ -842,12 +864,21 @@ class _AuditLogPageState extends State<AuditLogPage> {
     setState(() => _actor = picked.isEmpty ? null : picked);
   }
 
-  void _setCourse() {
-    final c = _courseField.text.trim().toUpperCase();
-    if (c.isEmpty) return;
+  /// Filters by [id], or else by what was typed: the best catalogue match,
+  /// or the text as a code (a course no longer in the catalogue).
+  void _setCourse([String? id]) {
+    final typed = _courseField.text.trim();
+    if (id == null && typed.isEmpty) return;
+    final hits = searchCourses(
+      typed,
+      held: const [],
+      discipline: selecteddiscipline,
+      limit: 1,
+    );
     setState(() {
-      _course = c;
+      _course = id ?? (hits.isEmpty ? typed.toUpperCase() : hits.first.id);
       _courseField.clear();
+      _hits = const [];
     });
   }
 
@@ -894,7 +925,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          c,
+                          courseTitle(c).isEmpty ? c : '$c · ${courseTitle(c)}',
                           style: TypeScale.body.copyWith(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
@@ -910,20 +941,40 @@ class _AuditLogPageState extends State<AuditLogPage> {
               ),
             ),
           )
-        else
+        else ...[
           Row(
             children: [
               Expanded(
                 child: AppTextField(
                   controller: _courseField,
                   label: 'Course',
-                  hint: 'EEE F211',
+                  hint: 'Code or name',
+                  onChanged: _typed,
                 ),
               ),
               const SizedBox(width: Space.sm),
               PillButton(label: 'Filter', onPressed: _setCourse),
             ],
           ),
+          if (_hits.isNotEmpty) ...[
+            const SizedBox(height: Space.sm),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (final (i, h) in _hits.indexed) ...[
+                    if (i > 0) const CardDivider(),
+                    CardRow(
+                      title: h.id,
+                      subtitle: h.title,
+                      onTap: () => _setCourse(h.id),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
         const SizedBox(height: Space.sm),
         Loaded<List<AuditEntry>>(
           key: ValueKey('$campus|$_course|$_actor'),
