@@ -7,6 +7,8 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 
@@ -279,6 +281,240 @@ class _PulsingTabState extends State<PulsingTab>
   }
 }
 
+/// Department Resources' tabs: equal pills that ease between states. The
+/// last one is Reported; while anything is reported it is amber with a
+/// pulsing dot, and amber-filled when selected.
+class _Tabs extends StatefulWidget {
+  const _Tabs({
+    required this.tabs,
+    required this.selected,
+    required this.reported,
+    required this.onSelected,
+  });
+  final List<String> tabs;
+  final int selected;
+  final bool reported;
+  final ValueChanged<int> onSelected;
+
+  @override
+  State<_Tabs> createState() => _TabsState();
+}
+
+class _TabsState extends State<_Tabs> with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_Tabs old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  void _sync() {
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (widget.reported && !still) {
+      if (!_c.isAnimating) _c.repeat(reverse: true);
+    } else {
+      _c.stop();
+      _c.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final t = p.noticeTone;
+    Widget pill(int i) {
+      final on = i == widget.selected;
+      final amber = widget.reported && i == widget.tabs.length - 1;
+      final fill =
+          on
+              ? (amber ? t.text : p.inverse)
+              : (amber ? t.fill : p.inverse.withValues(alpha: 0));
+      final ink =
+          on ? (amber ? t.fill : p.onInverse) : (amber ? t.text : p.text);
+      final edge = on || amber ? fill : p.border;
+      return Semantics(
+        selected: on,
+        button: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => widget.onSelected(i),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: Sizes.pill,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: ShapeDecoration(
+              color: fill,
+              shape: StadiumBorder(side: BorderSide(color: edge)),
+            ),
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (amber) ...[
+                      FadeTransition(
+                        opacity: Tween(begin: 0.35, end: 1.0).animate(_c),
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: ink,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 220),
+                      style: TypeScale.body.copyWith(
+                        fontSize: 12.5,
+                        fontWeight: on ? FontWeight.w700 : FontWeight.w600,
+                        color: ink,
+                      ),
+                      child: Text(widget.tabs[i], maxLines: 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        for (var i = 0; i < widget.tabs.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(child: pill(i)),
+        ],
+      ],
+    );
+  }
+}
+
+/// A link a CR's course rolled up into the department list: a mint wash.
+class _RolledUp extends StatelessWidget {
+  const _RolledUp({required this.on, required this.child});
+  final bool on;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      on
+          ? ColoredBox(
+            color: AppPalette.of(context).hero.withValues(alpha: 0.35),
+            child: child,
+          )
+          : child;
+}
+
+/// An underlined text action with a 44 px target.
+class _TextLink extends StatelessWidget {
+  const _TextLink(this.text, {required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+      child: Center(
+        child: Text(
+          text,
+          style: TypeScale.caption.copyWith(
+            fontWeight: FontWeight.w700,
+            decoration: TextDecoration.underline,
+            color: AppPalette.of(context).text,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// An outlined amber pill, 34 tall: the quiet answer to a report.
+class _AmberPill extends StatelessWidget {
+  const _AmberPill(this.label, {required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppPalette.of(context).noticeTone;
+    return Material(
+      color: Colors.transparent,
+      shape: StadiumBorder(side: BorderSide(color: t.text, width: 1.2)),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TypeScale.body.copyWith(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: t.text,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The ink card that says how course links roll up.
+class _RollupCard extends StatelessWidget {
+  const _RollupCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return AppCard(
+      color: p.navBackground,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ROLLUP',
+            style: TypeScale.label.copyWith(color: p.hero, letterSpacing: 1.2),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'A link a CR adds to a course appears here too, unless the '
+            'department already has it. Matching is on the address, not the '
+            'name. Unpin removes it from this list only.',
+            style: TypeScale.caption.copyWith(height: 1.45, color: p.navIcon),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 typedef _Data = ({List<Resource> links, List<ResourceFlag> flags});
 
 /// Boards `DeptResources` and `DeptResourcesReported`: the department's
@@ -342,20 +578,31 @@ class _DeptResourcesState extends State<DeptResources> {
                 '${course ?? widget.dept}',
             title: 'Resources',
           ),
+          bottom:
+              course == null && tab == 0
+                  ? BottomAction(
+                    child: PrimaryButton(
+                      label: 'Add a link',
+                      icon: Icons.add_rounded,
+                      onPressed: () async {
+                        if (await editLink(
+                          context,
+                          campus: widget.campus,
+                          dept: widget.dept,
+                          department: data.links,
+                        )) {
+                          _reload();
+                        }
+                      },
+                    ),
+                  )
+                  : null,
           children: [
-            Wrap(
-              spacing: Space.xs,
-              children: [
-                for (var i = 0; i < tabs.length; i++)
-                  ChoiceChip(
-                    selected: i == tab,
-                    onSelected: (_) => setState(() => _tab = i),
-                    label:
-                        i == tabs.length - 1
-                            ? PulsingTab(label: tabs[i], active: reported > 0)
-                            : Text(tabs[i]),
-                  ),
-              ],
+            _Tabs(
+              tabs: tabs,
+              selected: tab,
+              reported: reported > 0,
+              onSelected: (i) => setState(() => _tab = i),
             ),
             const SizedBox(height: Space.md),
             if (reportedTab)
@@ -374,69 +621,57 @@ class _DeptResourcesState extends State<DeptResources> {
     RowGroup(
       children: [
         for (final r in dept)
-          LinkRow(
-            r: r,
-            tag: r.rolledUp ? 'ROLLED UP' : null,
-            onTap: () async {
-              if (await editLink(
-                context,
-                campus: widget.campus,
-                dept: widget.dept,
-                department: data.links,
-                existing: r,
-              )) {
-                _reload();
-              }
-            },
-            trailing:
-                r.rolledUp
-                    ? TextButton(
-                      onPressed: () async {
-                        await _store.update(
-                          r,
-                          r.copyWith(pinnedToDepartment: false),
-                          'Unpinned “${r.title}” from ${widget.dept}',
-                        );
-                        _reload();
-                      },
-                      child: const Text('Unpin'),
-                    )
-                    : IconButton(
-                      tooltip: 'Remove',
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      onPressed: () async {
-                        await _store.update(
-                          r,
-                          r.copyWith(removed: true),
-                          'Removed “${r.title}” from ${widget.dept}',
-                        );
-                        _reload();
-                      },
-                    ),
+          _RolledUp(
+            on: r.rolledUp,
+            child: LinkRow(
+              r: r,
+              tag: r.rolledUp ? 'ROLLED UP' : null,
+              onTap: () async {
+                if (await editLink(
+                  context,
+                  campus: widget.campus,
+                  dept: widget.dept,
+                  department: data.links,
+                  existing: r,
+                )) {
+                  _reload();
+                }
+              },
+              trailing:
+                  r.rolledUp
+                      ? _TextLink(
+                        'Unpin',
+                        onTap: () async {
+                          await _store.update(
+                            r,
+                            r.copyWith(pinnedToDepartment: false),
+                            'Unpinned “${r.title}” from ${widget.dept}',
+                          );
+                          _reload();
+                        },
+                      )
+                      : IconButton(
+                        tooltip: 'Remove',
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                        ),
+                        onPressed: () async {
+                          await _store.update(
+                            r,
+                            r.copyWith(removed: true),
+                            'Removed “${r.title}” from ${widget.dept}',
+                          );
+                          _reload();
+                        },
+                      ),
+            ),
           ),
       ],
     ),
     if (dept.isEmpty) const Note('No department links yet.'),
-    const Note(
-      'A link a CR adds to a course appears here too, unless the department '
-      'already has it. Matching is on the address, not the name. Unpin '
-      'removes it from this list only.',
-    ),
-    const SizedBox(height: Space.sm),
-    PrimaryButton(
-      label: 'Add a link',
-      icon: Icons.add_rounded,
-      onPressed: () async {
-        if (await editLink(
-          context,
-          campus: widget.campus,
-          dept: widget.dept,
-          department: data.links,
-        )) {
-          _reload();
-        }
-      },
-    ),
+    const SizedBox(height: Space.md),
+    const _RollupCard(),
   ];
 
   List<Widget> _byCourse(BuildContext context, _Data data) {
@@ -477,56 +712,83 @@ class _DeptResourcesState extends State<DeptResources> {
 
   List<Widget> _reported(BuildContext context, _Data data) {
     final byId = {for (final r in data.links) r.id: r};
+    final t = AppPalette.of(context).noticeTone;
     return [
-      if (data.flags.isNotEmpty)
-        SectionLabel(
-          '${data.flags.length} link${data.flags.length == 1 ? '' : 's'} '
-          'reported',
+      if (data.flags.isNotEmpty) ...[
+        AppCard(
+          color: t.fill,
+          child: Text(
+            '${data.flags.length} LINK${data.flags.length == 1 ? '' : 'S'} '
+            'REPORTED · '
+            '${widget.course ?? 'DEPARTMENT AND ROLLED-UP COURSE LINKS'}',
+            style: TypeScale.label.copyWith(
+              color: t.text,
+              letterSpacing: 1,
+              height: 1.4,
+            ),
+          ),
         ),
+        const SizedBox(height: Space.sm),
+      ],
       for (final f in data.flags)
         if (byId[f.resourceId] case final r?) ...[
           AppCard(
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 15),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 LinkRow(r: r, showAdder: false),
-                Text(
-                  '${f.top.label} · ${f.count} report${f.count == 1 ? '' : 's'}'
-                  '${r.fromCourse == null ? '' : ' · from ${r.fromCourse}'}',
-                  style: TypeScale.caption.copyWith(
-                    color: AppPalette.of(context).noticeTone.text,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${f.top.label} · ${f.count} report${f.count == 1 ? '' : 's'}'
+                        '${r.fromCourse == null ? '' : ' · from ${r.fromCourse}'}',
+                        style: TypeScale.caption.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: t.text,
+                        ),
+                      ),
+                      const SizedBox(height: Space.sm),
+                      Wrap(
+                        spacing: Space.sm,
+                        runSpacing: Space.sm,
+                        children: [
+                          PillButton(
+                            label: 'Fix the link',
+                            selected: true,
+                            height: 34,
+                            onPressed: () async {
+                              if (await editLink(
+                                context,
+                                campus: widget.campus,
+                                dept: widget.dept,
+                                department: data.links,
+                                existing: r,
+                                actingFor: widget.course,
+                                fixing: true,
+                              )) {
+                                _reload();
+                              }
+                            },
+                          ),
+                          _AmberPill(
+                            'It works · dismiss',
+                            onTap: () async {
+                              try {
+                                await _store.dismiss(f, r.title);
+                                _reload();
+                              } catch (e) {
+                                if (context.mounted) _say(context, problem(e));
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () async {
-                        if (await editLink(
-                          context,
-                          campus: widget.campus,
-                          dept: widget.dept,
-                          department: data.links,
-                          existing: r,
-                          actingFor: widget.course,
-                          fixing: true,
-                        )) {
-                          _reload();
-                        }
-                      },
-                      child: const Text('Fix the link'),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        try {
-                          await _store.dismiss(f, r.title);
-                          _reload();
-                        } catch (e) {
-                          if (context.mounted) _say(context, problem(e));
-                        }
-                      },
-                      child: const Text('It works · dismiss'),
-                    ),
-                  ],
                 ),
               ],
             ),

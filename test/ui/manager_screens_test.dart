@@ -18,10 +18,7 @@ import '../helpers/fonts.dart';
 
 /// Screens that still fail, and why (UI.md §15). A fix makes its test fail
 /// until it is taken off this list.
-const known = <String, String>{
-  'm_dept_reported':
-      'N31: Fix the link / It works overflow the row, even at 390',
-};
+const known = <String, String>{};
 
 void main() {
   setUpAll(() async {
