@@ -14,6 +14,8 @@ import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:flutter/material.dart';
 
 ProfessorStore get _store => ProfessorStore(roleStore!.db, roles: roleStore);
@@ -84,7 +86,12 @@ Future<String?> _nameDialog(
   return name;
 }
 
-typedef _Data = ({List<Professor> profs, Map<String, List<String>> teaching});
+typedef _Data =
+    ({
+      List<Professor> profs,
+      Map<String, List<String>> teaching,
+      Map<String, String> last,
+    });
 
 Future<_Data> _loadDept(String campus, String dept) async {
   final profs = await _store.department(campus, dept);
@@ -97,7 +104,17 @@ Future<_Data> _loadDept(String campus, String dept) async {
       (teaching[id] ??= []).add(o.courseId);
     }
   }
-  return (profs: profs, teaching: teaching);
+  final last = <String, String>{};
+  for (final x in profs) {
+    if (teaching.containsKey(x.id)) continue;
+    try {
+      final terms = [
+        for (final l in (await _store.taught(x, campus)).values) ...l,
+      ]..sort();
+      if (terms.isNotEmpty) last[x.id] = terms.last;
+    } catch (_) {}
+  }
+  return (profs: profs, teaching: teaching, last: last);
 }
 
 /// Board `DeptProfessors`: one entry per person, reused every term. Search
@@ -140,96 +157,13 @@ class _DeptProfessorsState extends State<DeptProfessors> {
                 '${termLabel(maintainedTerm).toUpperCase()}',
             title: 'Professors',
           ),
-          children: [
-            Text(
-              'One entry per person, reused every term. Reviews are filed '
-              'against the professor who taught that semester, so this list '
-              'is what makes filtering work.',
-              style: caption,
-            ),
-            const SizedBox(height: Space.md),
-            AppTextField(
-              controller: _search,
-              label: 'Search ${data.profs.length} professors',
-              dense: true,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: Space.sm),
-            RowGroup(
-              children: [
-                for (final x in shown)
-                  NavRow(
-                    icon: Icons.person_outline_rounded,
-                    title: x.name,
-                    subtitle: switch (data.teaching[x.id]) {
-                      final c? => '${c.join(', ')} · teaching now',
-                      null => 'Not teaching this term',
-                    },
-                    onTap: () async {
-                      final name = await _nameDialog(
-                        context,
-                        title: 'Rename',
-                        initial: x.name,
-                      );
-                      if (name == null || name == x.name) return;
-                      try {
-                        await _store.rename(x, name);
-                        setState(() => _loads++);
-                      } catch (e) {
-                        if (context.mounted) _say(context, problem(e));
-                      }
-                    },
-                  ),
-              ],
-            ),
-            if (shown.isEmpty)
-              Note(
-                q.isEmpty
-                    ? 'Nobody listed yet.'
-                    : 'Nobody matches “$q”. Check other spellings before '
-                        'adding.',
-              ),
-            Text(
-              'Never type a name twice. “Dr. R. Menon” and “Ramesh Menon” '
-              'become two people and the review filter silently splits in '
-              'half. Search before adding — the search matches partial names '
-              'for exactly this reason.',
-              style: caption,
-            ),
-            const SizedBox(height: Space.sm),
-            RowGroup(
-              children: [
-                NavRow(
-                  icon: Icons.merge_type_rounded,
-                  title: 'Merge two entries',
-                  subtitle: 'Already added twice? Join them into one',
-                  onTap: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder:
-                            (_) => ProfessorMerge(
-                              campus: widget.campus,
-                              dept: widget.dept,
-                            ),
-                      ),
-                    );
-                    setState(() => _loads++);
-                  },
-                ),
-              ],
-            ),
-            const SectionLabel('Who can change this'),
-            Text(
-              'You add, rename and merge professors for this department, as '
-              'can owners and admins. CRs pick from this list for their own '
-              'course each term, but cannot create or rename one. Students '
-              'only read it.',
-              style: caption,
-            ),
-            const SizedBox(height: Space.lg),
-            PrimaryButton(
-              label:
-                  q.length < 3 ? 'Search first, then add' : 'Add a professor',
+          bottom: BottomAction(
+            caption:
+                q.length < 3
+                    ? 'Search first: the name may already be here.'
+                    : null,
+            child: PrimaryButton(
+              label: 'Add a professor',
               icon: Icons.add_rounded,
               onPressed:
                   q.length < 3
@@ -250,6 +184,142 @@ class _DeptProfessorsState extends State<DeptProfessors> {
                           if (context.mounted) _say(context, problem(e));
                         }
                       },
+            ),
+          ),
+          children: [
+            Text(
+              'One entry per person, reused every term. Reviews are filed '
+              'against the professor who taught that semester, so this list '
+              'is what makes filtering work.',
+              style: caption,
+            ),
+            const SizedBox(height: Space.md),
+            SearchBox(
+              controller: _search,
+              hint: 'Search ${data.profs.length} professors',
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: Space.sm),
+            if (shown.isNotEmpty)
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final (i, x) in shown.indexed) ...[
+                      if (i > 0) const CardDivider(),
+                      CardRow(
+                        leading: const IconTile(Icons.school_outlined),
+                        title: x.name,
+                        titleLines: 2,
+                        subtitle: switch ((
+                          data.teaching[x.id],
+                          data.last[x.id],
+                        )) {
+                          (final c?, _) => '${c.join(', ')} · teaching now',
+                          (null, final t?) => 'Last taught ${termLabel(t)}',
+                          _ => 'Not taught here yet',
+                        },
+                        minHeight: 58,
+                        onTap: () async {
+                          final name = await _nameDialog(
+                            context,
+                            title: 'Rename',
+                            initial: x.name,
+                          );
+                          if (name == null || name == x.name) return;
+                          try {
+                            await _store.rename(x, name);
+                            setState(() => _loads++);
+                          } catch (e) {
+                            if (context.mounted) _say(context, problem(e));
+                          }
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            if (shown.isEmpty)
+              Note(
+                q.isEmpty
+                    ? 'Nobody listed yet.'
+                    : 'Nobody matches “$q”. Check other spellings before '
+                        'adding.',
+              ),
+            const SizedBox(height: Space.sm),
+            const Notice(
+              icon: Icons.warning_amber_rounded,
+              text: TextSpan(
+                text:
+                    'Never type a name twice. “Dr. R. Menon” and “Ramesh '
+                    'Menon” become two people and the review filter silently '
+                    'splits in half. Search before adding: it matches partial '
+                    'names for exactly this reason.',
+              ),
+            ),
+            const SizedBox(height: Space.sm),
+            AppCard(
+              color: p.hero,
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder:
+                        (_) => ProfessorMerge(
+                          campus: widget.campus,
+                          dept: widget.dept,
+                        ),
+                  ),
+                );
+                setState(() => _loads++);
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.merge_type_rounded, color: p.onHero),
+                  const SizedBox(width: Space.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Merge two entries',
+                          style: TypeScale.body.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: p.onHero,
+                          ),
+                        ),
+                        Text(
+                          'Already added twice? Join them into one',
+                          style: TypeScale.caption.copyWith(color: p.onHero),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: p.onHero),
+                ],
+              ),
+            ),
+            const SizedBox(height: Space.sm),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'WHO CAN CHANGE THIS',
+                    style: TypeScale.label.copyWith(
+                      color: p.textMuted,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'You add, rename and merge professors for this '
+                    'department, as can owners and admins. CRs pick from '
+                    'this list for their own course each term, but cannot '
+                    'create or rename one. Students only read it.',
+                    style: caption,
+                  ),
+                ],
+              ),
             ),
           ],
         );
