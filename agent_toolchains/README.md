@@ -23,6 +23,7 @@ python3 agent_toolchains/ui_check/ui_check.py accept              # after the lo
 python3 agent_toolchains/ui_check/ui_check.py sheet 's_*'         # thumbnails
 python3 agent_toolchains/ui_check/ui_check.py show 's_more_*'     # full size
 python3 agent_toolchains/ui_check/ui_check.py audit 4             # random clean ones
+python3 agent_toolchains/ui_check/ui_check.py run --card X --only X,Y FILE   # just those screens, ~10 s
 python3 agent_toolchains/ui_check/ui_check.py atlas               # ui_sheet/ for a person
 ```
 
