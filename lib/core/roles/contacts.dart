@@ -4,6 +4,7 @@
 /// chose to show the students of their campus.
 library;
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -121,6 +122,17 @@ class Volunteer {
     open: m['open'] as bool? ?? false,
     createdAt: asDate(m['createdAt']),
   );
+
+  /// JSON-safe, for `cacheFirst` (P1): `createdAt` as millis, not a Timestamp.
+  Map<String, dynamic> toMap() => {
+    'email': email,
+    'name': name,
+    'campus': campus,
+    'courseId': courseId,
+    'term': term,
+    'open': open,
+    'createdAt': createdAt?.millisecondsSinceEpoch,
+  };
 }
 
 String volunteerId(String campus, String courseId, String email) =>
@@ -236,14 +248,24 @@ class ContactStore {
       db.collection('volunteers').doc(id);
 
   // Budget: 1 read per course with no CR, per representatives_page.dart
-  // visit (P0) — run once per course, sequentially, until P2b's helper.
+  // visit, until P2b's helper (P0). 24 h cache (P2): `volunteer`/`withdraw`
+  // invalidate their own campus.
   Future<Volunteer?> myOffer(String campus, String courseId) async {
     try {
-      final m = (await Perf.time(
-        'contacts.myOffer',
-        () => _offer(volunteerId(campus, courseId, roles.me)).get(),
-      )).data();
-      return m == null ? null : Volunteer.fromMap(m);
+      return await cacheFirst<Volunteer?>(
+        key: 'offer|$campus|$courseId|${roles.me}',
+        maxAge: const Duration(hours: 24),
+        fetch: () async {
+          final m = (await Perf.time(
+            'contacts.myOffer',
+            () => _offer(volunteerId(campus, courseId, roles.me)).get(),
+          )).data();
+          return m == null ? null : Volunteer.fromMap(m);
+        },
+        encode: (v) => v?.toMap(),
+        decode:
+            (v) => v == null ? null : Volunteer.fromMap((v as Map).cast()),
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') return null;
       rethrow;
@@ -256,19 +278,25 @@ class ContactStore {
     String courseId, {
     required String name,
     required String term,
-  }) => _offer(volunteerId(campus, courseId, roles.me)).set({
-    'name': name,
-    'email': roles.me,
-    'campus': campus,
-    'courseId': courseId,
-    'dept': deptOf(courseId),
-    'term': term,
-    'open': true,
-    'createdAt': FieldValue.serverTimestamp(),
-  });
+  }) async {
+    await _offer(volunteerId(campus, courseId, roles.me)).set({
+      'name': name,
+      'email': roles.me,
+      'campus': campus,
+      'courseId': courseId,
+      'dept': deptOf(courseId),
+      'term': term,
+      'open': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    await forget('offer|$campus|');
+  }
 
   /// The student takes the offer back.
-  Future<void> withdraw(Volunteer v) => _offer(v.id).update({'open': false});
+  Future<void> withdraw(Volunteer v) async {
+    await _offer(v.id).update({'open': false});
+    await forget('offer|${v.campus}|');
+  }
 
   /// Open offers in [dept] on [campus] in [term], by course.
   Future<Map<String, List<Volunteer>>> offers(
