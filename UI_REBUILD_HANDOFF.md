@@ -150,6 +150,15 @@ flips.
 - The Audit log's course filter matches names through the catalogue (`searchCourses`
   over `catalog.master`, the published id-to-name mapping), so it needs no seam.
 
+### 3.10 Links may point at any website (user's decision)
+- A link can be an article or any site, not only Drive, Docs, YouTube and the like; a bad
+  one is what the Reported tab is for. The UI accepts any http or https address with a
+  host (`isWebLink` in `lib/admin/dept_resources.dart`). The Firestore rules' `url` regex
+  and `allowedHosts` in `lib/core/resources/resource.dart` still hold the old list:
+  loosen the rule to "http(s) with a host" and drop the host list (keep `normaliseUrl`
+  and `kindOf`, whose default is "link"). Until then a save to another site is refused
+  by the rules.
+
 ### 3.4 Counts the UI works out on the client (fine now; faster as queries)
 None of these is wrong, but each costs reads and would be cheaper as a store method:
 | Screen | What | How today |
@@ -295,5 +304,6 @@ Known false alarms: 36-tall pills and header blocks flagged `tap`, icon-only pil
 - [ ] §3.4 Optional: count queries for the client-side counts.
 - [ ] §3.8 Serve possible duplicates; set `duplicateSource`.
 - [ ] §3.9 Serve the campus-wise department list; set `departmentSource`.
+- [ ] §3.10 Rules: accept any http(s) link; drop `allowedHosts`.
 - [ ] After merging: §5.1 gates green, `known` maps still empty, `ui_check.py run` shows no
       new issues.

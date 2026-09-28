@@ -51,6 +51,14 @@ Future<bool> editLink(
   return saved == true;
 }
 
+/// An http or https address with a host: any website, not a fixed list.
+bool isWebLink(String url) {
+  final u = Uri.tryParse(url.trim());
+  return u != null &&
+      (u.scheme == 'https' || u.scheme == 'http') &&
+      u.host.contains('.');
+}
+
 class _LinkSheet extends StatefulWidget {
   const _LinkSheet({
     required this.campus,
@@ -89,13 +97,10 @@ class _LinkSheetState extends State<_LinkSheet> {
     final title = _title.text.trim();
     final url = _url.text.trim();
     if (title.isEmpty) return setState(() => _error = 'Give it a name.');
-    if (allowedHostOf(url) == null) {
-      return setState(
-        () =>
-            _error =
-                'Use an https link to Drive, Docs, YouTube, GitHub, Notion, '
-                'OneDrive or Dropbox.',
-      );
+    // Any website: an article is as good as a Drive folder. A bad link is
+    // what the Reported tab is for.
+    if (!isWebLink(url)) {
+      return setState(() => _error = 'Paste a web link, starting https://.');
     }
     setState(() => _busy = true);
     try {
@@ -166,11 +171,7 @@ class _LinkSheetState extends State<_LinkSheet> {
             hint: 'Past papers — all years',
           ),
           const SizedBox(height: Space.sm),
-          AppTextField(
-            controller: _url,
-            label: 'Link',
-            hint: 'https://drive.google.com/…',
-          ),
+          AppTextField(controller: _url, label: 'Link', hint: 'https://…'),
           if (widget.existing?.rolledUp ?? false)
             Text(
               'One link, listed twice — editing it here changes it on '
