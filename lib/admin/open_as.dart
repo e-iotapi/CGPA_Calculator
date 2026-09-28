@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
+import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
@@ -263,8 +264,9 @@ Widget _rows(List<(String, String, VoidCallback)> rows) => AppCard(
   ),
 );
 
-/// Board `ViewAsDept`: which department to open as its president. ELEC is
-/// one entry for its four programmes; the last opened sits on top.
+/// Board `ViewAsDept`: which department to open as its president; the last
+/// opened sits on top. ELEC has a row per programme, since each has its own
+/// presidents, and every row opens the ELEC they manage together.
 class ViewAsDeptPage extends StatefulWidget {
   const ViewAsDeptPage({super.key});
 
@@ -300,19 +302,30 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
           if (r.startsWith('dept:$_campus:')) r.split(':').last,
       ];
       final keys = recentFirst(departments.keys.toList(), recent);
+      // (department, programme or null for the whole department).
       final shown = [
         for (final k in keys)
-          if (q.isEmpty ||
-              k.toLowerCase().contains(q) ||
-              departments[k]!.name.toLowerCase().contains(q))
-            k,
+          for (final prog
+              in departments[k]!.programmes.length > 1
+                  ? departments[k]!.programmes
+                  : const [null])
+            if (q.isEmpty ||
+                k.toLowerCase().contains(q) ||
+                departments[k]!.name.toLowerCase().contains(q) ||
+                (prog != null &&
+                    programmeName(prog).toLowerCase().contains(q)) ||
+                (prog ?? departments[k]!.programmes.join(' '))
+                    .toLowerCase()
+                    .contains(q))
+              (k, prog),
       ];
-      int presidents(String d) =>
+      int presidents(String d, String? prog) =>
           grants
               .where(
                 (g) =>
                     g.role == GrantRole.dept &&
                     g.scope == d &&
+                    (prog == null || g.programme == prog) &&
                     g.campus == _campus &&
                     g.liveAt(now),
               )
@@ -326,18 +339,24 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
         onSearch: () => setState(() {}),
         children: [
           SectionLabel(
-            '${campusName(_campus)} · ${departments.length} departments',
+            '${campusName(_campus)} · '
+            '${departments.values.fold<int>(0, (n, d) => n + d.programmes.length)} '
+            'branches',
           ),
           if (shown.isEmpty)
             const Note('No department matches.')
           else
             _rows([
-              for (final k in shown)
+              for (final (k, prog) in shown)
                 (
-                  departments[k]!.name,
-                  '$k · ${departments[k]!.programmes.join(' · ')} · '
-                      '${presidents(k)} president'
-                      '${presidents(k) == 1 ? '' : 's'}'
+                  // A branch goes by its own name ("Electrical & Electronics").
+                  prog == null
+                      ? departments[k]!.name
+                      : programmeName(prog).replaceFirst('B.E. ', ''),
+                  // Branch codes only, never the department's course code.
+                  '${prog ?? departments[k]!.programmes.join(' · ')} · '
+                      '${presidents(k, prog)} president'
+                      '${presidents(k, prog) == 1 ? '' : 's'}'
                       '${recent.contains(k) ? ' · opened recently' : ''}',
                   () => _open(k),
                 ),
