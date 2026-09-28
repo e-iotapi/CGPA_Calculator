@@ -328,13 +328,9 @@ class _MyHomePageState extends State<MyHomePage> {
         if (mounted) setState(() {});
       },
       onOpenSettings: _openSettings,
-      onToggleTheme:
-          () => switchTheme(
-            !thm.isDark,
-            then: () {
-              if (mounted) setState(() {});
-            },
-          ),
+      // UI_OPT O1.7: no Home rebuild here until O3.1 makes that build cheap;
+      // the theme still flips because MyApp rebuilds this subtree already.
+      onToggleTheme: () => switchTheme(!thm.isDark),
       offshoot:
           selectedprofile == 4
               ? OffshootTab(

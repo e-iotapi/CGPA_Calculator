@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/perf/device_tier.dart';
+import 'package:cgpa_calculator/core/perf/frame_stats.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -123,6 +126,24 @@ class ThemeReveal extends StatefulWidget {
     await s._run(apply);
   }
 
+  /// Starts a snapshot now, so it is ready by the time the finger lifts and
+  /// [run] is called (UI_OPT O1.3). Call this from `onPointerDown` on every
+  /// theme-toggle button.
+  static void prepare() => _key.currentState?._prepare();
+
+  /// How many snapshots have been captured (prepared or on-demand). Tests
+  /// only.
+  @visibleForTesting
+  static int captures = 0;
+
+  /// The snapshot [prepare] is holding, if any. Tests only.
+  @visibleForTesting
+  static ui.Image? get debugPreparedImage => _key.currentState?._preparedImage;
+
+  /// The reveal animation's current value. Tests only.
+  @visibleForTesting
+  static double? get debugAnimValue => _key.currentState?._anim.value;
+
   @override
   State<ThemeReveal> createState() => _ThemeRevealState();
 }
@@ -137,33 +158,86 @@ class _ThemeRevealState extends State<ThemeReveal>
   ui.Image? _old;
   Offset _origin = Offset.zero;
 
+  ui.Image? _preparedImage;
+  bool _capturing = false;
+  Timer? _expireTimer;
+
   @override
   void dispose() {
     _anim.dispose();
     _old?.dispose();
+    _expireTimer?.cancel();
+    _preparedImage?.dispose();
     super.dispose();
   }
 
+  RenderRepaintBoundary? get _box =>
+      _boundary.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+
+  /// UI_OPT O1.3: a cheaper snapshot, capped by device tier, tried through
+  /// the synchronous path first.
+  Future<ui.Image> _capture(RenderRepaintBoundary box) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final r = deviceTier == DeviceTier.low ? 1.0 : math.min(dpr, 1.5);
+    ThemeReveal.captures++;
+    try {
+      return Future.value(box.toImageSync(pixelRatio: r));
+    } on UnsupportedError {
+      debugPrint('[Pointer theme] toImageSync unavailable');
+      return box.toImage(pixelRatio: r);
+    }
+  }
+
+  void _prepare() {
+    final box = _box;
+    if (box == null || _preparedImage != null || _capturing || _anim.isAnimating) {
+      return;
+    }
+    _capturing = true;
+    _capture(box).then((img) {
+      _capturing = false;
+      if (!mounted) {
+        img.dispose();
+        return;
+      }
+      _preparedImage = img;
+      _expireTimer?.cancel();
+      _expireTimer = Timer(const Duration(seconds: 2), () {
+        _preparedImage?.dispose();
+        _preparedImage = null;
+      });
+    });
+  }
+
   Future<void> _run(VoidCallback apply) async {
-    final box =
-        _boundary.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    final box = _box;
     if (box == null ||
         _anim.isAnimating ||
         MediaQuery.disableAnimationsOf(context)) {
       apply();
       return;
     }
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    // Capped: a full-screen picture at 3x is slow to take on a phone, and it
-    // is only on screen for half a second.
-    final image = await box.toImage(pixelRatio: math.min(dpr, 1.5));
+    ui.Image image;
+    if (_preparedImage != null) {
+      image = _preparedImage!;
+      _preparedImage = null;
+      _expireTimer?.cancel();
+    } else {
+      image = await _capture(box);
+    }
     if (!mounted) return image.dispose();
+    // O1.4: the cover shows, hidden and motionless, before the theme changes.
     setState(() {
       _old = image;
       _origin = TapOrigin.last ?? box.size.center(Offset.zero);
+      _anim.value = 0;
     });
-    apply();
-    await _anim.forward(from: 0);
+    await Future<void>.delayed(Duration.zero); // the cover gets to paint
+    apply(); // the one rebuild happens under the cover
+    await Future<void>.delayed(Duration.zero); // laid out, still hidden
+    FrameStats.start('theme');
+    await _anim.forward(from: 0); // now only the hole moves
+    FrameStats.stop();
     if (!mounted) return;
     setState(() => _old = null);
     image.dispose();
@@ -179,16 +253,23 @@ class _ThemeRevealState extends State<ThemeReveal>
         if (old != null)
           Positioned.fill(
             child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _anim,
-                builder:
-                    (_, _) => CustomPaint(
-                      painter: _HolePainter(
-                        old,
-                        _origin,
-                        Curves.easeInOutCubic.transform(_anim.value),
+              child: RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _anim,
+                  builder:
+                      (_, _) => CustomPaint(
+                        isComplex: true,
+                        willChange: true,
+                        painter: _HolePainter(
+                          old,
+                          _origin,
+                          Curves.easeInOutCubic.transform(_anim.value),
+                          deviceTier == DeviceTier.low
+                              ? FilterQuality.low
+                              : FilterQuality.medium,
+                        ),
                       ),
-                    ),
+                ),
               ),
             ),
           ),
@@ -200,11 +281,12 @@ class _ThemeRevealState extends State<ThemeReveal>
 /// The old screen with a growing circular hole; it fades out at the end so
 /// the last corners do not snap.
 class _HolePainter extends CustomPainter {
-  _HolePainter(this.image, this.center, this.t);
+  _HolePainter(this.image, this.center, this.t, this.quality);
 
   final ui.Image image;
   final Offset center;
   final double t;
+  final FilterQuality quality;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -221,7 +303,7 @@ class _HolePainter extends CustomPainter {
       Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
       Offset.zero & size,
       Paint()
-        ..filterQuality = FilterQuality.medium
+        ..filterQuality = quality
         ..color = Color.fromRGBO(0, 0, 0, t < 0.75 ? 1 : (1 - t) / 0.25),
     );
     canvas.restore();

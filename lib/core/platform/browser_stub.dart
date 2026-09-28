@@ -10,6 +10,10 @@ bool isStandalone() => false;
 
 bool hasTouch() => false;
 
+int? hardwareConcurrency() => null;
+
+double? deviceMemory() => null;
+
 bool promptInstall() => false;
 
 Future<String?> pickPdfText() async => null;

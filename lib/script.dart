@@ -323,10 +323,10 @@ Future<void> switchTheme(bool dark, {VoidCallback? then}) async {
   await ThemeReveal.run(() {
     selected_theme = name;
     thm = AppPalette.byName(selected_theme);
-    setnavcolor();
     themeVersion.value++;
     then?.call();
   });
+  setnavcolor();
   await settheme();
 }
 

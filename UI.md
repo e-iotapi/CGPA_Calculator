@@ -2148,6 +2148,31 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Departures**: none.
 - **Checks**: `flutter analyze` 7 infos; `flutter test` 404 passed, 50 skipped.
 
+### 13.2.3 UI_OPT O0 + O1 — measuring, then the theme switch (28 Sep 2026)
+- **O0**: new `lib/core/perf/frame_stats.dart` (`FrameStats`, no-op unless
+  `--dart-define=POINTER_FRAMES=1`) and `lib/core/perf/device_tier.dart`
+  (`tierFrom`, `measureDeviceTier`, called once from `MyApp`'s first frame).
+  `browser.dart`/`browser_web.dart`/`browser_stub.dart` gain
+  `hardwareConcurrency()`/`deviceMemory()`. New `test/perf/perf_helpers.dart`
+  (`BuildCounter`, `repaintBoundaryAround`), `frame_stats_test.dart`,
+  `device_tier_test.dart`. New `UI_PERF_BASELINE.md` (device rows blank: this
+  container has no phone; ask the user to fill them per §3 O0.4).
+- **O1**: `main.dart` (`themeAnimationDuration: Duration.zero` on both
+  `MaterialApp`s, O1.1), `palette.dart` (`materialTheme` cached per palette
+  `name`, O1.2), `circle_reveal.dart` (`ThemeReveal.prepare()` with a
+  `toImageSync`-first capture capped by `deviceTier`, O1.3; `_run` now shows
+  the cover, then calls `apply()` under it, then animates, O1.4; the hole's
+  `CustomPaint` in its own `RepaintBoundary` with `FilterQuality` by tier and
+  `isComplex`/`willChange`, O1.6), `script.dart`'s `switchTheme`
+  (`setnavcolor()`/`settheme()` moved after the reveal, O1.5),
+  `home_page.dart`'s `onToggleTheme` (`then` dropped until O3.1, O1.7).
+  New `test/perf/theme_switch_test.dart`. `test/theme/motion_test.dart`
+  unchanged and still green.
+- **Departures**: none. **Device check (O0.4)**: not run here; asked the
+  user.
+- **Checks**: `flutter analyze` 7 infos; `flutter test` 413 passed, 50
+  skipped.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
