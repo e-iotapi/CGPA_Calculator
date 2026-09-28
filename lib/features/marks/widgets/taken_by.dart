@@ -1,8 +1,10 @@
+import 'package:cgpa_calculator/admin/widgets.dart' show LabelRow;
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 
 /// Board `Marks`' "Taken by" row (ARCHITECTURE.md §10.2): who teaches it
@@ -61,32 +63,31 @@ class _TakenByRowState extends State<TakenByRow> {
         final names = s.data ?? const [];
         return Padding(
           padding: const EdgeInsets.only(bottom: Space.sm),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TAKEN BY · ${termLabel(widget.term).toUpperCase()}',
-                      style: TypeScale.label.copyWith(color: p.textMuted),
-                    ),
-                    Text(
-                      names.isEmpty ? 'No professor set yet' : names.join(', '),
-                      style: TypeScale.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: names.isEmpty ? p.textMuted : p.text,
-                      ),
-                    ),
-                  ],
+          child: LabelRow(
+            label: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TAKEN BY · ${termLabel(widget.term).toUpperCase()}',
+                  style: TypeScale.label.copyWith(color: p.textMuted),
                 ),
-              ),
-              if (widget.onReviews != null)
-                TextButton(
-                  onPressed: widget.onReviews,
-                  child: const Text('Reviews'),
+                Text(
+                  names.isEmpty ? 'No professor set yet' : names.join(', '),
+                  style: TypeScale.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: names.isEmpty ? p.textMuted : p.text,
+                  ),
                 ),
-            ],
+              ],
+            ),
+            trailing:
+                widget.onReviews == null
+                    ? const SizedBox.shrink()
+                    : PillButton(
+                      label: 'Reviews',
+                      height: 34,
+                      onPressed: widget.onReviews,
+                    ),
           ),
         );
       },

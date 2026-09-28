@@ -372,6 +372,18 @@ void main() {
       await t.pumpAndSettle();
     }
 
+    testWidgets('empty course says No marks yet', (t) async {
+      await pump(t, MarksPage(course: _os), const Size(390, 844));
+      expect(find.text('No marks yet'), findsOneWidget);
+      expect(find.textContaining('/ 0'), findsNothing);
+      expect(find.textContaining('pending'), findsNothing);
+    });
+
+    testWidgets('eyebrow is upper case', (t) async {
+      await pump(t, MarksPage(course: _os), const Size(390, 844));
+      expect(find.text('CS F372 · 3 CREDITS'), findsOneWidget);
+    });
+
     testWidgets('the weight is the component\'s, not the course\'s', (t) async {
       await pump(
         t,
