@@ -156,6 +156,10 @@ class _MarksPageState extends State<MarksPage> {
         yours[e.name] = (g) => ofComponent(g, id);
         if (gs.any(stale.contains)) changed.add(e.name);
       }
+      if (detached.containsKey(outOfGranule)) {
+        yours['scale'] = (g) => g == outOfGranule;
+        if (stale.contains(outOfGranule)) changed.add('scale');
+      }
       if (detached.containsKey(courseAverageGranule)) {
         yours['course average'] = (g) => g == courseAverageGranule;
         if (stale.contains(courseAverageGranule)) {
@@ -173,6 +177,16 @@ class _MarksPageState extends State<MarksPage> {
     Widget courseSetup() => CourseSetupPage(
       course: c,
       onCourseAverage: (v) => _setCourseAverage(off, v),
+      onOutOf:
+          (v) async =>
+              off?.outOf == null ||
+              v == off!.outOf ||
+              await _mayChange(
+                off,
+                outOfGranule,
+                'the scale',
+                'Shown out of ${marks2(off.outOf!)} → ${marks2(v)}',
+              ),
     );
     void editEval(String key, Evaluative e) => _open(
       AddEvaluativePage(

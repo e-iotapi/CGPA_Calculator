@@ -16,6 +16,10 @@ import 'package:cgpa_calculator/core/storage/marks.dart' show defaultComponents;
 /// Granules (§5). Each can be made the student's on its own.
 String componentGranule(String id) => 'components.$id';
 const courseAverageGranule = 'average.course';
+
+/// The student's own "Shown out of", kept against the official scale
+/// (`Offering.outOf`) the way [courseAverageGranule] keeps their average.
+const outOfGranule = 'outof.course';
 String componentAverageGranule(String id) => 'average.component.$id';
 String partAverageGranule(String id, int i) => 'average.part.$id.$i';
 
@@ -179,7 +183,19 @@ SchemeUpdate applyOffering({
       cfg.classAverage = avg;
     }
   }
-  final changed = config == null ? off.hasScheme || avg != null : false;
+  final scale = off.outOf;
+  if (scale != null && off.hasScheme) {
+    if (!seen &&
+        config != null &&
+        was.displayOutOf != 100 &&
+        was.displayOutOf != scale) {
+      detach[outOfGranule] = 0;
+    } else if (!isDetached(outOfGranule)) {
+      cfg.displayOutOf = scale;
+    }
+  }
+  final changed =
+      config == null ? off.hasScheme || avg != null || scale != null : false;
   return SchemeUpdate(
     save: save,
     add: add,

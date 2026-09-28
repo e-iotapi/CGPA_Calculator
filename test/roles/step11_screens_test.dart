@@ -1260,7 +1260,7 @@ void main() {
       matching: find.byType(TextField),
     );
     expect(find.text('GRADED OUT OF'), findsOneWidget);
-    expect(find.textContaining('Not saved yet'), findsOneWidget);
+    expect(find.textContaining('they no longer set it'), findsOneWidget);
     expect(find.text('COURSE AVERAGE (OUT OF 100)'), findsOneWidget);
     await t.enterText(field('Graded out of'), '200');
     await t.pump();

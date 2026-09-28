@@ -17,6 +17,7 @@ class CourseSetupPage extends StatefulWidget {
     super.key,
     required this.course,
     this.onCourseAverage,
+    this.onOutOf,
   });
 
   final Course course;
@@ -24,6 +25,10 @@ class CourseSetupPage extends StatefulWidget {
   /// Sets the course average, asking first when it overrides the official
   /// one. Without it the average is saved with the rest.
   final Future<void> Function(double?)? onCourseAverage;
+
+  /// Asked before a changed "Shown out of" overrides the official scale;
+  /// false keeps the saved one.
+  final Future<bool> Function(double)? onOutOf;
 
   @override
   State<CourseSetupPage> createState() => _CourseSetupPageState();
@@ -69,6 +74,10 @@ class _CourseSetupPageState extends State<CourseSetupPage> {
   Future<void> _save() async {
     final avg = widget.onCourseAverage;
     final draft = _draft;
+    if (draft.displayOutOf != _saved.displayOutOf &&
+        !(await widget.onOutOf?.call(draft.displayOutOf) ?? true)) {
+      draft.displayOutOf = _saved.displayOutOf;
+    }
     if (avg == null) {
       await saveConfig(draft);
     } else {

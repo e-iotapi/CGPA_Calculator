@@ -1,5 +1,5 @@
-// The "Graded out of" seam (UI_REBUILD_HANDOFF.md §3.2): until the offering
-// stores a scale, every scale is the course's own units and nothing changes.
+// "Graded out of" (UI_REBUILD_HANDOFF.md §3.2): the offering stores the
+// scale; without one, every scale is the course's own units.
 import 'package:cgpa_calculator/admin/offering_scale.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +17,7 @@ Offering offering({bool weighted = true, double total = 100}) => Offering(
 
 void main() {
   test('without a stored scale, a weighted course is out of 100', () {
-    expect(outOfStored, isFalse);
+    expect(outOfStored, isTrue);
     expect(offeringOutOf(offering()), isNull);
     expect(scaleOf(offering()), 100);
   });
@@ -26,9 +26,13 @@ void main() {
     expect(scaleOf(offering(weighted: false, total: 50)), 50);
   });
 
-  test('withOutOf leaves the offering as it is until the field exists', () {
-    final o = offering();
-    expect(identical(withOutOf(o, 200), o), isTrue);
+  test('withOutOf sets and clears the stored scale, and it round-trips', () {
+    final o = withOutOf(offering(), 200);
+    expect(offeringOutOf(o), 200);
+    expect(scaleOf(o), 200);
+    expect(Offering.fromMap(o.toMap()).outOf, 200);
+    expect(offeringOutOf(withOutOf(o, null)), isNull);
+    expect(offering().toMap().containsKey('outOf'), isFalse);
   });
 
   test('an average typed out of 200 is stored in percent, and back', () {

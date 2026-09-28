@@ -16,7 +16,7 @@ const evalSchema = 'pointer.eval.v1';
 const evalPrompt =
     '''Read every attached course handout and return one JSON object and nothing else. No prose, no markdown fences, no explanation.
 
-Use exactly this shape: `{"schema":"pointer.eval.v1","campus":…,"term":…,"courses":[…]}`. Each course is `{"code","professors","weighted","totalMarks","components","notes"}` and each component is `{"name","weight","outOf","date","rule","parts"}`.
+Use exactly this shape: `{"schema":"pointer.eval.v1","campus":…,"term":…,"courses":[…]}`. Each course is `{"code","professors","weighted","totalMarks","gradedOutOf","components","notes"}` and each component is `{"name","weight","outOf","date","rule","parts"}`.
 
 Rules you must follow:
 - **Never invent a value.** If the handout does not state something, leave the field out. Do not infer a weight from the other components, and do not assume a standard BITS split.
@@ -25,6 +25,7 @@ Rules you must follow:
 - `weighted` is true when components carry percentages, false when the course is marked out of a single total.
 - `rule` is `{"type":"all"}` unless the handout says best N of M, which is `{"type":"bestNofM","n":N,"m":M}`.
 - `outOf` is that component's own maximum, never a shared divisor.
+- `gradedOutOf` is the scale the whole course's final total is reported out of (e.g. 200), only if the handout states one.
 - Dates are `YYYY-MM-DD`. Omit the field if the handout gives no date.
 - If weights do not sum to 100 on a weighted course, still return them as printed and say so in `notes`. Do not adjust them to fit.
 - One entry per course. If a handout covers two sections with different schemes, return one course entry per scheme and note which section each is.''';
@@ -46,9 +47,13 @@ class ImportedScheme {
     required this.components,
     this.notes,
     this.professorNames = const [],
+    this.outOf,
   });
 
   final String courseId;
+
+  /// The course's "Graded out of" (`"gradedOutOf"` in the file), or null.
+  final double? outOf;
   final bool weighted;
   final double totalMarks;
 
@@ -144,6 +149,10 @@ EvalFile parseEvalFile(
     if (total is! num || total <= 0) {
       throw EvalImportError('$at: "totalMarks" must be a positive number.');
     }
+    final gradedOutOf = row['gradedOutOf'];
+    if (gradedOutOf != null && (gradedOutOf is! num || gradedOutOf <= 0)) {
+      throw EvalImportError('$at: "gradedOutOf" must be a positive number.');
+    }
     final comps = row['components'];
     if (comps is! List || comps.isEmpty) {
       throw EvalImportError('$at: "components" must be a non-empty list.');
@@ -163,6 +172,7 @@ EvalFile parseEvalFile(
         weighted: weighted,
         totalMarks: total.toDouble(),
         components: components,
+        outOf: (gradedOutOf as num?)?.toDouble(),
         notes: switch (row['notes']) {
           final String n when n.trim().isNotEmpty => n.trim(),
           _ => null,
@@ -304,6 +314,7 @@ Offering schemeFor(
         }(),
     ],
     courseAverage: existing?.courseAverage,
+    outOf: imported.outOf ?? existing?.outOf,
     professors: existing?.professors ?? const [],
     updatedAt: existing?.updatedAt ?? 0,
   );
@@ -319,6 +330,7 @@ String schemeKey(Offering? o) =>
         : jsonEncode({
           'w': o.weighted,
           't': o.totalMarks,
+          'o': o.outOf,
           'c': [
             for (final c in o.components)
               [

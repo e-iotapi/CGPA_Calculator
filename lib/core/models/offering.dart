@@ -115,6 +115,7 @@ class Offering {
     this.weighted = true,
     this.totalMarks = 100,
     this.courseAverage,
+    this.outOf,
     this.professors = const [],
     this.updatedByName = '',
     this.updatedByEmail = '',
@@ -126,6 +127,11 @@ class Offering {
   final List<OfferedComponent> components;
   final double? courseAverage;
 
+  /// The scale a weighted course is graded out of (e.g. 200), set by whoever
+  /// maintains it; students' "Shown out of" follows it (UI_REBUILD_HANDOFF
+  /// §3.2). Null: the course's own units.
+  final double? outOf;
+
   /// Professor ids (§10.1); a course can have two in one term.
   final List<String> professors;
 
@@ -135,6 +141,22 @@ class Offering {
   final String updatedByName, updatedByEmail;
 
   bool get hasScheme => components.isNotEmpty;
+
+  /// This offering with [outOf] replaced (null clears it).
+  Offering copyWith({required double? outOf}) => Offering(
+    courseId: courseId,
+    campus: campus,
+    term: term,
+    components: components,
+    updatedAt: updatedAt,
+    weighted: weighted,
+    totalMarks: totalMarks,
+    courseAverage: courseAverage,
+    outOf: outOf,
+    professors: professors,
+    updatedByName: updatedByName,
+    updatedByEmail: updatedByEmail,
+  );
 
   OfferedComponent? component(String id) =>
       components.where((c) => c.id == id).firstOrNull;
@@ -147,6 +169,7 @@ class Offering {
     'totalMarks': totalMarks,
     'components': [for (final c in components) c.toMap()],
     if (courseAverage != null) 'courseAverage': courseAverage,
+    if (outOf != null) 'outOf': outOf,
     'professors': professors,
     'updatedAt': updatedAt,
     'updatedBy': {'name': updatedByName, 'email': updatedByEmail},
@@ -166,6 +189,7 @@ class Offering {
           OfferedComponent.fromMap(c),
       ],
       courseAverage: (m['courseAverage'] as num?)?.toDouble(),
+      outOf: (m['outOf'] as num?)?.toDouble(),
       professors: [for (final p in m['professors'] as List? ?? const []) '$p'],
       // A Firestore Timestamp in the database, an int in the cache.
       updatedAt:
