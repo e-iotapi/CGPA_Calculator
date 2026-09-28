@@ -109,8 +109,7 @@ class TierTag extends StatelessWidget {
       decoration: BoxDecoration(
         color: strong ? p.navBackground : p.hero,
         borderRadius: BorderRadius.circular(11),
-        border:
-            strong && p.isDark ? Border.all(color: p.divider) : null,
+        border: strong && p.isDark ? Border.all(color: p.divider) : null,
       ),
       child: Center(
         widthFactor: 1,
@@ -131,16 +130,23 @@ class TierTag extends StatelessWidget {
 
 /// A campus or scope pill; [muted] for the second, grey one.
 class ScopeChip extends StatelessWidget {
-  const ScopeChip(this.text, {super.key, this.muted = false, this.icon});
+  const ScopeChip(
+    this.text, {
+    super.key,
+    this.muted = false,
+    this.icon,
+    this.height = 26,
+  });
   final String text;
   final bool muted;
   final IconData? icon;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Container(
-      height: 26,
+      height: height,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: muted ? p.surfaceSunken : p.hero,
@@ -277,7 +283,11 @@ class ChoicePills<T> extends StatelessWidget {
         ],
       );
     }
-    return Wrap(spacing: 6, runSpacing: 6, children: [for (final v in values) pill(v)]);
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [for (final v in values) pill(v)],
+    );
   }
 }
 
@@ -436,8 +446,7 @@ class _LabelRowState extends State<LabelRow> {
         },
         child: widget.trailing,
       );
-      final stack =
-          _trailingWidth != null && c.maxWidth - _trailingWidth! < 96;
+      final stack = _trailingWidth != null && c.maxWidth - _trailingWidth! < 96;
       if (stack) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
