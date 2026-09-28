@@ -31,6 +31,37 @@ Future<Grant?> _myGrant(String campus, String dept) async {
   return g.liveAt(DateTime.now()) ? g : null;
 }
 
+/// The grant the pages show: the signed-in president's, or, for an owner or
+/// admin previewing the department (Open as), its live president's, so the
+/// preview is the real screen. Only [_myGrant] is ever handed over.
+Future<Grant?> _shownGrant(String campus, String dept) async {
+  final mine = await _myGrant(campus, dept);
+  final r = myRoles.value;
+  if (mine != null || !(r.owner || r.admin)) return mine;
+  final now = DateTime.now();
+  return (await _roles.roster(campus: campus))
+      .where(
+        (g) =>
+            g.role == GrantRole.dept &&
+            g.scope == dept &&
+            g.campus == campus &&
+            g.liveAt(now),
+      )
+      .firstOrNull;
+}
+
+/// Whether [g] is someone else's: the owner or an admin previewing.
+bool _previewing(Grant g) => g.email != _roles.me;
+
+/// The line atop a preview.
+Widget _previewNote(Grant g) => Padding(
+  padding: const EdgeInsets.only(bottom: Space.sm),
+  child: Note(
+    'Previewing as ${g.name.isEmpty ? g.email : g.name}. Only they can hand '
+    'it over.',
+  ),
+);
+
 PageHeader _header(String campus, String dept, String title, {String? step}) =>
     PageHeader(
       eyebrow:
@@ -179,13 +210,19 @@ class _SuccessionState extends State<Succession> {
     );
     return Loaded<Grant?>(
       key: ValueKey(_loads),
-      load: () => _myGrant(widget.campus, widget.dept),
+      load: () => _shownGrant(widget.campus, widget.dept),
       builder: (context, mine, _) {
         if (mine == null) {
           return PageFrame(
             header: _header(widget.campus, widget.dept, 'Hand over'),
             children: [
-              Note('Only a president of ${widget.dept} can hand it over.'),
+              Note(
+                myRoles.value.owner || myRoles.value.admin
+                    ? 'Nobody is president of ${widget.dept} on '
+                        '${campusName(widget.campus)} yet, so there is '
+                        'nothing to hand over. Appoint one from People.'
+                    : 'Only a president of ${widget.dept} can hand it over.',
+              ),
             ],
           );
         }
@@ -263,6 +300,7 @@ class _SuccessionState extends State<Succession> {
             ),
           ),
           children: [
+            if (_previewing(mine)) _previewNote(mine),
             Text(
               'Name the next president of ${widget.dept} on '
               '${campusName(widget.campus)}. They start today; you keep '
@@ -371,7 +409,15 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
     setState(() => _busy = true);
     try {
       final mine = await _myGrant(widget.campus, widget.dept);
-      if (mine == null) throw StateError('You no longer hold ${widget.dept}.');
+      if (mine == null) {
+        final r = myRoles.value;
+        throw StateError(
+          r.owner || r.admin
+              ? 'This is a preview. Only the president can hand '
+                  '${widget.dept} over.'
+              : 'You no longer hold ${widget.dept}.',
+        );
+      }
       final ok = await _roles.handOver(mine, widget.to);
       if (!ok) throw StateError('${widget.to} has not signed in yet.');
       await refreshMyRoles();
@@ -401,7 +447,7 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
     final campus = campusName(widget.campus);
     return Loaded<(Grant?, int?)>(
       load: () async {
-        final mine = await _myGrant(widget.campus, widget.dept);
+        final mine = await _shownGrant(widget.campus, widget.dept);
         int? crs;
         try {
           crs =
@@ -472,6 +518,7 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
             ),
           ),
           children: [
+            if (mine != null && _previewing(mine)) _previewNote(mine),
             AppCard(
               color: p.navBackground,
               child: Column(
