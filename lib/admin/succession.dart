@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -8,6 +10,8 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -27,10 +31,69 @@ Future<Grant?> _myGrant(String campus, String dept) async {
   return g.liveAt(DateTime.now()) ? g : null;
 }
 
-PageHeader _header(String campus, String dept, String title) => PageHeader(
-  eyebrow: '$dept · ${campusName(campus).toUpperCase()}',
-  title: title,
-);
+PageHeader _header(String campus, String dept, String title, {String? step}) =>
+    PageHeader(
+      eyebrow:
+          '${step == null ? '' : '$step · '}'
+          '${campusName(campus).toUpperCase()} · $dept',
+      title: title,
+    );
+
+/// The address's local part: "f20240001".
+String _id(String address) => address.split('@').first;
+
+/// One step of a timeline: a numbered disc (mint, or ink for the last), a
+/// bold lead and the rest.
+class _Step extends StatelessWidget {
+  const _Step(this.n, this.lead, this.rest, {this.ink = false});
+  final int n;
+  final String lead, rest;
+  final bool ink;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ink ? p.inverse : p.hero,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '$n',
+              style: TypeScale.caption.copyWith(
+                fontWeight: FontWeight.w800,
+                color: ink ? p.onInverse : p.onHero,
+              ),
+            ),
+          ),
+          const SizedBox(width: Space.md),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$lead ',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  TextSpan(text: rest),
+                ],
+              ),
+              style: TypeScale.body.copyWith(fontSize: 13, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Board `Succession` (§13.4), steps one and two: name the next president,
 /// then read what happens on which date. A handover already running shows
@@ -48,15 +111,29 @@ class _SuccessionState extends State<Succession> {
   String? _name;
   bool _looked = false, _busy = false;
   int _loads = 0;
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _email.dispose();
     super.dispose();
   }
 
+  /// Looks the address up once typing pauses.
+  void _typed(Grant mine) {
+    _debounce?.cancel();
+    setState(() {
+      _looked = false;
+      _name = null;
+    });
+    if (_email.text.trim().isEmpty) return;
+    _debounce = Timer(const Duration(milliseconds: 400), () => _lookUp(mine));
+  }
+
   Future<void> _lookUp(Grant mine) async {
-    final problem = RoleStore.successorProblem(mine, _email.text);
+    final typed = _email.text;
+    final problem = RoleStore.successorProblem(mine, typed);
     if (problem != null) {
       setState(() {
         _looked = true;
@@ -64,7 +141,8 @@ class _SuccessionState extends State<Succession> {
       });
       return;
     }
-    final n = await _roles.personName(_email.text.trim().toLowerCase());
+    final n = await _roles.personName(typed.trim().toLowerCase());
+    if (!mounted || typed != _email.text) return;
     setState(() {
       _looked = true;
       _name = n;
@@ -103,18 +181,24 @@ class _SuccessionState extends State<Succession> {
       key: ValueKey(_loads),
       load: () => _myGrant(widget.campus, widget.dept),
       builder: (context, mine, _) {
-        final header = _header(widget.campus, widget.dept, 'Hand over');
         if (mine == null) {
           return PageFrame(
-            header: header,
+            header: _header(widget.campus, widget.dept, 'Hand over'),
             children: [
               Note('Only a president of ${widget.dept} can hand it over.'),
             ],
           );
         }
+        final scope = mine.programme ?? widget.dept;
         if (mine.handedTo case final to?) {
           return PageFrame(
-            header: header,
+            header: _header(widget.campus, scope, 'Hand over'),
+            bottom: BottomAction(
+              child: PrimaryButton(
+                label: _busy ? 'Cancelling…' : 'Cancel the handover',
+                onPressed: _busy ? null : () => _cancel(mine),
+              ),
+            ),
             children: [
               AppCard(
                 child: Column(
@@ -136,17 +220,15 @@ class _SuccessionState extends State<Succession> {
                 ),
               ),
               const SizedBox(height: Space.sm),
-              Text(
-                'You can cancel until then: their access ends at once and '
-                'yours runs to ${shortDay(mine.expiresBefore ?? mine.expiresAt, year: true)} '
-                'again. After the overlap only an admin can give the '
-                'department back.',
-                style: caption,
-              ),
-              const SizedBox(height: Space.md),
-              PrimaryButton(
-                label: _busy ? 'Cancelling…' : 'Cancel the handover',
-                onPressed: _busy ? null : () => _cancel(mine),
+              Notice(
+                text: TextSpan(
+                  text:
+                      'You can cancel until then: their access ends at once '
+                      'and yours runs to '
+                      '${shortDay(mine.expiresBefore ?? mine.expiresAt, year: true)} '
+                      'again. After the overlap only an admin can give the '
+                      'department back.',
+                ),
               ),
             ],
           );
@@ -155,25 +237,52 @@ class _SuccessionState extends State<Succession> {
         final problem = RoleStore.successorProblem(mine, address);
         final now = DateTime.now();
         final ends = RoleStore.outgoingExpiry(mine, now);
+        final days = ends.difference(now).inDays;
         final ready = _looked && problem == null && _name != null;
+        final who = ready ? _name! : 'They';
         return PageFrame(
-          header: header,
+          header: _header(
+            widget.campus,
+            scope,
+            'Hand over',
+            step: 'STEP 1 OF 3',
+          ),
+          bottom: BottomAction(
+            child: PrimaryButton(
+              label: 'Review the handover',
+              onPressed:
+                  ready
+                      ? () => context.push(
+                        Routes.deptSuccessionConfirm(
+                          widget.campus,
+                          widget.dept,
+                          address,
+                        ),
+                      )
+                      : null,
+            ),
+          ),
           children: [
-            const SectionLabel('1 · Who takes over'),
+            Text(
+              'Name the next president of ${widget.dept} on '
+              '${campusName(widget.campus)}. They start today; you keep '
+              'access while you show them round.',
+              style: TypeScale.body.copyWith(height: 1.45),
+            ),
+            const SizedBox(height: Space.md),
             AppTextField(
               controller: _email,
               label: 'Their BITS address',
-              onChanged:
-                  (_) => setState(() {
-                    _looked = false;
-                    _name = null;
-                  }),
+              hint: 'f2024…@${widget.campus}.bits-pilani.ac.in',
+              labelAbove: true,
+              onChanged: (_) => _typed(mine),
             ),
             const SizedBox(height: Space.xs),
             if (!_looked)
-              TextButton(
-                onPressed: address.isEmpty ? null : () => _lookUp(mine),
-                child: const Text('Look up'),
+              Text(
+                'A successor must be on ${campusName(widget.campus)}, and '
+                'must have signed in to Pointer once.',
+                style: caption,
               )
             else if (problem != null)
               Text(problem, style: caption.copyWith(color: p.behind))
@@ -183,54 +292,48 @@ class _SuccessionState extends State<Succession> {
                 style: caption.copyWith(color: p.behind),
               )
             else
-              AppCard(
-                child: Text(
-                  '$_name · ${campusName(campusOfAddress(address)!)} · '
-                  'batch of ${batchOfAddress(address)}',
-                  style: TypeScale.body.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-            if (ready) ...[
-              const SectionLabel('2 · What happens'),
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Today: $_name becomes president of ${widget.dept} '
-                      'on ${campusName(widget.campus)}.',
-                      style: TypeScale.body,
-                    ),
-                    const SizedBox(height: Space.xs),
-                    Text(
-                      '${shortDay(ends, year: true)}: your access ends. '
-                      'Until then you both hold the department.',
-                      style: TypeScale.body,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: Space.xs),
               Text(
-                'The overlap never extends your own term. CRs, resources and '
-                'course structures stay with the department. You can cancel '
-                'while the overlap runs; after it, only an admin can give the '
-                'department back.',
-                style: caption,
+                '✓ $_name · ${campusName(campusOfAddress(address)!)} address'
+                ' — ${batchOfAddress(address)} batch',
+                style: caption.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: p.text,
+                ),
               ),
-              const SizedBox(height: Space.md),
-              PrimaryButton(
-                label: 'Continue',
-                onPressed:
-                    () => context.push(
-                      Routes.deptSuccessionConfirm(
-                        widget.campus,
-                        widget.dept,
-                        address,
-                      ),
-                    ),
+            const SectionLabel('What happens'),
+            AppCard(
+              child: Column(
+                children: [
+                  _Step(
+                    1,
+                    'Today.',
+                    '$who ${ready ? 'becomes' : 'become'} president of '
+                        '${widget.dept} on ${campusName(widget.campus)}.',
+                  ),
+                  _Step(
+                    2,
+                    'For $days days.',
+                    'You both have full access. CRs, resources and course '
+                        'structures stay with the department.',
+                  ),
+                  _Step(
+                    3,
+                    '${shortDay(ends, year: true)}.',
+                    'Your access ends. The overlap never extends your own '
+                        'term.',
+                    ink: true,
+                  ),
+                ],
               ),
-            ],
+            ),
+            const SizedBox(height: Space.sm),
+            const Notice(
+              text: TextSpan(
+                text:
+                    'You can cancel while the overlap runs. After it, only an '
+                    'admin can give the department back.',
+              ),
+            ),
           ],
         );
       },
@@ -290,32 +393,170 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final caption = TypeScale.caption.copyWith(
+      height: 1.45,
+      color: p.textMuted,
+    );
     final typed = _code.text.trim().toUpperCase() == widget.dept;
-    return PageFrame(
-      header: _header(widget.campus, widget.dept, 'Confirm the handover'),
-      children: [
-        Text(
-          'Hand ${widget.dept} to ${widget.to}. Type ${widget.dept} to '
-          'confirm.',
-          style: TypeScale.body,
-        ),
-        const SizedBox(height: Space.sm),
-        AppTextField(
-          controller: _code,
-          label: 'Department code',
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: Space.xs),
-        Text(
-          'Written to the audit log.',
-          style: TypeScale.caption.copyWith(color: p.textMuted),
-        ),
-        const SizedBox(height: Space.md),
-        PrimaryButton(
-          label: _busy ? 'Handing over…' : 'Hand over',
-          onPressed: typed && !_busy ? _go : null,
-        ),
-      ],
+    final campus = campusName(widget.campus);
+    return Loaded<(Grant?, int?)>(
+      load: () async {
+        final mine = await _myGrant(widget.campus, widget.dept);
+        int? crs;
+        try {
+          crs =
+              (await _roles.roster(campus: widget.campus))
+                  .where(
+                    (g) =>
+                        g.active &&
+                        g.role == GrantRole.course &&
+                        g.campus == widget.campus &&
+                        deptOf(g.scope) == widget.dept,
+                  )
+                  .length;
+        } catch (_) {}
+        return (mine, crs);
+      },
+      builder: (context, data, _) {
+        final (mine, crs) = data;
+        final ends =
+            mine == null
+                ? null
+                : RoleStore.outgoingExpiry(mine, DateTime.now());
+        Widget side(String label, String name, String email) => Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TypeScale.label.copyWith(
+                  color: p.hero,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TypeScale.body.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: p.isDark ? p.text : p.onInverse,
+                ),
+              ),
+              Text(
+                shortEmail(email),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TypeScale.caption.copyWith(color: p.navIcon),
+              ),
+            ],
+          ),
+        );
+        return PageFrame(
+          header: PageHeader(eyebrow: 'STEP 3 OF 3', title: 'Confirm'),
+          bottom: BottomAction(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PrimaryButton(
+                  label:
+                      _busy
+                          ? 'Handing over…'
+                          : 'Hand ${widget.dept} to ${_id(widget.to)}',
+                  onPressed: typed && !_busy ? _go : null,
+                ),
+                Center(child: TextLink('Not yet', onTap: () => context.pop())),
+              ],
+            ),
+          ),
+          children: [
+            AppCard(
+              color: p.navBackground,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'HANDING OVER',
+                    style: TypeScale.label.copyWith(
+                      color: p.hero,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: Space.sm),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      side('FROM', _roles.myName, _roles.me),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Space.sm,
+                          vertical: 14,
+                        ),
+                        child: Icon(
+                          Icons.arrow_forward_rounded,
+                          color: p.hero,
+                          size: 18,
+                        ),
+                      ),
+                      side('TO', _id(widget.to), widget.to),
+                    ],
+                  ),
+                  const SizedBox(height: Space.sm),
+                  Text(
+                    '${mine?.programme ?? widget.dept} '
+                    '${departmentName(widget.dept)} · $campus'
+                    '${crs == null ? '' : ' · $crs CR${crs == 1 ? ' moves' : 's move'} too'}',
+                    style: TypeScale.caption.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: p.navIcon,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SectionLabel('Type the department code to confirm'),
+            AppTextField(
+              controller: _code,
+              label: 'Department code',
+              hint: widget.dept,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: Space.xs),
+            Text(
+              'Typed, not tapped: once the overlap ends only an admin can undo '
+              'it. Written to the audit log.',
+              style: caption,
+            ),
+            const SectionLabel('After you confirm'),
+            AppCard(
+              child: Column(
+                children: [
+                  _Step(
+                    1,
+                    'Now.',
+                    '${_id(widget.to)} is president of ${widget.dept} on '
+                        '$campus.',
+                  ),
+                  _Step(
+                    2,
+                    'Until ${ends == null ? 'the overlap ends' : shortDay(ends, year: true)}.',
+                    'You both hold the department, and you can cancel.',
+                  ),
+                  const _Step(
+                    3,
+                    'Then.',
+                    'Your access ends; CRs, resources and course structures '
+                        'stay.',
+                    ink: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -494,8 +494,7 @@ void main() {
     await t.pumpAndSettle();
     Future<void> lookUp(String address) async {
       await t.enterText(find.byType(TextField), address);
-      await t.pump();
-      await t.tap(find.text('Look up'));
+      await t.pump(const Duration(milliseconds: 500));
       await t.pumpAndSettle();
     }
 
@@ -504,7 +503,8 @@ void main() {
     await lookUp('f20249999@goa.bits-pilani.ac.in');
     expect(find.textContaining('Can not be found'), findsOneWidget);
     await lookUp(next);
-    expect(find.text('2 · WHAT HAPPENS'), findsOneWidget);
+    expect(find.text('WHAT HAPPENS'), findsOneWidget);
+    expect(find.textContaining('✓ '), findsOneWidget);
     final ends = RoleStore.outgoingExpiry(presidency(), DateTime.now());
     expect(find.textContaining(shortDay(ends, year: true)), findsOneWidget);
   });
@@ -538,11 +538,11 @@ void main() {
       ),
     );
     await t.pumpAndSettle();
-    expect(button(t, 'Hand over'), isNull);
+    expect(button(t, 'Hand ELEC to f20240001'), isNull);
     await t.enterText(find.byType(TextField), 'ELEC');
     await t.pump();
-    expect(button(t, 'Hand over'), isNotNull);
-    await t.tap(find.widgetWithText(PrimaryButton, 'Hand over'));
+    expect(button(t, 'Hand ELEC to f20240001'), isNotNull);
+    await t.tap(find.widgetWithText(PrimaryButton, 'Hand ELEC to f20240001'));
     await t.pumpAndSettle();
     final mine = Grant.fromMap(
       (await db.collection('grants').doc(presidency().id).get()).data()!,
@@ -1172,5 +1172,15 @@ void main() {
       find.textContaining('with the A8, AA, AC presidents'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('timeline names the end date', (t) async {
+    await presidentOfElec();
+    await t.pumpWidget(app(const Succession(campus: 'goa', dept: 'ELEC')));
+    await t.pumpAndSettle();
+    final ends = RoleStore.outgoingExpiry(presidency(), DateTime.now());
+    expect(find.text('WHAT HAPPENS'), findsOneWidget);
+    expect(find.textContaining(shortDay(ends, year: true)), findsOneWidget);
+    expect(button(t, 'Review the handover'), isNull);
   });
 }
