@@ -89,6 +89,7 @@ Future<List<String>> uiIssues(WidgetTester t) async {
   _order = 0;
   _covers.clear();
   _textOrder.clear();
+  _movable.clear();
   final faint = <(String, String)>[];
   for (final view in t.binding.renderViews) {
     _walkRender(view, screen, false, out, texts);
@@ -174,6 +175,7 @@ void _walkRender(
   Set<String> out,
   List<RenderParagraph> texts, [
   Rect? seen,
+  bool movable = false,
 ]) {
   seen ??= Offset.zero & screen;
   if (o is RenderOffstage && o.offstage) return;
@@ -215,7 +217,9 @@ void _walkRender(
     var k = 0;
     final shown = o.index;
     o.visitChildren((c) {
-      if (k++ == shown) _walkRender(c, screen, sideways, out, texts, seen);
+      if (k++ == shown) {
+        _walkRender(c, screen, sideways, out, texts, seen, movable);
+      }
     });
     return;
   }
@@ -227,6 +231,10 @@ void _walkRender(
     );
     if (axisDirectionToAxis(o.axisDirection) == Axis.horizontal) {
       sideways = true;
+    } else if (o.offset case final ScrollPosition s
+        when s.hasContentDimensions && s.pixels < s.maxScrollExtent - 1) {
+      // Scrolling moves it out from under a fixed bar.
+      movable = true;
     }
   }
   if (o is RenderParagraph && o.hasSize && o.attached) {
@@ -238,6 +246,7 @@ void _walkRender(
     if (text.isNotEmpty && box.overlaps(seen)) {
       texts.add(o);
       _textOrder[o] = _order;
+      if (movable) _movable.add(o);
       if (o.didExceedMaxLines) out.add('truncated: "$text"');
       if (_brokenWord(o) case final w?) {
         out.add('word-break: "$w" split across lines in "$text"');
@@ -247,7 +256,9 @@ void _walkRender(
       }
     }
   }
-  o.visitChildren((c) => _walkRender(c, screen, sideways, out, texts, seen));
+  o.visitChildren(
+    (c) => _walkRender(c, screen, sideways, out, texts, seen, movable),
+  );
 }
 
 // Paint order of the current walk: a box painted after a text, over it, and
@@ -255,6 +266,7 @@ void _walkRender(
 var _order = 0;
 final _covers = <(int, Rect)>[];
 final _textOrder = <RenderParagraph, int>{};
+final _movable = <RenderParagraph>{};
 
 bool _opaque(RenderBox o) {
   Color? c;
@@ -299,6 +311,8 @@ void _overlaps(List<RenderParagraph> texts, Set<String> out) {
       final small = min(ra.width * ra.height, rb.width * rb.height);
       if (hit.width * hit.height < small * 0.2) continue;
       if (_hidden(a, hit.center) || _hidden(b, hit.center)) continue;
+      // Scroll content under a fixed bar, with room to scroll clear of it.
+      if (_movable.contains(a) != _movable.contains(b)) continue;
       out.add(
         'overlap: "${_clip(a.text.toPlainText())}" over '
         '"${_clip(b.text.toPlainText())}"',

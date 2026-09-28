@@ -88,6 +88,48 @@ class Stars extends StatelessWidget {
   }
 }
 
+/// The overall rating on the review form (board `ReviewWrite` §8.8): five
+/// 48 × 48 buttons spread across the width, the chosen ones mint.
+class StarPicker extends StatelessWidget {
+  const StarPicker({super.key, required this.value, required this.onChanged});
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          Semantics(
+            button: true,
+            selected: i <= value,
+            label: '$i of 5 stars',
+            excludeSemantics: true,
+            onTap: () => onChanged(i),
+            child: Material(
+              color: i <= value ? p.hero : p.background,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => onChanged(i),
+                child: SizedBox.square(
+                  dimension: 48,
+                  child: Icon(
+                    i <= value ? Icons.star_rounded : Icons.star_border_rounded,
+                    size: 24,
+                    color: i <= value ? p.onHero : p.textMuted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// The summary card (boards `ProfessorReviews`, `Reviews`): the average of
 /// five with stars, how many would take it, and a mint bar of that share.
 /// White, and the right column scales down rather than overflow (N27).

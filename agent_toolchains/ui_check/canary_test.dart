@@ -62,6 +62,23 @@ final canaries = <String, (Widget, String)>{
             ],
           ),
         ),
+        // Scroll content under a fixed bar that it can scroll clear of.
+        SizedBox(
+          width: 200,
+          height: 60,
+          child: Stack(
+            children: [
+              ListView(
+                children: const [
+                  SizedBox(height: 40),
+                  Text('Scrolls clear'),
+                  SizedBox(height: 200),
+                ],
+              ),
+              const Positioned(left: 0, top: 40, child: Text('Fixed bar')),
+            ],
+          ),
+        ),
         // A disabled button, faint on purpose: WCAG exempts it.
         const SizedBox(height: 12),
         const SizedBox(

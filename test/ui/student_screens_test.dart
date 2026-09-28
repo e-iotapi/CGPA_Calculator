@@ -16,6 +16,7 @@ import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/marks/add_evaluative_page.dart';
 import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
@@ -38,7 +39,9 @@ void main() {
   setUpAll(() async {
     await loadAppFonts();
     await seedAll();
+    offeringSource = publishedOfferings();
   });
+  tearDownAll(() => offeringSource = null);
 
   // Read after setUpAll has filled the device.
   Course taking() => allCourses().firstWhere((c) => c.id == takingId);

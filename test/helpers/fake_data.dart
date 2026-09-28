@@ -471,6 +471,9 @@ Offering takingOffering() => Offering(
 
 // ---- The student's device (Hive) -------------------------------------------
 
+/// The published offerings, as the app reads them from Firestore.
+OfferingSource publishedOfferings() => _Published();
+
 class _Published implements OfferingSource {
   @override
   Future<Offering?> get(String courseId, String campus, String term) async =>
