@@ -215,7 +215,7 @@ class _ReviewsHomeState extends State<ReviewsHome> {
               const SizedBox(height: Space.sm),
               SearchBox(
                 controller: _search,
-                hint: 'Course code, name or professor',
+                hint: 'Course or professor',
                 onChanged: (_) => _searchChanged(campus),
               ),
               const SizedBox(height: Space.sm),

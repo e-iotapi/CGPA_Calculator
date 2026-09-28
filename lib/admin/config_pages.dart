@@ -598,8 +598,9 @@ class _PublicContactPageState extends State<PublicContactPage> {
         // The contact is read live, so a save shows at once (a Departure
         // from "after the next publish", agreed with the user).
         bottom: BottomAction(
+          caption: 'Students see it at once.',
           child: PrimaryButton(
-            label: _busy ? 'Saving…' : 'Save · students see it at once',
+            label: _busy ? 'Saving…' : 'Save',
             onPressed:
                 _busy
                     ? null

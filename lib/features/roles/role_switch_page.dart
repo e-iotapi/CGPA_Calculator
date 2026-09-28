@@ -151,6 +151,7 @@ class RoleSwitchPage extends StatelessWidget {
           child: CardRow(
             leading: Icon(Icons.contact_phone_outlined, color: p.icon),
             title: 'Your contact details',
+            titleLines: 2,
             subtitle:
                 myContactSummary.value ?? 'Name, phone, what students see',
             onTap:

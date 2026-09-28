@@ -43,7 +43,7 @@ class ProgressionView extends StatelessWidget {
     final delta = double.parse(data.delta.toStringAsFixed(2));
     return StatsBody(
       footer: StatsFooter(
-        label: 'ON THIS PLAN YOU FINISH AT',
+        label: 'YOU FINISH AT',
         emphasis: true,
         value: '${data.finish.toStringAsFixed(2)} CGPA',
         trailing: Semantics(

@@ -79,6 +79,8 @@ class OpenAsPage extends StatelessWidget {
         ),
       ),
       title: title,
+      // Two lines at large text beside the 58 wide tag (T9.1).
+      titleLines: 2,
       subtitle: line,
       onTap: go,
     );
@@ -335,7 +337,7 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
         campus: _campus,
         onCampus: (c) => setState(() => _campus = c),
         search: _search,
-        hint: 'Department or programme',
+        hint: 'Dept or programme',
         onSearch: () => setState(() {}),
         children: [
           SectionLabel(
@@ -459,7 +461,7 @@ class _ViewAsCoursePageState extends State<ViewAsCoursePage> {
         campus: _campus,
         onCampus: (c) => setState(() => _campus = c),
         search: _search,
-        hint: 'Course code or professor',
+        hint: 'Code or professor',
         onSearch: () => setState(() {}),
         children: [
           SectionLabel('${campusName(_campus)} · offered ${termLabel(_term)}'),

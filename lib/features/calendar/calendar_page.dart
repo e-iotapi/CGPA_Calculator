@@ -154,11 +154,16 @@ class _CalendarPageState extends State<CalendarPage> {
                 color: p.textMuted,
               ),
             ),
-            Text(
-              '${_months[_month.month - 1]} ${_month.year}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TypeScale.title.copyWith(fontSize: 24, color: p.text),
+            // Scales down rather than cutting "September 2026" at 320
+            // (T9.1).
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${_months[_month.month - 1]} ${_month.year}',
+                maxLines: 1,
+                style: TypeScale.title.copyWith(fontSize: 24, color: p.text),
+              ),
             ),
           ],
         ),

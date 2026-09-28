@@ -462,10 +462,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                       'Changing your first degree later clears your grades.',
                   child: PrimaryButton(
                     tall: true,
-                    label:
-                        ready
-                            ? 'Set up $setupName'
-                            : 'Pick what you are reading',
+                    label: ready ? 'Set up $setupName' : 'Pick your degree',
                     onPressed: ready && !_busy ? _setUp : null,
                   ),
                 ),
