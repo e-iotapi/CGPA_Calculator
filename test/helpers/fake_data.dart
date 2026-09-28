@@ -9,7 +9,6 @@
 // the shapes match what the screens read. No real people: every address is
 // made up.
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/catalog/publish.dart';
@@ -38,6 +37,8 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+
+import '../../agent_toolchains/ui_check/ui_checks.dart';
 
 // ---- People (made up) -------------------------------------------------------
 
@@ -650,7 +651,7 @@ List<Frame> framesFor(double tall) => [
 
 /// Renders [screen] as [who] over freshly seeded data, in light and dark at
 /// each frame, and returns every error it raised. With SHOTS_DIR set it
-/// writes `<name>_<light|dark>_<frame>.png`. [open] runs after the first
+/// writes `<name>_<light|dark>_<frame>.png` and a .json of its [uiIssues]. [open] runs after the first
 /// frames, for a sheet or dialog opened from a launcher.
 Future<List<String>> renderScreen(
   WidgetTester t,
@@ -669,6 +670,7 @@ Future<List<String>> renderScreen(
     for (final palette in [AppPalette.light, AppPalette.dark]) {
       for (final (label, size, scale) in framesFor(tall)) {
         if (scale != 1 && palette.isDark) continue;
+        final before = errors.length;
         roleStore = RoleStore(db, me: who.email, myName: who.name);
         myRoles.value = who.roles;
         myUid = 'u-${who.name.split(' ').first.toLowerCase()}';
@@ -699,16 +701,13 @@ Future<List<String>> renderScreen(
         if (ex != null) errors.add('$label: ${'$ex'.split('\n').first}');
         final out = shotsOut;
         if (out != null) {
-          await t.runAsync(() async {
-            final img = await captureImage(
-              t.element(find.byType(RepaintBoundary).first),
-            );
-            final png = await img.toByteData(format: ui.ImageByteFormat.png);
-            final mode = palette.isDark ? 'dark' : 'light';
-            File(
-              '$out/${name}_${mode}_$label.png',
-            ).writeAsBytesSync(png!.buffer.asUint8List());
-          });
+          final mode = palette.isDark ? 'dark' : 'light';
+          await recordRender(
+            t,
+            out,
+            '${name}_${mode}_$label',
+            errors.sublist(before),
+          );
         }
         await t.pumpWidget(const SizedBox());
       }
