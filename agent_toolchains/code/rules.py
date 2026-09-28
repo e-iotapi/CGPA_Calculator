@@ -31,8 +31,8 @@ KNOWN_ANALYZE = {
     ('test/semester/edit_course_test.dart', 'prefer_interpolation_to_compose_strings'): 1,
 }
 
-TRAILER = ('Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n'
-           'Claude-Session: https://claude.ai/code/session_01WvpzSzg3hwbLd4hyytRMQN')
+# Deprecated (cloud container): a Claude-Session line; local sessions add none.
+TRAILER = 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
 
 
 def matches(path, patterns):
@@ -41,7 +41,7 @@ def matches(path, patterns):
 
 def sh(*cmd, check=False, **kw):
     env = dict(os.environ)
-    env['PATH'] = '/opt/flutter/bin:' + env.get('PATH', '')
+    env['PATH'] = os.path.expanduser('~/development/flutter/bin') + ':/opt/flutter/bin:' + env.get('PATH', '')
     return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
                           check=check, env=env, **kw)
 

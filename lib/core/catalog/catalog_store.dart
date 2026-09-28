@@ -9,6 +9,7 @@
 library;
 
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -32,7 +33,7 @@ class FirestoreCatalogSource implements CatalogSource {
 
   @override
   Future<({int version, int schema})?> marker() async {
-    final d = await _db.doc('catalog/marker').get();
+    final d = await Perf.time('catalog.marker', () => _db.doc('catalog/marker').get());
     final m = d.data();
     if (m == null) return null;
     return (version: m['version'] as int, schema: m['schema'] as int);
@@ -40,7 +41,7 @@ class FirestoreCatalogSource implements CatalogSource {
 
   @override
   Future<String> bundle(int version) async {
-    final d = await _db.doc('catalog/v$version').get();
+    final d = await Perf.time('catalog.bundle', () => _db.doc('catalog/v$version').get());
     return d.data()!['json'] as String;
   }
 }

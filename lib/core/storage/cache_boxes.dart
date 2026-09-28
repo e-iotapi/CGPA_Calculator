@@ -9,8 +9,13 @@ const cacheBoxes = <String>{
   'offeringsBox',
   'resourcesBox',
   'reviewsBox',
+  sharedCacheBoxName,
   deviceBoxName,
 };
+
+/// The `cacheFirst` helper's (PERF_TEST_PLAN.md P1) shared store, for the
+/// stores that don't keep their own cache box.
+const sharedCacheBoxName = 'sharedCache';
 
 /// Per-device state that must not follow the account to another device:
 /// the role Pointer opens in (§16.3 fix 15) and the cached roles.

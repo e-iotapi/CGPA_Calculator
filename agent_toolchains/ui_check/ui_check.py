@@ -95,7 +95,7 @@ def run(paths, card, only=None):
         open(os.path.join(NEW, '.partial'), 'w').close()
     targets = (paths or SUITES) + [CANARY_TEST]
     env = dict(os.environ, SHOTS_DIR=NEW)
-    env['PATH'] = '/opt/flutter/bin:' + env.get('PATH', '')
+    env['PATH'] = os.path.expanduser('~/development/flutter/bin') + ':/opt/flutter/bin:' + env.get('PATH', '')
     name = (['--name', '^(canary_.*|' + '|'.join(re.escape(o) + '.*' for o in only) + ')$']
             if only else [])
     proc = subprocess.run(['flutter', 'test', '--reporter', 'json', '--timeout', '60s', *name, *targets],

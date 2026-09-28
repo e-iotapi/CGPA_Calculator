@@ -22,11 +22,11 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-FILES = ['UI.md', 'UI_OPT.md']
+FILES = ['UI.md', 'UI_OPT.md', 'PERF_TEST_PLAN.md']
 HEAD = re.compile(r'^(#{1,6}) (.*)$')
 CARD = re.compile(r'^\*\*(T\d+\.\d+)\b')
 FIND = re.compile(r'^- \*\*(N\d+)\b')
-NUM = re.compile(r'^((?:[A-Z]\d+|\d+)(?:\.\d+)*)\b')
+NUM = re.compile(r'^((?:[A-Z]\d+[a-z]?|\d+)(?:\.\d+)*)\b')
 
 
 def parse(name):

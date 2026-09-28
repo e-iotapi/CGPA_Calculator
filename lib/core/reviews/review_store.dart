@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -46,9 +47,12 @@ class ReviewStore {
         professorIds == null
             ? [statsId(campus)]
             : [for (final p in professorIds) statsId(campus, p)];
+    // Budget: 1 read per professor id, sequentially, per course (P0) — the
+    // "Diagnosis" section's reviews_home.dart courses-tab bottleneck.
     var total = const ReviewStats();
     for (final id in ids) {
-      total += ReviewStats.fromMap((await _stats(courseId, id).get()).data());
+      final d = await Perf.time('reviews.stats', () => _stats(courseId, id).get());
+      total += ReviewStats.fromMap(d.data());
     }
     return total;
   }
@@ -59,14 +63,16 @@ class ReviewStore {
     String courseId,
     String campus,
   ) async {
-    final q =
-        await db
-            .collection('courses')
-            .doc(courseId)
-            .collection('stats')
-            .where('campus', isEqualTo: campus)
-            .where('scope', isEqualTo: 'professor')
-            .get();
+    final q = await Perf.time(
+      'reviews.byProfessor',
+      () => db
+          .collection('courses')
+          .doc(courseId)
+          .collection('stats')
+          .where('campus', isEqualTo: campus)
+          .where('scope', isEqualTo: 'professor')
+          .get(),
+    );
     return {
       for (final d in q.docs)
         if (d.data()['professorId'] case final String id)
@@ -79,14 +85,16 @@ class ReviewStore {
     String campus, {
     int limit = 10,
   }) async {
-    final q =
-        await db
-            .collectionGroup('stats')
-            .where('campus', isEqualTo: campus)
-            .where('scope', isEqualTo: 'course')
-            .orderBy('count', descending: true)
-            .limit(limit)
-            .get();
+    final q = await Perf.time(
+      'reviews.mostReviewed',
+      () => db
+          .collectionGroup('stats')
+          .where('campus', isEqualTo: campus)
+          .where('scope', isEqualTo: 'course')
+          .orderBy('count', descending: true)
+          .limit(limit)
+          .get(),
+    );
     return [
       for (final d in q.docs)
         (
@@ -147,10 +155,11 @@ class ReviewStore {
     return (reviews: reviews, last: r.docs.lastOrNull);
   }
 
+  // Budget: 1 read per reviewed course, sequentially ("Your reviews" tab, P0).
   Future<Review?> mine(String courseId) async {
     final id = myReviewId(courseId);
     if (id == null) return null;
-    final d = await entries(courseId).doc(id).get();
+    final d = await Perf.time('reviews.mine', () => entries(courseId).doc(id).get());
     final m = d.data();
     return m == null ? null : Review.fromMap(id, courseId, m);
   }
