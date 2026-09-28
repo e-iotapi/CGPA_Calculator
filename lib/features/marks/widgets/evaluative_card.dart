@@ -71,79 +71,97 @@ class EvaluativeCard extends StatelessWidget {
       ],
     ];
 
-    final head = Row(
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Text.rich(
+          TextSpan(
+            text: e.name,
             children: [
-              Text.rich(
-                TextSpan(
-                  text: e.name,
-                  children: [
-                    if (tag != null)
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: _Tag(tag!),
-                        ),
-                      ),
-                  ],
+              if (tag != null)
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: _Tag(tag!),
+                  ),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.body.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: ungraded ? p.textMuted : p.text,
-                ),
-              ),
-              if (sub.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                // Wraps rather than overflowing at large text sizes.
-                Wrap(
-                  spacing: 5,
-                  runSpacing: 2,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: sub,
-                ),
-              ],
             ],
           ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TypeScale.body.copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: ungraded ? p.textMuted : p.text,
+          ),
         ),
-        if (group) ...[
-          const SizedBox(width: Space.sm),
-          _Badge(
-            e.countBest > 0 && e.countBest < e.parts.length
-                ? 'BEST ${e.countBest}/${e.parts.length}'
-                : 'ALL ${e.parts.length}',
-            best: e.countBest > 0 && e.countBest < e.parts.length,
+        if (sub.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          // Wraps rather than overflowing at large text sizes.
+          Wrap(
+            spacing: 5,
+            runSpacing: 2,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: sub,
           ),
         ],
+      ],
+    );
+    final meta = <Widget>[
+      if (group) ...[
         const SizedBox(width: Space.sm),
-        Text(
-          weighted ? '${marks2(e.weight)}%' : '${marks2(e.weight)} marks',
-          style: TypeScale.caption.copyWith(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-            color: p.textMuted,
-          ),
-        ),
-        const SizedBox(width: Space.sm),
-        ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 40),
-          child: Text(
-            ungraded ? '—' : value.toStringAsFixed(2),
-            textAlign: TextAlign.right,
-            style: TypeScale.body.copyWith(
-              fontSize: ungraded ? 11.5 : 14,
-              fontWeight: ungraded ? FontWeight.w600 : FontWeight.w800,
-              color: ungraded ? p.textMuted : p.text,
-            ),
-          ),
+        _Badge(
+          e.countBest > 0 && e.countBest < e.parts.length
+              ? 'BEST ${e.countBest}/${e.parts.length}'
+              : 'ALL ${e.parts.length}',
+          best: e.countBest > 0 && e.countBest < e.parts.length,
         ),
       ],
+      const SizedBox(width: Space.sm),
+      Text(
+        weighted ? '${marks2(e.weight)}%' : '${marks2(e.weight)} marks',
+        style: TypeScale.caption.copyWith(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+          color: p.textMuted,
+        ),
+      ),
+      const SizedBox(width: Space.sm),
+      ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 40),
+        child: Text(
+          ungraded ? '—' : value.toStringAsFixed(2),
+          textAlign: TextAlign.right,
+          style: TypeScale.body.copyWith(
+            fontSize: ungraded ? 11.5 : 14,
+            fontWeight: ungraded ? FontWeight.w600 : FontWeight.w800,
+            color: ungraded ? p.textMuted : p.text,
+          ),
+        ),
+      ),
+    ];
+    final head = LayoutBuilder(
+      builder: (context, c) {
+        // N34: a narrow card or large text gives the title its own line.
+        if (c.maxWidth < 340 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              title,
+              const SizedBox(height: 6),
+              Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 4,
+                children: meta,
+              ),
+            ],
+          );
+        }
+        return Row(children: [Expanded(child: title), ...meta]);
+      },
     );
 
     final label = [

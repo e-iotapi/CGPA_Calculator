@@ -33,8 +33,6 @@ import '../helpers/fonts.dart';
 
 /// Screens that still fail, and why (UI.md §15).
 const known = <String, String>{
-  's_marks':
-      'N34, N35: the component title squeezes at 320; TAKEN BY wraps a word a line at 2x',
   's_course_reviews': 'N27: the summary card overflows at 320 with 2x text',
   's_prof_reviews': 'N27: the summary card overflows at 320 with 2x text',
 };

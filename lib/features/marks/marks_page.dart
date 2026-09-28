@@ -143,7 +143,7 @@ class _MarksPageState extends State<MarksPage> {
 
     return PageFrame(
       header: PageHeader(
-        eyebrow: '${c.id} · ${formatCredits(c.credits)} credits',
+        eyebrow: '${c.id} · ${formatCredits(c.credits)} CREDITS'.toUpperCase(),
         title: displayTitle(c.id, c.title),
         leading: false,
         actions: [
@@ -328,6 +328,7 @@ class _Total extends StatelessWidget {
       color: p.onHeroMuted,
     );
     final pct = (s.gradedShare * 100).round();
+    final empty = s.assignedWeight == 0;
     final delta = s.classDelta;
     final avg = s.config.classAverage;
     final mode =
@@ -349,8 +350,11 @@ class _Total extends StatelessWidget {
               Expanded(
                 child: Semantics(
                   label:
-                      'Secured so far ${marks2(s.shownSecured)} of '
-                      '${marks2(s.shownGraded)}. $pct% of the course graded.',
+                      empty
+                          ? 'No marks yet'
+                          : 'Secured so far ${marks2(s.shownSecured)} of '
+                              '${marks2(s.shownGraded)}. $pct% of the course '
+                              'graded.',
                   excludeSemantics: true,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,36 +366,47 @@ class _Total extends StatelessWidget {
                           color: p.onHeroMuted,
                         ),
                       ),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              s.shownSecured.toStringAsFixed(2),
-                              style: TypeScale.display.copyWith(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w800,
-                                color: p.onHero,
+                      if (empty)
+                        Text(
+                          'No marks yet',
+                          style: TypeScale.display.copyWith(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            color: p.onHero,
+                          ),
+                        )
+                      else ...[
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                s.shownSecured.toStringAsFixed(2),
+                                style: TypeScale.display.copyWith(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w800,
+                                  color: p.onHero,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              '/ ${marks2(s.shownGraded)}',
-                              style: TypeScale.section.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: p.onHeroMuted,
+                              const SizedBox(width: 5),
+                              Text(
+                                '/ ${marks2(s.shownGraded)}',
+                                style: TypeScale.section.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: p.onHeroMuted,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      Text(
-                        '$pct% of the course graded · ${100 - pct}% pending',
-                        style: muted,
-                      ),
+                        Text(
+                          '$pct% of the course graded · ${100 - pct}% pending',
+                          style: muted,
+                        ),
+                      ],
                     ],
                   ),
                 ),
