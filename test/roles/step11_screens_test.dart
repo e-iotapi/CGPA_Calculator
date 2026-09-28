@@ -1214,6 +1214,19 @@ void main() {
     expect(button(t, 'Review the handover'), isNull);
   });
 
+  testWidgets('an owner previewing sees the president\'s handover', (t) async {
+    await presidentOfElec();
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    await t.pumpWidget(app(const Succession(campus: 'goa', dept: 'ELEC')));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Previewing as'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Review the handover'), findsOneWidget);
+  });
+
   testWidgets('scheme shows averages', (t) async {
     await t.runAsync(() => seedFirestore(db));
     signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
