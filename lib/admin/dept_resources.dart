@@ -428,91 +428,18 @@ class _RolledUp extends StatelessWidget {
           : child;
 }
 
-/// An underlined text action with a 44 px target.
-class _TextLink extends StatelessWidget {
-  const _TextLink(this.text, {required this.onTap});
-  final String text;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-      child: Center(
-        child: Text(
-          text,
-          style: TypeScale.caption.copyWith(
-            fontWeight: FontWeight.w700,
-            decoration: TextDecoration.underline,
-            color: AppPalette.of(context).text,
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-/// An outlined amber pill, 34 tall: the quiet answer to a report.
-class _AmberPill extends StatelessWidget {
-  const _AmberPill(this.label, {required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppPalette.of(context).noticeTone;
-    return Material(
-      color: Colors.transparent,
-      shape: StadiumBorder(side: BorderSide(color: t.text, width: 1.2)),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TypeScale.body.copyWith(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: t.text,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// The ink card that says how course links roll up.
 class _RollupCard extends StatelessWidget {
   const _RollupCard();
 
   @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return AppCard(
-      color: p.navBackground,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ROLLUP',
-            style: TypeScale.label.copyWith(color: p.hero, letterSpacing: 1.2),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'A link a CR adds to a course appears here too, unless the '
-            'department already has it. Matching is on the address, not the '
-            'name. Unpin removes it from this list only.',
-            style: TypeScale.caption.copyWith(height: 1.45, color: p.navIcon),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const InkCard(
+    eyebrow: 'ROLLUP',
+    text:
+        'A link a CR adds to a course appears here too, unless the '
+        'department already has it. Matching is on the address, not the '
+        'name. Unpin removes it from this list only.',
+  );
 }
 
 typedef _Data = ({List<Resource> links, List<ResourceFlag> flags});
@@ -639,7 +566,7 @@ class _DeptResourcesState extends State<DeptResources> {
               },
               trailing:
                   r.rolledUp
-                      ? _TextLink(
+                      ? TextLink(
                         'Unpin',
                         onTap: () async {
                           await _store.update(
@@ -774,7 +701,7 @@ class _DeptResourcesState extends State<DeptResources> {
                               }
                             },
                           ),
-                          _AmberPill(
+                          AmberPill(
                             'It works · dismiss',
                             onTap: () async {
                               try {

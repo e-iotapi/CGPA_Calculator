@@ -649,3 +649,122 @@ class SelectRow extends StatelessWidget {
     );
   }
 }
+
+/// An underlined text action with a 44 px target.
+class TextLink extends StatelessWidget {
+  const TextLink(this.text, {super.key, required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+      child: Center(
+        child: Text(
+          text,
+          style: TypeScale.caption.copyWith(
+            fontWeight: FontWeight.w700,
+            decoration: TextDecoration.underline,
+            color: AppPalette.of(context).text,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// An outlined amber pill, 34 tall: the quiet answer to a report.
+class AmberPill extends StatelessWidget {
+  const AmberPill(this.label, {super.key, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppPalette.of(context).noticeTone;
+    return Material(
+      color: Colors.transparent,
+      shape: StadiumBorder(side: BorderSide(color: t.text, width: 1.2)),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TypeScale.body.copyWith(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: t.text,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The ink card in both modes: a mint eyebrow, then a line of [text] or
+/// any [children].
+class InkCard extends StatelessWidget {
+  const InkCard({
+    super.key,
+    required this.eyebrow,
+    this.text,
+    this.children = const [],
+  });
+  final String eyebrow;
+  final String? text;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return AppCard(
+      color: p.navBackground,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            eyebrow,
+            style: TypeScale.label.copyWith(color: p.hero, letterSpacing: 1.2),
+          ),
+          const SizedBox(height: 6),
+          if (text != null)
+            Text(
+              text!,
+              style: TypeScale.caption.copyWith(height: 1.45, color: p.navIcon),
+            ),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+/// A row's leading icon on a 34 px rounded tile; amber for an action that
+/// needs care (Hand over).
+class IconTile extends StatelessWidget {
+  const IconTile(this.icon, {super.key, this.amber = false});
+  final IconData icon;
+  final bool amber;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final t = p.noticeTone;
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: amber ? t.fill : p.surfaceSunken,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Icon(icon, size: 17, color: amber ? t.text : p.icon),
+    );
+  }
+}

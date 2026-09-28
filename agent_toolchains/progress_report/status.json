@@ -1,6 +1,6 @@
 {
- "current": "T8.10 \u00b7 Audit log",
- "note": "Group 8: 9 of 15 cards pushed, including Appoint, Grant terms, Public contact (kept live, as you chose) and Before you start / Work as. The UI sheet was rebuilt through T8.7. ui_check can now render one card in about 10 s.",
+ "current": "T8.13 \u00b7 Department pages",
+ "note": "Group 8: 12 of 15 cards pushed. Since the last update: Audit log, Roster and Volunteers, and Merge (department chosen from the pill select, no dropdown). From your UI sheet feedback: the Secretary tier on Appoint (UI only), a row per ELEC branch in Open as, and New component now matches Edit component. T8.13 is partly pushed: Your department (no Appoint a CR row, THIS WEEK card), Resources (animated pill tabs with amber Reported) and Reviews. Still to do in T8.13: Course structures and Professors. Then T8.14 and T8.15. I'm doing the cards myself, with no helpers in this session.",
  "groups": [
   [
    "Group 2 \u00b7 finish",
@@ -168,6 +168,9 @@
   "T8.6",
   "T8.7",
   "T8.8",
-  "T8.9"
+  "T8.9",
+  "T8.10",
+  "T8.11",
+  "T8.12"
  ]
 }
