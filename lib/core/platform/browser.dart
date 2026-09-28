@@ -31,6 +31,12 @@ typedef InstallTarget = ({InstallDevice device, InstallBrowser browser});
 InstallTarget installTarget() =>
     parseInstallTarget(impl.userAgent(), touch: impl.hasTouch());
 
+/// Logical CPU cores, when the browser exposes it (UI_OPT O0.2).
+int? hardwareConcurrency() => impl.hardwareConcurrency();
+
+/// Approximate device RAM in GB, Chrome only (UI_OPT O0.2).
+double? deviceMemory() => impl.deviceMemory();
+
 /// Reads [ua]. [touch] tells an iPad, which reports itself as a Mac, from a
 /// Mac.
 InstallTarget parseInstallTarget(String ua, {bool touch = false}) {

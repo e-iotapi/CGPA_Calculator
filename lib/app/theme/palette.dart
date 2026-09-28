@@ -106,7 +106,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// offshoot course).
   GradeTone get mutedTone => (isDark ? _darkTones : _lightTones)['']!;
 
-  ThemeData get materialTheme {
+  static final _themes = <String, ThemeData>{};
+
+  /// Cached per palette [name] (the palettes are `const` singletons):
+  /// UI_OPT O1.2, so a theme switch never rebuilds `ColorScheme.fromSeed`.
+  ThemeData get materialTheme => _themes[name] ??= _buildTheme();
+
+  ThemeData _buildTheme() {
     final b = isDark ? Brightness.dark : Brightness.light;
     final scheme = ColorScheme.fromSeed(
       seedColor: accent,

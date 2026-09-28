@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
+import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
@@ -255,6 +256,7 @@ class _SignInAppState extends State<SignInApp>
       scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
       theme: thm.materialTheme,
+      themeAnimationDuration: Duration.zero,
       home: SignInView(busy: _busy, onSignIn: _signIn, entrance: _entrance),
     );
   }
@@ -263,8 +265,16 @@ class _SignInAppState extends State<SignInApp>
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static bool _tierMeasured = false;
+
   @override
   Widget build(BuildContext context) {
+    // UI_OPT O0.2: once per app run, after the first frame, never from
+    // startApp.
+    if (!_tierMeasured) {
+      _tierMeasured = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => measureDeviceTier());
+    }
     // Rebuilt when the theme changes, under the circle reveal.
     return ValueListenableBuilder(
       valueListenable: themeVersion,
@@ -272,6 +282,7 @@ class MyApp extends StatelessWidget {
           (_, _, _) => MaterialApp.router(
             title: 'Pointer',
             theme: thm.materialTheme,
+            themeAnimationDuration: Duration.zero,
             routerConfig: appRouter,
             builder:
                 (_, child) => ThemeReveal.root(

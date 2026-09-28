@@ -79,6 +79,21 @@ bool isStandalone() {
 
 bool hasTouch() => web.window.navigator.maxTouchPoints > 0;
 
+/// Logical CPU cores, when the browser exposes it.
+int? hardwareConcurrency() =>
+    (web.window.navigator as JSObject)
+        .getProperty<JSAny?>('hardwareConcurrency'.toJS)
+        ?.dartify() as int?;
+
+/// Approximate device RAM in GB (Chrome only; null elsewhere).
+double? deviceMemory() {
+  final v =
+      (web.window.navigator as JSObject)
+          .getProperty<JSAny?>('deviceMemory'.toJS)
+          ?.dartify();
+  return v is num ? v.toDouble() : null;
+}
+
 /// Calls window.promptInstall from index.html, which holds the deferred
 /// beforeinstallprompt event.
 bool promptInstall() {
