@@ -211,10 +211,12 @@
        animations (transform/opacity) for slow connections. -->
   <style>
     :root { --bg: #F2F2EF; --ink: #17170F; --soft: #45453C; --muted: #55554C;
-            --quiet: #8A8A7E; --quieter: #9E9E92; --track: #E2E2DA; --bead: #2C7A62; }
+            --quiet: #8A8A7E; --quieter: #9E9E92; --track: #E2E2DA; --bead: #2C7A62;
+            --foot-muted: #6E6E63; }
     @media (prefers-color-scheme: dark) {
       :root { --bg: #0D0D0C; --ink: #F4F4EF; --soft: #BDBDB2; --muted: #ADADA2;
-              --quiet: #84847A; --quieter: #6E6E63; --track: #2A2A26; --bead: #7FC9A8; }
+              --quiet: #84847A; --quieter: #6E6E63; --track: #2A2A26; --bead: #7FC9A8;
+              --foot-muted: #9E9E92; }
     }
     html, body { margin: 0; padding: 0; background: var(--bg); }
     #ptr-loading { position: fixed; inset: 0; z-index: 10; background: var(--bg); color: var(--ink);
@@ -234,6 +236,8 @@
     .ptr-dots { display: flex; gap: 3px; }
     .ptr-dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
     .ptr-seo { position: absolute; left: 32px; right: 32px; bottom: 40px; text-align: center; }
+    .ptr-by { margin: 0 0 14px; font-size: 11.5px; font-weight: 700; color: var(--ink); }
+    .ptr-private { margin: 0 0 5px; font-size: 10.5px; font-weight: 500; color: var(--foot-muted); }
     .ptr-seo h1 { margin: 0 0 5px; font-size: 11.5px; font-weight: 600; color: var(--quiet); line-height: 1.45; }
     .ptr-seo p { margin: 0; font-size: 10.5px; font-weight: 500; color: var(--quieter); line-height: 1.5; }
 
@@ -277,6 +281,8 @@
   <div class="ptr-status">Loading <span class="ptr-dots"><span class="ptr-dot"></span><span class="ptr-dot"></span><span class="ptr-dot"></span></span></div>
   <!-- Crawlable fallback: kept in the DOM for search, visually quiet. -->
   <div class="ptr-seo" id="seo-fallback-content">
+    <p class="ptr-by">Built By Siddharth Mishra</p>
+    <p class="ptr-private">Your grades stay private to your account.</p>
     <h1>CGPA Calculator for BITS Pilani, Goa and Hyderabad</h1>
     <p>Enter your grades for instant SGPA and CGPA across every semester, track evaluative marks, and see how much of your degree is done.</p>
   </div>
