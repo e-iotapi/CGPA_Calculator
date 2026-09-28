@@ -2368,6 +2368,24 @@ aren't flagged again, and they are recorded here so they aren't forgotten:
   320 of 390 px instead of hugging its label. The ui_check kind is `stretch`. Fix it once every
   group in this plan is done, and before the Group 9 sign-off.
 
+- **Text size: 150%, not 200% (user's decision, 28 Sep 2026).** **Departure** from §2.7/§15:
+  the stress frame is 320 at 150% text. Nothing is fixed for 200%, and nothing already fixed
+  for it is undone. At 150%, `s_course_reviews`, `s_prof_reviews` (N27) and `d_report_link`
+  (N37) render clean, so they left the known lists. T7.3 and T7.4 still do those boards.
+- **Baseline swept by eye.** A Haiku sweep of the contact sheets reported "none" on all 13
+  and missed bugs that were plainly visible, so helper sweeps are not used. The sweep
+  found two kinds of bug the checks missed. Each now has a check and a canary:
+  `word-break` ("Rem" / "ove") and `overlap` (text drawn over text).
+- **Found by the sweep, held back** (the baseline keeps them):
+  - Fix with the Open ERP pill, after the plan: the import screen's bottom Skip link has
+    no background and is drawn over the choose zone at 320. Setup's bottom button does
+    the same at 150%.
+  - Fix in Group 8: the "Grant — CR, …" button label on Appoint someone is cut off at
+    every size. Shorten it.
+  - Calendar: the month title is cut to "Septembe…" at 320.
+  - Word breaks at 150%, for Group 9: More "Representatives", Sign in "Pointer", confirm
+    "Remove", grant terms "Department president", Stats "Where you land".
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
