@@ -1,6 +1,6 @@
 {
-  "current": "UI_OPT O5 · Lazy lists",
-  "note": "UI_OPT O3, O4 and O6 are done, and O8's code (the iOS snapshot cap, the nav fade's own layer); O8's two device checks need an iPhone. Home no longer saves settings on every build, course rows are keyed by Hive key, the Stats slider saves once per drag, cards clip only when their rows run edge to edge, and the Reported pulse and install nudge move layers instead of rebuilding. Under reduced motion the Reported dot keeps a slow pulse, as the board draws it. Next: O5 (long lists build lazily, searches wait for a pause), then Group 9.",
+  "current": "Group 9 · last pass",
+  "note": "UI_OPT O3–O6 are done, and O8's code; O8's two device checks need an iPhone. Latest: long manager lists (Course structures, Professors, the roster, the Dept tab) build only the rows on screen, and searches wait for a short pause. Earlier in this sweep: Home stops saving settings on every build, the Stats slider saves once per drag, cards clip only when needed, and the Reported pulse and install nudge move layers instead of rebuilding. Now on Group 9: the 150% text pass, the legacy colour layer, and the unboarded screens.",
   "groups": [
     [
       "Group 2 · finish",
@@ -178,6 +178,7 @@
     "O3",
     "O4",
     "O6",
-    "O8"
+    "O8",
+    "O5"
   ]
 }

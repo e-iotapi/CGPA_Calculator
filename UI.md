@@ -2443,7 +2443,7 @@ is in `UI_REBUILD_HANDOFF.md`.
   parts label at 320; the handover confirm's emails.
 
 ### 13.2.13 UI_OPT O3–O6 and O8 (28 Sep 2026)
-O3 `bac86a7`, O4 with O8.1 and O8.3 `96ff0bd`, O5 and O6 after.
+O3 `bac86a7`, O4 with O8.1 and O8.3 `96ff0bd`, O6 `d698a7f`, O5 `0358816`.
 
 - **O3:** Home's build saves nothing; each handler saves what it changed
   (`features/semester/home_persist.dart`). Course rows are keyed by Hive key. The Stats
@@ -2456,6 +2456,11 @@ O3 `bac86a7`, O4 with O8.1 and O8.3 `96ff0bd`, O5 and O6 after.
   a slower, smaller pulse (dot only, 1 ↔ 0.4, 2400 ms), as §10.1.2 draws it; the card had
   stopped it. The pulse also pauses under a pushed page. A test that settled Department
   Resources under reduced motion now pumps frames instead.
+- **O5:** long cards are `SliverRowGroup` inside `PageFrame` (Course structures,
+  Professors, the roster, the Dept tab); short lists keep their `Column`. Searches wait for
+  a 150 ms pause; two Add a course tests pump past it. O5.3 (fixed row extents) is skipped:
+  programme and course rows can wrap at large text. The programme list keeps its clip: it
+  is about 20 rows.
 - **O8.2 and O8.4 need a device:** backgrounding Safari on iOS 15 for 5 minutes, and the
   O0.4 rows on an iPhone 7/8. Not run here.
 

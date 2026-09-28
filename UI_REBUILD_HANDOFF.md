@@ -57,6 +57,10 @@ Loaded<Data>(
   (`maintain.dart`), which returns null on failure, so a missing index or permission only
   loses a number, never the page.
 - **Forms** keep typed state in the widget and build the model object only on save.
+- **Long lists** (more than about 12 rows) are a `SliverRowGroup(count:, row:)` placed
+  straight in `PageFrame.children`: it builds only the rows on screen. A search over one
+  runs through a `Debouncer` (`shared/debounce.dart`), so a store-backed search should be
+  called from the debounced callback, never per keystroke.
 
 ### 2.3 Design rules the screens rely on
 - Stadium pills, not Material chips or dropdowns: `ChoicePills` / `PillButton`, pickers are
