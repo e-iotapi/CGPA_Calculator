@@ -87,7 +87,7 @@ export function appoint(db, actor, g, staff, { audit = true, auditPath } = {}) {
 export function useEmulator() {
 before(async () => {
   env = await initializeTestEnvironment({
-    projectId: 'demo-pointer',
+    projectId: process.env.RULES_PROJECT ?? 'demo-pointer', // warm runs use their own, sparing up.sh's seed
     firestore: {
       rules: readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8'),
       host: '127.0.0.1',

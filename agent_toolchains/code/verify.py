@@ -4,6 +4,7 @@
   python3 agent_toolchains/code/verify.py            # format, analyze, tests
   python3 agent_toolchains/code/verify.py --ui s_more  # + ui_check run --card
   python3 agent_toolchains/code/verify.py --fast     # skip the full test suite
+  python3 agent_toolchains/code/verify.py --affected # only tests that import a changed file
   python3 agent_toolchains/code/verify.py --selftest # prove each gate still fails
 
 Exit 0 only when every gate passes. Gates:
@@ -12,7 +13,12 @@ Exit 0 only when every gate passes. Gates:
            alone and reported as skipped, never reformatted.
   analyze  exactly the KNOWN_ANALYZE findings, counted by (file, rule), so a
            new finding cannot hide behind a fixed one.
-  tests    flutter test, all passing; failures listed by name.
+  tests    flutter test, all passing; failures listed by name. With --affected,
+           only the test files whose import closure reaches a changed file
+           (the full suite when FULL_SUITE files changed).
+  rules    when firestore.rules or test/rules/** changed: the rules tests,
+           against the running emulator (up.sh) when port 8085 answers,
+           else cold through `firebase emulators:exec`.
 """
 import json
 import os
@@ -22,6 +28,11 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rules import KNOWN_ANALYZE, LEGACY, ROOT, changed_files, matches, sh  # noqa: E402
+
+# A change here reaches every test, so --affected runs the full suite.
+FULL_SUITE = ['lib/main.dart', 'lib/sync.dart', 'pubspec.yaml', 'pubspec.lock',
+              'test/flutter_test_config.dart', 'analysis_options.yaml']
+IMPORT = re.compile(r"""^\s*(?:import|export|part)\s+['"]([^'"]+)['"]""", re.M)
 
 TEST_TIMEOUT = '60s'  # per test; the slowest real one takes a few seconds
 
@@ -105,6 +116,69 @@ def gate_tests(paths=()):
     return ok, line, [f'  {names.get(i, i)}: {errs.get(i, "")}' for i in failed[:20]]
 
 
+def _imports(path):
+    """Repo-relative dart files [path] imports, exports or parts."""
+    try:
+        src = open(os.path.join(ROOT, path), encoding='utf-8').read()
+    except OSError:
+        return []
+    out = []
+    for u in IMPORT.findall(src):
+        if u.startswith('package:cgpa_calculator/'):
+            out.append('lib/' + u[len('package:cgpa_calculator/'):])
+        elif not u.startswith(('package:', 'dart:')):
+            out.append(os.path.normpath(os.path.join(os.path.dirname(path), u)))
+    return out
+
+
+def affected_tests(changed):
+    """Test files that transitively import a changed file; None = run all."""
+    if any(matches(f, FULL_SUITE) for f in changed):
+        return None
+    users = {}  # file -> files that import it
+    for top in ('lib', 'test'):
+        for dirpath, _, names in os.walk(os.path.join(ROOT, top)):
+            for n in names:
+                if n.endswith('.dart'):
+                    f = os.path.relpath(os.path.join(dirpath, n), ROOT)
+                    for d in _imports(f):
+                        users.setdefault(d, set()).add(f)
+    hit, todo = set(), [f for f in changed if f.endswith('.dart')]
+    while todo:  # everything that reaches a changed file, cycles included
+        f = todo.pop()
+        if f not in hit:
+            hit.add(f)
+            todo.extend(users.get(f, ()))
+    return sorted(f for f in hit if f.startswith('test/') and f.endswith('_test.dart'))
+
+
+def gate_affected():
+    picked = affected_tests(changed_files())
+    if picked is None:
+        ok, line, detail = gate_tests()
+        return ok, line + '  (full: a FULL_SUITE file changed)', detail
+    if not picked:
+        return True, 'tests    ok  0 affected test files', []
+    ok, line, detail = gate_tests(picked)
+    return ok, line + f'  ({len(picked)} affected files)', detail
+
+
+def gate_rules():
+    if not any(f == 'firestore.rules' or f.startswith('test/rules/') for f in changed_files()):
+        return True, 'rules    skip  unchanged', []
+    import socket
+    warm = socket.socket().connect_ex(('127.0.0.1', 8085)) == 0
+    script = 'test:warm' if warm else 'test'
+    r = sh('bash', '-lc', f'source ~/.nvm/nvm.sh >/dev/null; cd test/rules && npm run -s {script}')
+    passed = re.search(r'# pass (\d+)', r.stdout)
+    failed = re.search(r'# fail (\d+)', r.stdout)
+    if not passed or not failed:
+        return False, 'rules    BROKEN  no result', (r.stdout + r.stderr).strip().splitlines()[-8:]
+    ok = failed.group(1) == '0' and r.returncode == 0
+    bad = [l for l in r.stdout.splitlines() if l.lstrip().startswith('not ok')]
+    return ok, f'rules    {"ok" if ok else "FAIL"}  {passed.group(1)} passed, {failed.group(1)} failed ({"warm" if warm else "cold"})', bad[:20]
+
+
 def gate_ui(card):
     r = sh('python3', 'agent_toolchains/ui_check/ui_check.py', 'run', '--card', card)
     ok = r.returncode in (0, 1) and 'TOOLING BROKEN' not in r.stdout
@@ -158,8 +232,11 @@ def main(argv):
     if '--selftest' in argv:
         return selftest()
     gates = [gate_format, gate_analyze]
-    if '--fast' not in argv:
+    if '--affected' in argv:
+        gates.append(gate_affected)
+    elif '--fast' not in argv:
         gates.append(gate_tests)
+    gates.append(gate_rules)
     all_ok = True
     for g in gates:
         ok, line, detail = g()
