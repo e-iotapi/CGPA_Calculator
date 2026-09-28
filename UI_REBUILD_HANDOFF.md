@@ -326,5 +326,9 @@ model shape goes in `fake_seed.dart`, and the demo picks it up.
 - [ ] §3.8 Serve possible duplicates; set `duplicateSource`.
 - [ ] §3.9 Serve the campus-wise department list; set `departmentSource`.
 - [ ] §3.10 Rules: accept any http(s) link; drop `allowedHosts`.
+- [ ] Before merging, on `pointer-rebuild` itself: `ui_check.py run`, then `ui_check.py
+      accept`. The baseline lives in `build/ui_check/base/`, not in git, so a fresh checkout
+      has none; this records the finished UI (354 renders, no issues) to compare against.
 - [ ] After merging: §5.1 gates green, `known` maps still empty, `ui_check.py run` shows no
-      new issues.
+      new issues against that baseline. A changed screen is fine only if the change was
+      meant; an issue is a regression.
