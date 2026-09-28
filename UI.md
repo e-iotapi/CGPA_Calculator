@@ -2290,6 +2290,43 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Checks**: `flutter analyze` 7 infos; `flutter test` 466 passed, 50
   skipped.
 
+### 13.2.8 Group 5 closed — T5.1–T5.6 (28 Sep 2026)
+- **T5.1 · Marks**: upper-case eyebrow; "No marks yet" when nothing is
+  weighted (N28); a narrow card or large text puts the component title on
+  its own line (N34); TAKEN BY on `LabelRow` with a Reviews pill (N35).
+  `s_marks` left `known`.
+- **T5.2 · Edit evaluative**: rebuilt to `MarksAdd` — close header and Bin,
+  the official notice, name / weight / class-average card, One mark /
+  Several parts with mint count pills (now the shared `CountPill`), the
+  PARTS card with compact fields that wrap when narrow, dashed "+ Part",
+  the mint result and a pinned Save (`PageFrame(bottom:)`, new).
+- **T5.3 · Course setup**: cards per `MarksSetup`; the mint RIGHT NOW card,
+  EACH COMPONENT'S SHARE with a Total, CLASS AVERAGE with the ahead /
+  behind strip.
+- **T5.4 · Scheme editor and divergence**: the sheet scrolls and matches
+  the board (N36, `d_divergence` left `known`); new
+  `scheme_editor_page.dart` behind the Marks pencil, with the first
+  change to an official value asking once per component.
+- **T5.5 · After diverging**: YOURS line always while detached; the amber
+  card only after an official change, naming it and its age, with Review
+  and Keep mine; "Use the official …" as a plain accent link.
+- **T5.6 · Average sources**: read-only, `TagBadge` per source, rows open
+  where the number is typed.
+- **Departures**:
+  - T5.2 names the new part rows `parts_grid.dart`; they stayed inside
+    `add_evaluative_page.dart`, and T5.4's editor rows (weight and
+    average only, per the board) don't need them.
+  - T5.4's card says 44 px "Keep it official"; §5.4 (the board) says 52 px
+    "Keep official". The board won.
+  - §5.5 wants "edited by you on 19 Sep": the app does not store when a
+    component was detached, so the line leaves the date out.
+  - YOURS is amber everywhere (the shared `TagBadge`, §3.9); §5.6's board
+    text calls it ink.
+  - The course average is now typed only in Course setup; it still goes
+    through Marks' official-average check.
+- **Checks**: `flutter analyze` 7 infos; `flutter test` 477 passed, 50
+  skipped.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
