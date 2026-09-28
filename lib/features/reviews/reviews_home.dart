@@ -15,8 +15,10 @@ import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
-import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/search_box.dart';
+import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:flutter/material.dart';
 
 String _title(String id) =>
@@ -41,6 +43,7 @@ class ReviewsHome extends StatefulWidget {
 class _ReviewsHomeState extends State<ReviewsHome> {
   late bool _yours = widget.yours;
   final _search = TextEditingController();
+  final _mine = TextEditingController();
   Timer? _debounce;
   Future<List<Professor>>? _profs;
   ReviewOrder _order = ReviewOrder.recent;
@@ -50,6 +53,7 @@ class _ReviewsHomeState extends State<ReviewsHome> {
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
+    _mine.dispose();
     super.dispose();
   }
 
@@ -95,11 +99,10 @@ class _ReviewsHomeState extends State<ReviewsHome> {
       );
     }
     final mineCount = myReviewedCourses().length;
-    final tabs = ChoicePills<bool>(
-      values: const [false, true],
-      selected: _yours,
-      label: (v) => v ? 'Your reviews · $mineCount' : 'Courses',
-      onSelected: (v) => setState(() => _yours = v),
+    final tabs = SegmentedTrack<bool>(
+      tabs: [(false, 'Courses'), (true, 'Your reviews · $mineCount')],
+      value: _yours,
+      onChanged: (v) => setState(() => _yours = v),
     );
     if (_yours) {
       return Loaded<List<Review>>(
@@ -110,7 +113,15 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                 if (await store.mine(id) case final r?) r,
             ],
         builder: (context, mine, _) {
-          final sorted = [...mine]..sort(
+          final mq = _mine.text.trim().toLowerCase();
+          final sorted = [
+            for (final r in mine)
+              if (mq.isEmpty ||
+                  r.courseId.toLowerCase().contains(mq) ||
+                  _title(r.courseId).toLowerCase().contains(mq) ||
+                  (r.text ?? '').toLowerCase().contains(mq))
+                r,
+          ]..sort(
             (a, b) => switch (_order) {
               ReviewOrder.recent => b.createdAt - a.createdAt,
               ReviewOrder.helpful => b.helpful - a.helpful,
@@ -123,11 +134,15 @@ class _ReviewsHomeState extends State<ReviewsHome> {
             children: [
               tabs,
               const SizedBox(height: Space.sm),
-              ChoicePills<ReviewOrder>(
-                values: ReviewOrder.values,
-                selected: _order,
-                label: (o) => o.label,
-                onSelected: (o) => setState(() => _order = o),
+              SearchBox(
+                controller: _mine,
+                hint: 'Search your reviews',
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: Space.sm),
+              SortPills(
+                value: _order,
+                onChanged: (o) => setState(() => _order = o),
               ),
               const SizedBox(height: Space.sm),
               for (final r in sorted) ...[
@@ -198,10 +213,9 @@ class _ReviewsHomeState extends State<ReviewsHome> {
             children: [
               tabs,
               const SizedBox(height: Space.sm),
-              AppTextField(
+              SearchBox(
                 controller: _search,
-                label: 'Course or professor',
-                dense: true,
+                hint: 'Course code, name or professor',
                 onChanged: (_) => _searchChanged(campus),
               ),
               const SizedBox(height: Space.sm),
@@ -255,31 +269,17 @@ class _ReviewsHomeState extends State<ReviewsHome> {
               ] else if (q.length < 2) ...[
                 if (now.isNotEmpty) ...[
                   const SectionLabel('Your courses this semester'),
-                  RowGroup(
-                    children: [
-                      for (final (i, id) in now.indexed)
-                        NavRow(
-                          icon: Icons.menu_book_outlined,
-                          title: '$id · ${_title(id)}',
-                          subtitle: _line(data.now[i]),
-                          onTap: () => _open(id),
-                        ),
-                    ],
-                  ),
+                  _Rows([
+                    for (final (i, id) in now.indexed)
+                      (id, data.now[i], () => _open(id)),
+                  ]),
                 ],
                 if (data.top.isNotEmpty) ...[
                   SectionLabel('Most reviewed at ${campusName(campus)}'),
-                  RowGroup(
-                    children: [
-                      for (final t in data.top)
-                        NavRow(
-                          icon: Icons.trending_up_rounded,
-                          title: '${t.courseId} · ${_title(t.courseId)}',
-                          subtitle: _line(t.stats),
-                          onTap: () => _open(t.courseId),
-                        ),
-                    ],
-                  ),
+                  _Rows([
+                    for (final t in data.top)
+                      (t.courseId, t.stats, () => _open(t.courseId)),
+                  ]),
                 ],
               ],
               const SizedBox(height: Space.sm),
@@ -294,6 +294,80 @@ class _ReviewsHomeState extends State<ReviewsHome> {
               ),
             ],
           ),
+    );
+  }
+}
+
+/// Board rows (§8.4): one-line title, small stars and the take-it line, a
+/// chevron; no leading icon.
+class _Rows extends StatelessWidget {
+  const _Rows(this.rows);
+  final List<(String, ReviewStats, VoidCallback)> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: Column(
+        children: [
+          for (final (i, (id, st, onTap)) in rows.indexed) ...[
+            if (i > 0) Divider(height: 1, color: p.divider),
+            InkWell(
+              onTap: onTap,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 64),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$id · ${_title(id)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TypeScale.body.copyWith(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              if (st.count > 0) ...[
+                                Stars(
+                                  value: (st.average ?? 0).round(),
+                                  size: 11,
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Flexible(
+                                child: Text(
+                                  _line(st),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TypeScale.caption.copyWith(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: p.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, size: 18, color: p.icon),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
