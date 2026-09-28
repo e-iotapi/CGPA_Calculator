@@ -164,6 +164,23 @@ final canaries = <String, (Widget, String)>{
     ),
     'stretch',
   ),
+  'canary_stretch_chip': (
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          height: 20,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Text('2025-26', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+    'stretch',
+  ),
   'canary_anim': (
     const SizedBox(width: 40, height: 40, child: CircularProgressIndicator()),
     'anim',

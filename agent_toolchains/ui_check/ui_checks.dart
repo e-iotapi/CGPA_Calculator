@@ -161,6 +161,30 @@ void _walkRender(
       MatrixUtils.transformRect(o.getTransformTo(null), Offset.zero & o.size),
     ));
   }
+  // A chip or tag (rounded, at most 30 tall) spanning the screen around a
+  // short label has been stretched by its parent, whatever widget made it.
+  if (o is RenderDecoratedBox &&
+      o.hasSize &&
+      o.size.height <= 30 &&
+      o.size.width > screen.width * _stretchShare &&
+      o.decoration is BoxDecoration &&
+      (o.decoration as BoxDecoration).borderRadius != null) {
+    final inner = <RenderParagraph>[];
+    void find(RenderObject c) {
+      if (c is RenderParagraph) inner.add(c);
+      c.visitChildren(find);
+    }
+
+    o.visitChildren(find);
+    if (inner.length == 1 &&
+        inner.first.hasSize &&
+        inner.first.size.width < o.size.width * 0.4) {
+      out.add(
+        'stretch: chip "${_clip(inner.first.text.toPlainText())}" '
+        '${o.size.width.round()} of ${screen.width.round()} wide',
+      );
+    }
+  }
   if (o is RenderIndexedStack) {
     var k = 0;
     final shown = o.index;
