@@ -1,21 +1,18 @@
-// BACKEND SEAM: the scale a course is graded out of ("Graded out of", e.g.
-// 200), set by whoever maintains the course's structure. The UI is built and
-// wired through this file only; the stored field and the student-side sync
-// belong to the logic branch. See UI_REBUILD_HANDOFF.md §3.2 before editing.
+// The scale a course is graded out of ("Graded out of", e.g. 200), set by
+// whoever maintains the course's structure. Every offering save and scale
+// read in the UI goes through this file; `Offering.outOf` stores it and
+// core/grading/official_scheme.dart carries it to students
+// (UI_REBUILD_HANDOFF.md §3.2).
 import 'package:cgpa_calculator/core/models/offering.dart';
 
-/// False until `Offering` stores the scale. While false, the scheme editor
-/// shows the field with a caption that it is not saved yet, and every scale
-/// below falls back to the course's own units, so nothing changes.
-const outOfStored = false;
+/// True: `Offering` stores the scale, so the scheme editor saves it.
+const outOfStored = true;
 
 /// The manager's scale for [o], or null when none is set.
-/// BACKEND: return `o.outOf` once the field exists.
-double? offeringOutOf(Offering o) => null;
+double? offeringOutOf(Offering o) => o.outOf;
 
 /// [o] with its scale set to [outOf] (null clears it).
-/// BACKEND: return `o.copyWith(outOf: outOf)` once the field exists.
-Offering withOutOf(Offering o, double? outOf) => o;
+Offering withOutOf(Offering o, double? outOf) => o.copyWith(outOf: outOf);
 
 /// The units marks and the stored course average are kept in: percent for a
 /// weighted course, marks out of the total otherwise. Mirrors

@@ -161,6 +161,67 @@ void main() {
     expect(effectOf(next, next), ImportEffect.same);
   });
 
+  test('gradedOutOf is read, kept on a re-import without it, and checked', () {
+    final existing = Offering(
+      courseId: 'CS F301',
+      campus: 'goa',
+      term: '2026-27-1',
+      updatedAt: 5,
+      components: const [],
+      outOf: 300,
+    );
+    final withScale =
+        parse(
+          file([
+            {
+              'code': 'CS F301',
+              'gradedOutOf': 200,
+              'components': [quiz],
+            },
+          ]),
+        ).courses.single;
+    expect(withScale.outOf, 200);
+    expect(
+      schemeFor(
+        withScale,
+        campus: 'goa',
+        term: '2026-27-1',
+        existing: existing,
+      ).outOf,
+      200,
+    );
+    final without =
+        parse(
+          file([
+            {
+              'code': 'CS F301',
+              'components': [quiz],
+            },
+          ]),
+        ).courses.single;
+    expect(
+      schemeFor(
+        without,
+        campus: 'goa',
+        term: '2026-27-1',
+        existing: existing,
+      ).outOf,
+      300,
+    );
+    expect(
+      () => parse(
+        file([
+          {
+            'code': 'CS F301',
+            'gradedOutOf': -1,
+            'components': [quiz],
+          },
+        ]),
+      ),
+      throwsA(isA<EvalImportError>()),
+    );
+  });
+
   test('writes go five courses a chunk', () {
     final c = chunked(List.generate(12, (i) => i));
     expect(c.map((l) => l.length), [5, 5, 2]);

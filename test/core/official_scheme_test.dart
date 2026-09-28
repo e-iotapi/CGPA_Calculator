@@ -197,6 +197,38 @@ void main() {
       expect(later.config!.classAverage, 58);
     });
 
+    test('the scale: students follow Graded out of, unless theirs differs '
+        'on first sight or they made it theirs', () {
+      final off = _off([_comp('m', 'Mid Semester', 30)]).copyWith(outOf: 200);
+      expect(
+        _apply(
+          [],
+          off,
+          config: CourseConfig(courseId: _id),
+        ).config!.displayOutOf,
+        200,
+      );
+      final first = _apply(
+        [],
+        off,
+        config: CourseConfig(courseId: _id, displayOutOf: 300),
+        seen: false,
+      );
+      expect(first.detach, {outOfGranule: 0});
+      final kept = _apply(
+        [],
+        off,
+        config: CourseConfig(courseId: _id, displayOutOf: 300),
+        detached: {outOfGranule: 1},
+      );
+      expect(kept.config, isNull);
+      final noScheme = _off([]).copyWith(outOf: 200);
+      expect(
+        _apply([], noScheme, config: CourseConfig(courseId: _id)).config,
+        isNull,
+      );
+    });
+
     test('an edit names what it changes', () {
       final a = _mine('Mid Semester', 25);
       expect(
