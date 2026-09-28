@@ -2209,6 +2209,57 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Checks**: `flutter analyze` 7 infos; `flutter test` 417 passed, 50
   skipped.
 
+### 13.2.6 Rest of Group 3 closed — T3.2–T3.11 (28 Sep 2026)
+- **T3.2 · G2 pills/tags/tabs**: `ChoicePills(equal: true)`, `TierTag` hug their
+  text in a `Wrap`.
+- **T3.3 · N2**: `TierTag(strong: false)` fills `hero`, texts `onHero` — mint,
+  not dark green.
+- **T3.4 · G3**: `appRouter` gained `errorBuilder: (_, _) => NotFoundPage()`;
+  `admin`'s router tree carries the nested `roster/volunteers` route,
+  resolving to `RosterPage(initialVolunteers: true)`.
+- **T3.5 · G4 + N7 + N10**: a composite Firestore index for the reported-entries
+  query (`firestore.indexes.json`); `problem()` turns a raw exception into a
+  friendly line without leaking the console URL; `Loaded`'s "Try again" reload.
+  Fixed two real bugs the new reload tests found: a `setState` callback that
+  returned a `Future`, and an unhandled-Future-error race on retry
+  (`Future.ignore()`).
+- **T3.6 · G5 (§10.0)**: `session.dart`'s `startRoles` opens a `RoleStore` for
+  any signed-in email, BITS or not; `recordSignIn` (so a BITS person can be
+  appointed) still only fires for a campus address. `main.dart` no longer
+  gates on `isBitsAddress`.
+- **T3.7 · CountBadge**, **T3.8** (fix noted at each call site above): done as
+  part of the shared-widgets pass below.
+- **T3.9 · small helpers**: `ago()`, `LabelRow` (stacks its trailing under the
+  label when there isn't room), `NameEmail` (name capped at 60%, email
+  ellipsized to one line), `shortEmail()` (Audit log only). Wired into the
+  EXTRACTION PROMPT and Evaluation-scheme heads and the Terms rows
+  (`maintain.dart`, `config_pages.dart`), Owners (`config_pages.dart`),
+  `GrantTile` — shared by Maintainers and Roster (`people.dart`) — and the
+  Audit log's `AuditTile`.
+- **T3.10**: twelve more shared parts built in `lib/shared/widgets/`
+  (`CardLabel`, `SegmentedPair`, `SegmentedTrack`, `TagBadge`, `Notice`,
+  `CardRow`/`CardDivider`, `CodeBadge`, `SearchBox`, `BottomAction`,
+  `CompactField`, `AppTextField(labelAbove: true)`, `PrimaryButton(tall:
+  true)`), each with a widget test and a `shoot()` entry in
+  `test/ui/board_shots_test.dart`.
+- **T3.11**: re-ran the committed harness (§14.1, all 54 renders) with
+  `SHOTS_DIR` set and read a sample of the dark shots touched by T3.9's
+  wiring (`m_owners`, `m_audit`, `m_roster`, `m_people`) — every name, email
+  and short email is readable; no overflow anywhere. The full manual
+  board-vs-code recount from §13.3 was not repeated: Groups 4–9 haven't
+  built anything new yet for it to check.
+- **Files**: `lib/admin/widgets.dart`, `lib/admin/maintain.dart`,
+  `lib/admin/config_pages.dart`, `lib/admin/people.dart`,
+  `lib/app/router.dart`, `lib/core/roles/session.dart`, `lib/main.dart`,
+  `lib/shared/widgets/*.dart` (new), `firestore.indexes.json`, and the
+  matching test files.
+- **Departures**: none.
+- **Checks**: `flutter analyze` 7 infos; `flutter test` 456 passed, 50
+  skipped.
+- **Still needed from the user**: `git push` this branch, and
+  `firebase deploy --only firestore:indexes` for the new composite index
+  (T3.5).
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
