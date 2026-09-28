@@ -1,6 +1,6 @@
 {
-  "current": "UI-only demo deploy",
-  "note": "Every card is done. Group 9 finished: every dialog now uses one shared look (surface card, section title, stadium pills), fields inside dialogs match the app's inputs, and the professor picker uses palette text. All 553 tests pass. Next: the UI-only demo you can click through.",
+  "current": "Done",
+  "note": "Every card is done, and the UI-only demo is live: sign in (you become the owner) and click through every screen on made-up data. Nothing reaches a server. Two UI_OPT device checks (O8.2, O8.4) still need an iPhone.",
   "groups": [
     [
       "Group 2 · finish",
