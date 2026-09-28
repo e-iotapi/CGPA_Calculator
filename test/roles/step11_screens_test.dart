@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/admin/admin_home.dart';
 import 'package:cgpa_calculator/admin/config_pages.dart';
 import 'package:cgpa_calculator/admin/dept_resources.dart';
 import 'package:cgpa_calculator/admin/grant_form.dart';
+import 'package:cgpa_calculator/admin/maintain.dart';
 import 'package:cgpa_calculator/admin/open_as.dart';
 import 'package:cgpa_calculator/admin/people.dart';
 import 'package:cgpa_calculator/admin/professors.dart';
@@ -1136,5 +1137,40 @@ void main() {
     expect(find.text('Fix the link'), findsOneWidget);
     expect(find.text('It works · dismiss'), findsOneWidget);
     expect(find.text('Add a link'), findsNothing);
+  });
+
+  testWidgets('THIS WEEK counts CR edits', (t) async {
+    final course = deptCourses('ELEC').first.id;
+    final at = Timestamp.fromDate(
+      DateTime.now().subtract(const Duration(hours: 1)),
+    );
+    await t.runAsync(() async {
+      for (final (who, role) in [
+        (pres, 'dept'),
+        ('f20220001@goa.bits-pilani.ac.in', 'dept'),
+        ('f20240002@goa.bits-pilani.ac.in', 'course'),
+        ('f20240003@goa.bits-pilani.ac.in', 'course'),
+      ]) {
+        await db.collection('audit').add({
+          'actor': {'email': who, 'name': 'X', 'role': role},
+          'summary': 'Changed a weight',
+          'campus': 'goa',
+          'course': course,
+          'at': at,
+        });
+      }
+    });
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    await t.pumpWidget(app(const DeptHome(campus: 'goa', dept: 'ELEC')));
+    await t.pumpAndSettle();
+    expect(
+      find.text('1 by you · 1 by other presidents · 2 by CRs'),
+      findsOneWidget,
+    );
+    expect(find.text('Appoint a CR'), findsNothing);
+    expect(
+      find.textContaining('with the A8, AA, AC presidents'),
+      findsOneWidget,
+    );
   });
 }

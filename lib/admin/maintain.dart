@@ -19,6 +19,12 @@ import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/core/professors/professor_store.dart';
+import 'package:cgpa_calculator/core/resources/resource.dart';
+import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:cgpa_calculator/features/resources/resources_page.dart';
+import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -62,26 +68,175 @@ String _scopeLabel(String campus, String dept) {
   return g?.scopeLabel ?? dept;
 }
 
+/// A value that is only decoration on [DeptHome]: null when it can't load.
+Future<T?> _maybe<T>(Future<T>? f) async {
+  try {
+    return await f;
+  } catch (_) {
+    return null;
+  }
+}
+
+typedef _HomeData =
+    ({
+      Map<String, Offering> offerings,
+      int? links,
+      int? flagged,
+      int? reported,
+      int? profs,
+      List<AuditEntry>? audit,
+    });
+
 /// Board `DeptHome`: a president's department on their campus.
 class DeptHome extends StatelessWidget {
   const DeptHome({super.key, required this.campus, required this.dept});
   final String campus, dept;
 
+  Future<_HomeData> _load() async {
+    final courses = deptCourses(dept);
+    final links = await _maybe(resourceStore?.department(campus, dept));
+    final flags = await _maybe(resourceStore?.flags(campus, dept));
+    final reported = await _maybe(
+      reviewStore?.moderation(campus, dept, hidden: false, reportedOnly: true),
+    );
+    final profs = await _maybe(
+      ProfessorStore(roleStore!.db, roles: roleStore).department(campus, dept),
+    );
+    return (
+      offerings: await _store.offerings(
+        courses.map((c) => c.id),
+        campus,
+        maintainedTerm,
+      ),
+      links: links == null ? null : departmentList(links).length,
+      flagged: flags?.length,
+      reported: reported?.length,
+      profs: profs?.length,
+      audit: await _maybe(roleStore!.audit(campus: campus, limit: 200)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final courses = deptCourses(dept);
-    final programmes = departments[dept]?.programmes ?? const <String>[];
-    return Loaded<Map<String, Offering>>(
-      load:
-          () => _store.offerings(
-            courses.map((c) => c.id),
-            campus,
-            maintainedTerm,
-          ),
-      builder: (context, offerings, reload) {
+    final ids = {for (final c in courses) c.id};
+    final mine =
+        myRoles.value.presidencies
+            .where((g) => g.campus == campus && g.scope == dept)
+            .firstOrNull
+            ?.programme;
+    final others = [
+      for (final x in departments[dept]?.programmes ?? const <String>[])
+        if (x != mine) x,
+    ];
+    final shared =
+        others.isEmpty || (mine == null && others.length < 2)
+            ? ''
+            : '. You share it, as equals, with the ${others.join(', ')} '
+                'president${others.length == 1 ? '' : 's'}';
+    return Loaded<_HomeData>(
+      load: _load,
+      builder: (context, d, reload) {
         final missing =
-            courses.where((c) => !(offerings[c.id]?.hasScheme ?? false)).length;
+            courses
+                .where((c) => !(d.offerings[c.id]?.hasScheme ?? false))
+                .length;
+        Widget tile(IconData icon, {bool amber = false}) {
+          final t = p.noticeTone;
+          return Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: amber ? t.fill : p.surfaceSunken,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 17, color: amber ? t.text : p.icon),
+          );
+        }
+
+        Widget badge(int? n) =>
+            n == null || n == 0 ? const SizedBox.shrink() : CountBadge('$n');
+        String plural(int n, String one) => '$n $one${n == 1 ? '' : 's'}';
+
+        final rows = [
+          CardRow(
+            leading: tile(Icons.account_tree_outlined),
+            title: 'Course structures',
+            titleLines: 2,
+            subtitle:
+                '${plural(courses.length, 'course')}'
+                '${missing == 0 ? '' : ' · $missing without a scheme'}',
+            trailing: badge(missing),
+            minHeight: 58,
+            onTap: () async {
+              await context.push(Routes.deptCourses(campus, dept));
+              reload();
+            },
+          ),
+          CardRow(
+            leading: tile(Icons.link_rounded),
+            title: 'Resources',
+            subtitle:
+                d.links == null
+                    ? 'Department and course links'
+                    : '${plural(d.links!, 'link')}'
+                        '${(d.flagged ?? 0) == 0 ? '' : ' · ${d.flagged} reported'}',
+            trailing: badge(d.flagged),
+            minHeight: 58,
+            onTap: () async {
+              await context.push(Routes.deptResources(campus, dept));
+              reload();
+            },
+          ),
+          CardRow(
+            leading: tile(Icons.rate_review_outlined),
+            title: 'Reviews',
+            subtitle:
+                d.reported == null || d.reported == 0
+                    ? 'Nothing reported'
+                    : '${plural(d.reported!, 'review')} reported',
+            trailing: badge(d.reported),
+            minHeight: 58,
+            onTap: () async {
+              await context.push(Routes.deptReviews(campus, dept));
+              reload();
+            },
+          ),
+          CardRow(
+            leading: tile(Icons.school_outlined),
+            title: 'Professors',
+            subtitle:
+                d.profs == null
+                    ? 'Add, rename, merge duplicates'
+                    : '${plural(d.profs!, 'professor')} · add, rename, merge',
+            minHeight: 58,
+            onTap: () => context.push(Routes.deptProfessors(campus, dept)),
+          ),
+          CardRow(
+            leading: tile(Icons.badge_outlined),
+            title: 'People',
+            subtitle: 'Presidents and CRs on your campus',
+            minHeight: 58,
+            onTap: () => context.push(Routes.adminRoster),
+          ),
+        ];
+
+        final me = roleStore!.me;
+        final week = DateTime.now().subtract(const Duration(days: 7));
+        final recent = [
+          for (final e in d.audit ?? const <AuditEntry>[])
+            if ((e.at?.isAfter(week) ?? false) &&
+                (e.actorEmail == me || ids.contains(e.course)))
+              e,
+        ];
+        final byMe = recent.where((e) => e.actorEmail == me).length;
+        final byPres =
+            recent
+                .where((e) => e.actorEmail != me && e.actorRole == 'dept')
+                .length;
+        final byCrs = recent.where((e) => e.actorRole == 'course').length;
+
         return PageFrame(
           header: const PageHeader(
             eyebrow: 'DEPARTMENT PRESIDENT',
@@ -89,18 +244,20 @@ class DeptHome extends StatelessWidget {
             leading: false,
           ),
           children: [
-            ScopePills(campus: campus, scope: _scopeLabel(campus, dept)),
-            const SizedBox(height: Space.xs),
-            Text(
-              termLabel(maintainedTerm),
-              style: TypeScale.caption.copyWith(color: p.textMuted),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                ScopeChip(campusName(campus), icon: Icons.place_outlined),
+                ScopeChip(_scopeLabel(campus, dept), muted: true),
+                ScopeChip(termLabel(maintainedTerm), muted: true),
+              ],
             ),
             const SizedBox(height: Space.sm),
             Text(
               'Everything below is ${campusName(campus)} '
               '${departmentName(dept).toLowerCase()}'
-              '${programmes.length > 1 ? ', shared as equals with every '
-                      '${programmes.join(', ')} president' : ''}. '
+              '$shared. '
               'The audit log says who changed what.',
               style: TypeScale.caption.copyWith(
                 height: 1.45,
@@ -108,70 +265,79 @@ class DeptHome extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Space.md),
-            RowGroup(
-              children: [
-                NavRow(
-                  icon: Icons.account_tree_outlined,
-                  title: 'Course structures',
-                  subtitle:
-                      '${courses.length} courses'
-                      '${missing == 0 ? '' : ' · $missing have no scheme yet'}',
-                  trailing: missing == 0 ? null : CountBadge('$missing'),
-                  onTap: () async {
-                    await context.push(Routes.deptCourses(campus, dept));
-                    reload();
-                  },
-                ),
-                NavRow(
-                  icon: Icons.link_rounded,
-                  title: 'Resources',
-                  subtitle: 'Department and course links, and reports',
-                  onTap: () => context.push(Routes.deptResources(campus, dept)),
-                ),
-                NavRow(
-                  icon: Icons.rate_review_outlined,
-                  title: 'Reviews',
-                  subtitle: 'Reported reviews; hide with a reason',
-                  onTap: () => context.push(Routes.deptReviews(campus, dept)),
-                ),
-                NavRow(
-                  icon: Icons.school_outlined,
-                  title: 'Professors',
-                  subtitle: 'Add, rename, merge duplicates',
-                  onTap:
-                      () => context.push(Routes.deptProfessors(campus, dept)),
-                ),
-                NavRow(
-                  icon: Icons.swap_horiz_rounded,
-                  title: 'Hand over',
-                  subtitle: 'Name the next president; twenty days together',
-                  onTap:
-                      () => context.push(Routes.deptSuccession(campus, dept)),
-                ),
-                NavRow(
-                  icon: Icons.badge_outlined,
-                  title: 'People',
-                  subtitle: 'Presidents and CRs on your campus',
-                  onTap: () => context.push(Routes.adminRoster),
-                ),
-                NavRow(
-                  icon: Icons.person_add_alt_outlined,
-                  title: 'Appoint a CR',
-                  accent: true,
-                  onTap: () => context.push(Routes.adminGrant),
-                ),
-              ],
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (final (i, r) in rows.indexed) ...[
+                    if (i > 0) const CardDivider(),
+                    r,
+                  ],
+                ],
+              ),
             ),
-            const SectionLabel('This week'),
-            RowGroup(
-              children: [
-                NavRow(
-                  icon: Icons.notes_rounded,
-                  title: 'Audit log',
-                  subtitle: 'Who changed what, with names',
-                  onTap: () => context.push(Routes.adminAudit),
-                ),
-              ],
+            const SizedBox(height: Space.sm),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: CardRow(
+                leading: tile(Icons.swap_horiz_rounded, amber: true),
+                title: 'Hand over to your successor',
+                titleLines: 2,
+                subtitle: 'They start now · you keep access for 20 days',
+                minHeight: 58,
+                onTap: () => context.push(Routes.deptSuccession(campus, dept)),
+              ),
+            ),
+            const SizedBox(height: Space.sm),
+            AppCard(
+              color: p.navBackground,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'THIS WEEK',
+                    style: TypeScale.label.copyWith(
+                      color: p.hero,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '$byMe by you · $byPres by other presidents · '
+                    '$byCrs by CRs',
+                    style: TypeScale.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                      color: p.isDark ? p.text : p.onInverse,
+                    ),
+                  ),
+                  const SizedBox(height: Space.xs),
+                  InkWell(
+                    onTap: () => context.push(Routes.adminAudit),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Audit log',
+                            style: TypeScale.body.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: p.hero,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 16,
+                            color: p.hero,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         );
