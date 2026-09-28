@@ -41,7 +41,7 @@ CANARIES = {
     'canary_contrast': 'contrast', 'canary_tap': 'tap',
     'canary_unlabeled': 'unlabeled', 'canary_dead': 'dead',
     'canary_truncated': 'truncated', 'canary_word_break': 'word-break', 'canary_overlap': 'overlap', 'canary_off_edge': 'off-edge',
-    'canary_stretch': 'stretch', 'canary_anim': 'anim',
+    'canary_stretch': 'stretch', 'canary_stretch_chip': 'stretch', 'canary_anim': 'anim',
 }
 
 PIXEL_NOISE = 16      # a channel must move more than this to count as changed

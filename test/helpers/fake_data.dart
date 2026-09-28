@@ -397,7 +397,8 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
       'campus': 'goa',
       if (course != null) 'course': course,
       'at': Timestamp.fromDate(
-        DateTime.now().subtract(Duration(hours: [1, 20, 72, 120][i])),
+        // From midnight, so shown times never move with the clock.
+        _midnight().subtract(Duration(hours: [1, 20, 72, 120][i])),
       ),
     });
   }
@@ -768,4 +769,9 @@ void expectRender(String name, List<String> errors, Map<String, String> known) {
           'remove it from the known list and log the fix in UI.md §13',
     );
   }
+}
+
+DateTime _midnight() {
+  final n = DateTime.now();
+  return DateTime(n.year, n.month, n.day);
 }
