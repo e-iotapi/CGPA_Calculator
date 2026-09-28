@@ -2260,6 +2260,36 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
   `firebase deploy --only firestore:indexes` for the new composite index
   (T3.5).
 
+### 13.2.7 Group 4 closed — T4.1–T4.6 (28 Sep 2026)
+- **T4.1 · Loading**: the footer under the mark.
+- **T4.2 · Sign in**: the column no longer centres vertically (the max-width
+  `Align` moved outside the `LayoutBuilder`, so `minHeight` holds); the
+  button is `PrimaryButton(tall: true)` at the bottom; the privacy lines and
+  "Built By Siddharth Mishra" footer below it.
+- **T4.3 · Your degree**: `ScopeChip(height: 32)` chips, `PillButton(height:
+  38)` programme toggle, a dashed 2+2 pill that shows a `Notice`, the shared
+  `CodeBadge` with an empty state, and a `BottomAction` CTA.
+- **T4.4 · Pick a programme**: the second degree already listed only B.E.;
+  the test that proves it is added.
+- **T4.5 · Import**: one-sentence lead; `OutlinedPill` ERP link; the drop
+  zone with the lock line inside and web / app copy; the dark install card
+  with the 4.5 s nudge (off under reduced motion); Skip in a `BottomAction`.
+- **T4.6 · Owner setup**: `/setup/owner` (and its `_redirects` line). The
+  router gate sends a non-BITS owner with no stored campus there first;
+  saving goes through `saveCampusAndBatch`, which degree setup now uses too.
+- **Files**: `lib/features/auth/sign_in_view.dart`,
+  `lib/features/setup/degree_setup_page.dart`,
+  `lib/features/setup/owner_setup_page.dart` (new),
+  `lib/features/import/erp_import_page.dart`, `lib/admin/widgets.dart`,
+  `lib/app/router.dart`, `lib/app/routes.dart`, `lib/main.dart`,
+  `landing/_redirects`, and the matching tests.
+- **Departures**: the ERP link reads "Open ERP", not "Open My Academics in
+  ERP": the long label overflowed the pill at 320 px, and step 1 already
+  names My Academics. Rule from here on: a label that overflows is shortened
+  rather than the widget bent around it.
+- **Checks**: `flutter analyze` 7 infos; `flutter test` 466 passed, 50
+  skipped.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
