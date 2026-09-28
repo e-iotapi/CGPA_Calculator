@@ -22,7 +22,11 @@ class AdminHome extends StatelessWidget {
     void go(String to) => context.push(to);
 
     return PageFrame(
-      header: const PageHeader(eyebrow: 'POINTER · ADMIN', title: 'Controls'),
+      header: const PageHeader(
+        eyebrow: 'POINTER · ADMIN',
+        title: 'Controls',
+        leading: false,
+      ),
       children: [
         Container(
           padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),

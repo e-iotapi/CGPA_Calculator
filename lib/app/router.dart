@@ -18,6 +18,7 @@ import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
 import 'package:cgpa_calculator/home_page.dart';
 import 'package:cgpa_calculator/script.dart';
+import 'package:cgpa_calculator/shared/widgets/not_found_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -29,6 +30,7 @@ final GoRouter appRouter = GoRouter(
   routes: appRoutes,
   refreshListenable: profileDue,
   redirect: (_, s) => profileGate(s.matchedLocation),
+  errorBuilder: (_, _) => const NotFoundPage(),
 );
 
 /// RepProfile comes first after an appointment (§16.3 fix 8): while it is
@@ -115,6 +117,14 @@ final List<RouteBase> appRoutes = [
           _admin('terms', () => admin.TermsPage(), _adminOnly),
           _admin('contact', () => admin.PublicContactPage(), _adminOnly),
           _admin('audit', () => admin.AuditLogPage(), _staff),
+          _admin(
+            'roster/volunteers',
+            () => admin.RosterPage(
+              initialVolunteers: true,
+              volunteersTab: (c) => admin.VolunteersTab(campus: c),
+            ),
+            _staff,
+          ),
           _admin(
             'roster',
             () => admin.RosterPage(

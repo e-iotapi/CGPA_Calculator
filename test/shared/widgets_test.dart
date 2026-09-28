@@ -1,4 +1,6 @@
+import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/shared/widgets/count_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/stat_card.dart';
@@ -90,5 +92,146 @@ void main() {
       _host(Wrap(children: [PillButton(label: '4 - 1', onPressed: () {})])),
     );
     expect(t.getSize(find.byType(PillButton)).width, lessThan(120));
+  });
+
+  group('T3.2: pills and tags hug their text; equal tab rows', () {
+    testWidgets('a TierTag in a Wrap is narrower than 100', (t) async {
+      await t.pumpWidget(_host(const Wrap(children: [TierTag('OWNER')])));
+      expect(t.getSize(find.byType(TierTag)).width, lessThan(100));
+    });
+
+    testWidgets('ChoicePills(equal: true) gives equal-width children', (
+      t,
+    ) async {
+      await t.pumpWidget(
+        _host(
+          ChoicePills<int>(
+            values: const [1, 2, 3, 4],
+            selected: 1,
+            label: (v) => '$v',
+            onSelected: (_) {},
+            equal: true,
+          ),
+        ),
+      );
+      final widths =
+          [1, 2, 3, 4]
+              .map((v) => t.getSize(find.widgetWithText(Expanded, '$v')).width)
+              .toList();
+      expect(widths.toSet().length, 1);
+    });
+  });
+
+  group('T3.3: mint, not dark green', () {
+    testWidgets("TierTag(strong: false)'s fill is hero", (t) async {
+      await t.pumpWidget(_host(const TierTag('PRESIDENT')));
+      final container = t.widget<Container>(
+        find.descendant(
+          of: find.byType(TierTag),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (container.decoration as BoxDecoration).color,
+        AppPalette.light.hero,
+      );
+    });
+  });
+
+  group('T3.7: CountBadge', () {
+    testWidgets('waiting tone fills with noticeTone', (t) async {
+      await t.pumpWidget(_host(const CountBadge('3')));
+      final container = t.widget<Container>(
+        find.descendant(
+          of: find.byType(CountBadge),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (container.decoration as BoxDecoration).color,
+        AppPalette.light.noticeTone.fill,
+      );
+    });
+  });
+
+  group('T3.9: small helpers', () {
+    test('ago() pluralises minutes and hours', () {
+      final now = DateTime(2026, 9, 28, 12, 0);
+      expect(
+        ago(now.subtract(const Duration(minutes: 1)), now: now),
+        '1 minute ago',
+      );
+      expect(
+        ago(now.subtract(const Duration(minutes: 5)), now: now),
+        '5 minutes ago',
+      );
+      expect(
+        ago(now.subtract(const Duration(hours: 1)), now: now),
+        '1 hour ago',
+      );
+      expect(
+        ago(now.subtract(const Duration(hours: 3)), now: now),
+        '3 hours ago',
+      );
+    });
+
+    testWidgets('LabelRow at 200 wide with a 150-wide trailing stacks', (
+      t,
+    ) async {
+      await t.pumpWidget(
+        _host(
+          LabelRow(
+            label: const Text('TAKEN BY, THIS TERM'),
+            trailing: const SizedBox(width: 150, height: 30),
+          ),
+          width: 200,
+        ),
+      );
+      await t.pump();
+      await t.pump();
+      expect(find.byType(Column), findsWidgets);
+      final row = t.widgetList(find.byType(Row));
+      // No Row directly holding both the label and the trailing SizedBox.
+      expect(
+        row.any(
+          (w) =>
+              (w as Row).children.length == 3 && w.children.first is Expanded,
+        ),
+        isFalse,
+      );
+    });
+
+    testWidgets('NameEmail keeps the email to one line at 320, 200% text', (
+      t,
+    ) async {
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          builder:
+              (c, child) => MediaQuery(
+                data: MediaQuery.of(
+                  c,
+                ).copyWith(textScaler: TextScaler.linear(2)),
+                child: child!,
+              ),
+          home: Scaffold(
+            body: SizedBox(
+              width: 320,
+              child: const NameEmail(
+                'Siddharth Mishra',
+                'f20230456@goa.bits-pilani.ac.in',
+              ),
+            ),
+          ),
+        ),
+      );
+      final text = t.widget<Text>(find.text('f20230456@goa.bits-pilani.ac.in'));
+      expect(text.maxLines, 1);
+      expect(t.takeException(), isNull);
+    });
+
+    test('shortEmail drops the domain', () {
+      expect(shortEmail('f20230456@goa.bits-pilani.ac.in'), 'f20230456@goa');
+    });
   });
 }

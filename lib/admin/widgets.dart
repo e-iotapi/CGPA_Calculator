@@ -5,7 +5,10 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 /// "PEOPLE", "OWNER ONLY": the small caps above a group.
 class SectionLabel extends StatelessWidget {
@@ -69,57 +72,20 @@ class NavRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 52),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: accent ? p.accent : p.surfaceSunken,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(icon, size: 17, color: accent ? p.onHero : p.icon),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TypeScale.body.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (subtitle != null)
-                      Text(
-                        subtitle!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TypeScale.caption.copyWith(
-                          fontSize: 10.5,
-                          color: p.textMuted,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: Space.sm),
-                trailing!,
-              ] else if (onTap != null)
-                Icon(Icons.chevron_right_rounded, color: p.textMuted),
-            ],
-          ),
+    return CardRow(
+      leading: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: accent ? p.hero : p.surfaceSunken,
+          borderRadius: BorderRadius.circular(11),
         ),
+        child: Icon(icon, size: 17, color: accent ? p.onHero : p.icon),
       ),
+      title: title,
+      subtitle: subtitle,
+      trailing: trailing,
+      onTap: onTap,
     );
   }
 }
@@ -140,18 +106,23 @@ class TierTag extends StatelessWidget {
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 9),
-      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: strong ? p.inverse : p.accent,
+        color: strong ? p.navBackground : p.hero,
         borderRadius: BorderRadius.circular(11),
+        border:
+            strong && p.isDark ? Border.all(color: p.divider) : null,
       ),
-      child: Text(
-        text,
-        style: TypeScale.caption.copyWith(
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.3,
-          color: strong ? p.onInverse : p.onHero,
+      child: Center(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Text(
+          text,
+          style: TypeScale.caption.copyWith(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+            color: strong ? p.hero : p.onHero,
+          ),
         ),
       ),
     );
@@ -172,7 +143,7 @@ class ScopeChip extends StatelessWidget {
       height: 26,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: muted ? p.surfaceSunken : p.accent,
+        color: muted ? p.surfaceSunken : p.hero,
         borderRadius: BorderRadius.circular(13),
       ),
       child: Row(
@@ -241,6 +212,8 @@ class ChoicePills<T> extends StatelessWidget {
     required this.selected,
     required this.label,
     required this.onSelected,
+    this.equal = false,
+    this.count,
   });
 
   final List<T> values;
@@ -248,48 +221,63 @@ class ChoicePills<T> extends StatelessWidget {
   final String Function(T) label;
   final ValueChanged<T> onSelected;
 
+  /// Equal-width children in a `Row`, for tab rows. A hugging `Wrap`
+  /// otherwise.
+  final bool equal;
+
+  /// An optional trailing count, shown after the label as " 214".
+  final String Function(T)? count;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final v in values)
-          Semantics(
-            selected: v == selected,
-            button: true,
-            child: Material(
-              color: v == selected ? p.inverse : Colors.transparent,
-              shape: StadiumBorder(
-                side:
-                    v == selected
-                        ? BorderSide.none
-                        : BorderSide(color: p.border),
-              ),
-              child: InkWell(
-                customBorder: const StadiumBorder(),
-                onTap: () => onSelected(v),
-                child: Container(
-                  height: Sizes.pill,
-                  constraints: const BoxConstraints(minWidth: 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  alignment: Alignment.center,
-                  child: Text(
-                    label(v),
-                    style: TypeScale.body.copyWith(
-                      fontSize: 12.5,
-                      fontWeight:
-                          v == selected ? FontWeight.w700 : FontWeight.w600,
-                      color: v == selected ? p.onInverse : p.text,
-                    ),
+    Widget pill(T v) {
+      final on = v == selected;
+      final n = count?.call(v);
+      return Semantics(
+        selected: on,
+        button: true,
+        child: Material(
+          color: on ? p.inverse : Colors.transparent,
+          shape: StadiumBorder(
+            side: on ? BorderSide.none : BorderSide(color: p.border),
+          ),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () => onSelected(v),
+            child: Container(
+              height: Sizes.pill,
+              constraints: const BoxConstraints(minWidth: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Center(
+                widthFactor: 1,
+                heightFactor: 1,
+                child: Text(
+                  n == null ? label(v) : '${label(v)} $n',
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: on ? FontWeight.w700 : FontWeight.w600,
+                    color: on ? p.onInverse : p.text,
                   ),
                 ),
               ),
             ),
           ),
-      ],
-    );
+        ),
+      );
+    }
+
+    if (equal) {
+      return Row(
+        children: [
+          for (final (i, v) in values.indexed) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(child: pill(v)),
+          ],
+        ],
+      );
+    }
+    return Wrap(spacing: 6, runSpacing: 6, children: [for (final v in values) pill(v)]);
   }
 }
 
@@ -299,8 +287,12 @@ String ago(DateTime? at, {DateTime? now}) {
   final n = now ?? DateTime.now();
   final d = n.difference(at);
   if (d.inMinutes < 1) return 'just now';
-  if (d.inMinutes < 60) return '${d.inMinutes} minutes ago';
-  if (d.inHours < 24 && n.day == at.day) return '${d.inHours} hours ago';
+  if (d.inMinutes < 60) {
+    return '${d.inMinutes} minute${d.inMinutes == 1 ? '' : 's'} ago';
+  }
+  if (d.inHours < 24 && n.day == at.day) {
+    return '${d.inHours} hour${d.inHours == 1 ? '' : 's'} ago';
+  }
   if (d.inDays < 2) {
     return 'Yesterday, ${at.hour.toString().padLeft(2, '0')}:'
         '${at.minute.toString().padLeft(2, '0')}';
@@ -318,7 +310,7 @@ const _months = [
 String shortDay(DateTime d, {bool year = false}) =>
     '${d.day} ${_months[d.month - 1]}${year ? ' ${d.year}' : ''}';
 
-/// A failed load or save, said plainly.
+/// A failed load or save, said plainly. Never includes the raw exception.
 String problem(Object e) {
   final s = '$e';
   if (s.contains('permission-denied')) {
@@ -328,7 +320,12 @@ String problem(Object e) {
   if (s.contains('unavailable') || s.contains('network')) {
     return 'No connection. Nothing was changed.';
   }
-  return 'That did not work: $s';
+  if (s.contains('failed-precondition')) {
+    return 'This list needs a database update an owner has to deploy. Try '
+        'again later.';
+  }
+  debugPrint('$e');
+  return "Couldn't load this. Try again.";
 }
 
 /// Loads [load] and shows a spinner, the error, or [builder]'s result.
@@ -349,13 +346,22 @@ class _LoadedState<T> extends State<Loaded<T>> {
     future: _f,
     builder: (context, s) {
       if (s.hasError) {
+        void reload() => setState(() => _f = widget.load());
         return Padding(
           padding: const EdgeInsets.all(Space.lg),
-          child: Text(
-            problem(s.error!),
-            style: TypeScale.body.copyWith(
-              color: AppPalette.of(context).behind,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Notice(text: TextSpan(text: problem(s.error!)), warning: true),
+              const SizedBox(height: Space.sm),
+              SizedBox(
+                height: Sizes.minTouch,
+                child: OutlinedButton(
+                  onPressed: reload,
+                  child: const Text('Try again'),
+                ),
+              ),
+            ],
           ),
         );
       }
@@ -372,4 +378,127 @@ class _LoadedState<T> extends State<Loaded<T>> {
       );
     },
   );
+}
+
+/// Reports [child]'s laid-out size after every layout, without affecting
+/// it.
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({required this.onChange, required Widget super.child});
+  final ValueChanged<Size> onChange;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMeasureSize(onChange);
+}
+
+class _RenderMeasureSize extends RenderProxyBox {
+  _RenderMeasureSize(this.onChange);
+  final ValueChanged<Size> onChange;
+  Size? _last;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final newSize = child?.size ?? Size.zero;
+    if (_last == newSize) return;
+    _last = newSize;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onChange(newSize));
+  }
+}
+
+/// A label beside a trailing action, that stacks under it instead of
+/// squeezing when there isn't 96 px to spare (N4).
+class LabelRow extends StatefulWidget {
+  const LabelRow({super.key, required this.label, required this.trailing});
+  final Widget label;
+  final Widget trailing;
+
+  @override
+  State<LabelRow> createState() => _LabelRowState();
+}
+
+class _LabelRowState extends State<LabelRow> {
+  double? _trailingWidth;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, c) {
+      final measured = _MeasureSize(
+        onChange: (size) {
+          if (mounted && _trailingWidth != size.width) {
+            setState(() => _trailingWidth = size.width);
+          }
+        },
+        child: widget.trailing,
+      );
+      final stack =
+          _trailingWidth != null && c.maxWidth - _trailingWidth! < 96;
+      if (stack) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            widget.label,
+            const SizedBox(height: 6),
+            Align(alignment: Alignment.centerRight, child: measured),
+          ],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: widget.label),
+          const SizedBox(width: 8),
+          measured,
+        ],
+      );
+    },
+  );
+}
+
+/// "f20230456@goa" — the part before the domain, for the Audit log.
+String shortEmail(String e) => e.split('.bits-pilani.ac.in').first;
+
+/// A name, then its email ellipsized to fit; the name keeps up to 60% of the
+/// row (N5).
+class NameEmail extends StatelessWidget {
+  const NameEmail(this.name, this.email, {super.key});
+  final String name;
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return LayoutBuilder(
+      builder:
+          (context, c) => Row(
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: c.maxWidth * 0.6),
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.body.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: p.textMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
 }

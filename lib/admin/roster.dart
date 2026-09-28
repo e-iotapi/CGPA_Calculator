@@ -14,10 +14,17 @@ import 'package:go_router/go_router.dart';
 /// owners, admins and presidents (§4). Presidents see their own campus plus
 /// who appoints on every campus.
 class RosterPage extends StatefulWidget {
-  const RosterPage({super.key, this.volunteersTab});
+  const RosterPage({
+    super.key,
+    this.volunteersTab,
+    this.initialVolunteers = false,
+  });
 
   /// Roster's second tab (§16.3 fix 16); null until volunteers exist.
   final Widget Function(String campus)? volunteersTab;
+
+  /// Opens straight to the volunteers tab (`roster/volunteers`, T3.4).
+  final bool initialVolunteers;
 
   @override
   State<RosterPage> createState() => _RosterPageState();
@@ -25,7 +32,7 @@ class RosterPage extends StatefulWidget {
 
 class _RosterPageState extends State<RosterPage> {
   String _filter = 'All';
-  bool _volunteers = false;
+  late bool _volunteers = widget.initialVolunteers;
 
   bool _shows(Grant g) => switch (_filter) {
     'Presidents' => g.role == GrantRole.dept,

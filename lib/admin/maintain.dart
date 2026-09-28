@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/widgets/count_badge.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/eval_import.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
@@ -85,6 +86,7 @@ class DeptHome extends StatelessWidget {
           header: const PageHeader(
             eyebrow: 'DEPARTMENT PRESIDENT',
             title: 'Your department',
+            leading: false,
           ),
           children: [
             ScopePills(campus: campus, scope: _scopeLabel(campus, dept)),
@@ -114,7 +116,7 @@ class DeptHome extends StatelessWidget {
                   subtitle:
                       '${courses.length} courses'
                       '${missing == 0 ? '' : ' · $missing have no scheme yet'}',
-                  trailing: missing == 0 ? null : TierTag('$missing'),
+                  trailing: missing == 0 ? null : CountBadge('$missing'),
                   onTap: () async {
                     await context.push(Routes.deptCourses(campus, dept));
                     reload();
