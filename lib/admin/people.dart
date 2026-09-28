@@ -70,23 +70,7 @@ class GrantTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 7),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: g.name,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  TextSpan(
-                    text: '  ${g.email}',
-                    style: TextStyle(fontSize: 11, color: p.textMuted),
-                  ),
-                ],
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TypeScale.body.copyWith(fontSize: 13),
-            ),
+            NameEmail(g.name, g.email),
             const SizedBox(height: 2),
             Row(
               children: [

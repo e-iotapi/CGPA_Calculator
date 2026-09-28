@@ -382,30 +382,26 @@ class _UploadCardState extends State<UploadCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'EXTRACTION PROMPT',
-                        style: TypeScale.label.copyWith(color: p.textMuted),
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () async {
-                        await Clipboard.setData(
-                          const ClipboardData(text: evalPrompt),
+                LabelRow(
+                  label: Text(
+                    'EXTRACTION PROMPT',
+                    style: TypeScale.label.copyWith(color: p.textMuted),
+                  ),
+                  trailing: TextButton.icon(
+                    onPressed: () async {
+                      await Clipboard.setData(
+                        const ClipboardData(text: evalPrompt),
+                      );
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context)
+                        ..clearSnackBars()
+                        ..showSnackBar(
+                          const SnackBar(content: Text('Prompt copied.')),
                         );
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context)
-                          ..clearSnackBars()
-                          ..showSnackBar(
-                            const SnackBar(content: Text('Prompt copied.')),
-                          );
-                      },
-                      icon: const Icon(Icons.copy_rounded, size: 16),
-                      label: const Text('Copy'),
-                    ),
-                  ],
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 16),
+                    label: const Text('Copy'),
+                  ),
                 ),
                 Text(
                   'Paste this into any AI tool along with the handout PDFs. It '
@@ -504,14 +500,12 @@ class CrHome extends StatelessWidget {
               onSaved: reload,
             ),
             const SizedBox(height: Space.md),
-            Row(
-              children: [
-                const Expanded(child: SectionLabel('Evaluation scheme')),
-                TextButton(
-                  onPressed: edit,
-                  child: Text(o?.hasScheme ?? false ? 'Edit' : 'Add'),
-                ),
-              ],
+            LabelRow(
+              label: const SectionLabel('Evaluation scheme'),
+              trailing: TextButton(
+                onPressed: edit,
+                child: Text(o?.hasScheme ?? false ? 'Edit' : 'Add'),
+              ),
             ),
             if (o == null || !o.hasScheme)
               const Note(

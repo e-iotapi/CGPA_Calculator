@@ -75,19 +75,7 @@ class _OwnersPageState extends State<OwnersPage> {
                               strong: o['active'] == true,
                             ),
                             const SizedBox(height: 6),
-                            Text(
-                              '${o['name'] ?? ''}',
-                              style: TypeScale.body.copyWith(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              '${o['email']}',
-                              style: TypeScale.caption.copyWith(
-                                color: p.textMuted,
-                              ),
-                            ),
+                            NameEmail('${o['name'] ?? ''}', '${o['email']}'),
                             Text(
                               o['email'] == me
                                   ? 'You · you can\'t remove yourself'
@@ -194,53 +182,56 @@ class _TermsPageState extends State<TermsPage> {
         final ends = DateTime.now().add(Duration(days: days));
         return Padding(
           padding: const EdgeInsets.fromLTRB(15, 12, 8, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TierTag(tag, strong: tag != 'PRESIDENT'),
-                    const SizedBox(height: 6),
-                    Text(
-                      title,
-                      style: TypeScale.body.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      'Given today → ends ${shortDay(ends, year: true)}',
-                      style: TypeScale.caption.copyWith(
-                        color: AppPalette.of(context).textMuted,
-                      ),
-                    ),
-                  ],
+          child: LabelRow(
+            label: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TierTag(tag, strong: tag != 'PRESIDENT'),
+                const SizedBox(height: 6),
+                Text(
+                  title,
+                  style: TypeScale.body.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Shorter',
-                onPressed:
-                    may && days > step
-                        ? () => setState(() => _t = set(days - step))
-                        : null,
-                icon: const Icon(Icons.remove_rounded),
-              ),
-              SizedBox(
-                width: 58,
-                child: Text(
-                  '$days d',
-                  textAlign: TextAlign.center,
-                  style: TypeScale.body.copyWith(fontWeight: FontWeight.w800),
+                Text(
+                  'Given today → ends ${shortDay(ends, year: true)}',
+                  style: TypeScale.caption.copyWith(
+                    color: AppPalette.of(context).textMuted,
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Longer',
-                onPressed:
-                    may ? () => setState(() => _t = set(days + step)) : null,
-                icon: const Icon(Icons.add_rounded),
-              ),
-            ],
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Shorter',
+                  onPressed:
+                      may && days > step
+                          ? () => setState(() => _t = set(days - step))
+                          : null,
+                  icon: const Icon(Icons.remove_rounded),
+                ),
+                SizedBox(
+                  width: 58,
+                  child: Text(
+                    '$days d',
+                    textAlign: TextAlign.center,
+                    style: TypeScale.body.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Longer',
+                  onPressed:
+                      may ? () => setState(() => _t = set(days + step)) : null,
+                  icon: const Icon(Icons.add_rounded),
+                ),
+              ],
+            ),
           ),
         );
       }
@@ -576,7 +567,7 @@ class AuditTile extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       TextSpan(
-                        text: '  ${e.actorEmail}',
+                        text: '  ${shortEmail(e.actorEmail)}',
                         style: TextStyle(fontSize: 10.5, color: p.textMuted),
                       ),
                     ],
