@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/admin/grant_form.dart';
 import 'package:cgpa_calculator/admin/maintain.dart';
+import 'package:cgpa_calculator/admin/offering_scale.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
@@ -652,16 +653,19 @@ class _TakenByState extends State<TakenBy> {
     final o = widget.offering;
     try {
       await MaintainStore(roleStore!).save(
-        Offering(
-          courseId: widget.courseId,
-          campus: widget.campus,
-          term: maintainedTerm,
-          weighted: o?.weighted ?? true,
-          totalMarks: o?.totalMarks ?? 100,
-          components: o?.components ?? const [],
-          courseAverage: o?.courseAverage,
-          professors: picked.toList(),
-          updatedAt: o?.updatedAt ?? 0,
+        withOutOf(
+          Offering(
+            courseId: widget.courseId,
+            campus: widget.campus,
+            term: maintainedTerm,
+            weighted: o?.weighted ?? true,
+            totalMarks: o?.totalMarks ?? 100,
+            components: o?.components ?? const [],
+            courseAverage: o?.courseAverage,
+            professors: picked.toList(),
+            updatedAt: o?.updatedAt ?? 0,
+          ),
+          o == null ? null : offeringOutOf(o),
         ),
         'Set who teaches ${widget.courseId} in ${termLabel(maintainedTerm)}',
       );
