@@ -15,6 +15,7 @@ class AppTextField extends StatelessWidget {
     this.onChanged,
     this.dense = false,
     this.suffix,
+    this.labelAbove = false,
   });
 
   final TextEditingController controller;
@@ -27,14 +28,18 @@ class AppTextField extends StatelessWidget {
   final bool dense;
   final String? suffix;
 
+  /// The board form style (§3.18): the label sits above the 46-tall box,
+  /// upper case, instead of floating inside it.
+  final bool labelAbove;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(dense ? 12 : 16),
+      borderRadius: BorderRadius.circular(dense ? 12 : 14),
       borderSide: BorderSide(color: p.outline),
     );
-    return TextField(
+    final field = TextField(
       controller: controller,
       onChanged: onChanged,
       keyboardType:
@@ -43,18 +48,22 @@ class AppTextField extends StatelessWidget {
           number
               ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
               : null,
-      style: TypeScale.body.copyWith(color: p.text),
+      style: TypeScale.body.copyWith(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: p.text,
+      ),
       cursorColor: p.text,
       decoration: InputDecoration(
         isDense: true,
-        labelText: dense ? null : label,
-        hintText: hint ?? (dense ? label : null),
+        labelText: labelAbove || dense ? null : label,
+        hintText: hint ?? (labelAbove || dense ? label : null),
         suffixText: suffix,
         filled: true,
-        fillColor: p.surface,
+        fillColor: labelAbove ? p.background : p.surface,
         contentPadding: EdgeInsets.symmetric(
           horizontal: dense ? 10 : 14,
-          vertical: dense ? 11 : 14,
+          vertical: dense ? 11 : (labelAbove ? 16 : 14),
         ),
         labelStyle: TypeScale.caption.copyWith(color: p.textMuted),
         floatingLabelStyle: TypeScale.caption.copyWith(color: p.textMuted),
@@ -64,6 +73,103 @@ class AppTextField extends StatelessWidget {
         enabledBorder: border,
         focusedBorder: border.copyWith(
           borderSide: BorderSide(color: p.text, width: 1.5),
+        ),
+      ),
+    );
+    if (!labelAbove) return field;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(
+            label.toUpperCase(),
+            style: TypeScale.label.copyWith(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+              color: p.textMuted,
+            ),
+          ),
+        ),
+        SizedBox(height: 46, child: field),
+      ],
+    );
+  }
+}
+
+/// The value grid on Edit evaluative (§3.19): 36 tall, radius 11. An
+/// official value becomes a mint-wash box with a small "OFFICIAL" tag.
+class CompactField extends StatelessWidget {
+  const CompactField({
+    super.key,
+    required this.c,
+    this.hint,
+    this.official = false,
+    this.onChanged,
+  });
+
+  final TextEditingController c;
+  final String? hint;
+  final bool official;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    if (official) {
+      return Container(
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Color.lerp(p.surface, p.hero, 0.35),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              c.text,
+              style: TypeScale.body.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              'OFFICIAL',
+              style: TypeScale.caption.copyWith(
+                fontSize: 7.5,
+                fontWeight: FontWeight.w800,
+                color: p.isDark ? p.hero : const Color(0xFF1F5240),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return SizedBox(
+      height: 36,
+      child: TextField(
+        controller: c,
+        onChanged: onChanged,
+        textAlign: TextAlign.center,
+        style: TypeScale.body.copyWith(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: p.text,
+        ),
+        cursorColor: p.text,
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: const Color(0xFFF8F8F5),
+          hintText: hint,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
     );
@@ -92,11 +198,15 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.tall = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
+
+  /// 56 tall, 14.5/700 — sign-in and setup (§3.21).
+  final bool tall;
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +222,7 @@ class PrimaryButton extends StatelessWidget {
         child: InkWell(
           onTap: onPressed,
           child: SizedBox(
-            height: 48,
+            height: tall ? 56 : 48,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -126,6 +236,7 @@ class PrimaryButton extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TypeScale.body.copyWith(
+                      fontSize: tall ? 14.5 : null,
                       fontWeight: FontWeight.w700,
                       color: fg,
                     ),

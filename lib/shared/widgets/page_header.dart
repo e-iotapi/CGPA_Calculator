@@ -11,6 +11,8 @@ class PageHeader extends StatelessWidget {
     required this.title,
     this.onBack,
     this.actions = const [],
+    this.leading = true,
+    this.close = false,
   });
 
   final String eyebrow;
@@ -20,38 +22,112 @@ class PageHeader extends StatelessWidget {
   final VoidCallback? onBack;
   final List<Widget> actions;
 
+  /// `[Back 44] 12 [eyebrow / title]`, the layout for pushed screens (N3).
+  /// `false` keeps the old `[eyebrow / title] [actions] [Back]`, for the
+  /// four top-level screens (Controls, Your department, Stats, Marks).
+  final bool leading;
+
+  /// Draws a close (✕) button instead of the back arrow (Course setup, Edit
+  /// evaluative).
+  final bool close;
+
+  @override
+  Widget build(BuildContext context) {
+    final back = CircleIconButton(
+      icon: close ? Icons.close_rounded : Icons.arrow_back_rounded,
+      tooltip: close ? 'Close' : 'Back',
+      onPressed: onBack ?? () => Navigator.of(context).maybePop(),
+      size: 42,
+    );
+    final block = _TitleBlock(eyebrow: eyebrow, title: title, leading: leading);
+    if (leading) {
+      return Row(
+        children: [
+          back,
+          const SizedBox(width: 12),
+          Expanded(child: block),
+          for (final a in actions) ...[const SizedBox(width: Space.sm), a],
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: block),
+        const SizedBox(width: Space.md),
+        for (final a in actions) ...[a, const SizedBox(width: Space.sm)],
+        back,
+      ],
+    );
+  }
+}
+
+class _TitleBlock extends StatelessWidget {
+  const _TitleBlock({
+    required this.eyebrow,
+    required this.title,
+    required this.leading,
+  });
+
+  final String eyebrow;
+  final String title;
+  final bool leading;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Row(
+    final titleStyle = TypeScale.title.copyWith(
+      fontSize: leading ? 21 : 22,
+      letterSpacing: leading ? -0.5 : -0.7,
+      color: p.text,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                eyebrow,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.label.copyWith(color: p.textMuted),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.title.copyWith(fontSize: 22, color: p.text),
-              ),
-            ],
-          ),
+        Text(
+          eyebrow,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TypeScale.label.copyWith(color: p.textMuted),
         ),
-        const SizedBox(width: Space.md),
-        for (final a in actions) ...[a, const SizedBox(width: Space.sm)],
-        CircleIconButton(
-          icon: Icons.arrow_back_rounded,
-          tooltip: 'Back',
-          onPressed: onBack ?? () => Navigator.of(context).maybePop(),
-          size: 42,
+        const SizedBox(height: 1),
+        LayoutBuilder(
+          builder: (context, c) {
+            final merged = DefaultTextStyle.of(context).style.merge(titleStyle);
+            final ambient = MediaQuery.textScalerOf(context);
+            double longestWord(TextScaler scaler) {
+              var longest = 0.0;
+              for (final w in title.split(' ')) {
+                final tp = TextPainter(
+                  text: TextSpan(text: w, style: merged),
+                  textDirection: TextDirection.ltr,
+                  textScaler: scaler,
+                )..layout();
+                if (tp.width > longest) longest = tp.width;
+              }
+              return longest;
+            }
+
+            final text = Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: titleStyle,
+            );
+            if (c.maxWidth <= 0 || longestWord(ambient) <= c.maxWidth) {
+              return text;
+            }
+            final atScale1 = longestWord(TextScaler.noScaling);
+            final fit =
+                atScale1 > 0
+                    ? (c.maxWidth / atScale1).clamp(1.0, double.infinity)
+                    : 1.0;
+            return MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(fit)),
+              child: text,
+            );
+          },
         ),
       ],
     );

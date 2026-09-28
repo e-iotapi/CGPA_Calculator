@@ -13,6 +13,7 @@ import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/core/storage/overrides.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/add_evaluative_page.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
@@ -144,6 +145,7 @@ class _MarksPageState extends State<MarksPage> {
       header: PageHeader(
         eyebrow: '${c.id} · ${formatCredits(c.credits)} credits',
         title: displayTitle(c.id, c.title),
+        leading: false,
         actions: [
           if (widget.onEditCourse != null)
             CircleIconButton(
@@ -273,15 +275,10 @@ class _MarksPageState extends State<MarksPage> {
           const SizedBox(height: 7),
         ],
         if (off != null && off.hasScheme)
-          Container(
-            margin: const EdgeInsets.only(top: Space.xs, bottom: Space.sm),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            decoration: BoxDecoration(
-              color: p.noticeTone.fill,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text.rich(
-              const TextSpan(
+          Padding(
+            padding: const EdgeInsets.only(top: Space.xs, bottom: Space.sm),
+            child: Notice(
+              text: const TextSpan(
                 text: 'Changing a component’s ',
                 children: [
                   TextSpan(
@@ -295,11 +292,6 @@ class _MarksPageState extends State<MarksPage> {
                         'Your own marks never detach anything.',
                   ),
                 ],
-              ),
-              style: TypeScale.caption.copyWith(
-                fontSize: 10,
-                height: 1.45,
-                color: p.noticeTone.text,
               ),
             ),
           ),
