@@ -17,6 +17,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
@@ -743,6 +744,123 @@ class _UploadCardState extends State<UploadCard> {
   }
 }
 
+/// `CrHome`'s COURSE AVERAGE: the CR types it out of 100 once it is out, and
+/// it is saved on this term's offering with the scheme it belongs to.
+class _CourseAverage extends StatefulWidget {
+  const _CourseAverage({required this.o, required this.onSaved});
+  final Offering o;
+  final VoidCallback onSaved;
+
+  @override
+  State<_CourseAverage> createState() => _CourseAverageState();
+}
+
+class _CourseAverageState extends State<_CourseAverage> {
+  late final _c = TextEditingController(
+    text: widget.o.courseAverage == null ? '' : _n(widget.o.courseAverage!),
+  );
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  /// The typed value: null when blank, NaN when it isn't 0–100.
+  double? get _value {
+    final t = _c.text.trim();
+    if (t.isEmpty) return null;
+    final v = double.tryParse(t);
+    return v == null || v < 0 || v > 100 ? double.nan : v;
+  }
+
+  Future<void> _save() async {
+    final o = widget.o;
+    final v = _value;
+    setState(() => _saving = true);
+    try {
+      await _store.save(
+        Offering(
+          courseId: o.courseId,
+          campus: o.campus,
+          term: o.term,
+          weighted: o.weighted,
+          totalMarks: o.totalMarks,
+          components: o.components,
+          courseAverage: v,
+          professors: o.professors,
+          updatedAt: o.updatedAt,
+        ),
+        v == null
+            ? 'Cleared the course average for ${o.courseId} in '
+                '${termLabel(o.term)}'
+            : 'Set the course average for ${o.courseId} in '
+                '${termLabel(o.term)} to ${_n(v)}',
+      );
+      widget.onSaved();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(SnackBar(content: Text(problem(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final v = _value;
+    final bad = v != null && v.isNaN;
+    final changed = v != widget.o.courseAverage && !bad;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: AppTextField(
+                  controller: _c,
+                  label: 'Out of 100',
+                  hint: 'Blank until it is out',
+                  number: true,
+                  labelAbove: true,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: Space.sm),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: PillButton(
+                  label: _saving ? 'Saving…' : 'Save',
+                  selected: true,
+                  onPressed: changed && !_saving ? _save : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Space.xs),
+        Text(
+          bad
+              ? 'Type a number from 0 to 100.'
+              : 'Stored against this term and this component set. Students '
+                  'see it beside their own marks; clear it to take it back.',
+          style: TypeScale.caption.copyWith(
+            height: 1.45,
+            color: bad ? p.behind : p.textMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 Text _name(String name) => Text(
   name,
   style: TypeScale.body.copyWith(fontSize: 13, fontWeight: FontWeight.w700),
@@ -871,32 +989,14 @@ class CrHome extends StatelessWidget {
                 style: TypeScale.caption.copyWith(color: p.textMuted),
               ),
             ],
-            if (o?.courseAverage case final avg?) ...[
-              const SectionLabel('Course average'),
-              AppCard(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'out of 100',
-                        style: TypeScale.caption.copyWith(color: p.textMuted),
-                      ),
-                    ),
-                    Text(
-                      _n(avg),
-                      style: TypeScale.title.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                'Stored against this term and this component set. An average '
-                'without them compares nothing.',
-                style: TypeScale.caption.copyWith(color: p.textMuted),
-              ),
-            ],
+            const SectionLabel('Course average'),
+            if (o == null || !o.hasScheme)
+              const Note(
+                'Add the scheme first. An average without its components '
+                'compares nothing.',
+              )
+            else
+              _CourseAverage(o: o, onSaved: reload),
             const SizedBox(height: Space.md),
             CourseResources(campus: campus, courseId: courseId),
           ],
