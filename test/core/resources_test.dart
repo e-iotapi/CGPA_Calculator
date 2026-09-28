@@ -6,16 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
 void main() {
-  test('only https links to known hosts', () {
-    expect(allowedHostOf('https://drive.google.com/x'), 'drive.google.com');
-    expect(allowedHostOf('https://www.youtube.com/watch?v=1'), 'youtube.com');
-    expect(
-      allowedHostOf('https://bits.sharepoint.com/x'),
-      'bits.sharepoint.com',
-    );
-    expect(allowedHostOf('http://drive.google.com/x'), isNull);
-    expect(allowedHostOf('https://drive.google.com.evil.io/x'), isNull);
-    expect(allowedHostOf('https://evilyoutube.com/x'), isNull);
+  test('any http(s) website, shown by its host', () {
+    expect(hostOf('https://drive.google.com/x'), 'drive.google.com');
+    expect(hostOf('https://www.youtube.com/watch?v=1'), 'youtube.com');
+    expect(hostOf('https://en.wikipedia.org/wiki/X'), 'en.wikipedia.org');
+    expect(hostOf('http://example.edu/notes.pdf'), 'example.edu');
+    expect(hostOf('javascript:alert(1)'), isNull);
+    expect(hostOf('ftp://files.example.com'), isNull);
+    expect(hostOf('https://localhost/x'), isNull);
   });
 
   test('the same address under another spelling is one link', () {

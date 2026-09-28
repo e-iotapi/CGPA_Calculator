@@ -2,33 +2,16 @@
 /// hierarchy a student sees is a view over these (§10.4).
 library;
 
-/// Hosts a link may point at. The rules hold the same list as a regex on
-/// `url` — the single most effective control without a server (§6).
-const allowedHosts = [
-  'drive.google.com',
-  'docs.google.com',
-  'sites.google.com',
-  'youtube.com',
-  'youtu.be',
-  'github.com',
-  'notion.site',
-  'onedrive.live.com',
-  '1drv.ms',
-  'sharepoint.com',
-  'dropbox.com',
-];
-
-/// The host shown under a link ("drive.google.com"), or null when [url] is
-/// not an https link to an allowed host.
-String? allowedHostOf(String url) {
+/// The host shown under a link ("drive.google.com", "en.wikipedia.org"),
+/// or null when [url] is not an http(s) link with a dotted host. Any website
+/// may be linked; a bad one is what Reported is for (UI_REBUILD_HANDOFF.md
+/// §3.10). The rules' `linkOk` checks the same shape.
+String? hostOf(String url) {
   final u = Uri.tryParse(url.trim());
-  if (u == null || u.scheme != 'https' || u.host.isEmpty) return null;
+  if (u == null || (u.scheme != 'https' && u.scheme != 'http')) return null;
   final host = u.host.toLowerCase();
-  final bare = host.startsWith('www.') ? host.substring(4) : host;
-  for (final h in allowedHosts) {
-    if (bare == h || bare.endsWith('.$h')) return bare;
-  }
-  return null;
+  if (!host.contains('.')) return null;
+  return host.startsWith('www.') ? host.substring(4) : host;
 }
 
 /// The address with scheme, `www.`, query string and trailing slash
@@ -85,7 +68,7 @@ class Resource {
   final int addedAt;
   final bool removed;
 
-  String get host => allowedHostOf(url) ?? Uri.tryParse(url)?.host ?? url;
+  String get host => hostOf(url) ?? Uri.tryParse(url)?.host ?? url;
   String get kind => kindOf(host);
   bool get isCourse => scope == 'course';
 
