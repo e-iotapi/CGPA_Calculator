@@ -708,7 +708,8 @@ service cloud.firestore {
     // https links to known hosts only, the same list as lib/core/resources.
     function linkOk(url) {
       return url is string && url.size() <= 500
-        && url.matches('^https://([a-z0-9-]+[.])*(drive[.]google[.]com|docs[.]google[.]com|sites[.]google[.]com|youtube[.]com|youtu[.]be|github[.]com|notion[.]site|onedrive[.]live[.]com|1drv[.]ms|sharepoint[.]com|dropbox[.]com)([/?#].*)?$');
+        // Any website (UI_REBUILD_HANDOFF.md §3.10): http(s) and a dotted host.
+        && url.matches('^https?://[^/?#@\\s]+[.][^/?#@\\s]+([/?#].*)?$');
     }
 
     function resourceOk(d) {

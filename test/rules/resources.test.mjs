@@ -86,10 +86,13 @@ function report(db, uid, rid, count, reason = 'broken') {
 }
 
 describe('resources', () => {
-  test('a president adds to their department; the host is checked', async () => {
+  test('a president adds to their department; any http(s) website', async () => {
     await assertSucceeds(put(as(PRES), PRES, 'r1', base()));
-    await assertFails(put(as(PRES), PRES, 'r2', base({ url: 'https://evil.example.com/x' })));
-    await assertFails(put(as(PRES), PRES, 'r3', base({ url: 'http://drive.google.com/x' })));
+    await assertSucceeds(put(as(PRES), PRES, 'r2', base({ url: 'https://en.wikipedia.org/wiki/X' })));
+    await assertSucceeds(put(as(PRES), PRES, 'r3', base({ url: 'http://example.edu/notes.pdf' })));
+    await assertFails(put(as(PRES), PRES, 'r6', base({ url: 'javascript:alert(1)' })));
+    await assertFails(put(as(PRES), PRES, 'r7', base({ url: 'https://localhost/x' })));
+    await assertFails(put(as(PRES), PRES, 'r8', base({ url: 'ftp://files.example.com/x' })));
     await assertFails(put(as(PRES), PRES, 'r4', base({ department: 'CS' })));
     await assertFails(put(as(STUDENT), STUDENT, 'r5', base()));
   });
