@@ -13,6 +13,7 @@
 /calculator/reviews/* /calculator/index.html 200
 /calculator/roles /calculator/index.html 200
 /calculator/welcome /calculator/index.html 200
+/calculator/setup/* /calculator/index.html 200
 /calculator/admin /calculator/index.html 200
 /calculator/admin/* /calculator/index.html 200
 /calculator/maintain/* /calculator/index.html 200

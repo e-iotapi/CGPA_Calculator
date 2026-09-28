@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
@@ -90,6 +91,11 @@ Future<void> startApp(User user) async {
   stripNavigate = appRouter.go;
   restoreMyRoles();
   final email = user.email;
+  ownerSetupDue.value = ownerSetupNeeded(
+    myRoles.value,
+    email,
+    Hive.box('settingsBox').get('campus') as String?,
+  );
   if (email != null) {
     // ignore: invalid_use_of_visible_for_testing_member
     startRoles(
