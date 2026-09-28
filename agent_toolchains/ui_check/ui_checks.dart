@@ -22,6 +22,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/code_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/count_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/count_pill.dart';
@@ -93,7 +94,32 @@ Future<List<String>> uiIssues(WidgetTester t) async {
     _walkRender(view, screen, false, out, texts);
     final shot = await _shoot(t, view);
     if (shot != null) {
+      // Content scrolled under a bottom action's fade is meant to fade;
+      // the bar's own text is still checked.
+      final bars = <Rect>[];
+      final own = <RenderObject>{};
+      for (final e in find.byType(BottomAction).evaluate()) {
+        final b = e.renderObject;
+        if (b is! RenderBox || !b.hasSize) continue;
+        bars.add(
+          MatrixUtils.transformRect(
+            b.getTransformTo(null),
+            Offset.zero & b.size,
+          ),
+        );
+        void mine(RenderObject c) {
+          own.add(c);
+          c.visitChildren(mine);
+        }
+
+        mine(b);
+      }
       for (final p in texts) {
+        final box = MatrixUtils.transformRect(
+          p.getTransformTo(null),
+          Offset.zero & p.size,
+        );
+        if (!own.contains(p) && bars.any((b) => b.overlaps(box))) continue;
         final line = _contrast(p, shot);
         if (line != null) faint.add((_clip(p.text.toPlainText()), line));
       }

@@ -10,7 +10,10 @@ import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -43,6 +46,14 @@ class CourseReviewsPage extends StatefulWidget {
 class _CourseReviewsPageState extends State<CourseReviewsPage> {
   late String? _prof = widget.professorId;
   late bool _picked = widget.professorId != null;
+  final _profSearch = TextEditingController();
+
+  @override
+  void dispose() {
+    _profSearch.dispose();
+    super.dispose();
+  }
+
   ReviewOrder _order = ReviewOrder.helpful;
   final _reviews = <Review>[];
   DocumentSnapshot? _last;
@@ -162,7 +173,23 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
         final sel = m.taughtBy.where((x) => x.$1.id == _prof).firstOrNull;
         final stats = sel?.$2 ?? m.course;
         final took = tookIt(widget.courseId);
+        final action =
+            m.mine != null
+                ? PrimaryButton(
+                  label: 'Edit your review',
+                  tall: true,
+                  onPressed: () => _write(m.mine),
+                )
+                : took != null
+                ? PrimaryButton(
+                  label: 'Review ${widget.courseId}',
+                  icon: Icons.rate_review_outlined,
+                  tall: true,
+                  onPressed: () => _write(null),
+                )
+                : null;
         return PageFrame(
+          bottom: action == null ? null : BottomAction(child: action),
           header: PageHeader(
             eyebrow: '${widget.courseId} · ${_campus.toUpperCase()}',
             title: title ?? widget.courseId,
@@ -170,17 +197,31 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
           children: [
             if (m.taughtBy.isNotEmpty) ...[
               const SectionLabel('Taught by'),
+              if (m.taughtBy.length > 3) ...[
+                SearchBox(
+                  controller: _profSearch,
+                  hint: 'Search a professor, even past ones',
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: Space.xs),
+              ],
               ChoicePills<String?>(
-                values: [for (final x in m.taughtBy) x.$1.id, null],
+                values: [
+                  for (final x in m.taughtBy)
+                    if (x.$1.id == _prof ||
+                        x.$1.name.toLowerCase().contains(
+                          _profSearch.text.trim().toLowerCase(),
+                        ))
+                      x.$1.id,
+                  null,
+                ],
                 selected: _prof,
-                label:
-                    (id) =>
-                        id == null
-                            ? 'All'
-                            : m.taughtBy
-                                .firstWhere((x) => x.$1.id == id)
-                                .$1
-                                .name,
+                label: (id) {
+                  if (id == null) return 'All';
+                  final name =
+                      m.taughtBy.firstWhere((x) => x.$1.id == id).$1.name;
+                  return id == m.now ? '$name · now' : name;
+                },
                 onSelected: (id) {
                   setState(() {
                     _prof = id;
@@ -195,7 +236,11 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
                     ? 'Every professor · ${m.course.count} reviews'
                     : '${sel.$1.id == m.now ? 'Teaching this semester · ' : ''}'
                         '${sel.$2.count} of ${m.course.count} reviews',
-                style: TypeScale.caption.copyWith(color: p.textMuted),
+                style: TypeScale.caption.copyWith(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: p.accent,
+                ),
               ),
               const SizedBox(height: Space.sm),
             ],
@@ -209,15 +254,44 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
                           'professor.',
             ),
             const SizedBox(height: Space.sm),
-            ChoicePills<ReviewOrder>(
-              values: ReviewOrder.values,
-              selected: _order,
-              label: (o) => o.label,
-              onSelected: (o) {
-                setState(() => _order = o);
-                _page(m, reset: true);
-              },
-            ),
+            // Four equal pills on the board; they wrap once text is large.
+            if (MediaQuery.textScalerOf(context).scale(10) > 13)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final o in ReviewOrder.values)
+                    PillButton(
+                      label: o.label,
+                      height: 30,
+                      selected: _order == o,
+                      onPressed: () {
+                        setState(() => _order = o);
+                        _page(m, reset: true);
+                      },
+                    ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  for (final (i, o) in ReviewOrder.values.indexed) ...[
+                    if (i > 0) const SizedBox(width: 6),
+                    Expanded(
+                      child: PillButton(
+                        label: o.label,
+                        height: 30,
+                        padding: 4,
+                        selected: _order == o,
+                        onPressed: () {
+                          setState(() => _order = o);
+                          _page(m, reset: true);
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             const SizedBox(height: Space.sm),
             for (final r in _reviews) ...[
               ReviewTile(
@@ -262,18 +336,6 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
               TextButton(
                 onPressed: () => _page(m),
                 child: const Text('More reviews'),
-              ),
-            const SizedBox(height: Space.md),
-            if (m.mine != null)
-              PrimaryButton(
-                label: 'Edit your review',
-                onPressed: () => _write(m.mine),
-              )
-            else if (took != null)
-              PrimaryButton(
-                label: 'Review ${widget.courseId}',
-                icon: Icons.rate_review_outlined,
-                onPressed: () => _write(null),
               ),
           ],
         );
