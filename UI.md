@@ -2353,6 +2353,21 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Checks**: `flutter analyze` 7 infos; `flutter test` 483 passed, 50
   skipped.
 
+### 13.2.10 Agent toolchain, and two findings held back (28 Sep 2026)
+`agent_toolchains/` (98bf609) adds `ui_check` and `progress_report`; see `agent_toolchains/README.md`.
+It is test tooling that this plan does not list. **Departure:** there is no card for it.
+Its first sweep found two problems. Both are held back on purpose. The baseline keeps them, so they
+aren't flagged again, and they are recorded here so they aren't forgotten:
+
+- **Deferred: screen-reader tap actions (future use).** 241 renders have buttons built as
+  `Semantics(button: true, excludeSemantics: true, child: InkWell(onTap: …))`. `excludeSemantics`
+  strips the InkWell's tap action, so VoiceOver and TalkBack reach these buttons only through
+  their simulated-touch fallback. The fix is to pass `onTap` to the `Semantics` too. It isn't
+  scheduled: most students won't use a screen reader. The ui_check kind that reports it is `dead`.
+- **Fix after the plan: the "Open ERP" pill (§4.6, T4.5).** On `s_import`, the pill fills
+  320 of 390 px instead of hugging its label. The ui_check kind is `stretch`. Fix it once every
+  group in this plan is done, and before the Group 9 sign-off.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
