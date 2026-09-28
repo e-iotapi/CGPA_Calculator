@@ -6,6 +6,10 @@ import 'package:cgpa_calculator/core/reviews/review_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 
 enum _View { all, reported, hidden }
@@ -27,16 +31,16 @@ class _DeptReviewsState extends State<DeptReviews> {
 
   ReviewStore get _store => reviewStore!;
 
-  Future<List<Review>> _load() => switch (_view) {
-    _View.all => _store.moderation(widget.campus, widget.dept),
-    _View.reported => _store.moderation(
+  Future<_Lists> _load() async => (
+    all: await _store.moderation(widget.campus, widget.dept),
+    reported: await _store.moderation(
       widget.campus,
       widget.dept,
       hidden: false,
       reportedOnly: true,
     ),
-    _View.hidden => _store.moderation(widget.campus, widget.dept, hidden: true),
-  };
+    hidden: await _store.moderation(widget.campus, widget.dept, hidden: true),
+  );
 
   Future<void> _act(Future<void> Function() f, String done) async {
     try {
@@ -60,101 +64,262 @@ class _DeptReviewsState extends State<DeptReviews> {
 
   @override
   Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Loaded<List<Review>>(
-      key: ValueKey('$_view|$_loads'),
+    return Loaded<_Lists>(
+      key: ValueKey(_loads),
       load: _load,
-      builder:
-          (context, reviews, _) => PageFrame(
-            header: PageHeader(
-              eyebrow:
-                  '${widget.dept} · ${campusName(widget.campus).toUpperCase()}',
-              title: 'Reviews',
+      builder: (context, lists, _) {
+        final reviews = switch (_view) {
+          _View.all => lists.all,
+          _View.reported => lists.reported,
+          _View.hidden => lists.hidden,
+        };
+        final shown = [
+          for (final r in lists.all)
+            if (!r.hidden) r,
+        ];
+        return PageFrame(
+          header: PageHeader(
+            eyebrow:
+                '${campusName(widget.campus).toUpperCase()} ONLY · '
+                '${widget.dept}',
+            title: 'Reviews',
+          ),
+          children: [
+            _Summary(dept: widget.dept, campus: widget.campus, shown: shown),
+            const SizedBox(height: Space.md),
+            ChoicePills<_View>(
+              values: _View.values,
+              selected: _view,
+              equal: true,
+              label:
+                  (v) => switch (v) {
+                    _View.all => 'All',
+                    _View.reported => 'Reported',
+                    _View.hidden => 'Hidden',
+                  },
+              count:
+                  (v) => switch (v) {
+                    _View.all => '${lists.all.length}',
+                    _View.reported => '${lists.reported.length}',
+                    _View.hidden => '${lists.hidden.length}',
+                  },
+              onSelected: (v) => setState(() => _view = v),
             ),
-            children: [
-              ChoicePills<_View>(
-                values: _View.values,
-                selected: _view,
-                label:
-                    (v) => switch (v) {
-                      _View.all => 'All',
-                      _View.reported => 'Reported',
-                      _View.hidden => 'Hidden',
-                    },
-                onSelected: (v) => setState(() => _view = v),
+            const SizedBox(height: Space.sm),
+            for (final r in reviews) ...[
+              _ModCard(
+                r: r,
+                onKeep:
+                    r.reports > 0 && !r.hidden
+                        ? () => _act(
+                          () => _store.keep(r),
+                          'Kept. The reports are cleared.',
+                        )
+                        : null,
+                onHide: r.hidden ? null : () => _hide(r),
+                onUnhide:
+                    r.hidden
+                        ? () => _act(
+                          () => _store.unhide(r),
+                          'Unhidden. Its rating counts again.',
+                        )
+                        : null,
               ),
               const SizedBox(height: Space.sm),
-              for (final r in reviews) ...[
-                ReviewTile(
-                  r: r,
-                  showCourse: true,
-                  footer: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          r.hidden
-                              ? 'Hidden by ${r.hiddenByName ?? 'a moderator'}: '
-                                  '${r.reason ?? ''}'
-                              : r.reports == 0
-                              ? 'Not reported'
-                              : '${r.reports} report${r.reports == 1 ? '' : 's'}',
-                          style: TypeScale.caption.copyWith(
-                            color:
-                                r.reports > 0 || r.hidden
-                                    ? p.behind
-                                    : p.textMuted,
-                          ),
-                        ),
+            ],
+            if (reviews.isEmpty)
+              Note(switch (_view) {
+                _View.reported =>
+                  'Nothing reported. Students report a '
+                      'review from its course page.',
+                _View.hidden => 'Nothing hidden.',
+                _View.all => 'No reviews in ${widget.dept} yet.',
+              }),
+            const SizedBox(height: Space.sm),
+            Notice(
+              text: const TextSpan(
+                text:
+                    'Hiding is reversible and never a delete. It takes a '
+                    'review off the page and out of the rating; its author '
+                    'still sees it, with your reason. Every hide, unhide and '
+                    'keep goes in the audit log.',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+typedef _Lists =
+    ({List<Review> all, List<Review> reported, List<Review> hidden});
+
+/// The department's reviews on this campus at a glance: count, average and
+/// how many would take the course, with a bar.
+class _Summary extends StatelessWidget {
+  const _Summary({
+    required this.dept,
+    required this.campus,
+    required this.shown,
+  });
+  final String dept, campus;
+  final List<Review> shown;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final n = shown.length;
+    final avg = n == 0 ? null : shown.fold(0, (a, r) => a + r.stars) / n;
+    final take = n == 0 ? null : shown.where((r) => r.recommend).length / n;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$dept · ${campusName(campus).toUpperCase()} · '
+            '$n REVIEW${n == 1 ? '' : 'S'}',
+            style: TypeScale.label.copyWith(
+              color: p.textMuted,
+              letterSpacing: 1,
+            ),
+          ),
+          Text(
+            'This campus only',
+            style: TypeScale.caption.copyWith(color: p.textMuted),
+          ),
+          const SizedBox(height: Space.sm),
+          Wrap(
+            spacing: Space.lg,
+            runSpacing: Space.xs,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: avg == null ? '–' : avg.toStringAsFixed(1),
+                      style: TypeScale.title.copyWith(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
                       ),
-                      if (r.hidden)
-                        TextButton(
-                          onPressed:
-                              () => _act(
-                                () => _store.unhide(r),
-                                'Unhidden. Its rating counts again.',
-                              ),
-                          child: const Text('Unhide'),
-                        )
-                      else ...[
-                        if (r.reports > 0)
-                          TextButton(
-                            onPressed:
-                                () => _act(
-                                  () => _store.keep(r),
-                                  'Kept. The reports are cleared.',
-                                ),
-                            child: const Text('Keep'),
-                          ),
-                        TextButton(
-                          onPressed: () => _hide(r),
-                          child: const Text('Hide'),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                    TextSpan(
+                      text: ' / 5',
+                      style: TypeScale.caption.copyWith(color: p.textMuted),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: Space.xs),
-              ],
-              if (reviews.isEmpty)
-                Note(switch (_view) {
-                  _View.reported =>
-                    'Nothing reported. Students report a '
-                        'review from its course page.',
-                  _View.hidden => 'Nothing hidden.',
-                  _View.all => 'No reviews in ${widget.dept} yet.',
-                }),
-              const SizedBox(height: Space.sm),
+              ),
               Text(
-                'Hiding takes a review off the page and out of the rating; '
-                'its author still sees it, with your reason. Every hide, '
-                'unhide and keep goes in the audit log.',
-                style: TypeScale.caption.copyWith(
-                  height: 1.45,
-                  color: p.textMuted,
-                ),
+                take == null
+                    ? 'NO RATINGS YET'
+                    : '${(take * 100).round()}% WOULD TAKE IT',
+                style: TypeScale.label.copyWith(letterSpacing: 0.8),
               ),
             ],
           ),
+          const SizedBox(height: Space.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: SizedBox(
+              height: 7,
+              child: LinearProgressIndicator(
+                value: take ?? 0,
+                color: p.text,
+                backgroundColor: p.surfaceSunken,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One review as a moderator sees it: chips, reports, rating, the text, and
+/// Keep / Hide (or Unhide) as 32 tall pills.
+class _ModCard extends StatelessWidget {
+  const _ModCard({required this.r, this.onKeep, this.onHide, this.onUnhide});
+  final Review r;
+  final VoidCallback? onKeep, onHide, onUnhide;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final text = r.text?.trim() ?? '';
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TierTag(r.courseId, strong: true),
+              ScopeChip(termLabel(r.term), muted: true, height: 22),
+              if (r.reports > 0)
+                Text(
+                  '${r.reports} REPORT${r.reports == 1 ? '' : 'S'}',
+                  style: TypeScale.label.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: p.noticeTone.text,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: Space.sm),
+          Row(
+            children: [
+              Icon(Icons.star_rounded, size: 16, color: p.text),
+              const SizedBox(width: 3),
+              Text(
+                '${r.stars} of 5',
+                style: TypeScale.caption.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: p.text,
+                ),
+              ),
+              const SizedBox(width: Space.sm),
+              TierTag(r.recommend ? 'TAKE IT' : "DON'T"),
+            ],
+          ),
+          if (text.isNotEmpty) ...[
+            const SizedBox(height: Space.sm),
+            Text(text, style: TypeScale.body.copyWith(height: 1.45)),
+          ],
+          const SizedBox(height: Space.sm),
+          Text(
+            r.hidden
+                ? 'Hidden by ${r.hiddenByName ?? 'a moderator'}: '
+                    '${r.reason ?? ''}'
+                : 'Anonymous to students · attributable to you',
+            style: TypeScale.caption.copyWith(
+              color: r.hidden ? p.behind : p.textMuted,
+            ),
+          ),
+          const SizedBox(height: Space.sm),
+          Wrap(
+            spacing: Space.sm,
+            runSpacing: Space.sm,
+            children: [
+              if (onKeep != null)
+                PillButton(label: 'Keep', height: 32, onPressed: onKeep),
+              if (onHide != null)
+                PillButton(
+                  label: 'Hide',
+                  height: 32,
+                  selected: true,
+                  onPressed: onHide,
+                ),
+              if (onUnhide != null)
+                PillButton(label: 'Unhide', height: 32, onPressed: onUnhide),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
