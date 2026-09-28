@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/roles/contacts.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -21,6 +22,7 @@ import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
+import 'package:cgpa_calculator/script.dart' as script;
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
@@ -572,14 +574,16 @@ void main() {
   testWidgets('S12 More opens each of its three pages', (t) async {
     signIn(student, name: 'Rohan');
     await courses(t, []);
+    script.campus = Campus.goa;
     await t.pumpWidget(app(const MorePage()));
     await t.pumpAndSettle();
+    expect(find.textContaining('GOA ·'), findsOneWidget);
     for (final (label, page) in [
       ('Representatives', RepresentativesPage),
       ('Course reviews', ReviewsHome),
       ('Resources', ResourcesPage),
     ]) {
-      await t.tap(find.widgetWithText(NavRow, label));
+      await t.tap(find.text(label));
       await t.pumpAndSettle();
       expect(find.byType(page), findsOneWidget, reason: label);
       Navigator.of(t.element(find.byType(page))).pop();
