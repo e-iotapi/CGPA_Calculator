@@ -3,17 +3,40 @@
 /// rules check every write against the person's own grants.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 
 /// Set at startup once signed in; null in tests and signed out.
 RoleStore? roleStore;
+
+/// Opens the store for any signed-in email, BITS or not (§10.0): an owner
+/// grant can name a non-BITS address. `recordSignIn` (people/{me}, so the
+/// person can be appointed) still only fires for a BITS campus address.
+@visibleForTesting
+RoleStore startRoles(
+  FirebaseFirestore db, {
+  required String email,
+  required String name,
+}) {
+  final store = roleStore = RoleStore(
+    db,
+    me: email,
+    myName: name,
+    actingAs: actingNow,
+  );
+  if (campusOfAddress(email) case final campus?) {
+    unawaited(store.recordSignIn(name: name, campus: campus).catchError((_) {}));
+  }
+  return store;
+}
 
 /// What the signed-in person holds. Restored from the device at start and
 /// refreshed in the background.
