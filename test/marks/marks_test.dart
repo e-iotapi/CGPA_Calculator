@@ -385,6 +385,15 @@ void main() {
       expect(find.text('CS F372 · 3 CREDITS'), findsOneWidget);
     });
 
+    testWidgets('Total marks shows the rescale', (t) async {
+      await pump(t, CourseSetupPage(course: _os), const Size(390, 844));
+      await t.tap(find.text('Total marks'));
+      await t.pump();
+      await t.enterText(find.byType(TextField).first, '300');
+      await t.pump();
+      expect(find.textContaining('shown out of 100'), findsOneWidget);
+    });
+
     testWidgets('official shows the notice', (t) async {
       await pump(
         t,
