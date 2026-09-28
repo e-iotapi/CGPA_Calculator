@@ -8,6 +8,7 @@ git ignores.
 |---|---|
 | `ui_check/` | Renders every screen, reports UI bugs as text, and diffs against the accepted run, so you open pixels only when a rule below says to. |
 | `code/` | Surgical editing, one-line verify gates, and a commit helper that enforces this repo's rules. |
+| `plan/` | Reads UI.md / UI_OPT.md by number (T7.3, 8.4, N27, O0.2): exact text, never a summary. |
 | `progress_report/` | Builds the one-page progress report from `status.json` and the git log. |
 
 Setup, once per container: `pip install pillow numpy`, and put flutter on
@@ -157,6 +158,15 @@ These are surgical tools. They refuse rather than guess, and they write nothing 
 
 For symbol lookups (definition, references, signature) use the Dart MCP
 server from the Dart and Flutter plugin instead of reading whole files.
+
+## plan
+
+`plan.py get T7.3 8.4 N27` prints those items exactly as the file has
+them, so read a card and what it cites without reading the plan. `list`
+is the index, and `check` proves the parse still matches the files, so run
+it after the plan is edited. It parses on every call, so it is never stale.
+An unknown or ambiguous id is an error, never a guess; use `UI_OPT.md:1.1`
+when both files have the id.
 
 ## progress_report
 
