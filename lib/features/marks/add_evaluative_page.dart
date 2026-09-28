@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/widgets/count_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
@@ -399,7 +400,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
               runSpacing: 6,
               children: [
                 for (var k = n; k >= 1; k--)
-                  _CountPill(
+                  CountPill(
                     label: k == n ? 'All $n' : 'Best $k of $n',
                     selected: (_best == 0 || _best >= n) ? k == n : _best == k,
                     onTap: () => setState(() => _best = k == n ? 0 : k),
@@ -820,53 +821,6 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Board 3.6: the selected count pill is mint.
-class _CountPill extends StatelessWidget {
-  const _CountPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: Material(
-        color: selected ? p.hero : Colors.transparent,
-        shape: StadiumBorder(
-          side: BorderSide(color: selected ? p.hero : p.outline),
-        ),
-        child: InkWell(
-          customBorder: const StadiumBorder(),
-          onTap: onTap,
-          child: Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Center(
-              widthFactor: 1,
-              child: Text(
-                label,
-                style: TypeScale.caption.copyWith(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? p.onHero : p.text,
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
