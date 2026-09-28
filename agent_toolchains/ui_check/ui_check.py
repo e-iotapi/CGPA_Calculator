@@ -89,7 +89,7 @@ def run(paths, card):
     targets = (paths or SUITES[:1]) + [CANARY_TEST]
     env = dict(os.environ, SHOTS_DIR=NEW)
     env['PATH'] = '/opt/flutter/bin:' + env.get('PATH', '')
-    proc = subprocess.run(['flutter', 'test', '--reporter', 'json', *targets],
+    proc = subprocess.run(['flutter', 'test', '--reporter', 'json', '--timeout', '60s', *targets],
                           cwd=ROOT, env=env, capture_output=True, text=True)
     names, failed, errors, done = {}, [], {}, None
     for line in proc.stdout.splitlines():
