@@ -21,7 +21,7 @@ changing a screen.
   no copies of store logic, so a changed store changes nothing else.
 - **Do not reformat legacy files**: `main.dart`, `home_page.dart`, `script.dart`,
   `course.dart`, `mastercourselist.dart`, `sync.dart`, `settings_page.dart`,
-  `settings_test.dart`. Edit them by hand.
+  `settings_test.dart`, `circle_reveal.dart`. Edit them by hand.
 - After merging, run the gates in §5.1. The render tests fail on any layout error, so a
   model change that breaks a screen shows up there, not on a device.
 
@@ -64,7 +64,7 @@ Loaded<Data>(
 
 ### 2.3 Design rules the screens rely on
 - Stadium pills, not Material chips or dropdowns: `ChoicePills` / `PillButton`, pickers are
-  `SelectRow` + a bottom sheet. Switches are `MergeSemantics(Row(title+caption, Switch))`.
+  `SelectRow` + a bottom sheet (`DeptSheet` for departments). Switches are `MergeSemantics(Row(title+caption, Switch))`.
 - Mint = on/positive, ink = selected/primary, amber (`noticeTone`) = needs attention,
   dashed = not there yet (e.g. `MiniChip(dashed: true)` "no avg").
 - Every screen must lay out at 390 and 320 px wide, light and dark, and 320 px at 150% text.
@@ -175,11 +175,13 @@ The board's "Ramesh Menon · 17 reviews" on Merge needs a per-professor review c
 UI shows offerings instead until one exists.
 
 ### 3.5 Places the UI reads Firestore directly (move behind a store)
-- `config_pages.dart` ~561–566: public contact reads `config/public` and the audit entry
+- `config_pages.dart` ~565–570: public contact reads `config/public` and the audit entry
   named by `auditId` (live read, a recorded Departure: the user chose live over "after the
   next publish").
-- `open_as.dart` ~395: `collectionGroup('offerings')` for the course picker.
-- `succession.dart` ~24: `_myGrant` reads the president's own grant document.
+- `open_as.dart` ~386: `collectionGroup('offerings')` for the course picker.
+- `succession.dart` ~22: `_myGrant` reads the president's own grant document. For an owner
+  or admin previewing a department, `_shownGrant` falls back to the department's live
+  president from `roster`; only `_myGrant` is ever handed over.
 
 ### 3.6 Indexes the UI relies on
 `firestore.indexes.json`: collection group `offerings (campus, term)` (Open as course
@@ -187,8 +189,19 @@ picker) and the `entries` indexes for review moderation (N10). Keep them when me
 
 ### 3.7 Behaviour decisions already made (don't undo without asking the user)
 - Public contact is read live (T8.8).
-- Open as › Which department: one row per branch, named by branch, subtitles show branch
-  codes only; each ELEC branch opens the ELEC its presidents manage together.
+- Every department picker (Open as, Appoint, Merge duplicates, Volunteers) is the one list
+  in `admin/dept_list.dart` (`DeptSheet` for the sheets): one row per branch, named by
+  branch, subtitles show branch codes only; "ELEC" never shows as a choice. Each ELEC
+  branch opens the ELEC its presidents manage together; professors stay per department.
+- Links may point at any website; the Reported tab handles bad ones (§3.10).
+- Merge duplicates fetches possible duplicates on load (§3.8); tapping a pair picks both,
+  keeping the one with more offerings.
+- The Audit log's course filter takes a code or a name.
+- An owner or admin previewing Hand over sees the department president's screen with a
+  "Previewing as" note; only the president's own grant is handed over.
+- Emails in rows are the short campus form (`f20230456@goa`, `shared/short_email.dart`).
+- Text size: 120% is the bar. At 150% labels may ellipsize (eyebrows keep theirs); nothing
+  may overflow, which the render tests check.
 - DeptHome has no "Appoint a CR" row; People › Roster reaches it.
 - DeptProfessors stays search-first: Add waits for a search (N22).
 - New component opens with the same layout as Edit component (several parts, empty).
@@ -203,17 +216,17 @@ picker) and the `entries` indexes for review moderation (N10). Keep them when me
 | File | Store | Methods |
 |---|---|---|
 | `admin/admin_home.dart` | RoleStore, ContactStore | `owners`, `publicContact`, `roster`, `terms` |
-| `admin/config_pages.dart` | RoleStore | `addOwner`, `audit`, `owners`, `publicContact`, `savePublicContact`, `saveTerms`, `setOwnerActive`, `terms` |
-| `admin/grant_form.dart` | RoleStore | `appoint`, `personName`, `terms` |
+| `admin/config_pages.dart` | RoleStore | `addOwner`, `audit`, `owners`, `publicContact`, `savePublicContact`, `saveTerms`, `setOwnerActive`, `terms` (Audit course filter: `searchCourses` over the catalogue) |
+| `admin/grant_form.dart` | RoleStore | `appoint`, `personName`, `terms` (+ `departmentSource`, §3.9) |
 | `admin/people.dart` | RoleStore | `audit`, `revoke`, `roster` |
 | `admin/roster.dart` | RoleStore, ContactStore | `owners`, `roster`, `staffPhones` |
-| `admin/volunteers.dart` | ContactStore | `offers`, `dismiss` |
-| `admin/open_as.dart` | RoleStore, ProfessorStore | `roster` (+ §3.5) |
+| `admin/volunteers.dart` | ContactStore | `offers`, `dismiss` (+ `departmentSource`, §3.9) |
+| `admin/open_as.dart` | RoleStore, ProfessorStore | `roster` (+ §3.5, `departmentSource` §3.9) |
 | `admin/publish_page.dart` | CatalogStore | `publish`, `saveDraft` |
 | `admin/maintain.dart` | MaintainStore, RoleStore, ResourceStore, ReviewStore, ProfessorStore | `offering`, `offerings`, `save`, `audit`, `roster`, `department`, `flags`, `moderation` |
 | `admin/bulk_upload.dart` | MaintainStore | `offerings`, `upload` |
 | `admin/scheme_editor.dart` | MaintainStore | `save` |
-| `admin/professors.dart` | ProfessorStore, MaintainStore | `add`, `department`, `merge`, `rename`, `taught`, `offerings`, `save` |
+| `admin/professors.dart` | ProfessorStore, MaintainStore | `add`, `department`, `merge`, `rename`, `taught`, `offerings`, `save` (+ `duplicateSource` §3.8, `departmentSource` §3.9) |
 | `admin/dept_resources.dart` | ResourceStore | `add`, `update`, `department`, `flags`, `courseFlags`, `dismiss` |
 | `admin/dept_reviews.dart` | ReviewStore | `moderation`, `hide`, `unhide`, `keep` |
 | `admin/succession.dart` | RoleStore | `handOver`, `cancelHandover`, `personName`, `roster`, static `successorProblem`, `outgoingExpiry` |
@@ -280,6 +293,14 @@ contrast, word breaks). The PNGs are in `build/ui_check/new/`; look at them. Ful
 `ui_check.py run`; the contact sheet: `ui_check.py atlas` → `ui_sheet/ui_sheet.png`.
 Known false alarms: 36-tall pills and header blocks flagged `tap`, icon-only pills flagged
 `dead`, `TierTag` contrast at 150%.
+
+### 5.3.1 The UI-only demo
+`demo/main.dart` runs the real app with no backend: a local Firebase stand-in, Hive in the
+browser, and the seed data in `test/helpers/fake_seed.dart` (the web-safe half of
+`fake_data.dart`, which re-exports it). Every sign-in is the owner. `demo/build.sh` builds
+it into `build/demo` (it builds against a patched copy of `fake_cloud_firestore`, whose
+test mock release builds refuse, and removes the override after). A change to a seeded
+model shape goes in `fake_seed.dart`, and the demo picks it up.
 
 ### 5.4 Rules for changes
 1. Colours, type and spacing only from the tokens (§2.1).
