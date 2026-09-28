@@ -95,11 +95,14 @@ Future<List<String>> uiIssues(WidgetTester t) async {
     _walkRender(view, screen, false, out, texts);
     final shot = await _shoot(t, view);
     if (shot != null) {
-      // Content scrolled under a bottom action's fade is meant to fade;
-      // the bar's own text is still checked.
+      // Content scrolled under a bottom action's or the nav pill's fade is
+      // meant to fade; the bar's own text is still checked.
       final bars = <Rect>[];
       final own = <RenderObject>{};
-      for (final e in find.byType(BottomAction).evaluate()) {
+      final barFinder = find.byWidgetPredicate(
+        (w) => w is BottomAction || '${w.runtimeType}' == '_FloatingPill',
+      );
+      for (final e in barFinder.evaluate()) {
         final b = e.renderObject;
         if (b is! RenderBox || !b.hasSize) continue;
         bars.add(
