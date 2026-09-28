@@ -103,7 +103,7 @@ class _SettingsPageState extends State<SettingsPage> {
               onInstall: kIsWeb ? () => _install(context) : null,
               installed: kIsWeb && isStandalone(),
               onEmail:
-                  () => launchUrl(Uri.parse('mailto:siddhu.cms@gmail.com')),
+                  () => launchUrl(Uri.parse('mailto:mishra.siddharth@icloud.com')),
               onGithub:
                   () => launchUrl(
                     Uri.parse('https://github.com/e-iotapi'),

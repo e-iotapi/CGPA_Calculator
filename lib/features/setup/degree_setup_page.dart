@@ -16,6 +16,7 @@ import 'package:cgpa_calculator/shared/widgets/code_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/short_email.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
@@ -250,7 +251,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                       ),
                       if (widget.email != null)
                         Text(
-                          widget.email!,
+                          shortEmail(widget.email!),
                           overflow: TextOverflow.ellipsis,
                           style: body.copyWith(color: p.text),
                         ),

@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/short_email.dart';
 import 'package:flutter/material.dart';
 
 /// Settings, board `Settings`. Stateless: the page owns every action.
@@ -378,7 +379,7 @@ class SettingsView extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  email,
+                  shortEmail(email),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TypeScale.caption.copyWith(color: p.onHeroMuted),

@@ -10,8 +10,12 @@ import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
+import 'package:cgpa_calculator/shared/short_email.dart';
+
 import 'package:flutter/rendering.dart';
 import 'package:go_router/go_router.dart';
+
+export 'package:cgpa_calculator/shared/short_email.dart';
 
 /// "PEOPLE", "OWNER ONLY": the small caps above a group.
 class SectionLabel extends StatelessWidget {
@@ -480,10 +484,8 @@ class _LabelRowState extends State<LabelRow> {
 }
 
 /// "f20230456@goa" — the part before the domain, for the Audit log.
-String shortEmail(String e) => e.split('.bits-pilani.ac.in').first;
-
-/// A name, then its email ellipsized to fit; the name keeps up to 60% of the
-/// row (N5).
+/// A name, then its email in the short campus form (`f20190001@goa`); the
+/// name keeps up to 60% of the row (N5).
 class NameEmail extends StatelessWidget {
   const NameEmail(this.name, this.email, {super.key});
   final String name;
@@ -511,7 +513,7 @@ class NameEmail extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  email,
+                  shortEmail(email),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   softWrap: false,
