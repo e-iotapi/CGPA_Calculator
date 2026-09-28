@@ -227,7 +227,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
                     }),
                 style: TypeScale.body.copyWith(color: p.text),
                 decoration: InputDecoration(
-                  hintText: 'Search by code or name',
+                  hintText: 'Code or name',
                   prefixIcon: Icon(Icons.search_rounded, color: p.icon),
                   suffixText:
                       _query.text.trim().isEmpty

@@ -249,7 +249,7 @@ void main() {
       );
       final button = t.widget<PrimaryButton>(find.byType(PrimaryButton));
       expect(button.onPressed, isNull);
-      expect(button.label, 'Pick what you are reading');
+      expect(button.label, 'Pick your degree');
     });
 
     testWidgets('second degree lists only B.E.', (t) async {

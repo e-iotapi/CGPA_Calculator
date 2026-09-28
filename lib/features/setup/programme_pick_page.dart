@@ -118,7 +118,7 @@ class _ProgrammePickPageState extends State<ProgrammePickPage> {
                       }),
                   style: TypeScale.body.copyWith(fontSize: 13, color: p.text),
                   decoration: InputDecoration(
-                    hintText: 'Code or name — A7, mechanical…',
+                    hintText: 'Code or name',
                     hintStyle: TypeScale.body.copyWith(
                       fontSize: 13,
                       color: p.textMuted,

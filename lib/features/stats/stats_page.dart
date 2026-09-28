@@ -231,7 +231,9 @@ class StatsScreen extends StatelessWidget {
                                 StatsView.degree => 'Degree progress',
                                 StatsView.minor => 'Minor requirements',
                               },
-                              maxLines: 1,
+                              // Two lines at large text rather than a cut
+                              // (T9.1).
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TypeScale.title.copyWith(color: p.text),
                             ),
@@ -260,7 +262,8 @@ class StatsScreen extends StatelessWidget {
                           Expanded(
                             child: PillButton(
                               label: switch (v) {
-                                StatsView.progression => 'Progression',
+                                // Short enough for three tabs at 320 × 1.5.
+                                StatsView.progression => 'Progress',
                                 StatsView.degree => 'Degree',
                                 StatsView.minor => 'Minor',
                               },
