@@ -34,7 +34,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 WORK = os.environ.get('UI_CHECK_DIR', os.path.join(ROOT, 'build', 'ui_check'))
 NEW, BASE = os.path.join(WORK, 'new'), os.path.join(WORK, 'base')
 CANARY_TEST = 'agent_toolchains/ui_check/canary_test.dart'
-SUITES = ['test/ui', CANARY_TEST]
+# Every render suite a full run covers; the semester one lives with its
+# feature tests and needs naming.
+SUITES = ['test/ui', 'test/semester/semester_screenshots_test.dart']
 
 # What each canary must report (see canary_test.dart); '' = nothing at all.
 CANARIES = {
@@ -87,7 +89,7 @@ def run(paths, card):
     partial = bool(paths)
     if partial:
         open(os.path.join(NEW, '.partial'), 'w').close()
-    targets = (paths or SUITES[:1]) + [CANARY_TEST]
+    targets = (paths or SUITES) + [CANARY_TEST]
     env = dict(os.environ, SHOTS_DIR=NEW)
     env['PATH'] = '/opt/flutter/bin:' + env.get('PATH', '')
     proc = subprocess.run(['flutter', 'test', '--reporter', 'json', '--timeout', '60s', *targets],
