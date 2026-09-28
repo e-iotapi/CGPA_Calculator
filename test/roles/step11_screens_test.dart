@@ -898,6 +898,14 @@ void main() {
     await t.tap(find.text('A3'));
     await t.pumpAndSettle();
     expect(grantButton(t), 'Grant — president, ELEC Goa');
+    // A secretary names itself, and waits for the roles update.
+    await t.tap(find.text('Secretary'));
+    await t.pumpAndSettle();
+    expect(grantButton(t), 'Grant — secretary, ELEC Goa');
+    expect(
+      t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNull,
+    );
     expect(
       grantLabel(GrantRole.course, 'CS F372', 'goa'),
       'Grant — course manager, CS F372 Goa',
