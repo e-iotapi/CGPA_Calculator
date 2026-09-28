@@ -8,6 +8,7 @@ pixels only where the fallback rules say to. See ../README.md.
   python3 agent_toolchains/ui_check/ui_check.py sheet [GLOB] [--scale 0.33]
   python3 agent_toolchains/ui_check/ui_check.py show GLOB...
   python3 agent_toolchains/ui_check/ui_check.py audit [N]
+  python3 agent_toolchains/ui_check/ui_check.py atlas [--frame 390] [--out ui_sheet/ui_sheet.png]
 
 Needs flutter on PATH and `pip install pillow numpy`. Everything it writes
 goes under build/ui_check/ (UI_CHECK_DIR overrides), which git ignores:
@@ -305,6 +306,60 @@ def sheet(patterns, scale):
     return 0
 
 
+def atlas(frame, out):
+    """For a person's pass: every screen of the last run at [frame], its
+    light and dark renders side by side at 1x under the screen's name, in
+    one image. Canaries are left out."""
+    from PIL import ImageFont
+    pairs = []
+    for s in sorted(f[:-4] for f in os.listdir(NEW) if f.endswith('.png')):
+        if s.startswith('canary_') or '_light_' not in s:
+            continue
+        if not s.endswith('_' + frame):
+            continue
+        dark = s.replace('_light_', '_dark_')
+        name = s.replace('_light_', '_').rsplit('_', 1)[0]
+        ims = [Image.open(os.path.join(NEW, x + '.png')).convert('RGB')
+               for x in (s, dark) if os.path.exists(os.path.join(NEW, x + '.png'))]
+        pairs.append((name, ims))
+    if not pairs:
+        print(f'no renders at {frame} in {NEW}; run first')
+        return 2
+    try:
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 22)
+    except OSError:
+        font = ImageFont.load_default()
+    gap, label = 12, 40
+    cells = []
+    for name, ims in pairs:
+        w = sum(i.width for i in ims) + gap * (len(ims) - 1)
+        h = max(i.height for i in ims) + label
+        cells.append((name, ims, w, h))
+    cols = 4 if frame in ('320', '390') else 1
+    cw = max(c[2] for c in cells)
+    rows = [cells[i:i + cols] for i in range(0, len(cells), cols)]
+    W = cols * cw + (cols + 1) * gap * 3
+    H = sum(max(c[3] for c in r) for r in rows) + (len(rows) + 1) * gap * 3
+    page = Image.new('RGB', (W, H), (96, 96, 96))
+    draw = ImageDraw.Draw(page)
+    y = gap * 3
+    for r in rows:
+        x = gap * 3
+        for name, ims, w, h in r:
+            draw.text((x, y + 6), name, fill=(255, 235, 59), font=font)
+            ix = x
+            for im in ims:
+                page.paste(im, (ix, y + label))
+                ix += im.width + gap
+            x += cw + gap * 3
+        y += max(c[3] for c in r) + gap * 3
+    os.makedirs(os.path.dirname(out) or '.', exist_ok=True)
+    page.save(out, optimize=True)
+    print(f'{out}  {len(pairs)} screens, {W}x{H}, '
+          f'{os.path.getsize(out) // 1024} KB')
+    return 0
+
+
 def show(patterns):
     out = os.path.join(WORK, 'show')
     os.makedirs(out, exist_ok=True)
@@ -346,6 +401,12 @@ def main(argv):
         return sheet(rest, scale)
     if cmd == 'show':
         return show(rest)
+    if cmd == 'atlas':
+        opt = {'--frame': '390', '--out': 'ui_sheet/ui_sheet.png'}
+        for k in opt:
+            if k in rest:
+                opt[k] = rest[rest.index(k) + 1]
+        return atlas(opt['--frame'], opt['--out'])
     if cmd == 'audit':
         return audit(int(rest[0]) if rest else 4)
     print(__doc__)

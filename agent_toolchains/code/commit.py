@@ -13,7 +13,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from rules import FORBIDDEN, TRAILER, changed_files, matches, sh  # noqa: E402
+from rules import ALLOWED, FORBIDDEN, TRAILER, changed_files, matches, sh  # noqa: E402
 
 BRANCH = 'pointer-rebuild'
 
@@ -28,7 +28,7 @@ def main(argv):
     a = ap.parse_args(argv)
 
     changed = set(changed_files())
-    bad = [f for f in a.files if matches(f, FORBIDDEN)]
+    bad = [f for f in a.files if matches(f, FORBIDDEN) and f not in ALLOWED]
     stale = [f for f in a.files if f not in changed]
     if bad or stale:
         for f in bad:
