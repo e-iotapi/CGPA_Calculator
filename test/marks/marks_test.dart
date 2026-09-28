@@ -386,6 +386,33 @@ void main() {
       expect(find.text('CS F372 · 3 CREDITS'), findsOneWidget);
     });
 
+    testWidgets('diverged: YOURS line always, the amber card names it', (
+      t,
+    ) async {
+      var reviewed = 0, kept = 0;
+      Widget card(List<String> changed) => Scaffold(
+        body: DivergedCard(
+          yours: const ['Mid Semester'],
+          changed: changed,
+          age: '2 days ago',
+          body: 'The official Mid Semester is now 35%.',
+          onReview: () => reviewed++,
+          onKeepMine: () => kept++,
+        ),
+      );
+      await pump(t, card(const []), const Size(390, 844));
+      expect(find.text('YOURS'), findsOneWidget);
+      expect(find.text('Review'), findsNothing);
+      await pump(t, card(const ['Mid Semester']), const Size(390, 844));
+      expect(
+        find.text('OFFICIAL MID SEMESTER CHANGED · 2 DAYS AGO'),
+        findsOneWidget,
+      );
+      await t.tap(find.text('Review'));
+      await t.tap(find.text('Keep mine'));
+      expect((reviewed, kept), (1, 1));
+    });
+
     testWidgets('Make it mine returns true', (t) async {
       bool? mine;
       await pump(

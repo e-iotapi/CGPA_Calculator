@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/admin/widgets.dart' show ago;
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
@@ -106,6 +107,33 @@ class _MarksPageState extends State<MarksPage> {
     if (mounted) setState(() {});
   }
 
+  /// "The official Mid Semester is now 35%. Yours stays at 30% until you
+  /// choose."
+  String _changedBody(
+    Offering off,
+    List<(String, Evaluative)> evals,
+    List<String> changed,
+  ) {
+    final lines = <String>[];
+    for (final name in changed) {
+      final e = evals.map((x) => x.$2).where((x) => x.name == name).firstOrNull;
+      final o = e?.sourceId == null ? null : off.component(e!.sourceId!);
+      if (e != null && o != null && o.weight != e.weight) {
+        final unit = off.weighted ? '%' : ' marks';
+        lines.add(
+          'The official $name is now ${marks2(o.weight)}$unit. Yours stays '
+          'at ${marks2(e.weight)}$unit until you choose.',
+        );
+      } else {
+        lines.add(
+          'The official $name changed. Yours stays as it is until you '
+          'choose.',
+        );
+      }
+    }
+    return lines.join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -190,17 +218,15 @@ class _MarksPageState extends State<MarksPage> {
           DivergedCard(
             yours: yours.keys.toList(),
             changed: changed,
+            age: ago(DateTime.fromMillisecondsSinceEpoch(off.updatedAt)),
+            body: _changedBody(off, evals, changed),
+            onReview: () => _open(SchemeEditorPage(course: c)),
             onKeepMine: () async {
               await keepMine(_id, off.updatedAt);
               if (mounted) setState(() {});
             },
           ),
-          for (final y in yours.entries)
-            UseOfficialButton(
-              name: y.key,
-              onPressed: () => _useOfficial(off, y.value),
-            ),
-          const SizedBox(height: Space.sm),
+          const SizedBox(height: Space.md),
         ],
         if (termFor(c) case final term?
             when off != null ||
@@ -283,6 +309,25 @@ class _MarksPageState extends State<MarksPage> {
           ),
           const SizedBox(height: 7),
         ],
+        if (off != null)
+          for (final y in yours.entries)
+            UseOfficialButton(
+              name: y.key,
+              onPressed: () => _useOfficial(off, y.value),
+            ),
+        for (final (_, e) in evals)
+          if (tag(e) == 'NOT OFFICIAL' && e.parts.any((x) => x.marks != null))
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.sm),
+              child: Text(
+                '${e.name} holds your marks, so it stays until you clear it.',
+                textAlign: TextAlign.center,
+                style: TypeScale.caption.copyWith(
+                  fontSize: 11,
+                  color: p.textMuted,
+                ),
+              ),
+            ),
         if (off != null && off.hasScheme)
           Padding(
             padding: const EdgeInsets.only(top: Space.xs, bottom: Space.sm),
