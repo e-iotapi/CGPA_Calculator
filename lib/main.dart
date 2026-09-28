@@ -9,8 +9,6 @@ import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
 import 'package:cgpa_calculator/core/reviews/review_store.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
-import 'package:cgpa_calculator/core/roles/role_store.dart';
-import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -92,18 +90,13 @@ Future<void> startApp(User user) async {
   stripNavigate = appRouter.go;
   restoreMyRoles();
   final email = user.email;
-  if (email != null && isBitsAddress(email)) {
-    final store = roleStore = RoleStore(
+  if (email != null) {
+    // ignore: invalid_use_of_visible_for_testing_member
+    startRoles(
       FirebaseFirestore.instance,
-      me: email,
-      myName: user.displayName ?? '',
-      actingAs: actingNow,
+      email: email,
+      name: user.displayName ?? '',
     );
-    if (campusOfAddress(email) case final campus?) {
-      unawaited(store
-          .recordSignIn(name: user.displayName ?? '', campus: campus)
-          .catchError((_) {}));
-    }
     unawaited(refreshMyRoles().then((_) => checkProfile()));
   }
   await SystemChrome.setPreferredOrientations([
