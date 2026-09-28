@@ -20,6 +20,7 @@ abstract final class Routes {
   static String course(String id) => '/course/${Uri.encodeComponent(id)}';
   static const roles = '/roles';
   static const welcome = '/welcome';
+  static const ownerSetup = '/setup/owner';
 
   // Owners and admins; roster, audit and professor merge also presidents.
   static const admin = '/admin';

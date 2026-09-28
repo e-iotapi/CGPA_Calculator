@@ -17,6 +17,7 @@ import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
 import 'package:cgpa_calculator/home_page.dart';
+import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/not_found_page.dart';
 import 'package:flutter/material.dart';
@@ -28,15 +29,20 @@ export 'package:cgpa_calculator/app/routes.dart';
 /// it and Back behaves exactly as the old pushed routes did.
 final GoRouter appRouter = GoRouter(
   routes: appRoutes,
-  refreshListenable: profileDue,
+  refreshListenable: Listenable.merge([profileDue, ownerSetupDue]),
   redirect: (_, s) => profileGate(s.matchedLocation),
   errorBuilder: (_, _) => const NotFoundPage(),
 );
 
 /// RepProfile comes first after an appointment (§16.3 fix 8): while it is
 /// due, every location resolves to it.
-String? profileGate(String location) =>
-    profileDue.value && location != Routes.welcome ? Routes.welcome : null;
+/// A non-BITS owner sets campus and batch before anything else (§10.21).
+String? profileGate(String location) {
+  if (ownerSetupDue.value) {
+    return location == Routes.ownerSetup ? null : Routes.ownerSetup;
+  }
+  return profileDue.value && location != Routes.welcome ? Routes.welcome : null;
+}
 
 final List<RouteBase> appRoutes = [
   GoRoute(
@@ -60,6 +66,17 @@ final List<RouteBase> appRoutes = [
       GoRoute(
         path: 'representatives',
         builder: (_, _) => const RepresentativesPage(),
+      ),
+      GoRoute(
+        path: 'setup/owner',
+        builder:
+            (c, _) => OwnerSetupPage(
+              email: myRoles.value.email,
+              onDone: () {
+                ownerSetupDue.value = false;
+                c.go(Routes.home);
+              },
+            ),
       ),
       GoRoute(
         path: 'welcome',

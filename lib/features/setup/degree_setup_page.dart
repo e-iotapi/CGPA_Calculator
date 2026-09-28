@@ -18,6 +18,7 @@ import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
 
 /// What a discipline seeds: core courses, the semesters they span, and
 /// their credits.
@@ -38,6 +39,15 @@ import 'package:flutter/services.dart';
 
 /// First run, step 1 of 2: campus and batch from the sign-in address, then
 /// the one question the address cannot answer: what the student reads.
+/// Campus and batch are final once set: shared by owner setup.
+Future<void> saveCampusAndBatch(Campus campus, int year) async {
+  app.campus = campus;
+  app.batch = year % 100;
+  final box = await Hive.openBox('settingsBox');
+  await box.put('campus', campus.name);
+  await box.put('batch', app.batch);
+}
+
 class DegreeSetupPage extends StatefulWidget {
   const DegreeSetupPage({super.key, required this.email, required this.onDone});
 
@@ -140,9 +150,8 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     final d = _discipline, y = _yearValue;
     if (d == null || y == null || _campus == null) return;
     setState(() => _busy = true);
+    await saveCampusAndBatch(_campus!, y);
     app.selecteddiscipline = d;
-    app.batch = y % 100;
-    app.campus = _campus;
     // A fresh profile has nothing to lose: seed from clean.
     app.erase = 1;
     await app.setdis();
