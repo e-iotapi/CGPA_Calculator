@@ -250,3 +250,48 @@ class PrimaryButton extends StatelessWidget {
     );
   }
 }
+
+/// [AppTextField]'s look for a raw [TextField] that needs more than it
+/// offers (autofocus, several lines, a length cap), as in a dialog. Filled
+/// with the background so it reads on a surface.
+InputDecoration appFieldDecoration(
+  AppPalette p, {
+  String? label,
+  String? hint,
+  String? suffix,
+  String? helper,
+}) {
+  final border = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide(color: p.outline),
+  );
+  final caption = TypeScale.caption.copyWith(color: p.textMuted);
+  return InputDecoration(
+    isDense: true,
+    labelText: label,
+    hintText: hint,
+    suffixText: suffix,
+    helperText: helper,
+    filled: true,
+    fillColor: p.background,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    labelStyle: caption,
+    floatingLabelStyle: caption,
+    hintStyle: caption.copyWith(fontSize: 12),
+    suffixStyle: caption,
+    helperStyle: caption,
+    counterStyle: caption,
+    border: border,
+    enabledBorder: border,
+    focusedBorder: border.copyWith(
+      borderSide: BorderSide(color: p.text, width: 1.5),
+    ),
+  );
+}
+
+/// The typed text in an [appFieldDecoration] field.
+TextStyle appFieldStyle(AppPalette p) => TypeScale.body.copyWith(
+  fontSize: 13,
+  fontWeight: FontWeight.w600,
+  color: p.text,
+);

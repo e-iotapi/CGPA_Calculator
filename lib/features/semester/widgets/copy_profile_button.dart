@@ -1,5 +1,5 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
-import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 
 /// The round copy button on the Expected profile (board `Expected`): an
@@ -17,51 +17,14 @@ class CopyProfileButton extends StatelessWidget {
   final String from, to;
   final Future<void> Function() onCopy;
 
-  Future<bool> _confirm(BuildContext context) async {
-    final p = AppPalette.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder:
-          (c) => AlertDialog(
-            backgroundColor: p.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(Radii.row),
-            ),
-            title: Text(
-              'Import from $from?',
-              style: TypeScale.section.copyWith(color: p.text),
-            ),
-            content: Text(
-              'Every $from grade, in all semesters, will be copied over your '
-              '$to grades. This cannot be undone.',
-              style: TypeScale.body.copyWith(
-                fontWeight: FontWeight.w500,
-                color: p.textMuted,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(c).pop(false),
-                child: Text(
-                  'Cancel',
-                  style: TypeScale.button.copyWith(color: p.text),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(c).pop(true),
-                child: Text(
-                  'Import',
-                  style: TypeScale.button.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: p.accent,
-                  ),
-                ),
-              ),
-            ],
-          ),
-    );
-    return ok == true;
-  }
+  Future<bool> _confirm(BuildContext context) => confirmDialog(
+    context,
+    title: 'Import from $from?',
+    body:
+        'Every $from grade, in all semesters, will be copied over your '
+        '$to grades. This cannot be undone.',
+    action: 'Import',
+  );
 
   @override
   Widget build(BuildContext context) {

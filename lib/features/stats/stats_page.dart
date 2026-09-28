@@ -10,6 +10,8 @@ import 'package:cgpa_calculator/features/stats/widgets/minor_view.dart';
 import 'package:cgpa_calculator/features/stats/widgets/progression_view.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -51,48 +53,40 @@ class _StatsPageState extends State<StatsPage> {
     final result = await showDialog<(int?,)>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: const Text('Credits your degree needs'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pointer works this out from your courses or your ERP '
-                  'sheet. If yours is different, set it here.',
-                ),
-                const SizedBox(height: Space.md),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    suffixText: 'credits',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) {
-                    if ((read() ?? 0) > 0) Navigator.pop(c, (read(),));
-                  },
-                ),
-              ],
+          (c) => AppDialog(
+            title: 'Credits your degree needs',
+            body:
+                'Pointer works this out from your courses or your ERP '
+                'sheet. If yours is different, set it here.',
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: appFieldStyle(AppPalette.of(c)),
+              cursorColor: AppPalette.of(c).text,
+              decoration: appFieldDecoration(
+                AppPalette.of(c),
+                suffix: 'credits',
+              ),
+              onSubmitted: (_) {
+                if ((read() ?? 0) > 0) Navigator.pop(c, (read(),));
+              },
             ),
             actions: [
-              if (data.totalSet != null)
-                TextButton(
-                  onPressed: () => Navigator.pop(c, (null,)),
-                  child: const Text('Use Pointer\'s'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
+              DialogAction(
+                'Save',
+                onTap: () {
                   if ((read() ?? 0) > 0) Navigator.pop(c, (read(),));
                 },
-                child: const Text('Save'),
+                ink: true,
               ),
+              if (data.totalSet != null)
+                DialogAction(
+                  'Use Pointer\'s',
+                  onTap: () => Navigator.pop(c, (null,)),
+                ),
+              DialogAction('Cancel', onTap: () => Navigator.pop(c)),
             ],
           ),
     );

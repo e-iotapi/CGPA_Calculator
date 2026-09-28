@@ -226,22 +226,18 @@ class _MyHomePageState extends State<MyHomePage> {
     final from = await showDialog<int>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: Text('Start ${names[profile - 1]} from…'),
-            content: const Text(
+          (c) => AppDialog(
+            title: 'Start ${names[profile - 1]} from…',
+            body:
               'It has no grades yet. Copy another profile\'s grades, in every '
               'semester, as a starting point?',
-            ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('Start empty'),
-              ),
+              DialogAction('Start empty', onTap: () => Navigator.pop(c)),
               for (var id = 1; id <= profileCount; id++)
                 if (id != profile && !profileIsEmpty(id))
-                  TextButton(
-                    onPressed: () => Navigator.pop(c, id),
-                    child: Text(names[id - 1]),
+                  DialogAction(
+                    names[id - 1],
+                    onTap: () => Navigator.pop(c, id),
                   ),
             ],
           ),

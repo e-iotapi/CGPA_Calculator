@@ -16,6 +16,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cgpa_calculator/features/settings/install_guide.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -192,25 +195,26 @@ class _SettingsPageState extends State<SettingsPage> {
     final name = await showDialog<String>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: Text('Name profile $i'),
+          (c) => AppDialog(
+            title: 'Name profile $i',
             content: TextField(
               controller: controller,
               autofocus: true,
               maxLength: 9,
-              decoration: const InputDecoration(
-                helperText: 'Nine letters at most',
+              style: appFieldStyle(AppPalette.of(c)),
+              cursorColor: AppPalette.of(c).text,
+              decoration: appFieldDecoration(
+                AppPalette.of(c),
+                helper: 'Nine letters at most',
               ),
               onSubmitted: (t) => Navigator.pop(c, t),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, controller.text),
-                child: const Text('Save'),
+              DialogAction('Cancel', onTap: () => Navigator.pop(c)),
+              DialogAction(
+                'Save',
+                onTap: () => Navigator.pop(c, controller.text),
+                ink: true,
               ),
             ],
           ),
@@ -323,27 +327,24 @@ class _SettingsPageState extends State<SettingsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: const Text('Import from old site'),
-            content: SizedBox(
-              width: 420,
-              child: TextField(
-                controller: controller,
-                maxLines: 8,
-                decoration: const InputDecoration(
-                  hintText: 'Paste the JSON copied from the old site',
-                  border: OutlineInputBorder(),
-                ),
+          (c) => AppDialog(
+            title: 'Import from old site',
+            content: TextField(
+              controller: controller,
+              maxLines: 8,
+              style: appFieldStyle(AppPalette.of(c)),
+              cursorColor: AppPalette.of(c).text,
+              decoration: appFieldDecoration(
+                AppPalette.of(c),
+                hint: 'Paste the JSON copied from the old site',
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: const Text('Import'),
+              DialogAction('Cancel', onTap: () => Navigator.pop(c, false)),
+              DialogAction(
+                'Import',
+                onTap: () => Navigator.pop(c, true),
+                ink: true,
               ),
             ],
           ),
@@ -369,52 +370,45 @@ class _SettingsPageState extends State<SettingsPage> {
       builder:
           (c) => StatefulBuilder(
             builder:
-                (c, setDialog) => AlertDialog(
-                  title: const Text('Report a problem'),
-                  content: SizedBox(
-                    width: 420,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final t in types)
-                              ChoiceChip(
-                                label: Text(t),
-                                selected: type == t,
-                                onSelected: (_) => setDialog(() => type = t),
-                              ),
-                          ],
+                (c, setDialog) => AppDialog(
+                  title: 'Report a problem',
+                  body: 'Sent with your email so a reply is possible.',
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final t in types)
+                            PillButton(
+                              label: t,
+                              selected: type == t,
+                              onPressed: () => setDialog(() => type = t),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: controller,
+                        maxLines: 5,
+                        maxLength: 2000,
+                        style: appFieldStyle(AppPalette.of(c)),
+                        cursorColor: AppPalette.of(c).text,
+                        decoration: appFieldDecoration(
+                          AppPalette.of(c),
+                          hint: 'What went wrong, or which course is missing?',
                         ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          controller: controller,
-                          maxLines: 5,
-                          maxLength: 2000,
-                          decoration: const InputDecoration(
-                            hintText:
-                                'What went wrong, or which course is missing?',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const Text(
-                          'Sent with your email so a reply is possible.',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(c, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(c, true),
-                      child: const Text('Send'),
+                    DialogAction('Cancel', onTap: () => Navigator.pop(c, false)),
+                    DialogAction(
+                      'Send',
+                      onTap: () => Navigator.pop(c, true),
+                      ink: true,
                     ),
                   ],
                 ),

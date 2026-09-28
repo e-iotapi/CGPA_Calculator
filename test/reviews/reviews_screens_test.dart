@@ -21,6 +21,7 @@ import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -428,16 +429,13 @@ void main() {
     await t.pumpAndSettle();
     await t.enterText(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(AppDialog),
         matching: find.byType(TextField),
       ),
       'Names a person',
     );
     await t.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(TextButton, 'Hide'),
-      ),
+      find.descendant(of: find.byType(AppDialog), matching: find.text('Hide')),
     );
     await t.pumpAndSettle();
     final entry = db
@@ -466,10 +464,7 @@ void main() {
     await t.tap(find.widgetWithText(PillButton, 'Hide'));
     await t.pumpAndSettle();
     await t.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(TextButton, 'Hide'),
-      ),
+      find.descendant(of: find.byType(AppDialog), matching: find.text('Hide')),
     );
     await t.pumpAndSettle();
     final entry =

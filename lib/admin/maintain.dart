@@ -31,6 +31,7 @@ import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -368,27 +369,26 @@ class _DeptCoursesState extends State<DeptCourses> {
     final text = await showDialog<String>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('Paste JSON'),
-            content: SizedBox(
-              width: 480,
-              child: TextField(
-                controller: c,
-                maxLines: 12,
-                minLines: 6,
-                decoration: const InputDecoration(
-                  hintText: '{"schema":"pointer.eval.v1", …}',
-                ),
+          (context) => AppDialog(
+            title: 'Paste JSON',
+            maxWidth: 520,
+            content: TextField(
+              controller: c,
+              maxLines: 12,
+              minLines: 6,
+              style: appFieldStyle(AppPalette.of(context)),
+              cursorColor: AppPalette.of(context).text,
+              decoration: appFieldDecoration(
+                AppPalette.of(context),
+                hint: '{"schema":"pointer.eval.v1", …}',
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, c.text),
-                child: const Text('Preview'),
+              DialogAction('Cancel', onTap: () => Navigator.pop(context)),
+              DialogAction(
+                'Preview',
+                onTap: () => Navigator.pop(context, c.text),
+                ink: true,
               ),
             ],
           ),
