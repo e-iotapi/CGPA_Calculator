@@ -20,6 +20,7 @@ import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/roles/contacts.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:cgpa_calculator/core/roles/maintain_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/roles/volunteer_message.dart';
@@ -1192,5 +1193,30 @@ void main() {
     expect(find.text('avg 12.4'), findsOneWidget);
     expect(find.text('no avg'), findsWidgets);
     expect(find.text('Pick from department resources'), findsOneWidget);
+  });
+
+  testWidgets('a CR enters the course average', (t) async {
+    await t.runAsync(() => seedFirestore(db));
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    await t.pumpWidget(app(const CrHome(campus: 'goa', courseId: 'CS F372')));
+    await t.pumpAndSettle();
+    VoidCallback? save() =>
+        t.widget<PillButton>(find.widgetWithText(PillButton, 'Save')).onPressed;
+    final field = find.widgetWithText(TextField, '63.5');
+    expect(field, findsOneWidget);
+    expect(save(), isNull);
+    await t.enterText(field, '101');
+    await t.pump();
+    expect(find.text('Type a number from 0 to 100.'), findsOneWidget);
+    expect(save(), isNull);
+    await t.enterText(find.widgetWithText(TextField, '101'), '70');
+    await t.pump();
+    await t.tap(find.widgetWithText(PillButton, 'Save'));
+    await t.pumpAndSettle();
+    final o = await t.runAsync(
+      () =>
+          MaintainStore(roleStore!).offering('CS F372', 'goa', maintainedTerm),
+    );
+    expect(o!.courseAverage, 70);
   });
 }
