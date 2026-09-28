@@ -251,6 +251,11 @@ void main() {
     await t.enterText(find.byType(TextField), 'menon');
     await t.pump(const Duration(milliseconds: 400));
     await t.pumpAndSettle();
+    expect(
+      find.text('No course code or name matches “menon”.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('One box for both.'), findsOneWidget);
     await t.tap(find.text('Ramesh Menon'));
     await t.pumpAndSettle();
     expect(find.text('COURSES TAUGHT'), findsOneWidget);
