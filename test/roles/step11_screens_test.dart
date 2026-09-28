@@ -280,43 +280,56 @@ void main() {
     await t.pumpAndSettle();
     Finder card(String name) =>
         find.ancestor(of: find.text(name), matching: find.byType(AppCard));
-    expect(find.text('Pres One'), findsOneWidget);
-    expect(find.text('Cr Person'), findsOneWidget);
-    expect(find.text('Old CR'), findsNothing);
-    expect(
-      find.descendant(of: card('Pres One'), matching: find.text('Email')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: card('Pres One'), matching: find.text('WhatsApp')),
-      findsNothing,
-    );
+    // One card for the president in office; the successor is named on it.
+    expect(find.text('Pres Two'), findsOneWidget);
+    expect(find.text('Pres One is taking over'), findsOneWidget);
+    expect(find.textContaining('HANDOVER IN'), findsOneWidget);
+    expect(find.text('Cr Person'), findsNothing);
+    expect(find.text('Cr Person · phone'), findsOneWidget);
+    expect(find.textContaining('Old CR'), findsNothing);
     expect(
       find.descendant(of: card('Pres Two'), matching: find.text('WhatsApp')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: card('Cr Person'),
-        matching: find.text('90000 00001'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: card('Pres Two'),
-        matching: find.textContaining('Handing over · access ends'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: card('Pres One'),
-        matching: find.textContaining('Handing over'),
-      ),
+      find.descendant(of: card('Pres Two'), matching: find.text('Email')),
       findsNothing,
     );
+    // The CR's phone is a round button, masked in its tooltip.
+    expect(find.byTooltip('90xxx 00xxx'), findsOneWidget);
+    expect(find.text('90000 00001'), findsNothing);
     expect(find.text('Volunteer'), findsNothing);
+  });
+
+  testWidgets('president card shows shared channels', (t) async {
+    signIn(student, name: 'Rohan');
+    await courses(t, ['EEE F211']);
+    await listed(
+      'p1@x',
+      'Pres One',
+      [('dept', 'ELEC', far)],
+      email_: true,
+      whatsapp: '98765 43210',
+    );
+    await t.pumpWidget(app(const RepresentativesPage()));
+    await t.pumpAndSettle();
+    expect(
+      find.text('Department president · email and WhatsApp'),
+      findsOneWidget,
+    );
+    expect(find.text('Email'), findsOneWidget);
+    expect(find.text('WhatsApp'), findsOneWidget);
+    expect(find.textContaining('HANDOVER'), findsNothing);
+  });
+
+  testWidgets('no CR shows Volunteer', (t) async {
+    signIn(student, name: 'Rohan');
+    await courses(t, ['CS F211']);
+    await t.pumpWidget(app(const RepresentativesPage()));
+    await t.pumpAndSettle();
+    expect(find.text('No CR appointed yet'), findsOneWidget);
+    expect(find.text('Volunteer'), findsOneWidget);
+    expect(find.textContaining('You are a CR'), findsNothing);
   });
 
   testWidgets('S6 no CR: Volunteer, then Withdraw', (t) async {
