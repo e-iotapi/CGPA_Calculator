@@ -23,6 +23,8 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rules import KNOWN_ANALYZE, LEGACY, ROOT, changed_files, matches, sh  # noqa: E402
 
+TEST_TIMEOUT = '60s'  # per test; the slowest real one takes a few seconds
+
 
 def gate_format(files=None):
     files = [f for f in (files if files is not None else changed_files())
@@ -75,7 +77,8 @@ def gate_analyze():
 
 
 def gate_tests(paths=()):
-    r = sh('flutter', 'test', '--reporter', 'json', *paths)
+    # A hung test fails in TEST_TIMEOUT instead of Flutter's 10 minutes.
+    r = sh('flutter', 'test', '--reporter', 'json', '--timeout', TEST_TIMEOUT, *paths)
     names, failed, errs, done, total = {}, [], {}, None, 0
     for l in r.stdout.splitlines():
         try:
@@ -130,6 +133,19 @@ def selftest():
                             not gate_tests(['test/zz_verify_probe_test.dart'])[0]))
         finally:
             os.remove(test)
+        hang = os.path.join(ROOT, 'test', 'zz_verify_hang_test.dart')
+        with open(hang, 'w') as f:
+            f.write("import 'package:flutter_test/flutter_test.dart';\n"
+                    "void main() { test('hangs', () => Future<void>.delayed("
+                    "const Duration(minutes: 5))); }\n")
+        try:
+            import time
+            t0 = time.time()
+            caught = not gate_tests(['test/zz_verify_hang_test.dart'])[0]
+            results.append((f'a hung test fails at the timeout ({time.time() - t0:.0f}s)',
+                            caught and time.time() - t0 < 180))
+        finally:
+            os.remove(hang)
     finally:
         os.remove(path)
     results.append(('analyze passes once the probe is gone', gate_analyze()[0]))
