@@ -7,6 +7,9 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -53,7 +56,7 @@ class _RepProfilePageState extends State<RepProfilePage> {
   final _name = TextEditingController(text: roleStore?.myName ?? '');
   final _phone = TextEditingController();
   final _whatsapp = TextEditingController();
-  bool _showEmail = false, _showPhone = false, _busy = false;
+  bool _showEmail = false, _showPhone = false, _showWa = false, _busy = false;
   late final Future<void> _loaded = _load();
 
   bool get _listed => listedRoles(myRoles.value).isNotEmpty;
@@ -71,6 +74,7 @@ class _RepProfilePageState extends State<RepProfilePage> {
       _name.text = dir.name;
       _showEmail = dir.shownEmail != null;
       _whatsapp.text = dir.whatsapp ?? '';
+      _showWa = _whatsapp.text.isNotEmpty;
       _showPhone = dir.phone != null;
     }
   }
@@ -88,8 +92,8 @@ class _RepProfilePageState extends State<RepProfilePage> {
     if (!phonePattern.hasMatch(_phone.text.trim())) {
       return 'Add a phone number other maintainers can reach you on.';
     }
-    final wa = _whatsapp.text.trim();
-    if (wa.isNotEmpty && !phonePattern.hasMatch(wa)) {
+    final wa = _showWa ? _whatsapp.text.trim() : '';
+    if (_showWa && !phonePattern.hasMatch(wa)) {
       return 'That WhatsApp number does not look right.';
     }
     if (_listed && !_showEmail && !_showPhone && wa.isEmpty) {
@@ -106,7 +110,7 @@ class _RepProfilePageState extends State<RepProfilePage> {
         name: _name.text,
         phone: _phone.text,
         showEmail: _showEmail,
-        whatsapp: _whatsapp.text,
+        whatsapp: _showWa ? _whatsapp.text : '',
         showPhone: _showPhone,
       );
       final forced = profileDue.value;
@@ -127,114 +131,217 @@ class _RepProfilePageState extends State<RepProfilePage> {
     }
   }
 
-  Widget _switch(
-    String title,
-    String? subtitle,
-    bool v,
-    ValueChanged<bool> f,
-  ) => SwitchListTile(
-    contentPadding: EdgeInsets.zero,
-    title: Text(title, style: TypeScale.body),
-    subtitle: subtitle == null ? null : Text(subtitle),
-    value: v,
-    onChanged: (x) => setState(() => f(x)),
-  );
+  /// A board switch row: the title over its detail, the themed switch.
+  Widget _switch(String title, String? subtitle, bool v, ValueChanged<bool> f) {
+    final p = AppPalette.of(context);
+    // One node: the switch is announced with its title.
+    return MergeSemantics(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 52),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: TypeScale.body.copyWith(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: p.text,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle,
+                      style: TypeScale.caption.copyWith(color: p.textMuted),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: Space.sm),
+            Switch(value: v, onChanged: (x) => setState(() => f(x))),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final caption = TypeScale.caption.copyWith(
-      height: 1.45,
-      color: p.textMuted,
-    );
     final roles = myRoles.value;
-    final problem = _problem;
+    final forced = profileDue.value;
+    final grants = roles.grants;
+    final by =
+        grants.map((g) => g.grantedByName).where((n) => n.isNotEmpty).toSet();
+    final campus = campusName(campusOfAddress(roleStore?.me ?? '') ?? '');
     return FutureBuilder<void>(
       future: _loaded,
-      builder:
-          (context, s) => PageFrame(
-            header: PageHeader(
-              eyebrow: roles.grants.map((g) => g.role.tag).toSet().join(' · '),
-              title: profileDue.value ? 'Before you start' : 'Contact details',
-            ),
-            children: [
-              if (s.connectionState != ConnectionState.done)
-                const LinearProgressIndicator()
-              else ...[
-                Text(
-                  'Other maintainers need a way to reach you'
-                  '${_listed ? ', and so do the students you represent' : ''}.',
-                  style: caption,
-                ),
-                const SizedBox(height: Space.md),
-                AppTextField(
-                  controller: _name,
-                  label: 'Your name',
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: Space.sm),
-                AppTextField(
-                  controller: _phone,
-                  label: 'Phone',
-                  hint: 'Seen only by owners, admins, presidents and CRs',
-                  onChanged: (_) => setState(() {}),
-                ),
-                if (_listed) ...[
-                  const SectionLabel('What students see'),
-                  AppCard(
-                    child: Column(
-                      children: [
-                        _switch(
-                          'Email',
-                          roleStore?.me,
-                          _showEmail,
-                          (x) => _showEmail = x,
-                        ),
-                        _switch(
-                          'Phone',
-                          'The number above',
-                          _showPhone,
-                          (x) => _showPhone = x,
-                        ),
-                        AppTextField(
-                          controller: _whatsapp,
-                          label: 'WhatsApp (optional)',
-                          dense: true,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ],
-                    ),
+      builder: (context, s) {
+        // After the load, so saved details count.
+        final problem = _problem;
+        return PageFrame(
+          header: PageHeader(
+            eyebrow: forced ? "YOU'VE BEEN APPOINTED" : 'CONTACT DETAILS',
+            title: forced ? 'Before you start' : 'Contact details',
+            back: !forced,
+            actions: [
+              // Not skippable: signing out is the only other way off.
+              if (forced && widget.onSignOut != null)
+                TextButton(
+                  onPressed: widget.onSignOut,
+                  style: TextButton.styleFrom(
+                    foregroundColor: p.text,
+                    minimumSize: const Size(44, 44),
                   ),
-                  const SizedBox(height: Space.xs),
-                  Text(
-                    'Each is separate. Listed on Representatives for '
-                    '${campusName(campusOfAddress(roleStore?.me ?? '') ?? '')} '
-                    'only. Anything shown can be screenshotted: turning it '
-                    'off removes the listing, not what people already saw.',
-                    style: caption,
-                  ),
-                ],
-                const SizedBox(height: Space.md),
-                if (problem != null)
-                  Text(problem, style: caption.copyWith(color: p.behind)),
-                const SizedBox(height: Space.sm),
-                PrimaryButton(
-                  label:
-                      _busy
-                          ? 'Saving…'
-                          : profileDue.value
-                          ? 'Save and continue'
-                          : 'Save',
-                  onPressed: _busy || problem != null ? null : _save,
+                  child: const Text('Sign out'),
                 ),
-                if (profileDue.value && widget.onSignOut != null)
-                  TextButton(
-                    onPressed: widget.onSignOut,
-                    child: const Text('Sign out'),
-                  ),
-              ],
             ],
           ),
+          bottom:
+              s.connectionState != ConnectionState.done
+                  ? null
+                  : BottomAction(
+                    caption: problem,
+                    child: PrimaryButton(
+                      label:
+                          _busy
+                              ? 'Saving…'
+                              : forced
+                              ? 'Save and continue'
+                              : 'Save',
+                      onPressed: _busy || problem != null ? null : _save,
+                    ),
+                  ),
+          children: [
+            if (s.connectionState != ConnectionState.done)
+              const LinearProgressIndicator()
+            else ...[
+              if (grants.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
+                  decoration: BoxDecoration(
+                    // Ink in both modes, as on Controls.
+                    color: p.navBackground,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final g in grants)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              TierTag.of(g.role),
+                              if (g.role != GrantRole.admin) ...[
+                                ScopeChip(
+                                  campusName(g.campus),
+                                  icon: Icons.place_outlined,
+                                ),
+                                ScopeChip(g.scopeLabel, muted: true),
+                              ],
+                            ],
+                          ),
+                        ),
+                      Text(
+                        '${by.isEmpty ? '' : 'Appointed by ${by.join(', ')}. '}'
+                        'Other maintainers need a way to reach you'
+                        '${_listed ? ', and so do the students you represent' : ''}.',
+                        style: TypeScale.caption.copyWith(
+                          fontSize: 11.5,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
+                          color: p.navIcon,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: Space.sm),
+              AppCard(
+                child: AppTextField(
+                  controller: _name,
+                  label: 'Your name, as students see it',
+                  labelAbove: true,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(height: Space.sm),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppTextField(
+                      controller: _phone,
+                      label: 'Phone number · required',
+                      hint: '+91 98xxx xxxxx',
+                      labelAbove: true,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const Note(
+                      'Seen only by owners, admins, presidents and CRs.',
+                    ),
+                  ],
+                ),
+              ),
+              if (_listed) ...[
+                const SectionLabel('Shown to students · at least one'),
+                AppCard(
+                  child: Column(
+                    children: [
+                      _switch(
+                        'BITS email',
+                        roleStore?.me,
+                        _showEmail,
+                        (x) => _showEmail = x,
+                      ),
+                      const CardDivider(),
+                      _switch('WhatsApp', null, _showWa, (x) {
+                        _showWa = x;
+                        if (x && _whatsapp.text.trim().isEmpty) {
+                          _whatsapp.text = _phone.text.trim();
+                        }
+                      }),
+                      if (_showWa) ...[
+                        AppTextField(
+                          controller: _whatsapp,
+                          label: 'WhatsApp number',
+                          labelAbove: true,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: Space.sm),
+                      ],
+                      const CardDivider(),
+                      _switch(
+                        'Phone call',
+                        'The number above',
+                        _showPhone,
+                        (x) => _showPhone = x,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: Space.sm),
+                Notice(
+                  text: TextSpan(
+                    text:
+                        'Listed on Representatives for $campus only. '
+                        'Anything shown can be screenshotted: turning it off '
+                        'removes the listing, not what people already saw.',
+                  ),
+                ),
+              ],
+            ],
+          ],
+        );
+      },
     );
   }
 }

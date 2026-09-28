@@ -622,34 +622,37 @@ class _PublicContactPageState extends State<PublicContactPage> {
         ),
         children: [
           AppCard(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Show on empty pages',
-                        style: TypeScale.body.copyWith(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: p.text,
+            // One node: the switch is announced with its title.
+            child: MergeSemantics(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Show on empty pages',
+                          style: TypeScale.body.copyWith(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: p.text,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Off hides the whole block, everywhere.',
-                        style: TypeScale.caption.copyWith(color: p.textMuted),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          'Off hides the whole block, everywhere.',
+                          style: TypeScale.caption.copyWith(color: p.textMuted),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: Space.sm),
-                Switch(
-                  value: _enabled,
-                  onChanged: (v) => setState(() => _enabled = v),
-                ),
-              ],
+                  const SizedBox(width: Space.sm),
+                  Switch(
+                    value: _enabled,
+                    onChanged: (v) => setState(() => _enabled = v),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: Space.sm),

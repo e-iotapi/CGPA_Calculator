@@ -1,9 +1,12 @@
+import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -50,47 +53,42 @@ class RoleSwitchPage extends StatelessWidget {
 
     Widget option(Grant? g) {
       final selected = g?.id == now?.id;
-      return AppCard(
-        color: selected ? p.inverse : null,
+      return InkWell(
         onTap: () => pick(g),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    g == null ? 'STUDENT' : g.role.tag,
-                    style: TypeScale.label.copyWith(
-                      color: selected ? p.onInverse : p.textMuted,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(15, 12, 12, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    g == null ? const TierTag('STUDENT') : TierTag.of(g.role),
+                    const SizedBox(height: 6),
+                    Text(
+                      g == null ? 'Student' : g.role.label,
+                      style: TypeScale.body.copyWith(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: p.text,
+                      ),
                     ),
-                  ),
-                  Text(
-                    g == null ? 'Student' : g.role.label,
-                    style: TypeScale.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: selected ? p.onInverse : p.text,
+                    Text(
+                      g == null
+                          ? 'Your own grades'
+                          : '${g.scopeLabel} · until '
+                              '${shortDay(g.expiresAt, year: true)}',
+                      style: TypeScale.caption.copyWith(color: p.textMuted),
                     ),
-                  ),
-                  Text(
-                    g == null
-                        ? 'Your own grades'
-                        : '${g.scopeLabel} · until '
-                            '${g.expiresAt.day}/${g.expiresAt.month}/'
-                            '${g.expiresAt.year}',
-                    style: TypeScale.caption.copyWith(
-                      color:
-                          selected
-                              ? p.onInverse.withValues(alpha: 0.7)
-                              : p.textMuted,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            if (selected)
-              Text('NOW', style: TypeScale.label.copyWith(color: p.accent)),
-          ],
+              const SizedBox(width: Space.sm),
+              selected
+                  ? const ScopeChip('✓ NOW')
+                  : Icon(Icons.chevron_right_rounded, color: p.textMuted),
+            ],
+          ),
         ),
       );
     }
@@ -102,23 +100,70 @@ class RoleSwitchPage extends StatelessWidget {
         title: 'Work as',
       ),
       children: [
-        option(null),
-        for (final g in r.grants) ...[
-          const SizedBox(height: Space.sm),
-          option(g),
-        ],
-        const SizedBox(height: Space.md),
-        Text(
-          'This is really you. Whatever you change is saved under your name '
-          'and logged. Pointer keeps opening in the role you pick, with a '
-          'strip at the top to switch back.',
-          style: TypeScale.caption.copyWith(height: 1.45, color: p.textMuted),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              option(null),
+              for (final g in r.grants) ...[const CardDivider(), option(g)],
+            ],
+          ),
         ),
         const SizedBox(height: Space.sm),
-        Text(
+        // Mint wash: reassurance, not a warning.
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: p.hero.withValues(alpha: p.isDark ? 0.18 : 0.4),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(
+                  Icons.verified_user_outlined,
+                  size: 15,
+                  color: p.text,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'This is really you. Whatever you change is saved under your '
+                  'name and logged. Pointer keeps opening in the role you '
+                  'pick, with a strip at the top to switch back.',
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 11.5,
+                    height: 1.45,
+                    fontWeight: FontWeight.w500,
+                    color: p.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Space.sm),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: CardRow(
+            leading: Icon(Icons.contact_phone_outlined, color: p.icon),
+            title: 'Your contact details',
+            subtitle:
+                myContactSummary.value ?? 'Name, phone, what students see',
+            onTap:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const RepProfilePage(),
+                  ),
+                ),
+          ),
+        ),
+        const Note(
           'Only roles you hold today are listed. One that lapses disappears, '
           'and Pointer goes back to Student.',
-          style: TypeScale.caption.copyWith(height: 1.45, color: p.textMuted),
         ),
       ],
     );
