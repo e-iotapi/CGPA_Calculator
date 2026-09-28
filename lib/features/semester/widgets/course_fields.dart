@@ -100,6 +100,56 @@ class GradeGrid extends StatelessWidget {
   }
 }
 
+/// "Counts as": a sheet of the discipline's categories plus [value], the
+/// current one ticked.
+Future<String?> pickCategory(
+  BuildContext context, {
+  required String value,
+  required String discipline,
+}) async {
+  final p = AppPalette.of(context);
+  final options = {...categoryOptions(discipline), value};
+  final picked = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: p.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    constraints: const BoxConstraints(maxWidth: 640),
+    builder:
+        (c) => SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+                  child: Text(
+                    'COUNTS AS',
+                    style: TypeScale.label.copyWith(color: p.textMuted),
+                  ),
+                ),
+                for (final t in options)
+                  CardRow(
+                    title: categoryLabel(t, discipline),
+                    minHeight: 48,
+                    trailing:
+                        t == value
+                            ? Icon(Icons.check_rounded, color: p.text)
+                            : const SizedBox.shrink(),
+                    onTap: () => Navigator.pop(c, t),
+                  ),
+              ],
+            ),
+          ),
+        ),
+  );
+  return picked;
+}
+
 /// The "counts as" menu: the discipline's categories plus [value].
 class CategoryDropdown extends StatelessWidget {
   const CategoryDropdown({
@@ -117,47 +167,11 @@ class CategoryDropdown extends StatelessWidget {
   /// Off on a coloured card, where the white field needs no outline.
   final bool bordered;
 
-  /// A sheet of the choices, the current one ticked.
   Future<void> _open(BuildContext context) async {
-    final p = AppPalette.of(context);
-    final options = {...categoryOptions(discipline), value};
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: p.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      constraints: const BoxConstraints(maxWidth: 640),
-      builder:
-          (c) => SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
-                    child: Text(
-                      'COUNTS AS',
-                      style: TypeScale.label.copyWith(color: p.textMuted),
-                    ),
-                  ),
-                  for (final t in options)
-                    CardRow(
-                      title: categoryLabel(t, discipline),
-                      minHeight: 48,
-                      trailing:
-                          t == value
-                              ? Icon(Icons.check_rounded, color: p.text)
-                              : const SizedBox.shrink(),
-                      onTap: () => Navigator.pop(c, t),
-                    ),
-                ],
-              ),
-            ),
-          ),
+    final picked = await pickCategory(
+      context,
+      value: value,
+      discipline: discipline,
     );
     if (picked != null) onChanged(picked);
   }

@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
@@ -22,11 +23,15 @@ Future<CourseEdit?> showEditCourseSheet(
   required String discipline,
   required Profile? profile,
 }) {
+  final p = AppPalette.of(context);
   return showModalBottomSheet<CourseEdit>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
-    backgroundColor: AppPalette.of(context).background,
+    backgroundColor: p.isDark ? p.surface : p.onInverse,
+    barrierColor: p.inverse.withValues(alpha: 0.34),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+    ),
     constraints: const BoxConstraints(maxWidth: 640),
     builder:
         (_) => EditCourseSheet(
@@ -106,22 +111,33 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          Space.gutter,
-          0,
-          Space.gutter,
+          20,
+          10,
+          20,
           Space.lg + MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: p.outline,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
                 children: [
                   Text(
                     displayTitle(c.id, c.title),
-                    style: TypeScale.title.copyWith(color: p.text),
+                    style: TypeScale.sheetTitle.copyWith(color: p.text),
                   ),
                   Text(
                     '${c.id} · $cr credit${cr == '1' ? '' : 's'} · '
@@ -131,10 +147,21 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
                   const SizedBox(height: Space.lg),
                   FieldSection(
                     label: 'COUNTS AS',
-                    child: CategoryDropdown(
-                      value: _category,
-                      discipline: widget.discipline,
-                      onChanged: (t) => setState(() => _category = t),
+                    child: Material(
+                      color: p.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      clipBehavior: Clip.antiAlias,
+                      child: CardRow(
+                        title: categoryLabel(_category, widget.discipline),
+                        onTap: () async {
+                          final t = await pickCategory(
+                            context,
+                            value: _category,
+                            discipline: widget.discipline,
+                          );
+                          if (t != null) setState(() => _category = t);
+                        },
+                      ),
                     ),
                   ),
                   if (profile != null)
@@ -162,43 +189,25 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
             ),
             const SizedBox(height: Space.sm),
             Row(
+              spacing: Space.sm,
               children: [
-                SizedBox(
-                  height: 54,
-                  child: OutlinedButton.icon(
-                    onPressed: _remove,
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    label: const Text('Remove'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: p.behind,
-                      textStyle: TypeScale.button,
-                      side: BorderSide(color: p.behind),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(19),
-                      ),
-                    ),
-                  ),
+                _Pill(
+                  label: 'Remove',
+                  onTap: _remove,
+                  fill: Colors.transparent,
+                  text: p.behind,
+                  border: p.outline,
                 ),
-                const SizedBox(width: Space.sm),
                 Expanded(
-                  child: SizedBox(
-                    height: 54,
-                    child: FilledButton(
-                      onPressed:
-                          () => Navigator.pop(context, (
-                            saved: _edited,
-                            removed: false,
-                          )),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: p.inverse,
-                        foregroundColor: p.onInverse,
-                        textStyle: TypeScale.button,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(19),
-                        ),
-                      ),
-                      child: const Text('Save'),
-                    ),
+                  child: _Pill(
+                    label: 'Save',
+                    onTap:
+                        () => Navigator.pop(context, (
+                          saved: _edited,
+                          removed: false,
+                        )),
+                    fill: p.inverse,
+                    text: p.onInverse,
                   ),
                 ),
               ],
@@ -208,4 +217,42 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
       ),
     );
   }
+}
+
+/// A 54 px stadium: ink Save, or outlined Remove in the `behind` colour.
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.label,
+    required this.onTap,
+    required this.fill,
+    required this.text,
+    this.border,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final Color fill, text;
+  final Color? border;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: fill,
+    shape: StadiumBorder(
+      side: border == null ? BorderSide.none : BorderSide(color: border!),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 54),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: Center(
+            widthFactor: 1,
+            child: Text(label, style: TypeScale.button.copyWith(color: text)),
+          ),
+        ),
+      ),
+    ),
+  );
 }
