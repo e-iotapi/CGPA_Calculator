@@ -126,7 +126,8 @@ void main() {
     await t.tap(chip);
     await t.pumpAndSettle();
     expect(rowTaps, 0);
-    expect(find.text('Not graded yet'), findsOneWidget);
+    expect(find.text('Not yet'), findsOneWidget);
+    expect(find.byTooltip('Not graded yet'), findsOneWidget);
     expect(find.text(specialGradesNote), findsOneWidget);
     // A popover under the chip, right-aligned to it; the row stays visible.
     final menu = t.getRect(find.byType(GradeMenu));
