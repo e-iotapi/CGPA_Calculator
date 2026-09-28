@@ -2386,6 +2386,37 @@ aren't flagged again, and they are recorded here so they aren't forgotten:
   - Word breaks at 150%, for Group 9: More "Representatives", Sign in "Pointer", confirm
     "Remove", grant terms "Department president", Stats "Where you land".
 
+### 13.2.11 Group 7: More and Reviews (28 Sep 2026)
+T7.1 More (07d702f), T7.2 Representatives (92c7fe9), T7.3 the Reviews family (e3c91aa, 2e03bec,
+12077db, 1988f61, 4997f3d), T7.4 Resources, Report this link and Empty, and T7.5 the Offshoot
+checkbox. `s_course_reviews`, `s_prof_reviews` and `d_report_link` are off the known lists
+(N27, N37), and `s_resources_empty` is a new render.
+
+- **Departure (board over card), T7.3 step 3:** Helpful is the board's 26 tall outlined
+  chip and Report a plain link (§8.7), not the card's 32 tall pills.
+- **Departure (board over card), T7.3 step 4:** Yes / No are two equal 44 tall stadium
+  buttons (§8.8), not `SegmentedPair`, whose radius is 14. The stars are a new `StarPicker`:
+  five 48 × 48 buttons.
+- **Review form, not on the board:** when that term's offering names several professors, a
+  picker stays under the YOU TOOK IT chips; a single professor shows as the mint chip.
+- **§8.13 public contact row:** "Message <name>" sits over how to reach them ("On WhatsApp"),
+  because `config/public` stores no role. The number is never drawn.
+- **§8.11 "Add a link":** the bottom action shows for anyone who may edit that department's
+  resources, and opens the department's resources page by route, so the admin code stays
+  deferred.
+- **Course links** carry their course code in the same 18 px ink tag as FROM.
+- **Tap targets kept at the board's size:** the 24 tall This semester / All pills are under
+  44. So are the 36 tall pills already in the baseline.
+- **Tests:** 'Your reviews tab counts mine' opens `settingsBox` inside the test. Opened in
+  `setUpAll`, it makes the other tests' review saves real Hive writes outside `runAsync`,
+  and they hang. A new `test/resources/resources_screens_test.dart` covers the eyebrow,
+  the report reason and the contact.
+- **Tooling:** `overlap` no longer reports scroll content that sits under a fixed bar and
+  can scroll clear of it. There is a clean canary for it, checked by removing the rule. The
+  `verify.py` self-test proves a hung test fails at the 60 s timeout.
+- **For Group 9 (150%):** the Reviews search hint "Course code, name or professor" and a row
+  subtitle are cut off at 320 × 1.5.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.

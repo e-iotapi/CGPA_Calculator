@@ -1,12 +1,12 @@
 // SHOTS_DIR=/some/dir flutter test test/semester/semester_screenshots_test.dart
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/offshoot.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/features/offshoot/minor_panel.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../agent_toolchains/ui_check/ui_checks.dart';
 import '../helpers/fonts.dart';
 
 final _out = Platform.environment['SHOTS_DIR'];
@@ -135,10 +136,21 @@ void main() {
                     onToggleTheme: () {},
                     offshoot:
                         mode == SemesterMode.offshoot
-                            ? OffshootPanel(
-                              score: _offshoot,
-                              onToggleCourse: (_) {},
-                              onOutOfSelected: (_) {},
+                            // As Home shows it: the Offshoot / Minor switch
+                            // on top of the panel.
+                            ? OffshootTab(
+                              showMinor: false,
+                              onShowMinor: (_) {},
+                              offshoot: OffshootPanel(
+                                score: _offshoot,
+                                onToggleCourse: (_) {},
+                                onOutOfSelected: (_) {},
+                              ),
+                              minor: MinorPanel(
+                                progress: null,
+                                discipline: 'B3A7',
+                                onChoose: (_) {},
+                              ),
                             )
                             : null,
                   ),
@@ -148,15 +160,12 @@ void main() {
           );
           await t.pumpAndSettle();
           expect(t.takeException(), isNull);
-          await t.runAsync(() async {
-            final img = await captureImage(
-              t.element(find.byType(RepaintBoundary).first),
-            );
-            final png = await img.toByteData(format: ui.ImageByteFormat.png);
-            File(
-              '$_out/sem_${palette.name.toLowerCase()}_${mode.name}_$name.png',
-            ).writeAsBytesSync(png!.buffer.asUint8List());
-          });
+          await recordRender(
+            t,
+            _out!,
+            'sem_${palette.name.toLowerCase()}_${mode.name}_$name',
+            const [],
+          );
         });
       }
     }

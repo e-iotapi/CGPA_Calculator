@@ -26,6 +26,7 @@ import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/features/setup/degree_setup_page.dart';
 import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
+import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -98,6 +99,14 @@ void main() {
       844,
     ),
     ('s_resources', () => const ResourcesPage(), 920),
+    (
+      's_resources_empty',
+      () => PageFrame(
+        header: const PageHeader(eyebrow: 'GOA', title: 'Resources'),
+        children: [ResourcesEmpty(onRepresentatives: () {})],
+      ),
+      844,
+    ),
   ];
 
   for (final (name, screen, tall) in screens) {
