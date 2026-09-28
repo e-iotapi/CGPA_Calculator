@@ -957,4 +957,30 @@ void main() {
     expect(find.text('2 years'), findsOneWidget);
     expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
   });
+
+  // ---- T8.8 Public contact -------------------------------------------------
+
+  testWidgets('preview names the contact', (t) async {
+    signIn(
+      'owner@example.com',
+      name: 'Owner One',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    await roleStore!.savePublicContact((
+      name: 'Owner',
+      method: 'whatsapp',
+      target: '9000000001',
+      enabled: true,
+    ));
+    await t.pumpWidget(app(const PublicContactPage()));
+    await t.pumpAndSettle();
+    expect(find.text('Message Owner'), findsOneWidget);
+    expect(
+      find.textContaining('Last changed by Owner One (owner)'),
+      findsOneWidget,
+    );
+    await t.enterText(find.byType(TextField).first, 'Siddharth');
+    await t.pump();
+    expect(find.text('Message Siddharth'), findsOneWidget);
+  });
 }

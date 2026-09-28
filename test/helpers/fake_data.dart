@@ -206,6 +206,17 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
     'contactTarget': '9000000001',
     'contactEnabled': true,
     'updatedBy': {'email': adminEmail, 'name': 'Kavya Nair'},
+    'updatedAt': Timestamp.fromDate(
+      _midnight().subtract(const Duration(days: 2)),
+    ),
+    'auditId': 'contact',
+  });
+  await db.collection('audit').doc('contact').set({
+    'actor': {'email': adminEmail, 'name': 'Kavya Nair', 'role': 'admin'},
+    'summary': 'Set the public contact to Owner (whatsapp)',
+    'path': 'config/public',
+    'campus': 'all',
+    'at': Timestamp.fromDate(_midnight().subtract(const Duration(days: 2))),
   });
 
   // Professors: a duplicate pair to merge, and two more.

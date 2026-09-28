@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
@@ -550,10 +551,35 @@ class _PublicContactPageState extends State<PublicContactPage> {
     super.dispose();
   }
 
+  /// The contact, and who last changed it with their role, from the audit
+  /// entry the save wrote.
+  Future<(PublicContact?, ({String name, String? role, DateTime? at})?)>
+  _load() async {
+    final store = roleStore!;
+    final c = await store.publicContact();
+    final m = (await store.db.collection('config').doc('public').get()).data();
+    final by = m?['updatedBy'] as Map?;
+    if (by == null) return (c, null);
+    String? role;
+    if (m?['auditId'] case final String id) {
+      final e = (await store.db.collection('audit').doc(id).get()).data();
+      role = (e?['actor'] as Map?)?['role'] as String?;
+    }
+    return (
+      c,
+      (
+        name: by['name'] as String? ?? '',
+        role: role,
+        at: (m?['updatedAt'] as Timestamp?)?.toDate(),
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Loaded<PublicContact?>(
-    load: () => roleStore!.publicContact(),
-    builder: (context, c, _) {
+  Widget build(BuildContext context) => Loaded(
+    load: _load,
+    builder: (context, loaded, _) {
+      final (c, changed) = loaded;
       if (!_loaded && c != null) {
         _name.text = c.name;
         _target.text = c.target;
@@ -562,77 +588,16 @@ class _PublicContactPageState extends State<PublicContactPage> {
       }
       _loaded = true;
       final p = AppPalette.of(context);
+      final name = _name.text.trim();
       return PageFrame(
         header: const PageHeader(
           eyebrow: 'CONFIG · PUBLIC · OWNERS AND ADMINS',
           title: 'Public contact',
         ),
-        children: [
-          AppCard(
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _enabled,
-              onChanged: (v) => setState(() => _enabled = v),
-              title: const Text('Show on empty pages'),
-              subtitle: const Text('Off hides the whole block, everywhere.'),
-            ),
-          ),
-          const SizedBox(height: Space.sm),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppTextField(
-                  controller: _name,
-                  label: 'Name on the button',
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SectionLabel('How'),
-                ChoicePills<String>(
-                  values: const ['whatsapp', 'phone', 'email'],
-                  selected: _method,
-                  label:
-                      (m) => switch (m) {
-                        'whatsapp' => 'WhatsApp',
-                        'phone' => 'Phone',
-                        _ => 'Email',
-                      },
-                  onSelected: (m) => setState(() => _method = m),
-                ),
-                const SizedBox(height: Space.sm),
-                AppTextField(
-                  controller: _target,
-                  label: _method == 'email' ? 'Address' : 'Number',
-                ),
-                const Note(
-                  'Never drawn on the page. It sits behind the button.',
-                ),
-              ],
-            ),
-          ),
-          const SectionLabel('Students see'),
-          AppCard(
-            color: p.surfaceSunken,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Are you the department president?',
-                  style: TypeScale.body.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: Space.sm),
-                FilledButton(
-                  onPressed: null,
-                  child: Text(
-                    'Message ${_name.text.isEmpty ? '…' : _name.text}',
-                  ),
-                ),
-                const Note('Only on a department with no resources yet.'),
-              ],
-            ),
-          ),
-          const SizedBox(height: Space.lg),
-          PrimaryButton(
+        // The contact is read live, so a save shows at once (a Departure
+        // from "after the next publish", agreed with the user).
+        bottom: BottomAction(
+          child: PrimaryButton(
             label: _busy ? 'Saving…' : 'Save · students see it at once',
             onPressed:
                 _busy
@@ -653,6 +618,140 @@ class _PublicContactPageState extends State<PublicContactPage> {
                         if (mounted) setState(() => _busy = false);
                       }
                     },
+          ),
+        ),
+        children: [
+          AppCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Show on empty pages',
+                        style: TypeScale.body.copyWith(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: p.text,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Off hides the whole block, everywhere.',
+                        style: TypeScale.caption.copyWith(color: p.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Space.sm),
+                Switch(
+                  value: _enabled,
+                  onChanged: (v) => setState(() => _enabled = v),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Space.sm),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppTextField(
+                  controller: _name,
+                  label: 'Name on the button',
+                  labelAbove: true,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SectionLabel('How'),
+                ChoicePills<String>(
+                  values: const ['whatsapp', 'phone', 'email'],
+                  selected: _method,
+                  equal: true,
+                  label:
+                      (m) => switch (m) {
+                        'whatsapp' => 'WhatsApp',
+                        'phone' => 'Phone',
+                        _ => 'Email',
+                      },
+                  onSelected: (m) => setState(() => _method = m),
+                ),
+                const SizedBox(height: Space.md),
+                AppTextField(
+                  controller: _target,
+                  label: _method == 'email' ? 'Address' : 'Number',
+                  labelAbove: true,
+                ),
+                const Note(
+                  'Never drawn on the page. It sits behind the button.',
+                ),
+              ],
+            ),
+          ),
+          if (changed != null)
+            Note(
+              'Last changed by ${changed.name}'
+              '${changed.role == null ? '' : ' (${changed.role})'}'
+              '${changed.at == null ? '' : ', ${ago(changed.at)}'}. '
+              'Every change is logged.',
+            ),
+          const SectionLabel('Students see'),
+          DashedOutline(
+            color: p.outline,
+            radius: 20,
+            width: 1.5,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Are you the department president?',
+                    style: TypeScale.body.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: p.text,
+                    ),
+                  ),
+                  const SizedBox(height: Space.sm),
+                  // A picture of the button, not a button.
+                  ExcludeSemantics(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: ShapeDecoration(
+                        color: p.inverse,
+                        shape: const StadiumBorder(),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            size: 15,
+                            color: p.onInverse,
+                          ),
+                          const SizedBox(width: 7),
+                          Flexible(
+                            child: Text(
+                              'Message ${name.isEmpty ? '…' : name}',
+                              style: TypeScale.body.copyWith(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: p.onInverse,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Note('Only on a department with no resources yet.'),
+                ],
+              ),
+            ),
           ),
         ],
       );
