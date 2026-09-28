@@ -63,6 +63,11 @@ class CircleRevealTransitionsBuilder extends PageTransitionsBuilder {
   const CircleRevealTransitionsBuilder();
 
   static final _origins = Expando<Offset>();
+  static final _curves = Expando<CurvedAnimation>();
+
+  /// How many `CurvedAnimation`s have been created. Tests only (O2.3).
+  @visibleForTesting
+  static int debugCurvesCreated = 0;
 
   @override
   Duration get transitionDuration => const Duration(milliseconds: 420);
@@ -86,18 +91,30 @@ class CircleRevealTransitionsBuilder extends PageTransitionsBuilder {
     final size = MediaQuery.sizeOf(context);
     final origin =
         _origins[route] ??= TapOrigin.last ?? size.center(Offset.zero);
-    final curved = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeInOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
+    // O2.3: one curve per route, not one per build.
+    final curved =
+        _curves[route] ??= () {
+          debugCurvesCreated++;
+          return CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+        }();
+    // O2.2: the circle's edge moves fast, so a hard edge on weak GPUs costs
+    // nothing visible.
+    final edge = deviceTier == DeviceTier.low ? Clip.hardEdge : Clip.antiAlias;
     return AnimatedBuilder(
       animation: curved,
       child: page,
       builder: (_, c) {
         final t = curved.value;
-        if (t >= 1) return c!;
-        return ClipPath(clipper: _CircleClipper(origin, t), child: c);
+        // O2.1: always the same widget type, so the page never remounts.
+        return ClipPath(
+          clipper: _CircleClipper(origin, t),
+          clipBehavior: t >= 1 ? Clip.none : edge,
+          child: c,
+        );
       },
     );
   }

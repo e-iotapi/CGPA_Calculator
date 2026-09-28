@@ -1,7 +1,28 @@
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _CountingPage extends StatefulWidget {
+  const _CountingPage();
+
+  static int inits = 0;
+
+  @override
+  State<_CountingPage> createState() => _CountingPageState();
+}
+
+class _CountingPageState extends State<_CountingPage> {
+  @override
+  void initState() {
+    super.initState();
+    _CountingPage.inits++;
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(body: Text('next'));
+}
 
 Widget _app({bool reduced = false}) => MaterialApp(
   theme: AppPalette.light.materialTheme,
@@ -18,9 +39,7 @@ Widget _app({bool reduced = false}) => MaterialApp(
             child: TextButton(
               onPressed:
                   () => Navigator.of(c).push(
-                    MaterialPageRoute(
-                      builder: (_) => const Scaffold(body: Text('next')),
-                    ),
+                    MaterialPageRoute(builder: (_) => const _CountingPage()),
                   ),
               child: const Text('open'),
             ),
@@ -42,8 +61,40 @@ void main() {
     expect(TapOrigin.last, tap);
     expect(_clip(), findsOneWidget);
     await t.pumpAndSettle();
-    expect(_clip(), findsNothing);
+    // O2.1: the same ClipPath stays mounted at rest, just with no clip.
+    expect(_clip(), findsOneWidget);
+    expect(t.widget<ClipPath>(_clip()).clipBehavior, Clip.none);
     expect(find.text('next'), findsOneWidget);
+  });
+
+  testWidgets('no remount at the end of a push', (t) async {
+    await t.pumpWidget(_app());
+    _CountingPage.inits = 0;
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    expect(_CountingPage.inits, 1);
+  });
+
+  testWidgets('low tier clips with a hard edge', (t) async {
+    deviceTier = DeviceTier.low;
+    addTearDown(() => deviceTier = DeviceTier.normal);
+    await t.pumpWidget(_app());
+    await t.tap(find.text('open'));
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 200));
+    expect(t.widget<ClipPath>(_clip()).clipBehavior, Clip.hardEdge);
+    await t.pumpAndSettle();
+  });
+
+  testWidgets('one curve per route', (t) async {
+    final before = CircleRevealTransitionsBuilder.debugCurvesCreated;
+    await t.pumpWidget(_app());
+    await t.tap(find.text('open'));
+    for (var i = 0; i < 5; i++) {
+      await t.pump(const Duration(milliseconds: 20));
+    }
+    expect(CircleRevealTransitionsBuilder.debugCurvesCreated - before, 1);
+    await t.pumpAndSettle();
   });
 
   testWidgets('reduced motion fades instead', (t) async {

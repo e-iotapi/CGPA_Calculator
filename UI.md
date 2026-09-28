@@ -2173,6 +2173,18 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Checks**: `flutter analyze` 7 infos; `flutter test` 413 passed, 50
   skipped.
 
+### 13.2.4 UI_OPT O2 — page transitions (28 Sep 2026)
+- **Files**: `lib/app/theme/circle_reveal.dart`
+  (`CircleRevealTransitionsBuilder`), `test/theme/motion_test.dart`.
+- O2.1: `buildTransitions` always returns a `ClipPath`, switching
+  `clipBehavior` to `Clip.none` at rest instead of swapping widget types — no
+  remount at the end of a push. O2.2: `Clip.hardEdge` on `DeviceTier.low`.
+  O2.3: one `CurvedAnimation` per route, cached in an `Expando` beside
+  `_origins`. O2.4: no code (a note for later measurement).
+- **Departures**: none.
+- **Checks**: `flutter analyze` 7 infos; `flutter test` 416 passed, 50
+  skipped.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
