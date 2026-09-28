@@ -26,6 +26,7 @@ import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
+import 'package:cgpa_calculator/features/semester/home_persist.dart';
 import 'package:cgpa_calculator/features/semester/widgets/copy_profile_button.dart';
 import 'package:cgpa_calculator/features/semester/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
@@ -65,6 +66,39 @@ class _MyHomePageState extends State<MyHomePage> {
   /// course list on Expected.
   static const double _copyButtonRoom = 72;
 
+  /// The app theme with the current palette, one per palette name, so a
+  /// build re-injects it without copying ThemeData. Cleared on a theme switch.
+  final _themed = <String, ThemeData>{};
+
+  void _themeChanged() => _themed.clear();
+
+  @override
+  void initState() {
+    super.initState();
+    setnavcolor();
+    themeVersion.addListener(_themeChanged);
+  }
+
+  @override
+  void dispose() {
+    themeVersion.removeListener(_themeChanged);
+    super.dispose();
+  }
+
+  /// Saves what [c] changed. Build saves nothing (UI_OPT O3.1).
+  void _persist(HomeChange c) {
+    for (final w in writesFor(c)) {
+      switch (w) {
+        case HomeWrite.sem:
+          setsem();
+        case HomeWrite.sort:
+          setsort();
+        case HomeWrite.profile:
+          setprof();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // First run: the setup screens, before anything is saved.
@@ -76,19 +110,15 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     List<Course> sitems = items.toList();
     sort(sitems, currentsort);
-    setdis();
-    setsort();
-    setsem();
-    setprof();
-    settheme();
-    setnavcolor();
     sgpa = sgcalc(currentsem);
     cgpa = cgcalc();
     creditTotals();
     // The current palette is re-injected on every build: settings change the
     // `thm` global and setState here, but MyApp above never rebuilds.
     return Theme(
-      data: Theme.of(context).copyWith(extensions: [thm]),
+      data: _themed[thm.name] ??= Theme.of(
+        context,
+      ).copyWith(extensions: [thm]),
       child: PopScope(
         canPop: false,
         child: ResponsiveScaffold(
@@ -107,6 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
               }
               selectedprofile = index + 1;
             });
+            _persist(HomeChange.profile);
           },
           destinations: [
             NavDestination(icon: Icons.home_outlined, label: profile1n),
@@ -127,25 +158,19 @@ class _MyHomePageState extends State<MyHomePage> {
               // MediaQuery's width, assuming they fill the window. Beside the
               // rail they do not, so they are shown the body's width instead.
               // Height is left alone until the MediaQuery × n sizing goes.
-              final mq = MediaQuery.of(context);
+              // Size only: a keyboard opening in a sheet re-runs _Resized
+              // below, not this builder (UI_OPT O3.2).
               var wid = c.maxWidth;
-              final hei = mq.size.height;
+              final hei = MediaQuery.sizeOf(context).height;
               if (kIsWeb && hei < wid) {
                 // Landscape browser: keep the phone layout readable.
                 wid = wid.clamp(0, 600).toDouble();
               }
-              return MediaQuery(
-                data: mq.copyWith(
-                  size: Size(c.maxWidth, hei),
-                  // Expected keeps the copy button up; the list scrolls clear
-                  // of it.
-                  padding:
-                      selectedprofile == 2
-                          ? mq.padding.copyWith(
-                            bottom: mq.padding.bottom + _copyButtonRoom,
-                          )
-                          : mq.padding,
-                ),
+              return _Resized(
+                size: Size(c.maxWidth, hei),
+                // Expected keeps the copy button up; the list scrolls clear
+                // of it.
+                extraBottom: selectedprofile == 2 ? _copyButtonRoom : 0,
                 child: _semesterView(sitems, wid, hei),
               );
             },
@@ -243,16 +268,23 @@ class _MyHomePageState extends State<MyHomePage> {
       greeting: parts.first,
       name: parts.skip(1).join(', '),
       slideFromRight: _isrightswipe,
-      onSemesterSelected:
-          (s) => setState(() {
-            currentsem = s;
-            sgpa = sgcalc(s);
-            cgpa = cgcalc();
-          }),
-      onSortSelected: (s) => setState(() => currentsort = s.key),
+      onSemesterSelected: (s) {
+        setState(() {
+          currentsem = s;
+          sgpa = sgcalc(s);
+          cgpa = cgcalc();
+        });
+        _persist(HomeChange.semester);
+      },
+      onSortSelected: (s) {
+        setState(() => currentsort = s.key);
+        _persist(HomeChange.sort);
+      },
       onReorder: (order) async {
         await setCourseOrder(currentsem, [for (final c in order) c.id]);
-        if (mounted) setState(() => currentsort = CourseSort.custom.key);
+        if (!mounted) return;
+        setState(() => currentsort = CourseSort.custom.key);
+        _persist(HomeChange.sort);
       },
       onExport: () => _exportSemester(sitems),
       onAddCourse: () async {
@@ -311,13 +343,15 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       onCompareChanged: _changeCompared,
       onClearRequested: _confirmClearSemester,
-      onSwipe:
-          (delta) => setState(() {
-            final next = selectedprofile + delta;
-            if (next < 1 || next > 4) return;
-            _isrightswipe = delta > 0;
-            selectedprofile = next;
-          }),
+      onSwipe: (delta) {
+        final next = selectedprofile + delta;
+        if (next < 1 || next > 4) return;
+        setState(() {
+          _isrightswipe = delta > 0;
+          selectedprofile = next;
+        });
+        _persist(HomeChange.profile);
+      },
       onOpenAnalytics:
           () => openRoute(
             context,
@@ -438,5 +472,35 @@ class _MyHomePageState extends State<MyHomePage> {
       sgpa = sgcalc(currentsem);
       cgpa = cgcalc();
     });
+  }
+}
+
+/// Shows [child] the body's [size] and [extraBottom] more bottom padding.
+/// It reads the whole MediaQuery to copy it, so it rebuilds on any change
+/// (a keyboard opening); [child] is built above and is not rebuilt with it.
+class _Resized extends StatelessWidget {
+  const _Resized({
+    required this.size,
+    required this.extraBottom,
+    required this.child,
+  });
+
+  final Size size;
+  final double extraBottom;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return MediaQuery(
+      data: mq.copyWith(
+        size: size,
+        padding:
+            extraBottom == 0
+                ? mq.padding
+                : mq.padding.copyWith(bottom: mq.padding.bottom + extraBottom),
+      ),
+      child: child,
+    );
   }
 }

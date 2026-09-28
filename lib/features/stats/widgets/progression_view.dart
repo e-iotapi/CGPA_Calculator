@@ -16,12 +16,18 @@ class ProgressionView extends StatelessWidget {
     required this.data,
     required this.onTargetChanged,
     required this.onPlanChanged,
+    this.onPlanChangeEnd,
     this.onIncludeChanged,
   });
 
   final StatsData data;
   final ValueChanged<double> onTargetChanged;
+
+  /// Every slider tick: redraw only.
   final void Function(String sem, double sgpa) onPlanChanged;
+
+  /// The slider let go: save the plan here, once per drag (UI_OPT O3.5).
+  final void Function(String sem, double sgpa)? onPlanChangeEnd;
 
   /// Null hides the tick boxes: every future semester is forecast.
   final void Function(String sem, bool included)? onIncludeChanged;
@@ -139,13 +145,20 @@ class ProgressionView extends StatelessWidget {
           ),
           const SizedBox(height: Space.sm),
           for (final s in data.planned) ...[
-            _PlanCard(
-              s: s,
-              onChanged: (v) => onPlanChanged(s.sem, v),
-              onInclude:
-                  onIncludeChanged == null
-                      ? null
-                      : (on) => onIncludeChanged!(s.sem, on),
+            // Its own layer: a drag repaints this card, not the page.
+            RepaintBoundary(
+              child: _PlanCard(
+                s: s,
+                onChanged: (v) => onPlanChanged(s.sem, v),
+                onChangeEnd:
+                    onPlanChangeEnd == null
+                        ? null
+                        : (v) => onPlanChangeEnd!(s.sem, v),
+                onInclude:
+                    onIncludeChanged == null
+                        ? null
+                        : (on) => onIncludeChanged!(s.sem, on),
+              ),
             ),
             const SizedBox(height: Space.sm),
           ],
@@ -260,10 +273,16 @@ class ProgressionView extends StatelessWidget {
 }
 
 class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.s, required this.onChanged, this.onInclude});
+  const _PlanCard({
+    required this.s,
+    required this.onChanged,
+    this.onChangeEnd,
+    this.onInclude,
+  });
 
   final PlannedSemester s;
   final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChangeEnd;
   final ValueChanged<bool>? onInclude;
 
   @override
@@ -360,6 +379,7 @@ class _PlanCard extends StatelessWidget {
               semanticFormatterCallback:
                   (v) => '${s.sem} SGPA ${v.toStringAsFixed(2)}',
               onChanged: onChanged,
+              onChangeEnd: onChangeEnd,
             ),
           ),
           Text.rich(

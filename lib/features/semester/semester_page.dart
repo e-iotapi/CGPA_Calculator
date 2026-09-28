@@ -143,7 +143,11 @@ class _SemesterViewState extends State<SemesterView> {
         builder: (context, c) {
           final wide = Breakpoints.of(c.maxWidth) != WindowSize.compact;
           return AnimatedSwitcher(
-            duration: Motion.slow,
+            // Reduced motion switches profile at once (UI.md §1.3 rule 2).
+            duration:
+                MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : Motion.slow,
             switchInCurve: Motion.curve,
             switchOutCurve: Motion.exitCurve,
             transitionBuilder:
@@ -157,12 +161,33 @@ class _SemesterViewState extends State<SemesterView> {
                     child: child,
                   ),
                 ),
+            // The outgoing page takes no taps. Both pages are wrapped the
+            // same way, keyed as the switcher keys them, so the outgoing
+            // one keeps its element (UI_OPT O3.4).
+            layoutBuilder:
+                (current, previous) => Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    for (final w in previous)
+                      IgnorePointer(key: w.key, child: w),
+                    if (current != null)
+                      IgnorePointer(
+                        key: current.key,
+                        ignoring: false,
+                        child: current,
+                      ),
+                  ],
+                ),
+            // Each page rasterises once; the fade and slide move two cached
+            // layers.
             child: KeyedSubtree(
               key: ValueKey(d.mode),
-              child:
-                  d.mode == SemesterMode.offshoot && widget.offshoot != null
-                      ? _offshootLayout()
-                      : _listLayout(wide),
+              child: RepaintBoundary(
+                child:
+                    d.mode == SemesterMode.offshoot && widget.offshoot != null
+                        ? _offshootLayout()
+                        : _listLayout(wide),
+              ),
             ),
           );
         },
@@ -225,30 +250,35 @@ class _SemesterViewState extends State<SemesterView> {
                 order.insert(to, order.removeAt(from));
                 widget.onReorder?.call(order);
               },
+              // Keyed by the Hive key, not the code: a dual degree holds two
+              // BITS F412 rows (UI_OPT O3.3).
               itemBuilder:
-                  (_, i) => Padding(
-                    key: ObjectKey(d.courses[i]),
-                    padding: EdgeInsets.only(
-                      bottom: i == d.courses.length - 1 ? 0 : 9,
-                    ),
-                    child: _draggable(
-                      i,
-                      CourseRow(
-                        course: d.courses[i],
-                        mode: d.mode,
-                        classDelta: widget.classDeltas[d.courses[i].id],
-                        onTap: () => widget.onCourseTap(d.courses[i], i),
-                        onGradePicked:
-                            (g) => widget.onGradePicked(d.courses[i], g),
-                        compared: d.compared,
-                        onCompareGradePicked:
-                            widget.onCompareGradePicked == null
-                                ? null
-                                : (profile, g) => widget.onCompareGradePicked!(
-                                  d.courses[i],
-                                  profile,
-                                  g,
-                                ),
+                  (_, i) => RepaintBoundary(
+                    key: rowKey(d.courses[i]),
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i == d.courses.length - 1 ? 0 : 9,
+                      ),
+                      child: _draggable(
+                        i,
+                        CourseRow(
+                          course: d.courses[i],
+                          mode: d.mode,
+                          classDelta: widget.classDeltas[d.courses[i].id],
+                          onTap: () => widget.onCourseTap(d.courses[i], i),
+                          onGradePicked:
+                              (g) => widget.onGradePicked(d.courses[i], g),
+                          compared: d.compared,
+                          onCompareGradePicked:
+                              widget.onCompareGradePicked == null
+                                  ? null
+                                  : (profile, g) =>
+                                      widget.onCompareGradePicked!(
+                                        d.courses[i],
+                                        profile,
+                                        g,
+                                      ),
+                        ),
                       ),
                     ),
                   ),
@@ -683,3 +713,6 @@ class _SemesterViewState extends State<SemesterView> {
     );
   }
 }
+
+/// A course row's list key: its Hive key once saved, else the object.
+Key rowKey(Course c) => c.isInBox ? ValueKey(c.key) : ObjectKey(c);

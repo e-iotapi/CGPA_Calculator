@@ -201,6 +201,13 @@ Regenerate this table when stores change: grep each file for `_store.`, `roleSto
 Grant fields read by screens: `role`, `scope`, `campus`, `programme`, `active`, `expiresAt`,
 `expiresBefore`, `handedTo`, `name`, `email`, `liveAt()`, `scopeLabel`.
 
+Student settings writes (UI_OPT O3): Home's `build` saves nothing, and a test greps for it
+(`test/perf/no_writes_in_build_test.dart`). Each handler saves what it changed through
+`features/semester/home_persist.dart` `writesFor` (semester → `setsem`, sort and reorder →
+`setsort`, profile tap or swipe → `setprof`); `setdis` runs after Settings, import and setup.
+If the logic branch hooks `setdis` / `setprof`, keep the names; the hooks still fire from
+the handlers. The Stats plan saves once per slider drag (`onPlanChangeEnd`), not per tick.
+
 ### 4.3 Places the UI builds a model object (update them when a model gains a field)
 `Offering(...)` is built in **three** screens, each wrapped in `withOutOf(...)`:
 `maintain.dart` `_CourseAverageState._save`, `professors.dart` `TakenBy._change`,

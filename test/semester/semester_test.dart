@@ -542,4 +542,148 @@ void main() {
       expect(order!.first.id, isNot(_data(SemesterMode.actual).courses[0].id));
     });
   });
+
+  group('UI_OPT O3', () {
+    Finder page(SemesterMode m) => find.byWidgetPredicate(
+      (w) => w is KeyedSubtree && w.key == ValueKey(m),
+    );
+
+    testWidgets('rows are keyed by Hive key, not code', (t) async {
+      late Directory dir;
+      final ps = [
+        _c('Practice School II', 'BITS F412', 10, 9),
+        _c('Practice School II (second)', 'BITS F412', 12, 8),
+      ];
+      await t.runAsync(() async {
+        dir = await Directory.systemTemp.createTemp('hive_rows');
+        Hive.init(dir.path);
+        if (!Hive.isAdapterRegistered(0)) {
+          Hive.registerAdapter(CourseAdapter());
+        }
+        final box = await Hive.openBox<Course>(coursesBoxName);
+        await box.put('BITS F412', ps[0]);
+        await box.put('BITS F412#2', ps[1]);
+      });
+      addTearDown(
+        () => t.runAsync(() async {
+          await Hive.deleteFromDisk();
+          await dir.delete(recursive: true);
+        }),
+      );
+      final data = SemesterData.from(
+        allCourses: ps,
+        visible: ps,
+        sem: '4 - 1',
+        semesters: semestersFor('B3A7'),
+        discipline: 'B3A7',
+        mode: SemesterMode.actual,
+        sort: CourseSort.creditsAsc,
+        profileNames: const ['Actual', 'Expected', 'P3', 'P4', 'P5'],
+        compared: (1, 2),
+      );
+      List<Course>? order;
+      await _pump(
+        t,
+        data,
+        size: const Size(390, 844),
+        onReorder: (o) => order = o,
+      );
+      expect(
+        [for (final c in ps) (rowKey(c) as ValueKey).value],
+        ['BITS F412', 'BITS F412#2'],
+      );
+      expect(find.byKey(rowKey(ps[0])), findsOneWidget);
+      expect(find.byKey(rowKey(ps[1])), findsOneWidget);
+      expect(find.text('Practice School II'), findsOneWidget);
+      expect(find.text('Practice School II (second)'), findsOneWidget);
+
+      final handle = t.ensureSemantics();
+      final row = find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            (w.properties.customSemanticsActions?.keys.any(
+                  (a) => a.label == 'Move down',
+                ) ??
+                false),
+      );
+      t
+          .widget<Semantics>(row.first)
+          .properties
+          .customSemanticsActions!
+          .entries
+          .firstWhere((e) => e.key.label == 'Move down')
+          .value();
+      expect([for (final c in order!) c.key], ['BITS F412#2', 'BITS F412']);
+      handle.dispose();
+    });
+
+    /// Pumps Semester on Actual; the returned notifier switches profile.
+    Future<ValueNotifier<SemesterMode>> switchable(
+      WidgetTester t, {
+      bool still = false,
+    }) async {
+      final mode = ValueNotifier(SemesterMode.actual);
+      addTearDown(mode.dispose);
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          builder:
+              (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(disableAnimations: still),
+                child: child!,
+              ),
+          home: Scaffold(
+            body: ValueListenableBuilder(
+              valueListenable: mode,
+              builder:
+                  (_, m, _) => SemesterView(
+                    data: _data(m),
+                    greeting: 'Good evening',
+                    name: 'Siddharth',
+                    onSemesterSelected: (_) {},
+                    onSortSelected: (_) {},
+                    onExport: () {},
+                    onAddCourse: () {},
+                    onCourseTap: (_, _) {},
+                    onGradePicked: (_, _) {},
+                    onClearRequested: () {},
+                    onSwipe: (_) {},
+                    onOpenAnalytics: () {},
+                    onOpenCalendar: () {},
+                    onOpenSettings: () {},
+                    onToggleTheme: () {},
+                  ),
+            ),
+          ),
+        ),
+      );
+      return mode;
+    }
+
+    testWidgets('profile switch pages are repaint boundaries', (t) async {
+      final mode = await switchable(t);
+      mode.value = SemesterMode.expected;
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      for (final m in [SemesterMode.actual, SemesterMode.expected]) {
+        expect(page(m), findsOneWidget, reason: '$m');
+        expect(t.widget<KeyedSubtree>(page(m)).child, isA<RepaintBoundary>());
+      }
+      IgnorePointer gate(SemesterMode m) => t.widget<IgnorePointer>(
+        find.ancestor(of: page(m), matching: find.byType(IgnorePointer)).first,
+      );
+      expect(gate(SemesterMode.actual).ignoring, isTrue);
+      expect(gate(SemesterMode.expected).ignoring, isFalse);
+      await t.pumpAndSettle();
+      expect(page(SemesterMode.actual), findsNothing);
+    });
+
+    testWidgets('reduced motion switches profile instantly', (t) async {
+      final mode = await switchable(t, still: true);
+      mode.value = SemesterMode.expected;
+      await t.pump();
+      expect(page(SemesterMode.actual), findsNothing);
+      expect(page(SemesterMode.expected), findsOneWidget);
+    });
+  });
 }
