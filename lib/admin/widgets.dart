@@ -346,7 +346,12 @@ class _LoadedState<T> extends State<Loaded<T>> {
     future: _f,
     builder: (context, s) {
       if (s.hasError) {
-        void reload() => setState(() => _f = widget.load());
+        // A rebuild (and FutureBuilder's own re-subscription) only happens
+        // on the next frame, so ignore() keeps a synchronously-rejected
+        // reload from being flagged as an unhandled Future error first.
+        void reload() => setState(() {
+          _f = widget.load()..ignore();
+        });
         return Padding(
           padding: const EdgeInsets.all(Space.lg),
           child: Column(
@@ -371,11 +376,11 @@ class _LoadedState<T> extends State<Loaded<T>> {
           child: Center(child: CircularProgressIndicator()),
         );
       }
-      return widget.builder(
-        context,
-        s.data as T,
-        () => setState(() => _f = widget.load()),
-      );
+      return widget.builder(context, s.data as T, () {
+        setState(() {
+          _f = widget.load()..ignore();
+        });
+      });
     },
   );
 }

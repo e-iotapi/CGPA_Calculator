@@ -234,4 +234,42 @@ void main() {
       expect(shortEmail('f20230456@goa.bits-pilani.ac.in'), 'f20230456@goa');
     });
   });
+
+  group('T3.5: friendly errors', () {
+    test('problem() never leaks the raw exception text', () {
+      final text = problem(
+        Exception(
+          '[cloud_firestore/failed-precondition] The query requires an '
+          'index. You can create it here: https://console.firebase.google.com/…',
+        ),
+      );
+      expect(text, isNot(contains('http')));
+    });
+
+    testWidgets('Loaded shows Try again on error, and retries on tap', (
+      t,
+    ) async {
+      var calls = 0;
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          home: Scaffold(
+            body: Loaded<int>(
+              load: () async {
+                calls++;
+                throw Exception('boom');
+              },
+              builder: (context, data, reload) => Text('$data'),
+            ),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      expect(calls, 1);
+      expect(find.text('Try again'), findsOneWidget);
+      await t.tap(find.text('Try again'));
+      await t.pumpAndSettle();
+      expect(calls, 2);
+    });
+  });
 }
