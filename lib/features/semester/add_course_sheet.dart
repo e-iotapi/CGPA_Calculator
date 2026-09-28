@@ -9,7 +9,6 @@ import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
-import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter/material.dart';
 
@@ -21,11 +20,15 @@ Future<Course?> showAddCourseSheet(
   required String discipline,
   required Profile profile,
 }) {
+  final p = AppPalette.of(context);
   return showModalBottomSheet<Course>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
-    backgroundColor: AppPalette.of(context).background,
+    backgroundColor: p.isDark ? p.surface : p.onInverse,
+    barrierColor: p.inverse.withValues(alpha: 0.34),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+    ),
     constraints: const BoxConstraints(maxWidth: 640),
     builder:
         (_) => FractionallySizedBox(
@@ -73,7 +76,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
   final _dept = TextEditingController();
   final _number = TextEditingController();
   final _title = TextEditingController();
-  int _credits = 3;
+  double _credits = 3;
   String? _manualCategory;
   int _manualGrade = GradeCode.clr;
 
@@ -104,7 +107,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
       CourseHit(
         id: _manualId,
         title: _title.text.trim(),
-        credits: _credits.toDouble(),
+        credits: _credits,
         category: category,
       ),
       sem: widget.sem,
@@ -155,26 +158,58 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          Space.gutter,
-          0,
-          Space.gutter,
+          20,
+          10,
+          20,
           Space.lg + MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: p.outline,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             if (_manual)
               ..._manualView(context)
             else ...[
-              Text(
-                'Add a course',
-                style: TypeScale.title.copyWith(color: p.text),
-              ),
-              Text(
-                'to semester $sem · $mode',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.caption.copyWith(color: p.textMuted),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Add a course',
+                          style: TypeScale.sheetTitle.copyWith(color: p.text),
+                        ),
+                        Text(
+                          'to semester $sem · $mode',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TypeScale.caption.copyWith(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            color: p.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: Space.sm),
+                  _SheetCircle(
+                    icon: Icons.close_rounded,
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                ],
               ),
               const SizedBox(height: Space.md),
               TextField(
@@ -253,36 +288,39 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
           widget.discipline,
         );
 
+    // `.fld`: white, no border, radius 15, 46 tall.
     InputDecoration field(String hintText) => InputDecoration(
       hintText: hintText,
       isDense: true,
       counterText: '',
       filled: true,
       fillColor: p.surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: p.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: p.border),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(15),
         borderSide: BorderSide(color: p.text, width: 1.5),
       ),
     );
-    final input = TypeScale.body.copyWith(color: p.text);
+    final input = TypeScale.body.copyWith(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      height: 1.35,
+      color: p.text,
+    );
     void edited(String _) => setState(() {});
 
     Widget section(String name, Widget child, [String? note]) =>
         FieldSection(label: name, note: note, child: child);
 
-    Widget step(IconData icon, String tip, int to) => CircleIconButton(
+    Widget step(IconData icon, String tip, double to) => _StepBox(
       icon: icon,
       tooltip: tip,
-      onPressed: to < 1 || to > 9 ? null : () => setState(() => _credits = to),
+      onPressed:
+          to < 0.5 || to > 20 ? null : () => setState(() => _credits = to),
     );
 
     // The header scrolls with the fields, so large text leaves room.
@@ -292,23 +330,32 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
           children: [
             Row(
               children: [
-                CircleIconButton(
+                _SheetCircle(
                   icon: Icons.arrow_back_rounded,
                   tooltip: 'Back to search',
                   onPressed: () => setState(() => _manual = false),
                 ),
-                const SizedBox(width: Space.md),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Enter it manually',
-                        style: TypeScale.title.copyWith(color: p.text),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TypeScale.sheetTitle.copyWith(
+                          fontSize: 20,
+                          color: p.text,
+                        ),
                       ),
                       Text(
                         'for courses not in the BITS list',
-                        style: TypeScale.caption.copyWith(color: p.textMuted),
+                        style: TypeScale.caption.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: p.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -347,14 +394,14 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               ),
               held != null
                   ? '$_manualId is already in ${semLabel(held)}'
-                  : 'Department, then number, as on your timetable',
+                  : 'Department, then number — like AN and F311.',
             ),
             section(
               'TITLE',
               TextField(
                 controller: _title,
                 minLines: 1,
-                maxLines: null,
+                maxLines: 2,
                 onChanged: edited,
                 textCapitalization: TextCapitalization.words,
                 style: input,
@@ -365,16 +412,36 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               'CREDITS',
               Row(
                 children: [
-                  step(Icons.remove_rounded, 'Fewer credits', _credits - 1),
-                  SizedBox(
-                    width: 56,
-                    child: Text(
-                      '$_credits',
-                      textAlign: TextAlign.center,
-                      style: TypeScale.title.copyWith(color: p.text),
+                  step(
+                    Icons.remove_rounded,
+                    'Fewer credits',
+                    _credits > 1 ? _credits - 1 : _credits - 0.5,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Container(
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: p.surface,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        formatCredits(_credits),
+                        style: TypeScale.body.copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: p.text,
+                        ),
+                      ),
                     ),
                   ),
-                  step(Icons.add_rounded, 'More credits', _credits + 1),
+                  const SizedBox(width: 6),
+                  step(
+                    Icons.add_rounded,
+                    'More credits',
+                    _credits < 1 ? 1 : _credits + 1,
+                  ),
                 ],
               ),
             ),
@@ -587,11 +654,19 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
                 ),
               ),
               const SizedBox(width: Space.sm),
-              Text(
-                '${formatCredits(h.credits)} cr',
-                style: TypeScale.caption.copyWith(
-                  color: p.onHero,
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.onHero.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Text(
+                  '${formatCredits(h.credits)} cr',
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 11,
+                    color: p.onHero,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -688,6 +763,89 @@ class _HitRow extends StatelessWidget {
                 color: picked ? p.text : p.textMuted,
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A 34 px circle with a 44 px hit area, for the sheet's Close and Back.
+class _SheetCircle extends StatelessWidget {
+  const _SheetCircle({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        excludeSemantics: true,
+        child: InkResponse(
+          onTap: onPressed,
+          radius: 22,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: p.isDark ? p.surfaceSunken : const Color(0xFFE8E8E1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 15, color: p.icon),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The credits stepper's − and + : 42 px white boxes.
+class _StepBox extends StatelessWidget {
+  const _StepBox({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Icon(
+              icon,
+              size: 19,
+              color: onPressed == null ? p.textMuted : p.icon,
+            ),
+          ),
         ),
       ),
     );

@@ -74,6 +74,15 @@ abstract final class TypeScale {
     height: 1.1,
   );
 
+  /// A bottom sheet's title ("Add a course").
+  static const sheetTitle = TextStyle(
+    fontFamily: family,
+    fontSize: 21,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.5,
+    height: 1.15,
+  );
+
   /// The sentence-style summary line under the title.
   static const editorial = TextStyle(
     fontFamily: family,
