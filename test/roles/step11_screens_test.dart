@@ -402,7 +402,7 @@ void main() {
     );
     await t.pumpAndSettle();
     expect(find.text('EEE F211 · 2 offers'), findsOneWidget);
-    await t.tap(find.byTooltip('Copy the message for WhatsApp'));
+    await t.tap(find.byTooltip('Copy the election notice'));
     await t.pumpAndSettle();
     expect(
       copied,
@@ -1054,5 +1054,33 @@ void main() {
     final hourAgo = DateTime.now().subtract(const Duration(hours: 1));
     final label = hourAgo.day == DateTime.now().day ? 'TODAY' : 'YESTERDAY';
     expect(find.text(label), findsOneWidget);
+  });
+
+  // ---- T8.11 Roster --------------------------------------------------------
+
+  testWidgets('volunteers tab counts offers', (t) async {
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    for (final e in [
+      'f20240101@goa.bits-pilani.ac.in',
+      'f20240102@goa.bits-pilani.ac.in',
+    ]) {
+      await db.collection('volunteers').doc('goa_EEE F212_$e').set({
+        'name': e.substring(0, 9),
+        'email': e,
+        'campus': 'goa',
+        'courseId': 'EEE F212',
+        'dept': 'ELEC',
+        'term': currentTerm(DateTime.now()),
+        'open': true,
+      });
+    }
+    await t.pumpWidget(
+      app(RosterPage(volunteersTab: (c) => VolunteersTab(campus: c))),
+    );
+    await t.pumpAndSettle();
+    expect(find.text('Volunteers · 2'), findsOneWidget);
+    await t.tap(find.text('Volunteers · 2'));
+    await t.pumpAndSettle();
+    expect(find.text('Appoint as CR'), findsNWidgets(2));
   });
 }

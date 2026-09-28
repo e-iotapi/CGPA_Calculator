@@ -62,6 +62,15 @@ void main() {
       As.president,
       980,
     ),
+    (
+      'm_roster_volunteers',
+      () => RosterPage(
+        initialVolunteers: true,
+        volunteersTab: (c) => VolunteersTab(campus: c),
+      ),
+      As.president,
+      980,
+    ),
     ('m_open_as', () => const OpenAsPage(), As.owner, 844),
     ('m_view_as_dept', () => const ViewAsDeptPage(), As.owner, 1400),
     ('m_view_as_course', () => const ViewAsCoursePage(), As.owner, 844),
