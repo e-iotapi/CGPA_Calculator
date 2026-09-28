@@ -28,6 +28,7 @@ import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
+import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/script.dart' as script;
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
@@ -186,10 +187,10 @@ void main() {
     await t.tap(find.text('open'));
     await t.pumpAndSettle();
     expect(button(t, 'Save'), isNull);
-    await t.enterText(find.widgetWithText(TextField, 'Phone'), '98765 43210');
+    await t.enterText(find.byType(TextField).at(1), '98765 43210');
     await t.pump();
     expect(button(t, 'Save'), isNull);
-    await t.tap(find.widgetWithText(SwitchListTile, 'Email'));
+    await t.tap(find.byType(Switch).first);
     await t.pump();
     expect(button(t, 'Save'), isNotNull);
     await t.tap(find.widgetWithText(PrimaryButton, 'Save'));
@@ -228,8 +229,8 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Before you start'), findsOneWidget);
     expect(find.text('Sign out'), findsOneWidget);
-    await t.enterText(find.widgetWithText(TextField, 'Phone'), '98765 43210');
-    await t.tap(find.widgetWithText(SwitchListTile, 'Email'));
+    await t.enterText(find.byType(TextField).at(1), '98765 43210');
+    await t.tap(find.byType(Switch).first);
     await t.pump();
     await t.tap(find.widgetWithText(PrimaryButton, 'Save and continue'));
     await t.pumpAndSettle();
@@ -982,5 +983,45 @@ void main() {
     await t.enterText(find.byType(TextField).first, 'Siddharth');
     await t.pump();
     expect(find.text('Message Siddharth'), findsOneWidget);
+  });
+
+  // ---- T8.9 Work as --------------------------------------------------------
+
+  Grant elec() => Grant(
+    role: GrantRole.dept,
+    email: pres,
+    name: 'Meera Iyer',
+    campus: 'goa',
+    scope: 'ELEC',
+    programme: 'A3',
+    active: true,
+    expiresAt: DateTime(2027, 9, 27),
+  );
+
+  testWidgets('current role shows NOW chip', (t) async {
+    final g = elec();
+    signIn(pres, roles: MyRoles(email: pres, grants: [g]));
+    workingAs.value = g;
+    addTearDown(() => workingAs.value = null);
+    await t.pumpWidget(app(const RoleSwitchPage()));
+    await t.pumpAndSettle();
+    expect(find.text('✓ NOW'), findsOneWidget);
+    // The chip sits on the president row, a plain row, not an inverted card.
+    final row =
+        find
+            .ancestor(of: find.text('✓ NOW'), matching: find.byType(InkWell))
+            .first;
+    expect(
+      find.descendant(of: row, matching: find.text('Department president')),
+      findsOneWidget,
+    );
+    expect(find.text('Your contact details'), findsOneWidget);
+  });
+
+  testWidgets('expiry reads 27 Sep 2027', (t) async {
+    signIn(pres, roles: MyRoles(email: pres, grants: [elec()]));
+    await t.pumpWidget(app(const RoleSwitchPage()));
+    await t.pumpAndSettle();
+    expect(find.textContaining('until 27 Sep 2027'), findsOneWidget);
   });
 }

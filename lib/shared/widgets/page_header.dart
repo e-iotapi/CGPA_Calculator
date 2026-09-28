@@ -14,6 +14,7 @@ class PageHeader extends StatelessWidget {
     this.actions = const [],
     this.leading = true,
     this.close = false,
+    this.back = true,
   });
 
   final String eyebrow;
@@ -32,19 +33,22 @@ class PageHeader extends StatelessWidget {
   /// evaluative).
   final bool close;
 
+  /// False on a page there is no leaving (Before you start while forced).
+  final bool back;
+
   @override
   Widget build(BuildContext context) {
-    final back = CircleIconButton(
+    final button = CircleIconButton(
       icon: close ? Icons.close_rounded : Icons.arrow_back_rounded,
       tooltip: close ? 'Close' : 'Back',
       onPressed: onBack ?? () => Navigator.of(context).maybePop(),
       size: 42,
     );
     final block = _TitleBlock(eyebrow: eyebrow, title: title, leading: leading);
-    if (leading) {
+    if (leading && back) {
       return Row(
         children: [
-          back,
+          button,
           const SizedBox(width: 12),
           Expanded(child: block),
           for (final a in actions) ...[const SizedBox(width: Space.sm), a],
@@ -55,8 +59,11 @@ class PageHeader extends StatelessWidget {
       children: [
         Expanded(child: block),
         const SizedBox(width: Space.md),
-        for (final a in actions) ...[a, const SizedBox(width: Space.sm)],
-        back,
+        for (final (i, a) in actions.indexed) ...[
+          a,
+          if (back || i < actions.length - 1) const SizedBox(width: Space.sm),
+        ],
+        if (back) button,
       ],
     );
   }

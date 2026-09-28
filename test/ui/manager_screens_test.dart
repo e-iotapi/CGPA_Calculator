@@ -6,6 +6,7 @@
 //   SHOTS_DIR=/some/dir flutter test test/ui/manager_screens_test.dart
 import 'package:cgpa_calculator/admin/admin.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
@@ -131,7 +132,17 @@ void main() {
       900,
     ),
     ('m_role_switch', () => const RoleSwitchPage(), As.president, 844),
-    ('m_rep_profile', () => const RepProfilePage(), As.president, 960),
+    (
+      'm_rep_profile',
+      // Forced, as the board draws it: served first after an appointment.
+      () {
+        profileDue.value = true;
+        addTearDown(() => profileDue.value = false);
+        return RepProfilePage(onSignOut: () {});
+      },
+      As.president,
+      1100,
+    ),
     ('m_representatives', () => const RepresentativesPage(), As.student, 844),
   ];
 
