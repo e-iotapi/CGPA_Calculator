@@ -7,8 +7,10 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:go_router/go_router.dart';
 
 /// "PEOPLE", "OWNER ONLY": the small caps above a group.
 class SectionLabel extends StatelessWidget {
@@ -513,6 +515,76 @@ class NameEmail extends StatelessWidget {
               ),
             ],
           ),
+    );
+  }
+}
+
+/// The header of a manager home (Controls, Your department; §10.1 item 3):
+/// eyebrow and a 27/800 title, with Back to Pointer on the right.
+class ManagerHomeHeader extends StatelessWidget {
+  const ManagerHomeHeader({
+    super.key,
+    required this.eyebrow,
+    required this.title,
+  });
+  final String eyebrow, title;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final eyebrowText = Text(
+      eyebrow,
+      style: TypeScale.label.copyWith(color: p.textMuted),
+    );
+    final titleText = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TypeScale.title.copyWith(
+        fontSize: 27,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.8,
+      ),
+    );
+    final back = PillButton(
+      label: 'Back to Pointer',
+      icon: Icons.arrow_back_rounded,
+      padding: 12,
+      onPressed: () {
+        final nav = Navigator.of(context);
+        if (nav.canPop()) {
+          nav.pop();
+        } else {
+          GoRouter.maybeOf(context)?.go('/');
+        }
+      },
+    );
+    // Large text: the button gets a line of its own, so the eyebrow and the
+    // title keep the full width.
+    if (MediaQuery.textScalerOf(context).scale(10) > 12) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Align(alignment: Alignment.centerRight, child: back),
+          const SizedBox(height: 6),
+          eyebrowText,
+          const SizedBox(height: 2),
+          titleText,
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [eyebrowText, const SizedBox(height: 2), titleText],
+          ),
+        ),
+        const SizedBox(width: Space.sm),
+        back,
+      ],
     );
   }
 }

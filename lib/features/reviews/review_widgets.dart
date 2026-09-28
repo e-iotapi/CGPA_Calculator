@@ -347,7 +347,7 @@ class ReviewTile extends StatelessWidget {
               ),
             ),
           ],
-          if (showCourse && onHelpful == null) ...[
+          if (showCourse && onHelpful == null && r.helpful > 0) ...[
             const SizedBox(height: 6),
             Text(
               '${r.helpful} found it helpful',
