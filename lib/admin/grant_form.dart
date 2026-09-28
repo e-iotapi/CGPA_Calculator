@@ -21,17 +21,41 @@ import 'package:go_router/go_router.dart';
 
 /// The bottom action's words: "Grant" until an address resolves, then the
 /// grant it will make, e.g. "Grant — president, ELEC Goa" (N18).
-String grantLabel(GrantRole? role, String? scope, String? campus) {
+String grantLabel(
+  GrantRole? role,
+  String? scope,
+  String? campus, {
+  bool secretary = false,
+}) {
   if (role == null || campus == null) return 'Grant';
   final where = campus == 'all' ? '' : ' ${campusName(campus)}';
+  final dept = secretary ? 'secretary' : 'president';
   return switch (role) {
     GrantRole.admin => 'Grant — admin',
     GrantRole.dept =>
-      scope == null ? 'Grant — president' : 'Grant — president, $scope$where',
+      scope == null ? 'Grant — $dept' : 'Grant — $dept, $scope$where',
     GrantRole.course =>
       scope == null
           ? 'Grant — course manager'
           : 'Grant — course manager, $scope$where',
+  };
+}
+
+/// The tier pills. A secretary is a department grant with every president
+/// right but handing over; appointed by owners, admins and presidents.
+enum _Tier {
+  admin('Admin'),
+  president('President'),
+  secretary('Secretary'),
+  course('CR');
+
+  const _Tier(this.label);
+  final String label;
+
+  GrantRole get role => switch (this) {
+    admin => GrantRole.admin,
+    president || secretary => GrantRole.dept,
+    course => GrantRole.course,
   };
 }
 
@@ -60,7 +84,8 @@ class _AdminGrantState extends State<AdminGrant> {
             ? widget.prefill?.scope ?? ''
             : '',
   );
-  late GrantRole? _role = widget.prefill?.role ?? _tiers.lastOrNull;
+  late GrantRole? _role = widget.prefill?.role ?? _tiers.lastOrNull?.role;
+  bool _secretary = false;
   late String? _dept =
       widget.prefill?.role == GrantRole.dept ? widget.prefill?.scope : null;
   String? _programme;
@@ -72,13 +97,23 @@ class _AdminGrantState extends State<AdminGrant> {
 
   final _roles = myRoles.value;
 
-  /// Admin is offered to owners only; a president sees Course manager alone.
-  List<GrantRole> get _tiers => [
-    if (_roles.owner) GrantRole.admin,
-    if (_roles.owner || _roles.admin) GrantRole.dept,
-    if (_roles.owner || _roles.admin || _roles.presidencies.isNotEmpty)
-      GrantRole.course,
+  /// Admin is offered to owners only; a president sees Secretary and
+  /// Course manager.
+  List<_Tier> get _tiers => [
+    if (_roles.owner) _Tier.admin,
+    if (_roles.owner || _roles.admin) _Tier.president,
+    if (_roles.owner || _roles.admin || _roles.presidencies.isNotEmpty) ...[
+      _Tier.secretary,
+      _Tier.course,
+    ],
   ];
+
+  _Tier? get _tier => switch (_role) {
+    GrantRole.admin => _Tier.admin,
+    GrantRole.dept => _secretary ? _Tier.secretary : _Tier.president,
+    GrantRole.course => _Tier.course,
+    null => null,
+  };
 
   String get _address => _email.text.trim().toLowerCase();
   String? get _campus =>
@@ -186,8 +221,11 @@ class _AdminGrantState extends State<AdminGrant> {
   DateTime get _fullTerm =>
       DateTime.now().add(Duration(days: termDays(_terms, _role!)));
 
+  // Secretary grants need the roles update (another branch); the form is
+  // drawn and wired up to here.
   bool get _ready =>
       !_busy &&
+      !_secretary &&
       _found != null &&
       _refusal == null &&
       _campus != null &&
@@ -243,11 +281,18 @@ class _AdminGrantState extends State<AdminGrant> {
     return PageFrame(
       header: const PageHeader(eyebrow: 'NEW GRANT', title: 'Appoint someone'),
       bottom: BottomAction(
+        caption:
+            _secretary ? 'Secretary grants open with the roles update.' : null,
         child: PrimaryButton(
           label:
               _busy
                   ? 'Granting…'
-                  : grantLabel(role, _scope, _found == null ? null : _campus),
+                  : grantLabel(
+                    role,
+                    _scope,
+                    _found == null ? null : _campus,
+                    secretary: _secretary,
+                  ),
           onPressed: _ready ? _grant : null,
         ),
       ),
@@ -383,16 +428,21 @@ class _AdminGrantState extends State<AdminGrant> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SectionLabel('Tier'),
-              ChoicePills<GrantRole>(
+              ChoicePills<_Tier>(
                 values: _tiers,
-                selected: role,
-                // "President" keeps the three on one line (N18, G2).
-                label: (r) => r == GrantRole.dept ? 'President' : r.label,
-                onSelected: (r) => setState(() => _role = r),
+                selected: _tier,
+                // "President" keeps the pills short (N18, G2).
+                label: (t) => t.label,
+                onSelected:
+                    (t) => setState(() {
+                      _role = t.role;
+                      _secretary = t == _Tier.secretary;
+                    }),
               ),
               const Note(
-                'Admin is offered to owners only. A president sees Course '
-                'manager alone, for their own department.',
+                'Admin is offered to owners only. A secretary holds every '
+                'president right but handing over. A president sees Secretary '
+                'and CR, for their own department.',
               ),
             ],
           ),
@@ -493,11 +543,17 @@ class _AdminGrantState extends State<AdminGrant> {
                     }
                   },
                 ),
-                Note(
-                  'Ends ${shortDay(ends ?? _fullTerm, year: true)}'
-                  '${ends == null ? ', counted from today' : ''}. A grant can '
-                  'end sooner than its term, never later.',
-                ),
+                if (_secretary && ends == null)
+                  const Note(
+                    'Ends with the department president\'s term, so both are '
+                    'chosen together. A grant can end sooner, never later.',
+                  )
+                else
+                  Note(
+                    'Ends ${shortDay(ends ?? _fullTerm, year: true)}'
+                    '${ends == null ? ', counted from today' : ''}. A grant can '
+                    'end sooner than its term, never later.',
+                  ),
                 if (canTerms)
                   Align(
                     alignment: Alignment.centerLeft,
