@@ -1,6 +1,6 @@
 {
   "current": "Group 9 · last pass",
-  "note": "UI_OPT O3–O6 are done, and O8's code; O8's two device checks need an iPhone. Latest: long manager lists (Course structures, Professors, the roster, the Dept tab) build only the rows on screen, and searches wait for a short pause. Earlier in this sweep: Home stops saving settings on every build, the Stats slider saves once per drag, cards clip only when needed, and the Reported pulse and install nudge move layers instead of rebuilding. Now on Group 9: the 150% text pass, the legacy colour layer, and the unboarded screens.",
+  "note": "UI_OPT is done (O8's two device checks need an iPhone). A fresh screen sheet is committed (ui_sheet/ui_sheet.png) for your manual pass. Group 9: the legacy colour aliases and the old SemiBold font family are gone, and the system bars follow the palette. Next: the 150% text pass, the Report-a-bug address, the unboarded screens, then a UI-only demo deploy.",
   "groups": [
     [
       "Group 2 · finish",

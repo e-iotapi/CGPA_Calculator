@@ -235,7 +235,8 @@ void main() {
           ),
         ),
       );
-      final text = t.widget<Text>(find.text('f20230456@goa.bits-pilani.ac.in'));
+      // Rows show the short campus form (T9.1, the user's choice).
+      final text = t.widget<Text>(find.text('f20230456@goa'));
       expect(text.maxLines, 1);
       expect(t.takeException(), isNull);
     });
