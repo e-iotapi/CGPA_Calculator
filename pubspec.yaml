@@ -36,14 +36,7 @@ flutter:
     # The fallback catalogue (tools/export_catalog.dart, ARCHITECTURE.md §3).
     - assets/catalog.json
   fonts:
-    - family: Montserrat
-      fonts:
-        - asset: fonts/Montserrat-SemiBold.ttf
-          weight: 600
-    # Full weight range for the rebuilt screens (TypeScale.family). Kept
-    # separate so the legacy screens, which only ever had SemiBold under
-    # "Montserrat", do not change weight until they are replaced.
-    # Licence: fonts/OFL.txt
+    # Full weight range (TypeScale.family). Licence: fonts/OFL.txt
     - family: MontserratFull
       fonts:
         - asset: fonts/Montserrat-Regular.ttf

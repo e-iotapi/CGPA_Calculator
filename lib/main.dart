@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
+import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
@@ -234,19 +235,15 @@ class _SignInAppState extends State<SignInApp>
   void _show(String text) {
     _messengerKey.currentState?.showSnackBar(
       SnackBar(
-        backgroundColor: thm.cardcolor,
+        backgroundColor: thm.surface,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: thm.bordcolor.withValues(alpha: 0.2)),
+          side: BorderSide(color: thm.border.withValues(alpha: 0.2)),
         ),
         content: Text(
           text,
-          style: TextStyle(
-            fontFamily: 'Montserrat',
-            fontSize: 13,
-            color: thm.textcolor,
-          ),
+          style: TypeScale.body.copyWith(fontSize: 13, color: thm.text),
         ),
       ),
     );
