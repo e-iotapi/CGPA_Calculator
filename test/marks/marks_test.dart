@@ -13,6 +13,7 @@ import 'package:cgpa_calculator/features/marks/add_evaluative_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_row.dart';
 import 'package:cgpa_calculator/sync.dart';
@@ -383,6 +384,33 @@ void main() {
     testWidgets('eyebrow is upper case', (t) async {
       await pump(t, MarksPage(course: _os), const Size(390, 844));
       expect(find.text('CS F372 · 3 CREDITS'), findsOneWidget);
+    });
+
+    testWidgets('Make it mine returns true', (t) async {
+      bool? mine;
+      await pump(
+        t,
+        Builder(
+          builder:
+              (c) => TextButton(
+                onPressed:
+                    () async =>
+                        mine = await confirmDivergence(
+                          c,
+                          name: 'Mid Semester',
+                          change: 'Weight 25% → 30%',
+                        ),
+                child: const Text('open'),
+              ),
+        ),
+        const Size(390, 844),
+      );
+      await t.tap(find.text('open'));
+      await t.pumpAndSettle();
+      expect(find.text('Make Mid Semester yours?'), findsOneWidget);
+      await t.tap(find.text('Make it mine'));
+      await t.pumpAndSettle();
+      expect(mine, isTrue);
     });
 
     testWidgets('Total marks shows the rescale', (t) async {

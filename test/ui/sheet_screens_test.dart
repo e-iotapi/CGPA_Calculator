@@ -23,8 +23,6 @@ import '../helpers/fonts.dart';
 
 /// Sheets that still fail, and why (UI.md §15).
 const known = <String, String>{
-  'd_divergence':
-      'N36: the sheet does not scroll; overflows at 320 with 2x text',
   'd_report_link':
       'N37: the sheet does not scroll; overflows at 320 with 2x text',
 };
