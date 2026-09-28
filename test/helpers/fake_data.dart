@@ -157,6 +157,16 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
       'addedBy': {'email': ownerEmail, 'name': 'Owner One'},
     });
   }
+  // A removed owner, for the INACTIVE rows.
+  await db
+      .collection('owners')
+      .doc('f20150003@hyderabad.bits-pilani.ac.in')
+      .set({
+        'email': 'f20150003@hyderabad.bits-pilani.ac.in',
+        'name': 'Owner Three',
+        'active': false,
+        'addedBy': {'email': ownerEmail, 'name': 'Owner One'},
+      });
   for (final a in As.values) {
     await db.collection('people').doc(a.email).set({
       'name': a.name,
