@@ -558,6 +558,9 @@ void main() {
         const AddEvaluativePage(courseId: 'X', weighted: true, unassigned: 100),
         const Size(390, 844),
       );
+      // A new component opens on Several parts, like editing one.
+      await t.tap(find.text('One mark'));
+      await t.pump();
       final fields = find.byType(TextField);
       await t.enterText(fields.at(0), 'Quiz');
       await t.enterText(fields.at(1), '10');
@@ -579,10 +582,10 @@ void main() {
       await t.tap(find.text('OK'));
       await t.pumpAndSettle();
 
-      await t.ensureVisible(find.text('Save'));
+      await t.ensureVisible(find.text('Add component'));
       // The save writes to Hive, which needs real time.
       await t.runAsync(() async {
-        await t.tap(find.text('Save'));
+        await t.tap(find.text('Add component'));
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await t.pumpAndSettle();

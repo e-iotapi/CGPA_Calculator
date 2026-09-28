@@ -115,7 +115,11 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
     for (final p in widget.existing?.parts ?? const <EvalPart>[])
       _PartFields(p),
   ];
-  late bool _several = (widget.existing?.parts.length ?? 1) > 1;
+
+  /// A new component opens on Several parts, the same layout as editing one
+  /// (two blank parts); a saved one keeps the shape it was saved with.
+  late bool _several =
+      widget.existing == null || widget.existing!.parts.length > 1;
   late int _best = widget.existing?.countBest ?? 0;
 
   @override
@@ -310,7 +314,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
       ),
       bottom: BottomAction(
         child: PrimaryButton(
-          label: 'Save',
+          label: widget.existingKey == null ? 'Add component' : 'Save',
           onPressed: draft == null ? null : _save,
         ),
       ),
@@ -526,6 +530,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
             onPick: () => _pickDate(f),
             onClear: () => setState(() => f.date = null),
           ),
+          width: 64,
         ),
       ],
     );
