@@ -261,6 +261,15 @@
        blocks pinch-out, leaving the page stuck zoomed. Flutter draws the text
        itself; this only sizes its hidden input, so nothing visible changes. */
     input, textarea { font-size: 16px !important; }
+    /* iOS zooms the page into any input under 16px and Flutter's canvas
+       cannot pinch back out. Flutter's hidden editing inputs copy the
+       field's 13px style; they are invisible (Flutter paints the text), so
+       16px changes nothing on screen and stops the zoom. */
+    flt-text-editing-host input, flt-text-editing-host textarea,
+    input.flt-text-editing, textarea.flt-text-editing,
+    flt-semantics input, flt-semantics textarea {
+      font-size: 16px !important;
+    }
   </style>
 </head>
 <body>

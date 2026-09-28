@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/admin/dept_list.dart';
 import 'package:cgpa_calculator/admin/grant_form.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -47,6 +48,9 @@ class VolunteersTab extends StatefulWidget {
 
 class _VolunteersTabState extends State<VolunteersTab> {
   late String? _dept = defaultDept(widget.campus);
+
+  /// The row picked from the shared department list; its label.
+  Branch? _branch;
   int _loads = 0;
 
   ContactStore get _store => ContactStore(roleStore!);
@@ -107,12 +111,28 @@ class _VolunteersTabState extends State<VolunteersTab> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_depts.length > 1) ...[
-          ChoicePills<String>(
-            values: _depts,
-            selected: dept,
-            label: (d) => d,
-            onSelected: (d) => setState(() => _dept = d),
-            equal: _depts.length <= 4,
+          // The shared department list, as Open as and Merge show it.
+          SelectRow(
+            text:
+                '${branchName(_branch ?? (dept: dept, programme: null))} · '
+                '${branchCodes(_branch ?? (dept: dept, programme: null))}',
+            onTap: () async {
+              final v = await showModalBottomSheet<Branch>(
+                context: context,
+                isScrollControlled: true,
+                builder:
+                    (_) => DeptSheet(
+                      campus: widget.campus,
+                      selected: _branch,
+                      only: _depts,
+                    ),
+              );
+              if (v == null || !mounted) return;
+              setState(() {
+                _branch = v;
+                _dept = v.dept;
+              });
+            },
           ),
           const SizedBox(height: Space.sm),
         ],

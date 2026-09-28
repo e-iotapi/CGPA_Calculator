@@ -133,6 +133,23 @@ flips.
 - `lib/admin/admin_home.dart` (~line 253): the owner's Site analytics row is disabled with
   "Coming later". Wire it to a route once there is something to show.
 
+### 3.8 Possible duplicates (Merge duplicates)
+- `lib/admin/duplicates.dart`: `DuplicateSource.possible(campus, dept, listed)` returns
+  likely pairs, most likely first. Merge duplicates fetches it on load and shows a
+  "Possible duplicates" card; tapping a pair picks both (the one with more offerings is
+  kept). Default `NameDuplicates` pairs names on screen with `likelySame`. Point
+  `duplicateSource` at the backend endpoint (fuzzy names, shared courses, aliases).
+
+### 3.9 Departments per campus
+- `lib/admin/dept_list.dart`: `DepartmentSource.at(campus)` returns the department keys a
+  campus runs, in display order. Every department picker reads it through
+  `campusBranches` (Open as, Appoint a president, Merge duplicates, Volunteers), and
+  each multi-branch department shows a row per branch (ELEC as A3, A8, AA, AC). The
+  default `AllDepartments` gives every campus every department. Point
+  `departmentSource` at the backend's campus-wise list.
+- The Audit log's course filter matches names through the catalogue (`searchCourses`
+  over `catalog.master`, the published id-to-name mapping), so it needs no seam.
+
 ### 3.4 Counts the UI works out on the client (fine now; faster as queries)
 None of these is wrong, but each costs reads and would be cheaper as a store method:
 | Screen | What | How today |
@@ -276,5 +293,7 @@ Known false alarms: 36-tall pills and header blocks flagged `tap`, icon-only pil
       `official_scheme.dart` sync with a detach granule, eval import, flip the two tests.
 - [ ] §3.5 Move the three direct Firestore reads behind store methods.
 - [ ] §3.4 Optional: count queries for the client-side counts.
+- [ ] §3.8 Serve possible duplicates; set `duplicateSource`.
+- [ ] §3.9 Serve the campus-wise department list; set `departmentSource`.
 - [ ] After merging: §5.1 gates green, `known` maps still empty, `ui_check.py run` shows no
       new issues.
