@@ -68,40 +68,45 @@ class _GradeScrubberState extends State<GradeScrubber> {
           (_) => Positioned(
             left: left,
             top: top,
-            child: Material(
-              color: p.surface,
-              elevation: 8,
-              borderRadius: BorderRadius.circular(Radii.badge),
-              child: SizedBox.fromSize(
-                size: _wheelSize,
-                child: ListWheelScrollView.useDelegate(
-                  controller: _controller,
-                  itemExtent: _extent,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childDelegate: ListWheelChildBuilderDelegate(
-                    childCount: pickerGrades.length,
-                    builder:
-                        (_, i) => ValueListenableBuilder<int>(
-                          valueListenable: _index,
-                          builder: (_, selected, _) {
-                            final on = i == selected;
-                            return Center(
-                              child: Text(
-                                pickerGrades[i].isEmpty ? '–' : pickerGrades[i],
-                                style: TextStyle(
-                                  fontFamily: TypeScale.family,
-                                  fontSize: on ? 24 : 18,
-                                  fontWeight:
-                                      on ? FontWeight.w700 : FontWeight.w500,
-                                  color:
-                                      on
-                                          ? p.accent
-                                          : p.text.withValues(alpha: 0.5),
+            // Its own layer: the wheel turns under a finger (UI_OPT O4.3).
+            child: RepaintBoundary(
+              child: Material(
+                color: p.surface,
+                elevation: 8,
+                borderRadius: BorderRadius.circular(Radii.badge),
+                child: SizedBox.fromSize(
+                  size: _wheelSize,
+                  child: ListWheelScrollView.useDelegate(
+                    controller: _controller,
+                    itemExtent: _extent,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childDelegate: ListWheelChildBuilderDelegate(
+                      childCount: pickerGrades.length,
+                      builder:
+                          (_, i) => ValueListenableBuilder<int>(
+                            valueListenable: _index,
+                            builder: (_, selected, _) {
+                              final on = i == selected;
+                              return Center(
+                                child: Text(
+                                  pickerGrades[i].isEmpty
+                                      ? '–'
+                                      : pickerGrades[i],
+                                  style: TextStyle(
+                                    fontFamily: TypeScale.family,
+                                    fontSize: on ? 24 : 18,
+                                    fontWeight:
+                                        on ? FontWeight.w700 : FontWeight.w500,
+                                    color:
+                                        on
+                                            ? p.accent
+                                            : p.text.withValues(alpha: 0.5),
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                              );
+                            },
+                          ),
+                    ),
                   ),
                 ),
               ),
