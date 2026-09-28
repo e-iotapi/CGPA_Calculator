@@ -155,6 +155,27 @@ void main() {
     expect(find.byType(TextField), findsNothing);
   });
 
+  testWidgets('Your reviews tab counts mine', (t) async {
+    await review('u-me');
+    await review('u-me', id: 'EEE F211', stars: 3, take: false);
+    // Opened here only: other tests save reviews, and an open settings box
+    // would make those saves real Hive writes outside runAsync.
+    await t.runAsync(() async {
+      final s = await Hive.openBox('settingsBox');
+      await s.put('myReviews', [course, 'EEE F211']);
+    });
+    addTearDown(
+      () => t.runAsync(() => Hive.box('settingsBox').deleteFromDisk()),
+    );
+    await t.pumpWidget(app(const ReviewsHome()));
+    await t.pumpAndSettle();
+    expect(find.text('Your reviews · 2'), findsOneWidget);
+    await t.tap(find.text('Your reviews · 2'));
+    await t.pumpAndSettle();
+    expect(find.text('Search your reviews'), findsOneWidget);
+    expect(find.text('EEE F211'), findsOneWidget);
+  });
+
   testWidgets('R2 most reviewed on the campus, by count', (t) async {
     await courses(t, []);
     Future<void> stat(String id, int count) =>
@@ -330,8 +351,8 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Delete'), findsNothing);
     final stars = find.descendant(
-      of: find.byWidgetPredicate((w) => w is Stars && w.onChanged != null),
-      matching: find.byType(GestureDetector),
+      of: find.byType(StarPicker),
+      matching: find.byType(InkWell),
     );
     await t.tap(stars.at(1));
     await t.pump();
@@ -365,8 +386,8 @@ void main() {
         t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed;
     expect(post(), isNull);
     final stars = find.descendant(
-      of: find.byWidgetPredicate((w) => w is Stars && w.onChanged != null),
-      matching: find.byType(GestureDetector),
+      of: find.byType(StarPicker),
+      matching: find.byType(InkWell),
     );
     await t.tap(stars.at(3));
     await t.pump();

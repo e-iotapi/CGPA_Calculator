@@ -10,6 +10,8 @@ import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 
@@ -133,87 +135,13 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
         }
         final prof =
             t.professors.where((x) => x.id == _professorId).firstOrNull;
+        final label = TypeScale.label.copyWith(color: p.textMuted);
+        final e = widget.existing;
         return PageFrame(
           header: header,
-          children: [
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'YOU TOOK IT',
-                    style: TypeScale.label.copyWith(color: p.textMuted),
-                  ),
-                  Text(
-                    termLabel(t.term),
-                    style: TypeScale.body.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  if (t.professors.length > 1 && !editing)
-                    ChoicePills<String>(
-                      values: [for (final x in t.professors) x.id],
-                      selected: _professorId,
-                      label:
-                          (id) =>
-                              t.professors.firstWhere((x) => x.id == id).name,
-                      onSelected: (id) => setState(() => _professorId = id),
-                    )
-                  else
-                    Text(
-                      prof?.name ?? 'No professor recorded',
-                      style: TypeScale.body,
-                    ),
-                  const SizedBox(height: Space.xs),
-                  Text(
-                    prof == null
-                        ? 'From your grades. With no professor recorded, it '
-                            'counts toward the course only.'
-                        : 'From your grades and that term\'s professor. Your '
-                            'review counts toward ${prof.name}, not the '
-                            'course as a whole.',
-                    style: caption,
-                  ),
-                ],
-              ),
-            ),
-            const SectionLabel('Overall'),
-            Stars(
-              value: _stars,
-              size: 30,
-              onChanged: (v) => setState(() => _stars = v),
-            ),
-            const SectionLabel('Would you take it again, from them?'),
-            ChoicePills<bool>(
-              values: const [true, false],
-              selected: _recommend,
-              label: (v) => v ? 'Yes' : 'No',
-              onSelected: (v) => setState(() => _recommend = v),
-            ),
-            const SectionLabel('What should the next batch know?'),
-            AppTextField(
-              controller: _text,
-              label: 'Optional',
-              onChanged: (_) => setState(() {}),
-            ),
-            Text(
-              '${_text.text.length} / $reviewTextLimit',
-              style: TypeScale.caption.copyWith(
-                color:
-                    _text.text.length > reviewTextLimit
-                        ? p.behind
-                        : p.textMuted,
-              ),
-            ),
-            const SizedBox(height: Space.sm),
-            Text(
-              editing
-                  ? 'Still without your name or ID. An edit keeps its helpful '
-                      'votes and says “edited”.'
-                  : 'Posted without your name or ID. One review per course; '
-                      'you can edit it later.',
-              style: caption,
-            ),
-            const SizedBox(height: Space.md),
-            PrimaryButton(
+          bottom: BottomAction(
+            child: PrimaryButton(
+              tall: true,
               label:
                   _busy
                       ? 'Saving…'
@@ -227,6 +155,137 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
                           _text.text.length > reviewTextLimit
                       ? null
                       : () => _save(t),
+            ),
+          ),
+          children: [
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('YOU TOOK IT', style: label),
+                  const SizedBox(height: Space.sm),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      ScopeChip(termLabel(t.term).toUpperCase(), muted: true),
+                      if (prof != null && (t.professors.length < 2 || editing))
+                        ScopeChip(prof.name),
+                    ],
+                  ),
+                  if (t.professors.length > 1 && !editing) ...[
+                    const SizedBox(height: Space.sm),
+                    ChoicePills<String>(
+                      values: [for (final x in t.professors) x.id],
+                      selected: _professorId,
+                      label:
+                          (id) =>
+                              t.professors.firstWhere((x) => x.id == id).name,
+                      onSelected: (id) => setState(() => _professorId = id),
+                    ),
+                  ],
+                  const SizedBox(height: Space.sm),
+                  Text(
+                    prof == null
+                        ? 'From your grades. With no professor recorded, it '
+                            'counts toward the course only.'
+                        : 'From your grades and that term\'s professor. Your '
+                            'review counts toward ${prof.name}, not the '
+                            'course as a whole.',
+                    style: caption,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('OVERALL', style: label),
+                  const SizedBox(height: Space.sm),
+                  StarPicker(
+                    value: _stars,
+                    onChanged: (v) => setState(() => _stars = v),
+                  ),
+                  const SizedBox(height: Space.md),
+                  Text('WOULD YOU TAKE IT AGAIN, FROM THEM?', style: label),
+                  const SizedBox(height: Space.sm),
+                  Row(
+                    children: [
+                      for (final v in const [true, false]) ...[
+                        if (!v) const SizedBox(width: Space.sm),
+                        Expanded(
+                          child: PillButton(
+                            label: v ? 'Yes' : 'No',
+                            height: 44,
+                            expand: true,
+                            selected: _recommend == v,
+                            onPressed: () => setState(() => _recommend = v),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('WHAT SHOULD THE NEXT BATCH KNOW?', style: label),
+                  const SizedBox(height: Space.sm),
+                  TextField(
+                    controller: _text,
+                    minLines: 4,
+                    maxLines: 8,
+                    style: TypeScale.body,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Grading, workload, what the exams look like, what '
+                          'actually helped.',
+                      hintMaxLines: 3,
+                      hintStyle: TypeScale.body.copyWith(color: p.textMuted),
+                      filled: true,
+                      fillColor: p.background,
+                      contentPadding: const EdgeInsets.all(12),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: p.outline),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: p.text, width: 1.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${_text.text.length} / $reviewTextLimit',
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color:
+                          _text.text.length > reviewTextLimit
+                              ? p.behind
+                              : p.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Note(
+              e != null
+                  ? 'Still without your name or ID. Posted '
+                      '${shortDay(DateTime.fromMillisecondsSinceEpoch(e.createdAt), year: true)}; '
+                      'an edit keeps its helpful votes and says “edited”. '
+                      'Reviews are edited, never deleted.'
+                  : 'Posted without your name or ID. One review per course; '
+                      'you can edit it later.',
             ),
           ],
         );
