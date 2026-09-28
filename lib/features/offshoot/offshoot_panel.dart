@@ -265,7 +265,8 @@ class _CourseTile extends StatelessWidget {
 
     final content = Row(
       children: [
-        _Check(ticked: ticked),
+        // A dropped course is not counted: an empty box, not a faded tick.
+        _Check(ticked: ticked && counted),
         const SizedBox(width: Space.md),
         Expanded(
           child: Column(
