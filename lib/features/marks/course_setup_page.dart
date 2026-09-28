@@ -13,9 +13,17 @@ import 'package:flutter/material.dart';
 
 /// How a course is marked, what it is shown out of, and the class average.
 class CourseSetupPage extends StatefulWidget {
-  const CourseSetupPage({super.key, required this.course});
+  const CourseSetupPage({
+    super.key,
+    required this.course,
+    this.onCourseAverage,
+  });
 
   final Course course;
+
+  /// Sets the course average, asking first when it overrides the official
+  /// one. Without it the average is saved with the rest.
+  final Future<void> Function(double?)? onCourseAverage;
 
   @override
   State<CourseSetupPage> createState() => _CourseSetupPageState();
@@ -59,7 +67,16 @@ class _CourseSetupPageState extends State<CourseSetupPage> {
   );
 
   Future<void> _save() async {
-    await saveConfig(_draft);
+    final avg = widget.onCourseAverage;
+    final draft = _draft;
+    if (avg == null) {
+      await saveConfig(draft);
+    } else {
+      final typed = draft.classAverage;
+      draft.classAverage = _saved.classAverage;
+      await saveConfig(draft);
+      if (typed != _saved.classAverage) await avg(typed);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
