@@ -10,8 +10,11 @@ import 'package:cgpa_calculator/features/import/import_preview.dart';
 import 'package:cgpa_calculator/features/import/performance_sheet.dart';
 import 'package:cgpa_calculator/features/settings/install_guide.dart';
 import 'package:cgpa_calculator/script.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
+import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
+import 'package:cgpa_calculator/shared/widgets/pointer_mark.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
@@ -261,230 +264,193 @@ class _ErpImportPageState extends State<ErpImportPage> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                Space.gutter,
-                Space.xxl,
-                Space.gutter,
-                Space.xxl,
-              ),
+            child: Stack(
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    Space.gutter,
+                    Space.xxl,
+                    Space.gutter,
+                    _setup
+                        ? BottomAction.heightOf(context, hasCaption: true)
+                        : Space.xxl,
+                  ),
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _setup ? 'SETUP · 2 OF 2' : 'YOUR DATA',
-                            style: label,
-                          ),
-                          const SizedBox(height: 3),
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              'Bring your grades in',
-                              style: TypeScale.title.copyWith(
-                                fontSize: 27,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -1,
-                                height: 1.05,
-                                color: p.text,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _setup ? 'SETUP · 2 OF 2' : 'YOUR DATA',
+                                style: label,
                               ),
-                            ),
+                              const SizedBox(height: 3),
+                              Semantics(
+                                header: true,
+                                child: Text(
+                                  'Bring your grades in',
+                                  style: TypeScale.title.copyWith(
+                                    fontSize: 27,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -1,
+                                    height: 1.05,
+                                    color: p.text,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: Space.md),
+                        CircleIconButton(
+                          icon: Icons.arrow_back_rounded,
+                          tooltip: 'Back',
+                          size: 44,
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Space.md),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(text: 'Pointer reads your ERP '),
+                          TextSpan(text: 'performance sheet', style: strong),
+                          const TextSpan(
+                            text:
+                                ' and fills in every semester you have already '
+                                'done.',
                           ),
                         ],
                       ),
+                      style: body,
                     ),
-                    const SizedBox(width: Space.md),
-                    CircleIconButton(
-                      icon: Icons.arrow_back_rounded,
-                      tooltip: 'Back',
-                      size: 44,
-                      onPressed: () => Navigator.of(context).maybePop(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: Space.md),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      const TextSpan(text: 'Pointer reads your ERP '),
-                      TextSpan(text: 'performance sheet', style: strong),
-                      const TextSpan(
-                        text:
-                            ' and fills in every semester you have already '
-                            'done. It is the one with pending courses at the '
-                            'bottom, not the grade card.',
-                      ),
-                    ],
-                  ),
-                  style: body,
-                ),
-                const SizedBox(height: Space.md),
-                card([
-                  Text('HOW TO GET IT', style: label),
-                  const SizedBox(height: 11),
-                  step(1, [
-                    const TextSpan(text: 'In ERP: '),
-                    TextSpan(text: 'My Academics', style: strong),
-                    const TextSpan(text: ' → '),
-                    TextSpan(text: 'Academic Reports', style: strong),
-                    const TextSpan(text: ' → '),
-                    TextSpan(text: 'Performance Reports', style: strong),
-                    const TextSpan(text: '.'),
-                  ]),
-                  const SizedBox(height: 11),
-                  step(2, [
-                    const TextSpan(
-                      text:
-                          'Save it as a PDF — Print → Save as PDF if there is '
-                          'no download button.',
-                    ),
-                  ]),
-                  const SizedBox(height: 11),
-                  step(3, [
-                    const TextSpan(
-                      text:
-                          'Choose it below. Nothing is saved until you have '
-                          'seen what changes.',
-                    ),
-                  ]),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    // A new tab: a half-finished setup is never lost.
-                    onPressed:
-                        () => launchUrl(
-                          erpMyAcademics,
-                          mode: LaunchMode.externalApplication,
-                          webOnlyWindowName: '_blank',
+                    const SizedBox(height: Space.md),
+                    card([
+                      Text('HOW TO GET IT', style: label),
+                      const SizedBox(height: 11),
+                      step(1, [
+                        const TextSpan(text: 'In ERP: '),
+                        TextSpan(text: 'My Academics', style: strong),
+                        const TextSpan(text: ' → '),
+                        TextSpan(text: 'Academic Reports', style: strong),
+                        const TextSpan(text: ' → '),
+                        TextSpan(text: 'Performance Reports', style: strong),
+                        const TextSpan(text: '.'),
+                      ]),
+                      const SizedBox(height: 11),
+                      step(2, [
+                        const TextSpan(
+                          text:
+                              'Save it as a PDF — Print → Save as PDF if there is '
+                              'no download button.',
                         ),
-                    iconAlignment: IconAlignment.end,
-                    icon: Icon(
-                      Icons.open_in_new_rounded,
-                      size: 15,
-                      color: p.text,
-                    ),
-                    label: Text(
-                      'Open My Academics in ERP',
-                      style: TypeScale.button.copyWith(
-                        fontSize: 12.5,
-                        color: p.text,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(44),
-                      side: BorderSide(color: p.text, width: 1.5),
-                      shape: const StadiumBorder(),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: Space.md),
-                if (_error != null) ...[
-                  Semantics(
-                    liveRegion: true,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-                      decoration: BoxDecoration(
-                        color: p.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: p.behind),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.error_outline_rounded,
-                            size: 17,
-                            color: p.behind,
-                          ),
-                          const SizedBox(width: 9),
-                          Expanded(
-                            child: Text(
-                              _error!,
-                              style: body.copyWith(
-                                fontSize: 11.5,
-                                color: p.text,
-                              ),
+                      ]),
+                      const SizedBox(height: 11),
+                      step(3, [
+                        const TextSpan(
+                          text:
+                              'Choose it below. Nothing is saved until you have '
+                              'seen what changes.',
+                        ),
+                      ]),
+                      const SizedBox(height: 12),
+                      OutlinedPill(
+                        label: 'Open ERP',
+                        trailing: Icons.open_in_new_rounded,
+                        // A new tab: a half-finished setup is never lost.
+                        onPressed:
+                            () => launchUrl(
+                              erpMyAcademics,
+                              mode: LaunchMode.externalApplication,
+                              webOnlyWindowName: '_blank',
                             ),
+                      ),
+                    ]),
+                    const SizedBox(height: Space.md),
+                    if (_error != null) ...[
+                      Semantics(
+                        liveRegion: true,
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+                          decoration: BoxDecoration(
+                            color: p.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: p.behind),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: Space.md),
-                ],
-                _ChooseZone(
-                  busy: _busy,
-                  onTap: kIsWeb && !_busy ? _choose : null,
-                ),
-                const SizedBox(height: Space.md),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.lock_outline_rounded,
-                        size: 15,
-                        color: p.accent,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Read in your browser. The file is never uploaded, '
-                          'and your ID number is not stored or shared.',
-                          style: body.copyWith(fontSize: 11, color: p.text),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.error_outline_rounded,
+                                size: 17,
+                                color: p.behind,
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  _error!,
+                                  style: body.copyWith(
+                                    fontSize: 11.5,
+                                    color: p.text,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                      const SizedBox(height: Space.md),
                     ],
-                  ),
-                ),
-                const SizedBox(height: Space.md),
-                card([
-                  Text('WHAT IT FILLS IN', style: label),
-                  const SizedBox(height: 7),
-                  for (final line in const [
-                    'Grades for every completed course, semester by semester',
-                    'Courses still running, placed in the right semester',
-                    'Elective counts, and a CGPA check against your sheet',
-                  ]) ...[
-                    Text(
-                      line,
-                      style: body.copyWith(fontSize: 12, color: p.text),
+                    _ChooseZone(
+                      busy: _busy,
+                      onTap: kIsWeb && !_busy ? _choose : null,
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: Space.md),
+                    card([
+                      Text('WHAT IT FILLS IN', style: label),
+                      const SizedBox(height: 7),
+                      for (final line in const [
+                        'Grades for every completed course, semester by semester',
+                        'Courses still running, placed in the right semester',
+                        'Elective counts, and a CGPA check against your sheet',
+                      ]) ...[
+                        Text(
+                          line,
+                          style: body.copyWith(fontSize: 12, color: p.text),
+                        ),
+                        const SizedBox(height: 5),
+                      ],
+                    ]),
+                    if (_offerInstall) ...[
+                      const SizedBox(height: Space.md),
+                      _InstallStrip(onInstall: () => offerInstall(context)),
+                    ],
                   ],
-                ]),
-                if (_offerInstall) ...[
-                  const SizedBox(height: Space.md),
-                  _InstallStrip(onInstall: () => offerInstall(context)),
-                ],
-                if (_setup) ...[
-                  const SizedBox(height: Space.lg),
-                  // A plain link: most first-years have nothing to import.
-                  Center(
+                ),
+                if (_setup)
+                  BottomAction(
+                    caption:
+                        'You can import any time from Settings → Your data.',
+                    // A plain link: most first-years have nothing to import.
                     child: TextButton(
                       onPressed: widget.onDone,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                      ),
                       child: Text(
                         'Skip — I will enter grades myself',
                         style: TypeScale.button.copyWith(
                           fontSize: 13,
-                          color: p.text,
+                          fontWeight: FontWeight.w700,
+                          color: p.icon,
                         ),
                       ),
                     ),
                   ),
-                  Text(
-                    'You can import any time from Settings → Your data.',
-                    textAlign: TextAlign.center,
-                    style: TypeScale.caption.copyWith(
-                      fontSize: 10.5,
-                      color: p.textMuted,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -495,63 +461,127 @@ class _ErpImportPageState extends State<ErpImportPage> {
 }
 
 /// Keep Pointer on the home screen: one tap where the browser can prompt,
-/// its own steps where it cannot.
-class _InstallStrip extends StatelessWidget {
+/// its own steps where it cannot. A dark card in either theme, so its text
+/// colours are fixed.
+class _InstallStrip extends StatefulWidget {
   const _InstallStrip({required this.onInstall});
 
   final VoidCallback onInstall;
 
   @override
+  State<_InstallStrip> createState() => _InstallStripState();
+}
+
+class _InstallStripState extends State<_InstallStrip>
+    with SingleTickerProviderStateMixin {
+  late final _nudge = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 4500),
+  );
+
+  static final _scale = TweenSequence<double>([
+    TweenSequenceItem(tween: ConstantTween(1), weight: 76),
+    TweenSequenceItem(tween: Tween(begin: 1, end: 1.035), weight: 7),
+    TweenSequenceItem(tween: Tween(begin: 1.035, end: 1), weight: 7),
+    TweenSequenceItem(tween: ConstantTween(1), weight: 10),
+  ]);
+
+  static const _deg = 6 * 3.141592653589793 / 180;
+  static final _turn = TweenSequence<double>([
+    TweenSequenceItem(tween: ConstantTween(0), weight: 80),
+    TweenSequenceItem(tween: Tween(begin: 0, end: _deg), weight: 3),
+    TweenSequenceItem(tween: Tween(begin: _deg, end: -_deg), weight: 6),
+    TweenSequenceItem(tween: Tween(begin: -_deg, end: 0), weight: 6),
+    TweenSequenceItem(tween: ConstantTween(0), weight: 5),
+  ]);
+
+  @override
+  void dispose() {
+    _nudge.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 11, 10, 11),
+    final still = MediaQuery.disableAnimationsOf(context);
+    if (still) {
+      _nudge.stop();
+    } else if (!_nudge.isAnimating) {
+      _nudge.repeat();
+    }
+    Widget card(double turn) => Container(
+      padding: const EdgeInsets.fromLTRB(12, 11, 11, 11),
       decoration: BoxDecoration(
-        color: p.surface,
+        color: p.navBackground,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         children: [
-          Icon(Icons.install_mobile_rounded, size: 20, color: p.text),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: p.hero,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: PointerMark(color: p.onHero, size: 18),
+          ),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Keep Pointer on your home screen',
+                  'Install Pointer',
                   style: TypeScale.body.copyWith(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: p.text,
+                    color: const Color(0xFFF4F4EF),
                   ),
                 ),
                 Text(
-                  'Opens like an app, and works offline.',
+                  'Own icon, full screen, works offline',
                   style: TypeScale.caption.copyWith(
                     fontSize: 10.5,
-                    color: p.textMuted,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFFB0B0A4),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: Space.sm),
-          FilledButton(
-            onPressed: onInstall,
-            style: FilledButton.styleFrom(
-              backgroundColor: p.inverse,
-              foregroundColor: p.onInverse,
-              minimumSize: const Size(64, 40),
-              shape: const StadiumBorder(),
-            ),
-            child: Text(
-              'Install',
-              style: TypeScale.button.copyWith(fontSize: 12.5),
+          Transform.rotate(
+            angle: turn,
+            child: FilledButton(
+              onPressed: widget.onInstall,
+              style: FilledButton.styleFrom(
+                backgroundColor: p.hero,
+                foregroundColor: p.onHero,
+                minimumSize: const Size(64, 36),
+                fixedSize: const Size.fromHeight(36),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                shape: const StadiumBorder(),
+              ),
+              child: Text(
+                'Install',
+                style: TypeScale.button.copyWith(fontSize: 12.5),
+              ),
             ),
           ),
         ],
       ),
+    );
+    if (still) return card(0);
+    return AnimatedBuilder(
+      animation: _nudge,
+      builder:
+          (context, _) => Transform.scale(
+            scale: _scale.transform(_nudge.value),
+            child: card(_turn.transform(_nudge.value)),
+          ),
     );
   }
 }
@@ -571,7 +601,7 @@ class _ChooseZone extends StatelessWidget {
       label: 'Choose your performance sheet, PDF',
       excludeSemantics: true,
       child: DashedOutline(
-        color: p.accent,
+        color: const Color(0xFF9CC9BA),
         radius: 22,
         width: 2,
         child: Material(
@@ -609,6 +639,8 @@ class _ChooseZone extends StatelessWidget {
                   Text(
                     busy
                         ? 'Reading your sheet…'
+                        : kIsWeb
+                        ? 'Drop your performance sheet'
                         : 'Choose your performance sheet',
                     textAlign: TextAlign.center,
                     style: TypeScale.body.copyWith(
@@ -619,13 +651,33 @@ class _ChooseZone extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    onTap == null && !busy
-                        ? 'Works in the web app'
-                        : 'PDF · read on this device',
+                    kIsWeb ? 'or choose a file · PDF' : 'PDF',
                     style: TypeScale.caption.copyWith(
                       fontSize: 11.5,
                       color: p.textMuted,
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 12,
+                        color: p.accent,
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          'Read on your device · never uploaded',
+                          style: TypeScale.caption.copyWith(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: p.accent,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
