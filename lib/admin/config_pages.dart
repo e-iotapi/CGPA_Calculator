@@ -6,7 +6,9 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -276,20 +278,58 @@ class _TermsPageState extends State<TermsPage> {
   Widget build(BuildContext context) => Loaded<GrantTerms>(
     load: () => roleStore!.terms(),
     builder: (context, loaded, _) {
+      final p = AppPalette.of(context);
       final t = _t ??= loaded;
       final owner = myRoles.value.owner;
+      // Every row stacks its stepper under the label together, on a narrow
+      // screen or with large text, rather than one row at a time (N4).
+      final stacked =
+          MediaQuery.sizeOf(context).width < 360 ||
+          MediaQuery.textScalerOf(context).scale(10) > 12;
+      // A CR term is counted in semesters of 182 days, the others in years
+      // (N14); − / + step a whole unit.
       Widget row(
         String tag,
         String title,
         int days,
         bool may,
-        int step,
-        GrantTerms Function(int) set,
-      ) {
+        GrantTerms Function(int) set, {
+        bool semesters = false,
+      }) {
+        final step = semesters ? 182 : 365;
+        final n = (days / step).round();
+        final unit = semesters ? 'semester' : 'year';
         final ends = DateTime.now().add(Duration(days: days));
+        final number = Container(
+          constraints: const BoxConstraints(minWidth: 34),
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: p.background,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: p.outline),
+          ),
+          child: Text(
+            '$n',
+            style: TypeScale.body.copyWith(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: p.text,
+            ),
+          ),
+        );
+        final unitText = Text(
+          '$unit${n == 1 ? '' : 's'}',
+          style: TypeScale.caption.copyWith(
+            fontWeight: FontWeight.w600,
+            color: p.textMuted,
+          ),
+        );
         return Padding(
-          padding: const EdgeInsets.fromLTRB(15, 12, 8, 12),
-          child: LabelRow(
+          padding: const EdgeInsets.fromLTRB(15, 12, 12, 12),
+          child: _Stepped(
+            stacked: stacked,
             label: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -304,39 +344,65 @@ class _TermsPageState extends State<TermsPage> {
                 ),
                 Text(
                   'Given today → ends ${shortDay(ends, year: true)}',
-                  style: TypeScale.caption.copyWith(
-                    color: AppPalette.of(context).textMuted,
-                  ),
+                  style: TypeScale.caption.copyWith(color: p.textMuted),
                 ),
               ],
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: 'Shorter',
-                  onPressed:
-                      may && days > step
-                          ? () => setState(() => _t = set(days - step))
-                          : null,
-                  icon: const Icon(Icons.remove_rounded),
-                ),
-                SizedBox(
-                  width: 58,
-                  child: Text(
-                    '$days d',
-                    textAlign: TextAlign.center,
-                    style: TypeScale.body.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Longer',
-                  onPressed:
-                      may ? () => setState(() => _t = set(days + step)) : null,
-                  icon: const Icon(Icons.add_rounded),
-                ),
-              ],
-            ),
+            trailing:
+                may
+                    ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        PillButton.icon(
+                          icon: Icons.remove_rounded,
+                          semanticLabel: 'Shorter',
+                          onPressed:
+                              n > 1
+                                  ? () => setState(() => _t = set(days - step))
+                                  : null,
+                        ),
+                        const SizedBox(width: 8),
+                        number,
+                        const SizedBox(width: 5),
+                        unitText,
+                        const SizedBox(width: 8),
+                        PillButton.icon(
+                          icon: Icons.add_rounded,
+                          semanticLabel: 'Longer',
+                          onPressed:
+                              () => setState(() => _t = set(days + step)),
+                        ),
+                      ],
+                    )
+                    // Locked: the length in a grey pill, no buttons.
+                    : Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: p.surfaceSunken,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            size: 14,
+                            color: p.textMuted,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '$n $unit${n == 1 ? '' : 's'}',
+                            style: TypeScale.caption.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: p.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
           ),
         );
       }
@@ -346,61 +412,8 @@ class _TermsPageState extends State<TermsPage> {
           eyebrow: 'CONFIG · GRANT TERMS',
           title: 'How long a grant lasts',
         ),
-        children: [
-          const Note(
-            'Counted from the day each grant is given. Nothing here revokes '
-            'anyone: the rules simply stop honouring a grant past its end '
-            'date. Owners never expire.',
-          ),
-          const SizedBox(height: Space.sm),
-          RowGroup(
-            children: [
-              row(
-                'CR',
-                'Course manager · one semester',
-                t.crDays,
-                true,
-                7,
-                (d) => (
-                  crDays: d,
-                  presidentDays: t.presidentDays,
-                  adminDays: t.adminDays,
-                ),
-              ),
-              row(
-                'PRESIDENT',
-                'Department president · one year',
-                t.presidentDays,
-                true,
-                7,
-                (d) => (
-                  crDays: t.crDays,
-                  presidentDays: d,
-                  adminDays: t.adminDays,
-                ),
-              ),
-              row(
-                'ADMIN',
-                'Admin · two years',
-                t.adminDays,
-                owner,
-                30,
-                (d) => (
-                  crDays: t.crDays,
-                  presidentDays: t.presidentDays,
-                  adminDays: d,
-                ),
-              ),
-            ],
-          ),
-          const Note(
-            'Admins change CR and president terms; only owners change the '
-            'admin term. A new length applies to grants given or renewed from '
-            'now on. Grants already running keep their end date. Every change '
-            'is logged with your name.',
-          ),
-          const SizedBox(height: Space.lg),
-          PrimaryButton(
+        bottom: BottomAction(
+          child: PrimaryButton(
             label: _busy ? 'Saving…' : 'Save grant terms',
             onPressed:
                 _busy
@@ -417,14 +430,107 @@ class _TermsPageState extends State<TermsPage> {
                       }
                     },
           ),
+        ),
+        children: [
+          const Note(
+            'Counted from the day each grant is given. Nothing here revokes '
+            'anyone: the rules simply stop honouring a grant past its end '
+            'date. Owners never expire.',
+          ),
+          const SizedBox(height: Space.sm),
+          RowGroup(
+            children: [
+              row(
+                'CR',
+                'Course manager',
+                t.crDays,
+                true,
+                semesters: true,
+                (d) => (
+                  crDays: d,
+                  presidentDays: t.presidentDays,
+                  adminDays: t.adminDays,
+                ),
+              ),
+              row(
+                'PRESIDENT',
+                'President',
+                t.presidentDays,
+                true,
+                (d) => (
+                  crDays: t.crDays,
+                  presidentDays: d,
+                  adminDays: t.adminDays,
+                ),
+              ),
+              row(
+                'ADMIN',
+                'Admin',
+                t.adminDays,
+                owner,
+                (d) => (
+                  crDays: t.crDays,
+                  presidentDays: t.presidentDays,
+                  adminDays: d,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.md),
+          const Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              ScopeChip('Admins: CR and president terms'),
+              ScopeChip('Owners only: the admin term', muted: true),
+            ],
+          ),
+          const SizedBox(height: Space.md),
+          const Notice(
+            text: TextSpan(
+              text:
+                  'A new length applies to grants given or renewed from now '
+                  'on. Grants already running keep their end date. Every '
+                  'change is logged with your name.',
+            ),
+          ),
         ],
       );
     },
   );
 }
 
-/// Board `PublicContact`: who students on an empty page are told to message
-/// (§10.5). The number is never drawn; it sits behind the button.
+/// A label with its trailing control beside it, or under it and to the
+/// right when [stacked].
+class _Stepped extends StatelessWidget {
+  const _Stepped({
+    required this.stacked,
+    required this.label,
+    required this.trailing,
+  });
+  final bool stacked;
+  final Widget label, trailing;
+
+  @override
+  Widget build(BuildContext context) =>
+      stacked
+          ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              label,
+              const SizedBox(height: 8),
+              Align(alignment: Alignment.centerRight, child: trailing),
+            ],
+          )
+          : Row(
+            children: [
+              Expanded(child: label),
+              const SizedBox(width: 8),
+              trailing,
+            ],
+          );
+}
+
 class PublicContactPage extends StatefulWidget {
   const PublicContactPage({super.key});
 

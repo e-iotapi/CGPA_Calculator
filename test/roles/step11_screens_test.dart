@@ -34,6 +34,7 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/count_badge.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -906,5 +907,54 @@ void main() {
     await appointForm(t, 'f20249999@goa.bits-pilani.ac.in');
     expect(find.text('Can not be found'), findsOneWidget);
     expect(grantButton(t), 'Grant');
+  });
+
+  // ---- T8.7 Grant terms ----------------------------------------------------
+
+  Future<void> terms(WidgetTester t, MyRoles roles) async {
+    signIn(roles.email, roles: roles);
+    await db.collection('config').doc('grantTerms').set({
+      'crDays': 183,
+      'presidentDays': 365,
+      'adminDays': 730,
+    });
+    await t.pumpWidget(app(const TermsPage()));
+    await t.pumpAndSettle();
+  }
+
+  testWidgets('CR term shows semesters', (t) async {
+    await terms(t, const MyRoles(email: 'owner@example.com', owner: true));
+    expect(find.text('1'), findsNWidgets(2)); // 1 semester, 1 year
+    expect(find.text('semester'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
+    expect(find.text('years'), findsOneWidget);
+    await t.tap(find.bySemanticsLabel('Longer').first);
+    await t.pump();
+    expect(find.text('semesters'), findsOneWidget);
+  });
+
+  testWidgets('admin cannot change the admin term', (t) async {
+    const me = 'admin@example.com';
+    await terms(
+      t,
+      MyRoles(
+        email: me,
+        grants: [
+          Grant(
+            role: GrantRole.admin,
+            email: me,
+            name: 'Ad Min',
+            campus: 'all',
+            scope: 'all',
+            active: true,
+            expiresAt: far,
+          ),
+        ],
+      ),
+    );
+    // − and + on the CR and president rows only.
+    expect(find.byType(PillButton), findsNWidgets(4));
+    expect(find.text('2 years'), findsOneWidget);
+    expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
   });
 }
