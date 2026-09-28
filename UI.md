@@ -2134,6 +2134,20 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Checks**: `flutter analyze` 7 infos (baseline); `flutter test` 401 passed, 49
   skipped.
 
+### 13.2.2 T3.1 — one Material theme per palette (28 Sep 2026)
+- **Goal**: G1 + N8. `palette.dart`'s `materialTheme` now builds a full `ThemeData`
+  from each palette (brightness, seeded `ColorScheme` painted over with the
+  palette's own colours, Montserrat everywhere, switch/checkbox/dialog/sheet/
+  snackbar/date-picker/input themes), keeping the existing `CircleRevealTransitionsBuilder`.
+  Every Material widget is readable in dark mode.
+- **Files**: `lib/app/theme/palette.dart`, `test/theme/palette_test.dart`.
+- **Fixed as a side effect**: N32 (`DeptResources` Reported chip overflow at 320/2x)
+  and N33 (`DeptReviews` header overflow at 320/2x) — both were Roboto-metric
+  overflows now gone under Montserrat. Removed from
+  `test/ui/manager_screens_test.dart`'s `known` map.
+- **Departures**: none.
+- **Checks**: `flutter analyze` 7 infos; `flutter test` 404 passed, 50 skipped.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
