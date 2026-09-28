@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:flutter/material.dart';
 
@@ -589,56 +590,54 @@ class _DeptResourcesState extends State<DeptResources> {
   }
 
   List<Widget> _dept(BuildContext context, _Data data, List<Resource> dept) => [
-    RowGroup(
-      children: [
-        for (final r in dept)
-          _RolledUp(
-            on: r.rolledUp,
-            child: LinkRow(
-              r: r,
-              tag: r.rolledUp ? 'ROLLED UP' : null,
-              onTap: () async {
-                if (await editLink(
-                  context,
-                  campus: widget.campus,
-                  dept: widget.dept,
-                  department: data.links,
-                  existing: r,
-                )) {
-                  _reload();
-                }
-              },
-              trailing:
-                  r.rolledUp
-                      ? TextLink(
-                        'Unpin',
-                        onTap: () async {
-                          await _store.update(
-                            r,
-                            r.copyWith(pinnedToDepartment: false),
-                            'Unpinned “${r.title}” from ${widget.dept}',
-                          );
-                          _reload();
-                        },
-                      )
-                      : IconButton(
-                        tooltip: 'Remove',
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          size: 18,
-                        ),
-                        onPressed: () async {
-                          await _store.update(
-                            r,
-                            r.copyWith(removed: true),
-                            'Removed “${r.title}” from ${widget.dept}',
-                          );
-                          _reload();
-                        },
-                      ),
-            ),
+    SliverRowGroup(
+      count: dept.length,
+      row: (context, i) {
+        final r = dept[i];
+        return _RolledUp(
+          on: r.rolledUp,
+          child: LinkRow(
+            r: r,
+            tag: r.rolledUp ? 'ROLLED UP' : null,
+            onTap: () async {
+              if (await editLink(
+                context,
+                campus: widget.campus,
+                dept: widget.dept,
+                department: data.links,
+                existing: r,
+              )) {
+                _reload();
+              }
+            },
+            trailing:
+                r.rolledUp
+                    ? TextLink(
+                      'Unpin',
+                      onTap: () async {
+                        await _store.update(
+                          r,
+                          r.copyWith(pinnedToDepartment: false),
+                          'Unpinned “${r.title}” from ${widget.dept}',
+                        );
+                        _reload();
+                      },
+                    )
+                    : IconButton(
+                      tooltip: 'Remove',
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      onPressed: () async {
+                        await _store.update(
+                          r,
+                          r.copyWith(removed: true),
+                          'Removed “${r.title}” from ${widget.dept}',
+                        );
+                        _reload();
+                      },
+                    ),
           ),
-      ],
+        );
+      },
     ),
     if (dept.isEmpty) const Note('No department links yet.'),
     const SizedBox(height: Space.md),

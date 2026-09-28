@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
 import 'package:flutter/material.dart';
 
 /// Eyebrow, title and a round back button, for pushed screens.
@@ -160,14 +161,40 @@ class PageFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final list = ListView(
-      padding: EdgeInsets.fromLTRB(
-        18,
-        Space.lg,
-        18,
-        bottom == null ? Space.xxl : BottomAction.heightOf(context) + Space.md,
-      ),
-      children: [header, const SizedBox(height: Space.md), ...children],
+    // Box children run in lazy lists between any SliverRowGroup, which
+    // goes in as the sliver it is: a long card builds only what is on
+    // screen (UI_OPT O5.1).
+    final slivers = <Widget>[];
+    var boxes = <Widget>[];
+    void flush() {
+      if (boxes.isEmpty) return;
+      slivers.add(SliverList.list(children: boxes));
+      boxes = [];
+    }
+
+    for (final c in [header, const SizedBox(height: Space.md), ...children]) {
+      if (c is SliverRowGroup) {
+        flush();
+        slivers.add(c);
+      } else {
+        boxes.add(c);
+      }
+    }
+    flush();
+    final list = CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            18,
+            Space.lg,
+            18,
+            bottom == null
+                ? Space.xxl
+                : BottomAction.heightOf(context) + Space.md,
+          ),
+          sliver: SliverMainAxisGroup(slivers: slivers),
+        ),
+      ],
     );
     return Scaffold(
       backgroundColor: p.background,

@@ -28,7 +28,9 @@ import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
+import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -338,11 +340,15 @@ class DeptCourses extends StatefulWidget {
 
 class _DeptCoursesState extends State<DeptCourses> {
   final _search = TextEditingController();
+
+  /// The list follows the search after a pause in typing (UI_OPT O5.2).
+  final _typed = Debouncer();
   bool _missingOnly = false;
   int _loads = 0;
 
   @override
   void dispose() {
+    _typed.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -444,7 +450,10 @@ class _DeptCoursesState extends State<DeptCourses> {
             SearchBox(
               controller: _search,
               hint: 'Search ${courses.length} courses',
-              onChanged: (_) => setState(() {}),
+              onChanged:
+                  (_) => _typed(() {
+                    if (mounted) setState(() {});
+                  }),
               trailing: Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: TextLink(
@@ -454,35 +463,33 @@ class _DeptCoursesState extends State<DeptCourses> {
               ),
             ),
             const SizedBox(height: Space.sm),
+            // Lazy: a department has up to ~130 courses (UI_OPT O5.1).
             if (shown.isNotEmpty)
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    for (final (i, c) in shown.indexed) ...[
-                      if (i > 0) const CardDivider(),
-                      _CourseRow(
-                        title: '${c.id} · ${c.title}',
-                        o: offerings[c.id],
-                        cr: crs[c.id],
-                        onTap: () async {
-                          final saved = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => SchemeEditorPage(
-                                    courseId: c.id,
-                                    campus: widget.campus,
-                                    term: maintainedTerm,
-                                    existing: offerings[c.id],
-                                  ),
-                            ),
-                          );
-                          if (saved == true) reload();
-                        },
-                      ),
-                    ],
-                  ],
-                ),
+              SliverRowGroup(
+                count: shown.length,
+                inset: 13,
+                row: (context, i) {
+                  final c = shown[i];
+                  return _CourseRow(
+                    title: '${c.id} · ${c.title}',
+                    o: offerings[c.id],
+                    cr: crs[c.id],
+                    onTap: () async {
+                      final saved = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder:
+                              (_) => SchemeEditorPage(
+                                courseId: c.id,
+                                campus: widget.campus,
+                                term: maintainedTerm,
+                                existing: offerings[c.id],
+                              ),
+                        ),
+                      );
+                      if (saved == true) reload();
+                    },
+                  );
+                },
               ),
             if (shown.isEmpty) const Note('No course matches.'),
             const SizedBox(height: Space.sm),

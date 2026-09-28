@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
@@ -81,8 +82,12 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
   String? _manualCategory;
   int _manualGrade = GradeCode.clr;
 
+  /// Hits follow the search after a pause in typing (UI_OPT O5.2).
+  final _typed = Debouncer();
+
   @override
   void dispose() {
+    _typed.dispose();
     for (final c in [_query, _dept, _number, _title]) {
       c.dispose();
     }
@@ -216,7 +221,10 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               TextField(
                 controller: _query,
                 autofocus: true,
-                onChanged: _search,
+                onChanged:
+                    (q) => _typed(() {
+                      if (mounted) _search(q);
+                    }),
                 style: TypeScale.body.copyWith(color: p.text),
                 decoration: InputDecoration(
                   hintText: 'Search by code or name',

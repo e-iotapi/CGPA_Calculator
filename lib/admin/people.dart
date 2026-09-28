@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -216,19 +217,21 @@ class _AdminPeopleState extends State<AdminPeople> {
           if (shown.isEmpty)
             const Note('Nobody here yet.')
           else
-            RowGroup(
-              children: [
-                for (final g in shown)
-                  GrantTile(
-                    g: g,
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => PersonPage(grant: g)),
-                      );
-                      reload();
-                    },
-                  ),
-              ],
+            // Lazy: a campus roster runs to hundreds (UI_OPT O5.1).
+            SliverRowGroup(
+              count: shown.length,
+              row: (context, i) {
+                final g = shown[i];
+                return GrantTile(
+                  g: g,
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => PersonPage(grant: g)),
+                    );
+                    reload();
+                  },
+                );
+              },
             ),
           const Note(
             'Names and emails are always shown. Tap anyone to see what they '
