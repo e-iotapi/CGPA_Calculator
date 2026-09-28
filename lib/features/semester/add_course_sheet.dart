@@ -710,48 +710,48 @@ class _HitRow extends StatelessWidget {
             ? '${hit.id} · already in ${semLabel(held)}'
             : '${hit.id} · $cr credit${cr == '1' ? '' : 's'} · '
                 '${categoryLabel(hit.category, discipline)}';
-    return Opacity(
-      opacity: held != null ? 0.55 : 1,
-      child: AppCard(
-        onTap: onTap,
-        radius: 17,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        border: picked ? BorderSide(color: p.text, width: 1.5) : null,
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    hit.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.body.copyWith(
-                      color: p.text,
-                      fontWeight: FontWeight.w700,
-                    ),
+    // Held: a "not counted" card, surface at 55% with muted text (UI.md
+    // §2.1), in colour rather than an Opacity layer (UI_OPT O4.1).
+    return AppCard(
+      onTap: onTap,
+      color: held != null ? p.surface.withValues(alpha: 0.55) : null,
+      radius: 17,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      border: picked ? BorderSide(color: p.text, width: 1.5) : null,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hit.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.body.copyWith(
+                    color: held != null ? p.textMuted : p.text,
+                    fontWeight: FontWeight.w700,
                   ),
-                  Text(
-                    detail,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.caption.copyWith(color: p.textMuted),
-                  ),
-                ],
-              ),
+                ),
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.caption.copyWith(color: p.textMuted),
+                ),
+              ],
             ),
-            const SizedBox(width: Space.md),
-            if (held != null)
-              Text('ADDED', style: TypeScale.label.copyWith(color: p.textMuted))
-            else
-              Icon(
-                picked ? Icons.check_circle_rounded : Icons.add_rounded,
-                size: 22,
-                color: picked ? p.text : p.textMuted,
-              ),
-          ],
-        ),
+          ),
+          const SizedBox(width: Space.md),
+          if (held != null)
+            Text('ADDED', style: TypeScale.label.copyWith(color: p.textMuted))
+          else
+            Icon(
+              picked ? Icons.check_circle_rounded : Icons.add_rounded,
+              size: 22,
+              color: picked ? p.text : p.textMuted,
+            ),
+        ],
       ),
     );
   }

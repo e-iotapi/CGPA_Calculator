@@ -106,30 +106,34 @@ class _FloatingPill extends StatelessWidget {
         MediaQuery.sizeOf(context).width < AppNav.narrowWidth
             ? Space.lg
             : Space.gutter;
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [fade.withValues(alpha: 0), fade],
-                  stops: const [0, 0.6],
+    // Its own layer: static over a scrolling list, so a scroll doesn't
+    // repaint the fade (UI_OPT O4.3, and Safari's fixed layers, O8.3).
+    return RepaintBoundary(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [fade.withValues(alpha: 0), fade],
+                    stops: const [0, 0.6],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(side, fadeHeight, side, Space.md),
-            child: Center(heightFactor: 1, child: child),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(side, fadeHeight, side, Space.md),
+              child: Center(heightFactor: 1, child: child),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -170,17 +170,21 @@ class _SignInAppState extends State<SignInApp>
       curve: Interval(start, (start + 0.45).clamp(0.0, 1.0),
           curve: Curves.easeOutCubic),
     );
-    return AnimatedBuilder(
-      animation: curve,
-      builder:
-          (_, c) => Opacity(
-            opacity: curve.value,
-            child: Transform.translate(
+    // Reduced motion: everything is in place at once.
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    // UI_OPT O4.1: the fade is a FadeTransition (no Opacity layer per frame);
+    // only the 18 px lift is a transform.
+    return FadeTransition(
+      opacity: curve,
+      child: AnimatedBuilder(
+        animation: curve,
+        builder:
+            (_, c) => Transform.translate(
               offset: Offset(0, 18 * (1 - curve.value)),
               child: c,
             ),
-          ),
-      child: child,
+        child: child,
+      ),
     );
   }
 

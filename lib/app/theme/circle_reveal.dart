@@ -5,8 +5,20 @@ import 'dart:ui' as ui;
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/perf/frame_stats.dart';
+import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+
+/// The theme snapshot's pixel ratio: at most 1.5, and 1 on a low tier device
+/// or on iOS, where Safari caps canvas memory (UI_OPT O1.3, O8.1).
+double snapshotRatio({
+  required double dpr,
+  required DeviceTier tier,
+  required bool ios,
+}) => tier == DeviceTier.low || ios ? 1.0 : math.min(dpr, 1.5);
+
+/// Read once: every iOS browser is Safari underneath.
+final bool _onIos = installTarget().device == InstallDevice.ios;
 
 /// Where the last touch or click landed, in global coordinates. Pages and the
 /// theme switch grow their circle from here.
@@ -194,8 +206,11 @@ class _ThemeRevealState extends State<ThemeReveal>
   /// UI_OPT O1.3: a cheaper snapshot, capped by device tier, tried through
   /// the synchronous path first.
   Future<ui.Image> _capture(RenderRepaintBoundary box) {
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    final r = deviceTier == DeviceTier.low ? 1.0 : math.min(dpr, 1.5);
+    final r = snapshotRatio(
+      dpr: MediaQuery.devicePixelRatioOf(context),
+      tier: deviceTier,
+      ios: _onIos,
+    );
     ThemeReveal.captures++;
     try {
       return Future.value(box.toImageSync(pixelRatio: r));
