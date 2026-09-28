@@ -170,6 +170,27 @@ class _MarksPageState extends State<MarksPage> {
       return detached.keys.any((g) => ofComponent(g, id)) ? 'YOURS' : null;
     }
 
+    Widget courseSetup() => CourseSetupPage(
+      course: c,
+      onCourseAverage: (v) => _setCourseAverage(off, v),
+    );
+    void editEval(String key, Evaluative e) => _open(
+      AddEvaluativePage(
+        courseId: _id,
+        weighted: s.config.weighted,
+        unassigned: s.courseTotal - s.assignedWeight + e.weight,
+        existing: e,
+        existingKey: key,
+        averagesFrom: off,
+        official:
+            off != null &&
+                    off.component(e.sourceId ?? '') != null &&
+                    !detached.containsKey(componentGranule(e.sourceId!))
+                ? off
+                : null,
+      ),
+    );
+
     return PageFrame(
       header: PageHeader(
         eyebrow: '${c.id} · ${formatCredits(c.credits)} CREDITS'.toUpperCase(),
@@ -244,11 +265,7 @@ class _MarksPageState extends State<MarksPage> {
                       () => CourseReviewsPage(courseId: c.id),
                     ),
           ),
-        _Total(
-          s: s,
-          grade: grade,
-          onSetup: () => _open(CourseSetupPage(course: c)),
-        ),
+        _Total(s: s, grade: grade, onSetup: () => _open(courseSetup())),
         const SizedBox(height: Space.sm),
         _ClassAverage(
           text: classAvgText(off?.courseAverage),
@@ -260,7 +277,12 @@ class _MarksPageState extends State<MarksPage> {
                   evals: [for (final (_, e) in evals) e],
                   official: off,
                   detached: detached,
-                  onCourseAverage: (v) => _setCourseAverage(off, v),
+                  onOpenCourse: () => _open(courseSetup()),
+                  onOpenEval: (e) {
+                    for (final (key, x) in evals) {
+                      if (identical(x, e)) editEval(key, x);
+                    }
+                  },
                 ),
               ),
         ),
@@ -287,25 +309,7 @@ class _MarksPageState extends State<MarksPage> {
             },
             tag: tag(e),
             classAverage: off?.component(e.sourceId ?? '')?.average,
-            onTap:
-                () => _open(
-                  AddEvaluativePage(
-                    courseId: _id,
-                    weighted: s.config.weighted,
-                    unassigned: s.courseTotal - s.assignedWeight + e.weight,
-                    existing: e,
-                    existingKey: key,
-                    averagesFrom: off,
-                    official:
-                        off != null &&
-                                off.component(e.sourceId ?? '') != null &&
-                                !detached.containsKey(
-                                  componentGranule(e.sourceId!),
-                                )
-                            ? off
-                            : null,
-                  ),
-                ),
+            onTap: () => editEval(key, e),
           ),
           const SizedBox(height: 7),
         ],

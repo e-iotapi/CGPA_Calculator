@@ -2,6 +2,8 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/features/marks/scheme_editor_page.dart';
+import 'package:cgpa_calculator/features/marks/widgets/average_sources.dart';
+import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -66,5 +68,37 @@ void main() {
       ).firstWhere((e) => e.$2.name == 'Kernel Assignments').$2.weight,
       25,
     );
+  });
+
+  testWidgets('average sources: each level shows its source badge', (t) async {
+    t.view.physicalSize = const Size(390, 1400);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final course = allCourses().firstWhere((c) => c.id == takingId);
+    final evals = [for (final (_, e) in evaluativesFor(takingId)) e];
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: AverageSourcesPage(
+          course: course,
+          courseAverage: 70,
+          evals: evals,
+          official: takingOffering(),
+          detached: const {'average.course': 1},
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+    Finder badgeOf(String name) => find.descendant(
+      of:
+          find
+              .ancestor(of: find.text(name).last, matching: find.byType(Row))
+              .first,
+      matching: find.byType(TagBadge),
+    );
+    String tagOf(String name) => t.widget<TagBadge>(badgeOf(name)).text;
+    expect(tagOf(course.title), 'YOURS');
+    expect(tagOf('Kernel Assignments'), 'OFFICIAL');
+    expect(tagOf('Assignment 0'), 'FROM PARTS');
   });
 }

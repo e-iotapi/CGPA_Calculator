@@ -109,7 +109,7 @@ void main() {
         evals: [for (final (_, e) in evaluativesFor(takingId)) e],
         official: takingOffering(),
         detached: const {},
-        onCourseAverage: (_) async {},
+        onOpenCourse: () {},
       ),
     );
     expectRender('d_average_sources', errors, known);
