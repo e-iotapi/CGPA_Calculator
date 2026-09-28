@@ -7,6 +7,8 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/setup/degree_setup_page.dart';
 import 'package:cgpa_calculator/script.dart' as app;
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -218,6 +220,55 @@ void main() {
       await t.tap(find.text('2+2'));
       await t.pump();
       expect(find.textContaining('still being built'), findsOneWidget);
+    });
+
+    testWidgets('2+2 shows the notice and keeps the choice', (t) async {
+      await _pump(
+        t,
+        DegreeSetupPage(
+          email: 'f20230123@goa.bits-pilani.ac.in',
+          onDone: () {},
+        ),
+      );
+      expect(find.byType(Notice), findsNothing);
+      await t.tap(find.text('2+2'));
+      await t.pump();
+      expect(find.byType(Notice), findsOneWidget);
+      expect(find.text('Single degree'), findsOneWidget);
+    });
+
+    testWidgets('button waits for the programme', (t) async {
+      await _pump(
+        t,
+        DegreeSetupPage(
+          email: 'f20230123@goa.bits-pilani.ac.in',
+          onDone: () {},
+        ),
+      );
+      final button = t.widget<PrimaryButton>(find.byType(PrimaryButton));
+      expect(button.onPressed, isNull);
+      expect(button.label, 'Pick what you are reading');
+    });
+
+    testWidgets('second degree lists only B.E.', (t) async {
+      await _pump(
+        t,
+        DegreeSetupPage(
+          email: 'f20230123@goa.bits-pilani.ac.in',
+          onDone: () {},
+        ),
+      );
+      await t.tap(find.text('Dual degree'));
+      await t.pumpAndSettle();
+      await t.tap(find.bySemanticsLabel(RegExp('^FIRST DEGREE')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('M.Sc. Economics'));
+      await t.pumpAndSettle();
+
+      await t.tap(find.bySemanticsLabel(RegExp('^SECOND DEGREE')));
+      await t.pumpAndSettle();
+      expect(find.text('B3'), findsNothing);
+      expect(find.text('A7'), findsOneWidget);
     });
 
     testWidgets('setup ends with the install offer, unless installed', (
