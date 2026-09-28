@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/features/semester/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/features/settings/install_guide.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,6 +46,17 @@ void main() {
       ),
     ),
     ('d_grade_menu', (c) => showGradeMenu(c, current: 9, title: takingTitle)),
+    (
+      'd_confirm',
+      (c) => confirmDialog(
+        c,
+        title: 'Remove this course?',
+        body: 'CS F372 leaves 3 − 1, with its grades.',
+        cancel: 'Keep',
+        action: 'Remove',
+        danger: true,
+      ),
+    ),
     (
       'd_edit_course',
       (c) => showEditCourseSheet(

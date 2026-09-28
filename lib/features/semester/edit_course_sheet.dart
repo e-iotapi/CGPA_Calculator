@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
@@ -80,29 +81,17 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
   }
 
   Future<void> _remove() async {
-    final p = AppPalette.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder:
-          (c) => AlertDialog(
-            title: const Text('Remove this course?'),
-            content: Text(
-              '${widget.course.id} leaves ${semLabel(widget.course.sem)}, '
-              'with its grades.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('Keep'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: Text('Remove', style: TextStyle(color: p.behind)),
-              ),
-            ],
-          ),
+    final ok = await confirmDialog(
+      context,
+      title: 'Remove this course?',
+      body:
+          '${widget.course.id} leaves ${semLabel(widget.course.sem)}, '
+          'with its grades.',
+      cancel: 'Keep',
+      action: 'Remove',
+      danger: true,
     );
-    if (ok == true && mounted) {
+    if (ok && mounted) {
       Navigator.pop(context, (saved: null, removed: true));
     }
   }
