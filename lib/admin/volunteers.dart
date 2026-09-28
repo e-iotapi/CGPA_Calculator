@@ -9,8 +9,30 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/roles/volunteer_message.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+/// The department whose offers the tab opens on: the president's own, or
+/// for owners and admins the first.
+String? defaultDept(String campus) =>
+    myRoles.value.presidencies
+        .where((g) => g.campus == campus)
+        .firstOrNull
+        ?.scope ??
+    (myRoles.value.reachesAdmin ? departments.keys.first : null);
+
+/// Open offers the Volunteers tab starts on, for its label.
+Future<int> openOffers(String campus) async {
+  final dept = defaultDept(campus);
+  final store = roleStore;
+  if (dept == null || store == null) return 0;
+  final byCourse = await ContactStore(
+    store,
+  ).offers(campus, dept, term: currentTerm(DateTime.now()));
+  return byCourse.values.fold<int>(0, (n, l) => n + l.length);
+}
 
 /// Roster › Volunteers (§16.3 fix 16): open CR offers in a department, by
 /// course. Copy a message for the course's WhatsApp group, appoint, or
@@ -24,12 +46,7 @@ class VolunteersTab extends StatefulWidget {
 }
 
 class _VolunteersTabState extends State<VolunteersTab> {
-  late String? _dept =
-      myRoles.value.presidencies
-          .where((g) => g.campus == widget.campus)
-          .firstOrNull
-          ?.scope ??
-      (myRoles.value.reachesAdmin ? departments.keys.first : null);
+  late String? _dept = defaultDept(widget.campus);
   int _loads = 0;
 
   ContactStore get _store => ContactStore(roleStore!);
@@ -82,10 +99,6 @@ class _VolunteersTabState extends State<VolunteersTab> {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final caption = TypeScale.caption.copyWith(
-      height: 1.45,
-      color: p.textMuted,
-    );
     final dept = _dept;
     if (dept == null) {
       return const Note('Volunteers reach department presidents.');
@@ -99,6 +112,7 @@ class _VolunteersTabState extends State<VolunteersTab> {
             selected: dept,
             label: (d) => d,
             onSelected: (d) => setState(() => _dept = d),
+            equal: _depts.length <= 4,
           ),
           const SizedBox(height: Space.sm),
         ],
@@ -123,99 +137,128 @@ class _VolunteersTabState extends State<VolunteersTab> {
               children: [
                 for (final c in courses) ...[
                   AppCard(
+                    padding: EdgeInsets.zero,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '$c · ${byCourse[c]!.length} '
-                                'offer${byCourse[c]!.length == 1 ? '' : 's'}',
-                                style: TypeScale.body.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Copy the message for WhatsApp',
-                              icon: const Icon(Icons.copy_rounded, size: 18),
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(
-                                    text: _message(c, byCourse[c]!),
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Copied. Edit it in WhatsApp before '
-                                      'sending.',
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                        for (final v in byCourse[c]!)
-                          Row(
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(15, 6, 6, 0),
+                          child: Row(
                             children: [
                               Expanded(
                                 child: Text(
-                                  '${v.name} · ${v.email}',
-                                  style: TypeScale.caption,
+                                  '$c · ${byCourse[c]!.length} '
+                                  'offer${byCourse[c]!.length == 1 ? '' : 's'}',
+                                  style: TypeScale.body.copyWith(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: p.text,
+                                  ),
                                 ),
                               ),
-                              TextButton(
+                              IconButton(
+                                tooltip:
+                                    byCourse[c]!.length == 1
+                                        ? 'Copy the objection notice'
+                                        : 'Copy the election notice',
+                                icon: Icon(
+                                  Icons.content_paste_rounded,
+                                  size: 19,
+                                  color: p.icon,
+                                ),
                                 onPressed: () async {
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder:
-                                          (_) => AdminGrant(
-                                            prefill: (
-                                              role: GrantRole.course,
-                                              email: v.email,
-                                              scope: c,
-                                            ),
-                                            closeOffers: [
-                                              for (final o in byCourse[c]!)
-                                                o.id,
-                                            ],
-                                          ),
+                                  await Clipboard.setData(
+                                    ClipboardData(
+                                      text: _message(c, byCourse[c]!),
                                     ),
                                   );
-                                  if (mounted) setState(() => _loads++);
-                                },
-                                child: const Text('Appoint as CR'),
-                              ),
-                              TextButton(
-                                onPressed:
-                                    () => _act(
-                                      () => _store.dismiss(v),
-                                      'Dismissed.',
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Copied. Edit it in WhatsApp before '
+                                        'sending.',
+                                      ),
                                     ),
-                                child: const Text('Dismiss'),
+                                  );
+                                },
                               ),
                             ],
                           ),
+                        ),
+                        for (final (i, v) in byCourse[c]!.indexed) ...[
+                          if (i > 0) const CardDivider(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(15, 8, 15, 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                NameEmail(v.name, shortEmail(v.email)),
+                                if (v.createdAt != null)
+                                  Text(
+                                    'Offered ${ago(v.createdAt)}',
+                                    style: TypeScale.caption.copyWith(
+                                      color: p.textMuted,
+                                    ),
+                                  ),
+                                const SizedBox(height: Space.sm),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    PillButton(
+                                      label: 'Appoint as CR',
+                                      selected: true,
+                                      onPressed: () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder:
+                                                (_) => AdminGrant(
+                                                  prefill: (
+                                                    role: GrantRole.course,
+                                                    email: v.email,
+                                                    scope: c,
+                                                  ),
+                                                  closeOffers: [
+                                                    for (final o
+                                                        in byCourse[c]!)
+                                                      o.id,
+                                                  ],
+                                                ),
+                                          ),
+                                        );
+                                        if (mounted) setState(() => _loads++);
+                                      },
+                                    ),
+                                    PillButton(
+                                      label: 'Dismiss',
+                                      onPressed:
+                                          () => _act(
+                                            () => _store.dismiss(v),
+                                            'Dismissed.',
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const SizedBox(height: Space.xs),
+                  const SizedBox(height: Space.sm),
                 ],
               ],
             );
           },
         ),
         const SizedBox(height: Space.sm),
-        Text(
+        Note(
           'The message proposes an election for several offers and an '
           'objection notice for one. Pointer sends nothing and records '
           'nothing; appoint here once the group has decided. Offers close '
           'when the term ends.',
-          style: caption,
         ),
       ],
     );
