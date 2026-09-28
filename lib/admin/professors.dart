@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/admin/grant_form.dart';
 import 'package:cgpa_calculator/admin/maintain.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -10,6 +11,8 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 
@@ -279,6 +282,76 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
   bool _busy = false;
   int _loads = 0;
 
+  Future<void> _pickDept() async {
+    final v = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DeptSheet(selected: _dept),
+    );
+    if (v == null || !mounted) return;
+    setState(() {
+      _dept = v;
+      _keep = _gone = null;
+    });
+  }
+
+  Future<void> _merge(Professor keep, Professor gone) async {
+    setState(() => _busy = true);
+    try {
+      await _store.merge(keep, gone);
+      setState(() {
+        _keep = _gone = null;
+        _loads++;
+      });
+      if (mounted) _say(context, 'Merged into ${keep.name}.');
+    } catch (e) {
+      if (mounted) _say(context, problem(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  PageFrame _frame(List<Widget> children, {Widget? bottom}) {
+    final r = myRoles.value;
+    final free = (r.owner || r.admin) && widget.campus == null;
+    final dept = _dept;
+    return PageFrame(
+      header: const PageHeader(
+        eyebrow: 'OWNERS, ADMINS, PRESIDENTS',
+        title: 'Merge duplicates',
+      ),
+      bottom: bottom,
+      children: [
+        if (free) ...[
+          ChoicePills<String>(
+            values: const ['goa', 'hyderabad', 'pilani', 'dubai'],
+            selected: _campus,
+            label: campusName,
+            onSelected:
+                (c) => setState(() {
+                  _campus = c;
+                  _keep = _gone = null;
+                }),
+          ),
+          const SizedBox(height: Space.sm),
+          SelectRow(
+            text:
+                dept == null
+                    ? 'Department'
+                    : '$dept · ${departments[dept]?.name ?? dept}',
+            placeholder: dept == null,
+            onTap: _pickDept,
+          ),
+          const SizedBox(height: Space.md),
+        ] else if (dept != null) ...[
+          ScopePills(campus: _campus, scope: dept),
+          const SizedBox(height: Space.sm),
+        ],
+        ...children,
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -286,160 +359,152 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
       height: 1.45,
       color: p.textMuted,
     );
-    final r = myRoles.value;
-    final free = r.owner || r.admin;
-    final pickers = <Widget>[
-      if (free && widget.campus == null) ...[
-        ChoicePills<String>(
-          values: const ['goa', 'hyderabad', 'pilani', 'dubai'],
-          selected: _campus,
-          label: campusName,
-          onSelected:
-              (c) => setState(() {
-                _campus = c;
-                _keep = _gone = null;
-              }),
-        ),
-        const SizedBox(height: Space.sm),
-        DropdownButtonFormField<String>(
-          initialValue: _dept,
-          isExpanded: true,
-          hint: const Text('Department'),
-          items: [
-            for (final e in departments.entries)
-              DropdownMenuItem(
-                value: e.key,
-                child: Text('${e.key} · ${e.value.name}'),
-              ),
-          ],
-          onChanged:
-              (v) => setState(() {
-                _dept = v;
-                _keep = _gone = null;
-              }),
-        ),
-        const SizedBox(height: Space.md),
-      ],
-    ];
     final dept = _dept;
-    return PageFrame(
-      header: PageHeader(
-        eyebrow: 'OWNERS, ADMINS, PRESIDENTS',
-        title: 'Merge duplicates',
-      ),
-      children: [
-        ...pickers,
-        if (dept == null)
-          const Note('Pick a department.')
-        else
-          Loaded<List<Professor>>(
-            key: ValueKey('$_campus|$dept|$_loads'),
-            load: () => _store.department(_campus, dept),
-            builder: (context, profs, _) {
-              final keep = profs.where((x) => x.id == _keep).firstOrNull;
-              final gone = profs.where((x) => x.id == _gone).firstOrNull;
-              Widget pick(Professor x) {
-                final isKeep = x.id == _keep, isGone = x.id == _gone;
-                return AppCard(
-                  color: isKeep ? p.inverse : null,
-                  onTap:
-                      () => setState(() {
-                        if (_keep == null || isKeep) {
-                          _keep = isKeep ? null : x.id;
-                        } else {
-                          _gone = isGone ? null : x.id;
-                        }
-                      }),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          x.name,
-                          style: TypeScale.body.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: isKeep ? p.onInverse : p.text,
-                          ),
-                        ),
-                      ),
-                      if (isKeep) const TierTag('KEEP', strong: true),
-                      if (isGone) const TierTag('MERGE'),
-                    ],
-                  ),
-                );
-              }
+    if (dept == null) return _frame(const [Note('Pick a department.')]);
+    return Loaded<(List<Professor>, Map<String, (int, int)>)>(
+      key: ValueKey('$_campus|$dept|$_loads'),
+      load: () async {
+        final profs = await _store.department(_campus, dept);
+        final counts = <String, (int, int)>{};
+        for (final x in profs) {
+          final t = await _store.taught(x, _campus);
+          counts[x.id] = (t.length, t.values.fold(0, (a, l) => a + l.length));
+        }
+        return (profs, counts);
+      },
+      builder: (context, data, _) {
+        final (profs, counts) = data;
+        final keep = profs.where((x) => x.id == _keep).firstOrNull;
+        final gone = profs.where((x) => x.id == _gone).firstOrNull;
+        String offerings(int n) => '$n offering${n == 1 ? '' : 's'}';
+        Widget pick(Professor x) {
+          final isKeep = x.id == _keep, isGone = x.id == _gone;
+          final (courses, runs) = counts[x.id] ?? (0, 0);
+          return CardRow(
+            leading: Icon(
+              isKeep || isGone
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: isKeep || isGone ? p.text : p.textMuted,
+            ),
+            title: x.name,
+            titleLines: 2,
+            subtitle:
+                '$courses course${courses == 1 ? '' : 's'} · '
+                '${offerings(runs)}',
+            trailing:
+                isKeep
+                    ? const TierTag('KEEP', strong: true)
+                    : isGone
+                    ? const TierTag('MERGE')
+                    : const SizedBox.shrink(),
+            onTap:
+                () => setState(() {
+                  if (_keep == null || isKeep) {
+                    _keep = isKeep ? null : x.id;
+                    if (isKeep) _gone = null;
+                  } else {
+                    _gone = isGone ? null : x.id;
+                  }
+                }),
+          );
+        }
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ScopePills(campus: _campus, scope: dept),
-                  const SizedBox(height: Space.sm),
-                  Text(
-                    'Two entries for one person split their reviews. Tap the '
-                    'one to keep, then the one to merge into it.',
-                    style: caption,
-                  ),
-                  const SizedBox(height: Space.sm),
-                  for (final x in profs) ...[
-                    pick(x),
-                    const SizedBox(height: Space.xs),
+        final runs =
+            keep == null || gone == null
+                ? 0
+                : counts[keep.id]!.$2 + counts[gone.id]!.$2;
+        return _frame(
+          [
+            Text(
+              'Two entries for one person split their reviews. Tap the one '
+              'to keep, then the one to merge into it.',
+              style: caption,
+            ),
+            const SizedBox(height: Space.sm),
+            if (profs.isEmpty)
+              const Note('No professors listed here yet.')
+            else
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final (i, x) in profs.indexed) ...[
+                      if (i > 0) const CardDivider(),
+                      pick(x),
+                    ],
                   ],
-                  if (keep != null && gone != null) ...[
-                    const SectionLabel('After'),
+                ),
+              ),
+            if (keep != null && gone != null) ...[
+              const SizedBox(height: Space.md),
+              AppCard(
+                color: p.hero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      keep.name,
-                      style: TypeScale.body.copyWith(
-                        fontWeight: FontWeight.w700,
+                      'AFTER',
+                      style: TypeScale.label.copyWith(
+                        color: p.onHero,
+                        letterSpacing: 1.2,
                       ),
                     ),
+                    const SizedBox(height: 6),
                     Text(
-                      'Also known as ${gone.name}. Every review and offering '
-                      'that named either now reads as one person.',
-                      style: caption,
+                      '${keep.name} · ${offerings(runs)}',
+                      style: TypeScale.body.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: p.onHero,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Also known as ${[...keep.aliases, gone.name, ...gone.aliases].join(', ')}.',
+                      style: TypeScale.caption.copyWith(
+                        height: 1.45,
+                        color: p.onHero,
+                      ),
                     ),
                   ],
-                  const SizedBox(height: Space.sm),
-                  Text(
-                    'It is logged with your name. There is no unmerge: check '
-                    'the course list first. A president merges only within '
-                    'their own department on their own campus.',
-                    style: caption,
-                  ),
-                  const SizedBox(height: Space.md),
-                  PrimaryButton(
-                    label:
-                        keep == null
-                            ? 'Pick the one to keep'
-                            : gone == null
-                            ? 'Pick the duplicate'
-                            : _busy
-                            ? 'Merging…'
-                            : 'Merge into ${keep.name}',
-                    onPressed:
-                        keep == null || gone == null || _busy
-                            ? null
-                            : () async {
-                              setState(() => _busy = true);
-                              try {
-                                await _store.merge(keep, gone);
-                                setState(() {
-                                  _keep = _gone = null;
-                                  _loads++;
-                                });
-                                if (context.mounted) {
-                                  _say(context, 'Merged into ${keep.name}.');
-                                }
-                              } catch (e) {
-                                if (context.mounted) _say(context, problem(e));
-                              } finally {
-                                if (mounted) setState(() => _busy = false);
-                              }
-                            },
-                  ),
-                ],
-              );
-            },
+                ),
+              ),
+              const SizedBox(height: Space.sm),
+              Text(
+                'It rewrites every review and the '
+                '${offerings(counts[gone.id]!.$2)} that name ${gone.name}, '
+                'and cannot be undone.',
+                style: TypeScale.caption.copyWith(
+                  height: 1.45,
+                  fontWeight: FontWeight.w700,
+                  color: p.text,
+                ),
+              ),
+            ],
+            const SizedBox(height: Space.sm),
+            Note(
+              'It is logged with your name. A president merges only within '
+              'their own department on their own campus.',
+            ),
+          ],
+          bottom: BottomAction(
+            child: PrimaryButton(
+              label:
+                  keep == null
+                      ? 'Pick the one to keep'
+                      : gone == null
+                      ? 'Pick the duplicate'
+                      : _busy
+                      ? 'Merging…'
+                      : 'Merge into ${keep.name}',
+              onPressed:
+                  keep == null || gone == null || _busy
+                      ? null
+                      : () => _merge(keep, gone),
+            ),
           ),
-      ],
+        );
+      },
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/admin/config_pages.dart';
 import 'package:cgpa_calculator/admin/grant_form.dart';
 import 'package:cgpa_calculator/admin/open_as.dart';
 import 'package:cgpa_calculator/admin/people.dart';
+import 'package:cgpa_calculator/admin/professors.dart';
 import 'package:cgpa_calculator/admin/publish_page.dart';
 import 'package:cgpa_calculator/admin/roster.dart';
 import 'package:cgpa_calculator/admin/succession.dart';
@@ -43,6 +44,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
+
+import '../helpers/fake_data.dart';
 
 const pres = 'f20230802@goa.bits-pilani.ac.in';
 const student = 'f20230456@goa.bits-pilani.ac.in';
@@ -1098,5 +1101,20 @@ void main() {
     await t.tap(find.text('Volunteers · 2'));
     await t.pumpAndSettle();
     expect(find.text('Appoint as CR'), findsNWidgets(2));
+  });
+
+  testWidgets('merge names the survivor', (t) async {
+    await t.runAsync(() => seedFirestore(db));
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    await t.pumpWidget(app(const ProfessorMerge(campus: 'goa', dept: 'CS')));
+    await t.pumpAndSettle();
+    expect(find.text('Pick the one to keep'), findsOneWidget);
+    await t.tap(find.text('Ramesh Menon'));
+    await t.pump();
+    await t.tap(find.text('Dr. R. Menon'));
+    await t.pump();
+    expect(find.text('KEEP'), findsOneWidget);
+    expect(find.text('Merge into Ramesh Menon'), findsOneWidget);
+    expect(find.textContaining('Also known as Dr. R. Menon'), findsOneWidget);
   });
 }

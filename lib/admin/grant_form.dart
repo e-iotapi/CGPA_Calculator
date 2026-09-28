@@ -150,7 +150,7 @@ class _AdminGrantState extends State<AdminGrant> {
     final v = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _DeptSheet(selected: _dept),
+      builder: (_) => DeptSheet(selected: _dept),
     );
     if (v == null || !mounted) return;
     setState(() {
@@ -596,8 +596,8 @@ class _AdminGrantState extends State<AdminGrant> {
 }
 
 /// Every department, the chosen one ticked.
-class _DeptSheet extends StatelessWidget {
-  const _DeptSheet({this.selected});
+class DeptSheet extends StatelessWidget {
+  const DeptSheet({super.key, this.selected});
   final String? selected;
 
   @override
