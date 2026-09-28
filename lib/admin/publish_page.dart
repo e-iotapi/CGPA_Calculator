@@ -7,7 +7,11 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
 import 'package:flutter/material.dart';
 
 CatalogStore get _store => CatalogStore(roleStore!);
@@ -105,11 +109,25 @@ class _PublishPageState extends State<PublishPage> {
           ),
         );
 
+        final label = TypeScale.label.copyWith(color: p.textMuted);
+        final n = diff.credits.length;
         return PageFrame(
           header: PageHeader(
             eyebrow:
                 'DRAFT → LIVE · ${diff.count} CHANGE${diff.count == 1 ? '' : 'S'}',
             title: 'Publish catalogue',
+          ),
+          bottom: BottomAction(
+            child: PrimaryButton(
+              label:
+                  _busy
+                      ? 'Publishing…'
+                      : 'Publish ${diff.count} change${diff.count == 1 ? '' : 's'}',
+              onPressed:
+                  _busy || diff.isEmpty || (n > 0 && !_read)
+                      ? null
+                      : () => _publish(next, diff, drafts),
+            ),
           ),
           children: [
             Text(
@@ -117,19 +135,24 @@ class _PublishPageState extends State<PublishPage> {
               style: TypeScale.caption.copyWith(color: p.textMuted),
             ),
             const SizedBox(height: Space.sm),
-            if (diff.credits.isNotEmpty) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: SectionLabel('Moves CGPAs · ${diff.credits.length}'),
-                  ),
-                  const TierTag('CONFIRM', strong: true),
-                ],
-              ),
+            if (n > 0) ...[
               AppCard(
+                color: p.noticeTone.fill,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'MOVES CGPAs · $n',
+                            style: label.copyWith(color: p.noticeTone.text),
+                          ),
+                        ),
+                        const TagBadge('CONFIRM', tone: TagTone.confirm),
+                      ],
+                    ),
+                    const SizedBox(height: Space.sm),
                     for (final c in diff.credits)
                       line(
                         '${c.id} · ${c.title}',
@@ -140,13 +163,15 @@ class _PublishPageState extends State<PublishPage> {
                   ],
                 ),
               ),
+              const SizedBox(height: Space.sm),
             ],
             if (diff.retired.isNotEmpty) ...[
-              SectionLabel('Retired · ${diff.retired.length}'),
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text('RETIRED · ${diff.retired.length}', style: label),
+                    const SizedBox(height: Space.sm),
                     for (final c in diff.retired)
                       line(
                         '${c.id} · ${c.title}',
@@ -156,60 +181,69 @@ class _PublishPageState extends State<PublishPage> {
                   ],
                 ),
               ),
+              const SizedBox(height: Space.sm),
             ],
             if (diff.cosmetic.isNotEmpty) ...[
-              const SizedBox(height: Space.sm),
               AppCard(
-                onTap: () => setState(() => _showCosmetic = !_showCosmetic),
+                padding: EdgeInsets.zero,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    line(
-                      'Titles and default tags · ${diff.cosmetic.length}',
-                      'Cosmetic. A category someone set by hand still wins.',
+                    CardRow(
+                      title:
+                          'Titles and default tags · ${diff.cosmetic.length}',
+                      subtitle:
+                          'Cosmetic. A category someone set by hand still '
+                          'wins.',
+                      trailing: Icon(
+                        _showCosmetic
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: p.textMuted,
+                      ),
+                      onTap:
+                          () => setState(() => _showCosmetic = !_showCosmetic),
                     ),
                     if (_showCosmetic)
-                      for (final c in diff.cosmetic)
-                        Text('${c.id} · ${c.what}', style: TypeScale.caption),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final c in diff.cosmetic)
+                              Text(
+                                '${c.id} · ${c.what}',
+                                style: TypeScale.caption,
+                              ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
+              const SizedBox(height: Space.sm),
             ],
             if (diff.isEmpty)
-              const Note('Nothing waiting. Draft a change to a course below.'),
+              const Note('Nothing waiting. Draft a change below.'),
             const Note(
               'Pointer names the courses, never a headcount: counting who is '
               'affected would mean reading everyone\'s grades.',
             ),
-            if (diff.credits.isNotEmpty)
-              CheckboxListTile(
+            if (n > 0)
+              _ReadRow(
                 value: _read,
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                onChanged: (v) => setState(() => _read = v ?? false),
-                title: Text(
-                  'I have read the ${diff.credits.length} credit '
-                  'change${diff.credits.length == 1 ? '' : 's'}. They move '
-                  'CGPAs.',
-                  style: TypeScale.body,
-                ),
+                text:
+                    'I have read the $n credit change${n == 1 ? '' : 's'}. '
+                    'They move CGPAs.',
+                onChanged: (v) => setState(() => _read = v),
               ),
             const SizedBox(height: Space.sm),
-            PrimaryButton(
-              label:
-                  _busy
-                      ? 'Publishing…'
-                      : 'Publish ${diff.count} change${diff.count == 1 ? '' : 's'}',
-              onPressed:
-                  _busy || diff.isEmpty || (diff.credits.isNotEmpty && !_read)
-                      ? null
-                      : () => _publish(next, diff, drafts),
-            ),
-            const SizedBox(height: Space.sm),
-            TextButton.icon(
-              onPressed: _draft,
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Draft a change to a course'),
+            // Hugs its label; OutlinedPill itself fills the width it gets.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IntrinsicWidth(
+                child: OutlinedPill(label: 'Draft a change', onPressed: _draft),
+              ),
             ),
             if (drafts.isNotEmpty) ...[
               const SectionLabel('Drafts'),
@@ -222,6 +256,68 @@ class _PublishPageState extends State<PublishPage> {
           ],
         );
       },
+    );
+  }
+}
+
+/// The confirm row: a 22 px box and the sentence, 44 tall to tap.
+class _ReadRow extends StatelessWidget {
+  const _ReadRow({
+    required this.value,
+    required this.text,
+    required this.onChanged,
+  });
+  final bool value;
+  final String text;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Semantics(
+      checked: value,
+      label: text,
+      excludeSemantics: true,
+      onTap: () => onChanged(!value),
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        borderRadius: BorderRadius.circular(Radii.check),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: value ? p.inverse : null,
+                  borderRadius: BorderRadius.circular(Radii.check),
+                  border:
+                      value ? null : Border.all(color: p.textMuted, width: 1.5),
+                ),
+                child:
+                    value
+                        ? Icon(
+                          Icons.check_rounded,
+                          size: 15,
+                          color: p.onInverse,
+                        )
+                        : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

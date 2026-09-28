@@ -357,14 +357,15 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
     });
   }
 
-  // A publish draft that moves CGPAs, and a cosmetic one.
+  // A publish draft that moves CGPAs, and a cosmetic one; both differ from
+  // assets/catalog.json, so Publish shows a real diff.
   final catalog = CatalogStore(roles);
   await catalog.saveDraft(
-    const CourseEdit(id: 'CS F211', credits: 4),
+    const CourseEdit(id: 'CS F211', credits: 3),
     campus: 'goa',
   );
   await catalog.saveDraft(
-    const CourseEdit(id: 'CS F213', title: 'Object Oriented Programming'),
+    const CourseEdit(id: 'CS F213', title: 'Object-Oriented Programming'),
     campus: 'goa',
   );
 

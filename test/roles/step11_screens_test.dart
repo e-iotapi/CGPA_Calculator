@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cgpa_calculator/admin/admin_home.dart';
 import 'package:cgpa_calculator/admin/config_pages.dart';
+import 'package:cgpa_calculator/admin/publish_page.dart';
 import 'package:cgpa_calculator/admin/roster.dart';
 import 'package:cgpa_calculator/admin/succession.dart';
 import 'package:cgpa_calculator/admin/volunteers.dart';
@@ -746,5 +747,29 @@ void main() {
       matching: find.byType(InkWell),
     );
     expect(t.getSize(hit.first).height, greaterThanOrEqualTo(44));
+  });
+
+  // ---- T8.3 Publish --------------------------------------------------------
+
+  testWidgets('publish waits for the credit-change checkbox', (t) async {
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    final now = catalog.master.firstWhere((m) => m.id == 'CS F211').credits;
+    await db.collection('courses').doc('CS F211').set({
+      'id': 'CS F211',
+      'credits': now + 1,
+      'draft': true,
+    });
+    await t.pumpWidget(app(const PublishPage()));
+    await t.pumpAndSettle();
+    VoidCallback? publish() =>
+        t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed;
+    expect(find.text('MOVES CGPAs · 1'), findsOneWidget);
+    expect(publish(), isNull);
+    await t.tap(find.textContaining('I have read the 1 credit change'));
+    await t.pump();
+    expect(publish(), isNotNull);
   });
 }
