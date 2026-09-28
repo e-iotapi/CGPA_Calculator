@@ -1,6 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
-import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
 import 'package:flutter/material.dart';
 
 /// Board `Divergence`: the first edit of an official value asks before it
@@ -143,73 +143,135 @@ Future<bool> confirmDivergence(
   return mine ?? false;
 }
 
-/// Board `Diverged`: what the student made theirs, and — when the official
-/// scheme changed since — the notice, with Keep mine beside it.
+/// Board `Diverged`: the YOURS line while anything is detached, and, only
+/// when the official scheme changed since, the amber card with Review and
+/// Keep mine.
 class DivergedCard extends StatelessWidget {
   const DivergedCard({
     super.key,
     required this.yours,
     required this.changed,
     required this.onKeepMine,
+    this.onReview,
+    this.age = '',
+    this.body = '',
   });
 
   /// Names of what is theirs: "Mid Semester", "the course average".
   final List<String> yours;
 
   /// Names whose official version changed after they made it theirs. Empty:
-  /// no notice.
+  /// no amber card.
   final List<String> changed;
   final VoidCallback onKeepMine;
+  final VoidCallback? onReview;
+
+  /// "2 days ago": when the official scheme last changed.
+  final String age;
+
+  /// What changed, in words.
+  final String body;
+
+  static String list(List<String> l) =>
+      l.length == 1
+          ? l.single
+          : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final t = p.noticeTone;
-    String list(List<String> l) =>
-        l.length == 1
-            ? l.single
-            : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';
-    return AppCard(
-      color: changed.isEmpty ? null : t.fill,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            changed.isEmpty ? 'YOURS' : 'THE OFFICIAL SCHEME CHANGED',
-            style: TypeScale.label.copyWith(
-              color: changed.isEmpty ? p.textMuted : t.text,
-            ),
-          ),
-          const SizedBox(height: Space.xs),
-          Text(
-            changed.isEmpty
-                ? '${list(yours)} ${yours.length == 1 ? 'is' : 'are'} yours. '
-                    'Official updates to ${yours.length == 1 ? 'it' : 'them'} '
-                    'are paused; the rest keep updating.'
-                : 'The official ${list(changed)} changed. Yours stays as it '
-                    'is until you choose — use the official version below, or '
-                    'keep yours.',
-            style: TypeScale.body.copyWith(
-              fontSize: 12.5,
-              color: changed.isEmpty ? p.text : t.text,
-            ),
-          ),
-          if (changed.isNotEmpty) ...[
-            const SizedBox(height: Space.sm),
-            SizedBox(
-              height: Sizes.minTouch,
-              child: OutlinedButton(
-                onPressed: onKeepMine,
-                style: OutlinedButton.styleFrom(
-                  shape: const StadiumBorder(),
-                  foregroundColor: t.text,
-                ),
-                child: const Text('Keep mine'),
+    final note = TypeScale.caption.copyWith(
+      fontSize: 11,
+      height: 1.45,
+      color: p.textMuted,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 9,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const TagBadge('YOURS', tone: TagTone.yours),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                '${list(yours)} ${yours.length == 1 ? 'is' : 'are'} edited '
+                'by you. Official updates to '
+                '${yours.length == 1 ? 'it' : 'them'} are paused; the rest '
+                'keep updating.',
+                style: note,
               ),
             ),
           ],
-        ],
-      ),
+        ),
+        if (changed.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
+            decoration: BoxDecoration(
+              color: t.fill,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 9,
+              children: [
+                Text(
+                  'OFFICIAL ${list(changed)} CHANGED'
+                          '${age.isEmpty ? '' : ' · $age'}'
+                      .toUpperCase(),
+                  style: TypeScale.label.copyWith(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: t.text,
+                  ),
+                ),
+                Text(
+                  body,
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.45,
+                    color: p.isDark ? t.text : const Color(0xFF4A3408),
+                  ),
+                ),
+                Row(
+                  spacing: 8,
+                  children: [
+                    if (onReview != null)
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: onReview,
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(40),
+                            shape: const StadiumBorder(),
+                            backgroundColor: p.inverse,
+                            foregroundColor: p.onInverse,
+                          ),
+                          child: const Text('Review'),
+                        ),
+                      ),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onKeepMine,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(40),
+                          shape: const StadiumBorder(),
+                          foregroundColor: t.text,
+                          side: BorderSide(
+                            color: t.text.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: const Text('Keep mine'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -226,13 +288,27 @@ class UseOfficialButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: Alignment.centerLeft,
-    child: TextButton.icon(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(minimumSize: const Size(0, Sizes.minTouch)),
-      icon: const Icon(Icons.restart_alt_rounded, size: 18),
-      label: Text('Use the official $name'),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onPressed,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Center(
+            child: Text(
+              'Use the official $name',
+              textAlign: TextAlign.center,
+              style: TypeScale.body.copyWith(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: p.accent,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
