@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cgpa_calculator/admin/admin_home.dart';
 import 'package:cgpa_calculator/admin/config_pages.dart';
+import 'package:cgpa_calculator/admin/open_as.dart';
 import 'package:cgpa_calculator/admin/publish_page.dart';
 import 'package:cgpa_calculator/admin/roster.dart';
 import 'package:cgpa_calculator/admin/succession.dart';
@@ -771,5 +772,45 @@ void main() {
     await t.tap(find.textContaining('I have read the 1 credit change'));
     await t.pump();
     expect(publish(), isNotNull);
+  });
+
+  // ---- T8.4 Open as --------------------------------------------------------
+
+  testWidgets('President row opens the department picker', (t) async {
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    final router = GoRouter(
+      initialLocation: Routes.openAs,
+      routes: [
+        GoRoute(path: Routes.openAs, builder: (_, _) => const OpenAsPage()),
+        GoRoute(
+          path: Routes.openAsDept,
+          builder: (_, _) => const ViewAsDeptPage(),
+        ),
+      ],
+    );
+    await t.pumpWidget(
+      MaterialApp.router(
+        theme: AppPalette.light.materialTheme,
+        routerConfig: router,
+      ),
+    );
+    await t.pumpAndSettle();
+    expect(find.text('Signed in as an owner'), findsOneWidget);
+    await t.tap(find.text('Department president'));
+    await t.pumpAndSettle();
+    expect(find.text('Which department?'), findsOneWidget);
+    expect(find.text('Electronics'), findsOneWidget);
+    expect(find.textContaining('ELEC · A3 · A8 · AA · AC'), findsOneWidget);
+  });
+
+  test('last opened sits on top', () {
+    expect(
+      recentFirst(['BIO', 'CS', 'ELEC', 'MATH'], ['ELEC', 'GONE', 'BIO']),
+      ['ELEC', 'BIO', 'CS', 'MATH'],
+    );
+    expect(recentFirst(['A', 'B'], const []), ['A', 'B']);
   });
 }

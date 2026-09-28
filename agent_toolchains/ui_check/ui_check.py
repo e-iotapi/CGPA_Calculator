@@ -167,6 +167,13 @@ def compare(card=None, head=None, broken=None):
         # Rule L2: layout errors, unless the baseline already had them.
         if r['errors'] and r['errors'] != (report(BASE, s) or {}).get('errors'):
             look.append((s, 'layout error: ' + r['errors'][0][:100], w, h))
+        # Every issue the baseline lacks, before any early exit below: a new
+        # screen, a resized one, or a first run lists all of its issues.
+        old_r = (report(BASE, s) if base and s in base else None) or {'issues': []}
+        for i in sorted(set(r['issues']) - set(old_r['issues'])):
+            new_issues.append(f'{s}  {i}')
+        for i in sorted(set(old_r['issues']) - set(r['issues'])):
+            fixed.append(f'{s}  {i}')
         if not base:
             continue
         if s not in base:
@@ -194,11 +201,6 @@ def compare(card=None, head=None, broken=None):
                 path = os.path.join(crops, s + '.png')
                 pair.save(path)
                 changed.append((s, share, path, pair.width, pair.height))
-        old_r = report(BASE, s) or {'issues': []}
-        for i in sorted(set(r['issues']) - set(old_r['issues'])):
-            new_issues.append(f'{s}  {i}')
-        for i in sorted(set(old_r['issues']) - set(r['issues'])):
-            fixed.append(f'{s}  {i}')
 
     # Rule L4: the card's own screen always gets one full-size look.
     if card:

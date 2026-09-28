@@ -149,6 +149,12 @@ final List<RouteBase> appRoutes = [
             ),
             _staff,
           ),
+          _admin(
+            'open-as/department',
+            () => admin.ViewAsDeptPage(),
+            _ownerOnly,
+          ),
+          _admin('open-as/course', () => admin.ViewAsCoursePage(), _ownerOnly),
           _admin('open-as', () => admin.OpenAsPage(), _ownerOnly),
           _admin('publish', () => admin.PublishPage(), _ownerOnly),
           _admin('professors/merge', () => admin.ProfessorMerge(), _staff),
