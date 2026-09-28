@@ -4,6 +4,7 @@ library;
 
 import 'package:cgpa_calculator/core/grading/official_scheme.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/core/storage/overrides.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,13 +25,15 @@ class FirestoreOfferingSource implements OfferingSource {
 
   @override
   Future<Offering?> get(String courseId, String campus, String term) async {
-    final d =
-        await _db
-            .collection('courses')
-            .doc(courseId)
-            .collection('offerings')
-            .doc(offeringId(campus, term))
-            .get();
+    final d = await Perf.time(
+      'offerings.get',
+      () => _db
+          .collection('courses')
+          .doc(courseId)
+          .collection('offerings')
+          .doc(offeringId(campus, term))
+          .get(),
+    );
     final m = d.data();
     return m == null ? null : Offering.fromMap(m);
   }

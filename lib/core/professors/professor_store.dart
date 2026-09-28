@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -81,10 +82,12 @@ class ProfessorStore {
 
   /// One professor, following a merge to the survivor; cached for the
   /// session.
+  // Budget: 1 read per not-yet-cached professor id (P0); cached across the
+  // in-memory _names map for the session once loaded.
   Future<Professor?> get(String id) async {
     var p = _names[id];
     if (p == null) {
-      final d = await _col.doc(id).get();
+      final d = await Perf.time('professors.get', () => _col.doc(id).get());
       final m = d.data();
       if (m == null) return null;
       p = _names[id] = Professor.fromMap(id, m);

@@ -264,7 +264,7 @@ to `Offering` must be carried through all four, or a save silently drops it.** G
 
 ### 5.1 Gates (run all; `agent_toolchains/code/verify.py` runs them in order)
 ```
-export PATH=/opt/flutter/bin:$PATH
+export PATH=~/development/flutter/bin:$PATH   # /opt/flutter: deprecated (cloud container)
 dart format <only files you changed that were formatted at HEAD>
 flutter analyze lib test          # baseline: exactly 7 infos, 0 new
 flutter test                      # includes the render tests below

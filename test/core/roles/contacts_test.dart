@@ -1,9 +1,13 @@
+import 'dart:io';
+
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/roles/contacts.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/volunteer_message.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 
 const pres = 'f20230802@goa.bits-pilani.ac.in';
 final until = DateTime(2027, 1, 1);
@@ -166,6 +170,38 @@ void main() {
     final v = (await store.myOffer('goa', 'EEE F211'))!;
     await store.withdraw(v);
     expect(await pres.offers('goa', 'ELEC', term: '2026-27-1'), isEmpty);
+  });
+
+  test('myOffer caches for 24h; volunteer/withdraw invalidate it', () async {
+    final dir = await Directory.systemTemp.createTemp('contacts_cache');
+    Hive.init(dir.path);
+    await openSharedCache();
+    addTearDown(() async {
+      await Hive.close();
+      await dir.delete(recursive: true);
+    });
+
+    final db = FakeFirebaseFirestore();
+    const s = 'f20230456@goa.bits-pilani.ac.in';
+    final store = ContactStore(RoleStore(db, me: s, myName: 'S'));
+
+    await store.volunteer('goa', 'EEE F211', name: 'S', term: '2026-27-1');
+    final v1 = await store.myOffer('goa', 'EEE F211');
+    expect(v1!.open, isTrue);
+
+    // A second call within 24h is served from cache: it doesn't see a write
+    // made directly against Firestore, bypassing the store.
+    await db
+        .collection('volunteers')
+        .doc(v1.id)
+        .update({'open': false});
+    final v2 = await store.myOffer('goa', 'EEE F211');
+    expect(v2!.open, isTrue);
+
+    // withdraw() invalidates the cache, so the next read is live.
+    await store.withdraw(v1);
+    final v3 = await store.myOffer('goa', 'EEE F211');
+    expect(v3!.open, isFalse);
   });
 
   test('the WhatsApp messages, verbatim', () {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -31,8 +32,13 @@ class ResourceStore {
   CollectionReference<Map<String, dynamic>> get _resources =>
       _db.collection('resources');
 
+  // Budget: 1 read per department visited, even on a cache hit (P0) — the
+  // version check always goes to the network today; P2c makes this cheap.
   Future<int> _version(String campus) async {
-    final d = await _db.collection('resourceVersions').doc(campus).get();
+    final d = await Perf.time(
+      'resources.version',
+      () => _db.collection('resourceVersions').doc(campus).get(),
+    );
     return (d.data()?['v'] as num?)?.toInt() ?? 0;
   }
 
@@ -51,11 +57,13 @@ class ResourceStore {
     try {
       final v = await _version(campus);
       if (fromCache != null && v == cachedV) return fromCache;
-      final q =
-          await _resources
-              .where('campus', isEqualTo: campus)
-              .where('department', isEqualTo: department)
-              .get();
+      final q = await Perf.time(
+        'resources.department',
+        () => _resources
+            .where('campus', isEqualTo: campus)
+            .where('department', isEqualTo: department)
+            .get(),
+      );
       final rows = [
         for (final d in q.docs)
           if (Resource.fromMap(d.data(), d.id) case final r when !r.removed) r,

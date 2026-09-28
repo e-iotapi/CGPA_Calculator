@@ -3,8 +3,12 @@ import 'dart:async';
 import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
+import 'package:cgpa_calculator/core/env/app_env.dart';
+import 'package:cgpa_calculator/core/env/test_sign_in.dart';
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
@@ -18,6 +22,7 @@ import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/firebase_options.dart';
+import 'package:cgpa_calculator/firebase_options_staging.dart';
 import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
@@ -39,7 +44,12 @@ void main() async {
   // Phone browsers deliver touches out of step with frames, so a drag moves
   // the list unevenly. Resampling lines the touches up with the frames.
   GestureBinding.instance.resamplingEnabled = true;
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: appEnv == AppEnv.staging
+        ? StagingFirebaseOptions.currentPlatform
+        : DefaultFirebaseOptions.currentPlatform,
+  );
+  configureEnv();
   await Hive.initFlutter();
   Hive.registerAdapter(CourseAdapter());
   registerMarksAdapters();
@@ -53,6 +63,7 @@ void main() async {
       message = 'Sign-in failed: ${e.message ?? e.code}';
     }
   }
+  if (isTestEnv) await testSignIn();
   final user = await FirebaseAuth.instance.authStateChanges().first;
   final allowed = user == null ? false : await mayUseApp(user);
   if (user == null || allowed != true) {
@@ -73,21 +84,25 @@ Future<void> startApp(User user) async {
   // Boot from the cached or shipped catalogue; a newer published one is
   // fetched in the background and used from then on (ARCHITECTURE.md §3).
   // Before Sync: stored courses link to it by id.
-  await loadCatalog();
-  await Sync.init(user.uid);
+  // Budget: timing only (P0); loadCatalog/Sync.init read no Firestore
+  // documents worth counting on their own — Sync.pull's users/{uid} get is
+  // counted inside sync.dart.
+  await Perf.time('startup.loadCatalog', loadCatalog);
+  await Perf.time('startup.syncInit', () => Sync.init(user.uid));
   await openOfferings();
   offeringSource = FirestoreOfferingSource();
   unawaited(refreshCatalog(
     FirestoreCatalogSource(),
     beforeUse: relinkStoredCourses,
   ));
-  await basicStartup();
+  await Perf.time('startup.basicStartup', basicStartup);
   unawaited(refreshCurrentOfferings());
   // Roles (ARCHITECTURE.md §4): the last known set opens at once, the live
   // one follows.
   await openDeviceBox();
   await openResources();
   await openReviews();
+  await openSharedCache();
   myUid = user.uid;
   stripNavigate = appRouter.go;
   restoreMyRoles();
