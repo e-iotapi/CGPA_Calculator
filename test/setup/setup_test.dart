@@ -27,9 +27,11 @@ Future<void> _pump(
       theme: AppPalette.light.materialTheme,
       builder:
           (c, child) => MediaQuery(
-            data: MediaQuery.of(
-              c,
-            ).copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(c).copyWith(
+              textScaler: TextScaler.linear(scale),
+              // The install card's nudge never settles.
+              disableAnimations: true,
+            ),
             child: child!,
           ),
       home: KeyedSubtree(key: UniqueKey(), child: child),
@@ -276,12 +278,12 @@ void main() {
     ) async {
       await _pump(t, ErpImportPage(onDone: () {}, installable: true));
       await t.scrollUntilVisible(find.text('Install'), 200);
-      expect(find.text('Keep Pointer on your home screen'), findsOneWidget);
+      expect(find.text('Install Pointer'), findsOneWidget);
       await _pump(t, ErpImportPage(onDone: () {}, installable: false));
-      expect(find.text('Keep Pointer on your home screen'), findsNothing);
+      expect(find.text('Install Pointer'), findsNothing);
       // Settings' import is not the end of setup.
       await _pump(t, const ErpImportPage(installable: true));
-      expect(find.text('Keep Pointer on your home screen'), findsNothing);
+      expect(find.text('Install Pointer'), findsNothing);
       await _pump(
         t,
         ErpImportPage(onDone: () {}, installable: true),
