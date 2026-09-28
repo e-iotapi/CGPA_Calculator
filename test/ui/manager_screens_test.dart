@@ -5,6 +5,7 @@
 //
 //   SHOTS_DIR=/some/dir flutter test test/ui/manager_screens_test.dart
 import 'package:cgpa_calculator/admin/admin.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
@@ -33,7 +34,15 @@ void main() {
     ('m_admin_home_pres', () => const AdminHome(), As.president, 900),
     ('m_people', () => const AdminPeople(), As.owner, 900),
     ('m_person', () => PersonPage(grant: presGrant), As.owner, 900),
-    ('m_grant', () => const AdminGrant(), As.owner, 1130),
+    (
+      'm_grant',
+      // The board's state: an address that resolves, president of ELEC.
+      () => const AdminGrant(
+        prefill: (role: GrantRole.dept, email: presEmail, scope: 'ELEC'),
+      ),
+      As.owner,
+      1130,
+    ),
     ('m_grant_pres', () => const AdminGrant(), As.president, 1130),
     ('m_owners', () => const OwnersPage(), As.owner, 860),
     ('m_terms', () => const TermsPage(), As.owner, 844),

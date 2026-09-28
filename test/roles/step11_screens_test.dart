@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cgpa_calculator/admin/admin_home.dart';
 import 'package:cgpa_calculator/admin/config_pages.dart';
+import 'package:cgpa_calculator/admin/grant_form.dart';
 import 'package:cgpa_calculator/admin/open_as.dart';
 import 'package:cgpa_calculator/admin/people.dart';
 import 'package:cgpa_calculator/admin/publish_page.dart';
@@ -857,5 +858,53 @@ void main() {
       expiresAt: DateTime.now().add(const Duration(days: 9)),
     );
     expect(expiresSoon(later), isFalse);
+  });
+
+  // ---- T8.6 Appoint --------------------------------------------------------
+
+  Future<void> appointForm(WidgetTester t, String address) async {
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    await db.collection('people').doc(pres).set({
+      'name': 'Meera Iyer',
+      'campus': 'goa',
+    });
+    await t.pumpWidget(app(const AdminGrant()));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField).first, address);
+    // Looked up once typing stops, with no button to press.
+    await t.pump(const Duration(milliseconds: 450));
+    await t.pumpAndSettle();
+  }
+
+  String grantButton(WidgetTester t) =>
+      t.widget<PrimaryButton>(find.byType(PrimaryButton)).label;
+
+  testWidgets('grant button names the grant', (t) async {
+    await appointForm(t, 'f2023@goa.bits-pilani.ac.in');
+    expect(grantButton(t), 'Grant');
+    await appointForm(t, pres);
+    expect(find.text('Meera Iyer uses Pointer'), findsOneWidget);
+    await t.tap(find.text('President'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Choose a department'));
+    await t.pumpAndSettle();
+    await t.tap(find.textContaining('ELEC · '));
+    await t.pumpAndSettle();
+    await t.tap(find.text('A3'));
+    await t.pumpAndSettle();
+    expect(grantButton(t), 'Grant — president, ELEC Goa');
+    expect(
+      grantLabel(GrantRole.course, 'CS F372', 'goa'),
+      'Grant — course manager, CS F372 Goa',
+    );
+  });
+
+  testWidgets('unknown address says Can not be found', (t) async {
+    await appointForm(t, 'f20249999@goa.bits-pilani.ac.in');
+    expect(find.text('Can not be found'), findsOneWidget);
+    expect(grantButton(t), 'Grant');
   });
 }
