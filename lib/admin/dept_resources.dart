@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:flutter/material.dart';
 
 ResourceStore get _store => resourceStore!;
@@ -810,8 +811,9 @@ class _CourseResourcesState extends State<CourseResources> {
             Row(
               children: [
                 const Expanded(child: SectionLabel('Course resources')),
-                TextButton(
-                  onPressed: () async {
+                TextLink(
+                  'Add',
+                  onTap: () async {
                     if (await editLink(
                       context,
                       campus: widget.campus,
@@ -823,7 +825,6 @@ class _CourseResourcesState extends State<CourseResources> {
                       setState(() => _loads++);
                     }
                   },
-                  child: const Text('Add'),
                 ),
               ],
             ),
@@ -838,6 +839,7 @@ class _CourseResourcesState extends State<CourseResources> {
                             campus: widget.campus,
                             dept: _dept,
                             course: widget.courseId,
+                            initialTab: 2,
                           ),
                     ),
                   );
@@ -853,7 +855,18 @@ class _CourseResourcesState extends State<CourseResources> {
                         active: true,
                       ),
                     ),
-                    Text('Open', style: TextStyle(color: p.noticeTone.text)),
+                    Text(
+                      'Open',
+                      style: TypeScale.caption.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: p.noticeTone.text,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: p.noticeTone.text,
+                    ),
                   ],
                 ),
               ),
@@ -883,10 +896,39 @@ class _CourseResourcesState extends State<CourseResources> {
               ],
             ),
             if (mine.isEmpty) const Note('No links for this course yet.'),
-            TextButton.icon(
-              onPressed: () => _pick(data.links),
-              icon: const Icon(Icons.playlist_add_rounded),
-              label: const Text('Pick from department resources'),
+            const SizedBox(height: Space.sm),
+            DashedOutline(
+              color: p.textMuted,
+              radius: 22,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: () => _pick(data.links),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.playlist_add_rounded,
+                          size: 18,
+                          color: p.text,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Pick from department resources',
+                            style: TypeScale.body.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         );

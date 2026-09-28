@@ -516,46 +516,22 @@ class _CourseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final o = this.o;
-    Widget chip(String text, {Color? fill, Color? ink, bool dashed = false}) {
-      final label = Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
-          text,
-          maxLines: 1,
-          style: TypeScale.caption.copyWith(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: ink ?? p.textMuted,
-          ),
-        ),
-      );
-      final box = ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 20),
-        child: Center(widthFactor: 1, child: label),
-      );
-      return dashed
-          ? DashedOutline(color: p.textMuted, radius: 10, child: box)
-          : DecoratedBox(
-            decoration: BoxDecoration(
-              color: fill ?? p.surfaceSunken,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: box,
-          );
-    }
-
     final chips = <Widget>[];
     if (o == null || !o.hasScheme) {
-      chips.add(chip('No scheme yet', dashed: true));
+      chips.add(const MiniChip('No scheme yet', dashed: true));
     } else {
       final n = o.components.length;
       final sum = o.components.fold(0.0, (s, c) => s + c.weight);
       final full = o.weighted ? sum >= 100 : sum >= o.totalMarks;
       chips.add(
-        chip('$n component${n == 1 ? '' : 's'}', fill: p.hero, ink: p.onHero),
+        MiniChip(
+          '$n component${n == 1 ? '' : 's'}',
+          fill: p.hero,
+          ink: p.onHero,
+        ),
       );
       chips.add(
-        chip(
+        MiniChip(
           o.weighted
               ? '${_n(sum)}% assigned'
               : '${_n(sum)} of ${_n(o.totalMarks)} marks',
@@ -566,8 +542,8 @@ class _CourseRow extends StatelessWidget {
     }
     chips.add(
       cr == null
-          ? chip('No CR', dashed: true)
-          : chip('CR: ${shortEmail(cr!)}', ink: p.text),
+          ? const MiniChip('No CR', dashed: true)
+          : MiniChip('CR: ${shortEmail(cr!)}', ink: p.text),
     );
     return InkWell(
       onTap: onTap,
@@ -767,6 +743,11 @@ class _UploadCardState extends State<UploadCard> {
   }
 }
 
+Text _name(String name) => Text(
+  name,
+  style: TypeScale.body.copyWith(fontSize: 13, fontWeight: FontWeight.w700),
+);
+
 /// Board `CrHome`: one course, as its CR keeps it this term (§13.3).
 class CrHome extends StatelessWidget {
   const CrHome({super.key, required this.campus, required this.courseId});
@@ -775,6 +756,8 @@ class CrHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    // Large text puts a component's chips under its name.
+    final stack = MediaQuery.textScalerOf(context).scale(10) > 12;
     return Loaded<Offering?>(
       load: () => _store.offering(courseId, campus, maintainedTerm),
       builder: (context, o, reload) {
@@ -810,12 +793,11 @@ class CrHome extends StatelessWidget {
               onSaved: reload,
             ),
             const SizedBox(height: Space.md),
-            LabelRow(
-              label: const SectionLabel('Evaluation scheme'),
-              trailing: TextButton(
-                onPressed: edit,
-                child: Text(o?.hasScheme ?? false ? 'Edit' : 'Add'),
-              ),
+            Row(
+              children: [
+                const Expanded(child: SectionLabel('Evaluation scheme')),
+                TextLink(o?.hasScheme ?? false ? 'Edit' : 'Add', onTap: edit),
+              ],
             ),
             if (o == null || !o.hasScheme)
               const Note(
@@ -823,25 +805,63 @@ class CrHome extends StatelessWidget {
                 'add one.',
               )
             else ...[
-              RowGroup(
-                children: [
-                  for (final c in o.components)
-                    NavRow(
-                      icon: Icons.assignment_outlined,
-                      title: c.name,
-                      subtitle:
-                          c.average == null
-                              ? 'no avg'
-                              : 'avg ${c.average!.toStringAsFixed(1)}',
-                      trailing: Text(
-                        o.weighted ? '${_n(c.weight)}%' : _n(c.weight),
-                        style: TypeScale.body.copyWith(
-                          fontWeight: FontWeight.w700,
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (i, c) in o.components.indexed) ...[
+                      if (i > 0) const CardDivider(),
+                      InkWell(
+                        onTap: edit,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 52),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 10,
+                            ),
+                            child: Flex(
+                              direction:
+                                  stack ? Axis.vertical : Axis.horizontal,
+                              crossAxisAlignment:
+                                  stack
+                                      ? CrossAxisAlignment.start
+                                      : CrossAxisAlignment.center,
+                              children: [
+                                if (stack)
+                                  _name(c.name)
+                                else
+                                  Expanded(child: _name(c.name)),
+                                const SizedBox(width: Space.sm, height: 6),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    MiniChip(
+                                      o.weighted
+                                          ? '${_n(c.weight)}%'
+                                          : _n(c.weight),
+                                      ink: p.text,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    if (c.average case final a?)
+                                      MiniChip(
+                                        'avg ${a.toStringAsFixed(1)}',
+                                        fill: p.hero,
+                                        ink: p.onHero,
+                                      )
+                                    else
+                                      const MiniChip('no avg', dashed: true),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      onTap: edit,
-                    ),
-                ],
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(height: Space.xs),
               Text(

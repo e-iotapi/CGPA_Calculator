@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
@@ -749,9 +750,9 @@ class InkCard extends StatelessWidget {
 /// A row's leading icon on a 34 px rounded tile; amber for an action that
 /// needs care (Hand over).
 class IconTile extends StatelessWidget {
-  const IconTile(this.icon, {super.key, this.amber = false});
+  const IconTile(this.icon, {super.key, this.amber = false, this.mint = false});
   final IconData icon;
-  final bool amber;
+  final bool amber, mint;
 
   @override
   Widget build(BuildContext context) {
@@ -761,10 +762,71 @@ class IconTile extends StatelessWidget {
       width: 34,
       height: 34,
       decoration: BoxDecoration(
-        color: amber ? t.fill : p.surfaceSunken,
+        color:
+            amber
+                ? t.fill
+                : mint
+                ? p.hero
+                : p.surfaceSunken,
         borderRadius: BorderRadius.circular(11),
       ),
-      child: Icon(icon, size: 17, color: amber ? t.text : p.icon),
+      child: Icon(
+        icon,
+        size: 17,
+        color:
+            amber
+                ? t.text
+                : mint
+                ? p.onHero
+                : p.icon,
+      ),
     );
+  }
+}
+
+/// A 20 tall chip for a fact about a row: filled, or dashed for something
+/// not there yet ("No scheme yet", "no avg").
+class MiniChip extends StatelessWidget {
+  const MiniChip(
+    this.text, {
+    super.key,
+    this.fill,
+    this.ink,
+    this.dashed = false,
+  });
+  final String text;
+  final Color? fill, ink;
+  final bool dashed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final box = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 20),
+      child: Center(
+        widthFactor: 1,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            text,
+            maxLines: 1,
+            style: TypeScale.caption.copyWith(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: ink ?? p.textMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+    return dashed
+        ? DashedOutline(color: p.textMuted, radius: 10, child: box)
+        : DecoratedBox(
+          decoration: BoxDecoration(
+            color: fill ?? p.surfaceSunken,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: box,
+        );
   }
 }

@@ -673,7 +673,6 @@ class _TakenByState extends State<TakenBy> {
 
   @override
   Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
     return Loaded<List<Professor>>(
       load: () => _store.department(widget.campus, deptOf(widget.courseId)),
       builder: (context, profs, _) {
@@ -685,30 +684,22 @@ class _TakenByState extends State<TakenBy> {
             Row(
               children: [
                 const Expanded(child: SectionLabel('Taken by, this term')),
-                TextButton(
-                  onPressed: () => _change(profs),
-                  child: const Text('Change'),
-                ),
+                TextLink('Change', onTap: () => _change(profs)),
               ],
             ),
             AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+              padding: EdgeInsets.zero,
+              child: CardRow(
+                leading: const IconTile(Icons.school_outlined, mint: true),
+                title:
                     ids.isEmpty
                         ? 'Not set yet'
                         : ids
                             .map((id) => byId[id]?.name ?? 'Unknown')
                             .join(', '),
-                    style: TypeScale.body.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    'Picked from the department list — you cannot add a new '
-                    'name',
-                    style: TypeScale.caption.copyWith(color: p.textMuted),
-                  ),
-                ],
+                titleLines: 2,
+                subtitle: 'Picked from the department list',
+                onTap: () => _change(profs),
               ),
             ),
           ],

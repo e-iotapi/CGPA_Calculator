@@ -1183,4 +1183,14 @@ void main() {
     expect(find.textContaining(shortDay(ends, year: true)), findsOneWidget);
     expect(button(t, 'Review the handover'), isNull);
   });
+
+  testWidgets('scheme shows averages', (t) async {
+    await t.runAsync(() => seedFirestore(db));
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    await t.pumpWidget(app(const CrHome(campus: 'goa', courseId: 'CS F372')));
+    await t.pumpAndSettle();
+    expect(find.text('avg 12.4'), findsOneWidget);
+    expect(find.text('no avg'), findsWidgets);
+    expect(find.text('Pick from department resources'), findsOneWidget);
+  });
 }
