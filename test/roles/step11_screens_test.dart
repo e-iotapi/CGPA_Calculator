@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cgpa_calculator/admin/admin_home.dart';
 import 'package:cgpa_calculator/admin/config_pages.dart';
 import 'package:cgpa_calculator/admin/open_as.dart';
+import 'package:cgpa_calculator/admin/people.dart';
 import 'package:cgpa_calculator/admin/publish_page.dart';
 import 'package:cgpa_calculator/admin/roster.dart';
 import 'package:cgpa_calculator/admin/succession.dart';
@@ -812,5 +813,49 @@ void main() {
       ['ELEC', 'BIO', 'CS', 'MATH'],
     );
     expect(recentFirst(['A', 'B'], const []), ['A', 'B']);
+  });
+
+  // ---- T8.5 Maintainers ----------------------------------------------------
+
+  testWidgets('expiring grant is amber', (t) async {
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    final g = Grant(
+      role: GrantRole.dept,
+      email: 'p2@goa.bits-pilani.ac.in',
+      name: 'Rohan Deshpande',
+      campus: 'goa',
+      scope: 'CS',
+      active: true,
+      // An hour of slack, so "4 days" survives the test's own clock.
+      expiresAt: DateTime.now().add(const Duration(days: 4, hours: 1)),
+    );
+    await seedGrant(g);
+    await t.pumpWidget(app(const AdminPeople()));
+    await t.pumpAndSettle();
+    expect(find.text('EXPIRES IN 4 DAYS'), findsOneWidget);
+    expect(find.textContaining('Renewing is deliberate'), findsOneWidget);
+    final block = t.widget<Container>(
+      find
+          .ancestor(
+            of: find.text('Rohan Deshpande'),
+            matching: find.byType(Container),
+          )
+          .last,
+    );
+    final ctx = t.element(find.byType(AdminPeople));
+    expect(block.color, AppPalette.of(ctx).noticeTone.fill);
+    final later = Grant(
+      role: g.role,
+      email: g.email,
+      name: g.name,
+      campus: g.campus,
+      scope: g.scope,
+      active: true,
+      expiresAt: DateTime.now().add(const Duration(days: 9)),
+    );
+    expect(expiresSoon(later), isFalse);
   });
 }
