@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cgpa_calculator/admin/admin_home.dart';
 import 'package:cgpa_calculator/admin/config_pages.dart';
+import 'package:cgpa_calculator/admin/dept_resources.dart';
 import 'package:cgpa_calculator/admin/grant_form.dart';
 import 'package:cgpa_calculator/admin/open_as.dart';
 import 'package:cgpa_calculator/admin/people.dart';
@@ -1116,5 +1117,24 @@ void main() {
     expect(find.text('KEEP'), findsOneWidget);
     expect(find.text('Merge into Ramesh Menon'), findsOneWidget);
     expect(find.textContaining('Also known as Dr. R. Menon'), findsOneWidget);
+  });
+
+  testWidgets('reported tab counts reports', (t) async {
+    await t.runAsync(() => seedFirestore(db));
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    await t.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: app(const DeptResources(campus: 'goa', dept: 'ELEC')),
+      ),
+    );
+    await t.pumpAndSettle();
+    expect(find.text('Reported 1'), findsOneWidget);
+    expect(find.text('Add a link'), findsOneWidget);
+    await t.tap(find.text('Reported 1'));
+    await t.pumpAndSettle();
+    expect(find.text('Fix the link'), findsOneWidget);
+    expect(find.text('It works · dismiss'), findsOneWidget);
+    expect(find.text('Add a link'), findsNothing);
   });
 }
