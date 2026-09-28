@@ -1125,17 +1125,20 @@ void main() {
   testWidgets('reported tab counts reports', (t) async {
     await t.runAsync(() => seedFirestore(db));
     signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
-    await t.pumpWidget(
-      MediaQuery(
-        data: const MediaQueryData(disableAnimations: true),
-        child: app(const DeptResources(campus: 'goa', dept: 'ELEC')),
-      ),
-    );
-    await t.pumpAndSettle();
+    // The Reported dot pulses for as long as the page is open, so this
+    // pumps frames instead of settling (UI_OPT O6.1).
+    Future<void> frames() async {
+      for (var i = 0; i < 6; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await t.pumpWidget(app(const DeptResources(campus: 'goa', dept: 'ELEC')));
+    await frames();
     expect(find.text('Reported 1'), findsOneWidget);
     expect(find.text('Add a link'), findsOneWidget);
     await t.tap(find.text('Reported 1'));
-    await t.pumpAndSettle();
+    await frames();
     expect(find.text('Fix the link'), findsOneWidget);
     expect(find.text('It works · dismiss'), findsOneWidget);
     expect(find.text('Add a link'), findsNothing);

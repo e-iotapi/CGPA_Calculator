@@ -194,8 +194,52 @@ class _LinkSheetState extends State<_LinkSheet> {
   }
 }
 
+/// Drives a reported pulse: runs only while [active] and its page is on top
+/// (a pushed page pauses it). Under reduced motion it keeps a slower, dot-only
+/// pulse, 1 ↔ 0.4 over 2400 ms: the board keeps the Reported dot pulsing
+/// (UI.md §10.1.2; UI_OPT O6.1).
+mixin _Pulse<T extends StatefulWidget>
+    on State<T>, SingleTickerProviderStateMixin<T> {
+  late final pulse = AnimationController(vsync: this);
+  bool still = false;
+
+  bool get active;
+  Duration get period;
+
+  /// Runs there and back rather than restarting; always under reduced motion.
+  bool get bounce => still;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    syncPulse();
+  }
+
+  void syncPulse() {
+    final s = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final shown = ModalRoute.isCurrentOf(context) ?? true;
+    if (s != still || pulse.duration == null) {
+      still = s;
+      pulse.stop();
+      pulse.duration = s ? const Duration(milliseconds: 2400) : period;
+    }
+    if (active && shown) {
+      if (!pulse.isAnimating) pulse.repeat(reverse: bounce);
+    } else {
+      pulse.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    pulse.dispose();
+    super.dispose();
+  }
+}
+
 /// A tab label that turns amber and pulses while anything is reported
-/// (§16.3 fix 17); still under reduced motion.
+/// (§16.3 fix 17). Only a ring layer and the dot animate, by transform and
+/// opacity; the pill itself never rebuilds per tick (UI_OPT O6.1).
 class PulsingTab extends StatefulWidget {
   const PulsingTab({super.key, required this.label, required this.active});
   final String label;
@@ -206,38 +250,17 @@ class PulsingTab extends StatefulWidget {
 }
 
 class _PulsingTabState extends State<PulsingTab>
-    with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
+    with SingleTickerProviderStateMixin, _Pulse {
+  @override
+  bool get active => widget.active;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
+  Duration get period => const Duration(milliseconds: 1800);
 
   @override
   void didUpdateWidget(PulsingTab old) {
     super.didUpdateWidget(old);
-    _sync();
-  }
-
-  void _sync() {
-    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (widget.active && !still) {
-      if (!_c.isAnimating) _c.repeat();
-    } else {
-      _c.stop();
-      _c.value = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
+    syncPulse();
   }
 
   @override
@@ -245,39 +268,70 @@ class _PulsingTabState extends State<PulsingTab>
     final p = AppPalette.of(context);
     if (!widget.active) return Text(widget.label);
     final t = p.noticeTone;
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final v = _c.value;
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: t.fill,
-            borderRadius: BorderRadius.circular(99),
-            boxShadow: [
-              BoxShadow(
-                color: t.text.withValues(alpha: 0.35 * (1 - v)),
-                spreadRadius: 6 * v,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: t.text.withValues(alpha: 0.5 + 0.5 * (1 - v)),
-                  shape: BoxShape.circle,
+    final shape = BorderRadius.circular(99);
+    final pill = DecoratedBox(
+      decoration: BoxDecoration(color: t.fill, borderRadius: shape),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FadeTransition(
+              opacity: Tween(begin: 1.0, end: still ? 0.4 : 0.5).animate(pulse),
+              child: SizedBox.square(
+                dimension: 7,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: t.text,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
-              const SizedBox(width: 6),
-              Text(widget.label, style: TextStyle(color: t.text)),
-            ],
-          ),
-        );
-      },
+            ),
+            const SizedBox(width: 6),
+            Text(widget.label, style: TextStyle(color: t.text)),
+          ],
+        ),
+      ),
+    );
+    return RepaintBoundary(
+      child: Stack(
+        fit: StackFit.passthrough,
+        clipBehavior: Clip.none,
+        children: [
+          // The ring: grows 6 px past the pill and fades, as the old
+          // spreading shadow did, by transform and opacity only.
+          if (!still)
+            Positioned.fill(
+              child: FadeTransition(
+                opacity: Tween(begin: 0.35, end: 0.0).animate(pulse),
+                child: LayoutBuilder(
+                  builder:
+                      (_, c) => AnimatedBuilder(
+                        animation: pulse,
+                        builder:
+                            (_, ring) => Transform(
+                              alignment: Alignment.center,
+                              transform: Matrix4.diagonal3Values(
+                                1 + 12 * pulse.value / c.maxWidth,
+                                1 + 12 * pulse.value / c.maxHeight,
+                                1,
+                              ),
+                              child: ring,
+                            ),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: t.text,
+                            borderRadius: shape,
+                          ),
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          pill,
+        ],
+      ),
     );
   }
 }
@@ -301,38 +355,21 @@ class _Tabs extends StatefulWidget {
   State<_Tabs> createState() => _TabsState();
 }
 
-class _TabsState extends State<_Tabs> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
+class _TabsState extends State<_Tabs>
+    with SingleTickerProviderStateMixin, _Pulse {
+  @override
+  bool get active => widget.reported;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
+  Duration get period => const Duration(milliseconds: 1400);
+
+  @override
+  bool get bounce => true;
 
   @override
   void didUpdateWidget(_Tabs old) {
     super.didUpdateWidget(old);
-    _sync();
-  }
-
-  void _sync() {
-    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (widget.reported && !still) {
-      if (!_c.isAnimating) _c.repeat(reverse: true);
-    } else {
-      _c.stop();
-      _c.value = 1;
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
+    syncPulse();
   }
 
   @override
@@ -371,14 +408,20 @@ class _TabsState extends State<_Tabs> with SingleTickerProviderStateMixin {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (amber) ...[
-                      FadeTransition(
-                        opacity: Tween(begin: 0.35, end: 1.0).animate(_c),
-                        child: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: ink,
-                            shape: BoxShape.circle,
+                      // Its own layer: only the dot's opacity moves.
+                      RepaintBoundary(
+                        child: FadeTransition(
+                          opacity: Tween(
+                            begin: still ? 0.4 : 0.35,
+                            end: 1.0,
+                          ).animate(pulse),
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: ink,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
                       ),
