@@ -17,6 +17,7 @@ import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/features/marks/scheme_editor_page.dart';
 import 'package:cgpa_calculator/features/marks/widgets/average_sources.dart';
 import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
 import 'package:cgpa_calculator/features/marks/widgets/taken_by.dart';
@@ -147,16 +148,24 @@ class _MarksPageState extends State<MarksPage> {
         title: displayTitle(c.id, c.title),
         leading: false,
         actions: [
-          if (widget.onEditCourse != null)
-            CircleIconButton(
-              icon: Icons.edit_outlined,
-              tooltip: 'Edit course',
-              onPressed: () {
-                Navigator.of(context).pop();
-                widget.onEditCourse!();
-              },
-              size: 42,
-            ),
+          CircleIconButton(
+            icon: Icons.edit_outlined,
+            tooltip: 'Edit scheme',
+            onPressed:
+                () => _open(
+                  SchemeEditorPage(
+                    course: c,
+                    onEditCourse:
+                        widget.onEditCourse == null
+                            ? null
+                            : () {
+                              Navigator.of(context).pop();
+                              widget.onEditCourse!();
+                            },
+                  ),
+                ),
+            size: 42,
+          ),
         ],
       ),
       children: [
