@@ -1,6 +1,6 @@
 {
- "current": "T8.13 \u00b7 Department pages",
- "note": "Group 8: 12 of 15 cards pushed. Since the last update: Audit log, Roster and Volunteers, and Merge (department chosen from the pill select, no dropdown). From your UI sheet feedback: the Secretary tier on Appoint (UI only), a row per ELEC branch in Open as, and New component now matches Edit component. T8.13 is partly pushed: Your department (no Appoint a CR row, THIS WEEK card), Resources (animated pill tabs with amber Reported) and Reviews. Still to do in T8.13: Course structures and Professors. Then T8.14 and T8.15. I'm doing the cards myself, with no helpers in this session.",
+ "current": "UI_OPT O3 \u00b7 Rebuild less",
+ "note": "Group 8 is done: all 15 manager cards are pushed. Since the last update: Your department (THIS WEEK card, no Appoint a CR row), Course structures (dashed mint drop zone, chips per course), Reviews (counted tabs, Keep / Hide pills), Resources (animated pill tabs, amber Reported), Professors, Hand over + Confirm (numbered timeline, typed code) and the CR course page (avg / no avg chips). Pieces repeated across screens now live once in admin/widgets.dart (InkCard, IconTile, TextLink, AmberPill, MiniChip). Next: UI_OPT O3\u2013O6 and O8, then Group 9. Open question: T8.15's COURSE AVERAGE input is marked Ask; for now the page only shows a stored average.",
  "groups": [
   [
    "Group 2 \u00b7 finish",
@@ -171,6 +171,9 @@
   "T8.9",
   "T8.10",
   "T8.11",
-  "T8.12"
+  "T8.12",
+  "T8.13",
+  "T8.14",
+  "T8.15"
  ]
 }
