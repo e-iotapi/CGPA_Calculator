@@ -153,24 +153,49 @@
         sessionStorage.setItem('ptr-gl-reload', String(Date.now()));
         location.reload();
       }
-      function hook(root) {
-        root.querySelectorAll('*').forEach(function(el) {
-          if (el.tagName === 'CANVAS' && !el.dataset.ptrHooked) {
-            el.dataset.ptrHooked = '1';
-            el.addEventListener('webglcontextlost', onLost);
-          }
-          if (el.shadowRoot) hook(el.shadowRoot);
-        });
+      // UI_OPT O7.2: hook once, watch only the Flutter view's own shadow
+      // root for a new canvas (the engine recreates one on context loss),
+      // and stop watching once nothing new has shown up for 10s — instead
+      // of walking the whole document on every DOM mutation.
+      var viewRoot = document;
+      function hookEl(el) {
+        if (el.tagName === 'CANVAS' && !el.dataset.ptrHooked) {
+          el.dataset.ptrHooked = '1';
+          el.addEventListener('webglcontextlost', onLost);
+        }
+      }
+      function hookAll(root) {
+        hookEl(root);
+        if (root.querySelectorAll) root.querySelectorAll('canvas').forEach(hookEl);
       }
       window.addEventListener('flutter-first-frame', function() {
-        hook(document);
-        new MutationObserver(function() { hook(document); })
-          .observe(document.body, {childList: true, subtree: true});
+        var view = document.querySelector('flutter-view');
+        viewRoot = (view && view.shadowRoot) || document;
+        hookAll(viewRoot);
+        var lastNewCanvas = Date.now();
+        var observer = new MutationObserver(function(mutations) {
+          var sawCanvas = false;
+          mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(n) {
+              if (n.nodeType !== 1) return;
+              hookAll(n);
+              if (n.tagName === 'CANVAS' || (n.querySelector && n.querySelector('canvas'))) {
+                sawCanvas = true;
+              }
+            });
+          });
+          if (sawCanvas) lastNewCanvas = Date.now();
+        });
+        observer.observe(viewRoot, {childList: true});
+        (function checkIdle() {
+          if (Date.now() - lastNewCanvas > 10000) { observer.disconnect(); return; }
+          setTimeout(checkIdle, 2000);
+        })();
       });
       document.addEventListener('visibilitychange', function() {
         if (document.visibilityState !== 'visible') return;
         if (lost) { reloadOnce(); return; }
-        hook(document);
+        hookAll(viewRoot);
         window.dispatchEvent(new Event('resize'));
       });
     })();
