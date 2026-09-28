@@ -17,7 +17,6 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
-import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
@@ -25,6 +24,9 @@ import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -142,26 +144,13 @@ class DeptHome extends StatelessWidget {
             courses
                 .where((c) => !(d.offerings[c.id]?.hasScheme ?? false))
                 .length;
-        Widget tile(IconData icon, {bool amber = false}) {
-          final t = p.noticeTone;
-          return Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: amber ? t.fill : p.surfaceSunken,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(icon, size: 17, color: amber ? t.text : p.icon),
-          );
-        }
-
         Widget badge(int? n) =>
             n == null || n == 0 ? const SizedBox.shrink() : CountBadge('$n');
         String plural(int n, String one) => '$n $one${n == 1 ? '' : 's'}';
 
         final rows = [
           CardRow(
-            leading: tile(Icons.account_tree_outlined),
+            leading: IconTile(Icons.account_tree_outlined),
             title: 'Course structures',
             titleLines: 2,
             subtitle:
@@ -175,7 +164,7 @@ class DeptHome extends StatelessWidget {
             },
           ),
           CardRow(
-            leading: tile(Icons.link_rounded),
+            leading: IconTile(Icons.link_rounded),
             title: 'Resources',
             subtitle:
                 d.links == null
@@ -190,7 +179,7 @@ class DeptHome extends StatelessWidget {
             },
           ),
           CardRow(
-            leading: tile(Icons.rate_review_outlined),
+            leading: IconTile(Icons.rate_review_outlined),
             title: 'Reviews',
             subtitle:
                 d.reported == null || d.reported == 0
@@ -204,7 +193,7 @@ class DeptHome extends StatelessWidget {
             },
           ),
           CardRow(
-            leading: tile(Icons.school_outlined),
+            leading: IconTile(Icons.school_outlined),
             title: 'Professors',
             subtitle:
                 d.profs == null
@@ -214,7 +203,7 @@ class DeptHome extends StatelessWidget {
             onTap: () => context.push(Routes.deptProfessors(campus, dept)),
           ),
           CardRow(
-            leading: tile(Icons.badge_outlined),
+            leading: IconTile(Icons.badge_outlined),
             title: 'People',
             subtitle: 'Presidents and CRs on your campus',
             minHeight: 58,
@@ -280,7 +269,7 @@ class DeptHome extends StatelessWidget {
             AppCard(
               padding: EdgeInsets.zero,
               child: CardRow(
-                leading: tile(Icons.swap_horiz_rounded, amber: true),
+                leading: IconTile(Icons.swap_horiz_rounded, amber: true),
                 title: 'Hand over to your successor',
                 titleLines: 2,
                 subtitle: 'They start now · you keep access for 20 days',
@@ -289,55 +278,44 @@ class DeptHome extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Space.sm),
-            AppCard(
-              color: p.navBackground,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'THIS WEEK',
-                    style: TypeScale.label.copyWith(
-                      color: p.hero,
-                      letterSpacing: 1.2,
-                    ),
+            InkCard(
+              eyebrow: 'THIS WEEK',
+              children: [
+                Text(
+                  '$byMe by you · $byPres by other presidents · '
+                  '$byCrs by CRs',
+                  style: TypeScale.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                    color: p.isDark ? p.text : p.onInverse,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '$byMe by you · $byPres by other presidents · '
-                    '$byCrs by CRs',
-                    style: TypeScale.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                      height: 1.35,
-                      color: p.isDark ? p.text : p.onInverse,
-                    ),
-                  ),
-                  const SizedBox(height: Space.xs),
-                  InkWell(
-                    onTap: () => context.push(Routes.adminAudit),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 44),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Audit log',
-                            style: TypeScale.body.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: p.hero,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 16,
+                ),
+                const SizedBox(height: Space.xs),
+                InkWell(
+                  onTap: () => context.push(Routes.adminAudit),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Audit log',
+                          style: TypeScale.body.copyWith(
+                            fontWeight: FontWeight.w700,
                             color: p.hero,
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 16,
+                          color: p.hero,
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         );
@@ -415,15 +393,25 @@ class _DeptCoursesState extends State<DeptCourses> {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final courses = deptCourses(widget.dept);
-    return Loaded<Map<String, Offering>>(
+    return Loaded<(Map<String, Offering>, Map<String, String>)>(
       key: ValueKey(_loads),
-      load:
-          () => _store.offerings(
-            courses.map((c) => c.id),
-            widget.campus,
-            maintainedTerm,
-          ),
-      builder: (context, offerings, reload) {
+      load: () async {
+        final offerings = await _store.offerings(
+          courses.map((c) => c.id),
+          widget.campus,
+          maintainedTerm,
+        );
+        final grants = await _maybe(roleStore!.roster(campus: widget.campus));
+        return (
+          offerings,
+          {
+            for (final g in grants ?? const <Grant>[])
+              if (g.active && g.role == GrantRole.course) g.scope: g.email,
+          },
+        );
+      },
+      builder: (context, data, reload) {
+        final (offerings, crs) = data;
         final q = _search.text.trim().toLowerCase();
         final shown = [
           for (final c in courses)
@@ -442,55 +430,60 @@ class _DeptCoursesState extends State<DeptCourses> {
             title: 'Course structures',
           ),
           children: [
-            UploadCard(
+            _DropZone(
               onFile:
                   () async =>
                       _upload(await pickTextFile('.json,application/json')),
               onPaste: _paste,
             ),
+            const SizedBox(height: Space.sm),
+            const UploadCard(),
             const SizedBox(height: Space.md),
-            AppTextField(
+            SearchBox(
               controller: _search,
-              label: 'Search ${courses.length} courses',
-              dense: true,
+              hint: 'Search ${courses.length} courses',
               onChanged: (_) => setState(() {}),
+              trailing: Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: TextLink(
+                  _missingOnly ? 'All' : 'No scheme',
+                  onTap: () => setState(() => _missingOnly = !_missingOnly),
+                ),
+              ),
             ),
             const SizedBox(height: Space.sm),
-            ChoicePills<bool>(
-              values: const [false, true],
-              selected: _missingOnly,
-              label: (v) => v ? 'No scheme' : 'All',
-              onSelected: (v) => setState(() => _missingOnly = v),
-            ),
-            const SizedBox(height: Space.sm),
-            RowGroup(
-              children: [
-                for (final c in shown)
-                  NavRow(
-                    icon:
-                        offerings[c.id]?.hasScheme ?? false
-                            ? Icons.check_circle_outline_rounded
-                            : Icons.radio_button_unchecked_rounded,
-                    title: '${c.id} · ${c.title}',
-                    subtitle: schemeLine(offerings[c.id]),
-                    onTap: () async {
-                      final saved = await Navigator.of(context).push<bool>(
-                        MaterialPageRoute(
-                          builder:
-                              (_) => SchemeEditorPage(
-                                courseId: c.id,
-                                campus: widget.campus,
-                                term: maintainedTerm,
-                                existing: offerings[c.id],
-                              ),
-                        ),
-                      );
-                      if (saved == true) reload();
-                    },
-                  ),
-              ],
-            ),
+            if (shown.isNotEmpty)
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final (i, c) in shown.indexed) ...[
+                      if (i > 0) const CardDivider(),
+                      _CourseRow(
+                        title: '${c.id} · ${c.title}',
+                        o: offerings[c.id],
+                        cr: crs[c.id],
+                        onTap: () async {
+                          final saved = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => SchemeEditorPage(
+                                    courseId: c.id,
+                                    campus: widget.campus,
+                                    term: maintainedTerm,
+                                    existing: offerings[c.id],
+                                  ),
+                            ),
+                          );
+                          if (saved == true) reload();
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             if (shown.isEmpty) const Note('No course matches.'),
+            const SizedBox(height: Space.sm),
             Text(
               'You are editing this term\'s offering. Course titles, codes '
               'and credits belong to the catalogue and are not editable here.',
@@ -506,10 +499,172 @@ class _DeptCoursesState extends State<DeptCourses> {
   }
 }
 
-/// "Upload schemes as JSON", with the extraction prompt and its Copy button.
-class UploadCard extends StatefulWidget {
-  const UploadCard({super.key, required this.onFile, required this.onPaste});
+/// One course: code and title, then 20 tall chips for its scheme and CR.
+class _CourseRow extends StatelessWidget {
+  const _CourseRow({
+    required this.title,
+    required this.o,
+    required this.cr,
+    required this.onTap,
+  });
+  final String title;
+  final Offering? o;
+  final String? cr;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final o = this.o;
+    Widget chip(String text, {Color? fill, Color? ink, bool dashed = false}) {
+      final label = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Text(
+          text,
+          maxLines: 1,
+          style: TypeScale.caption.copyWith(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: ink ?? p.textMuted,
+          ),
+        ),
+      );
+      final box = ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 20),
+        child: Center(widthFactor: 1, child: label),
+      );
+      return dashed
+          ? DashedOutline(color: p.textMuted, radius: 10, child: box)
+          : DecoratedBox(
+            decoration: BoxDecoration(
+              color: fill ?? p.surfaceSunken,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: box,
+          );
+    }
+
+    final chips = <Widget>[];
+    if (o == null || !o.hasScheme) {
+      chips.add(chip('No scheme yet', dashed: true));
+    } else {
+      final n = o.components.length;
+      final sum = o.components.fold(0.0, (s, c) => s + c.weight);
+      final full = o.weighted ? sum >= 100 : sum >= o.totalMarks;
+      chips.add(
+        chip('$n component${n == 1 ? '' : 's'}', fill: p.hero, ink: p.onHero),
+      );
+      chips.add(
+        chip(
+          o.weighted
+              ? '${_n(sum)}% assigned'
+              : '${_n(sum)} of ${_n(o.totalMarks)} marks',
+          fill: full ? null : p.noticeTone.fill,
+          ink: full ? null : p.noticeTone.text,
+        ),
+      );
+    }
+    chips.add(
+      cr == null
+          ? chip('No CR', dashed: true)
+          : chip('CR: ${shortEmail(cr!)}', ink: p.text),
+    );
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 58),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(15, 10, 8, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TypeScale.body.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(spacing: 5, runSpacing: 5, children: chips),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: p.textMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The dashed mint drop zone: upload many courses' schemes as JSON.
+class _DropZone extends StatelessWidget {
+  const _DropZone({required this.onFile, required this.onPaste});
   final VoidCallback onFile, onPaste;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return DashedOutline(
+      color: p.hero,
+      radius: 22,
+      width: 2,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(Space.lg),
+        decoration: BoxDecoration(
+          color: p.hero.withValues(alpha: 0.34),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.upload_file_rounded, color: p.text),
+            const SizedBox(height: 6),
+            Text(
+              'Upload schemes as JSON',
+              textAlign: TextAlign.center,
+              style: TypeScale.body.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Many courses at once. You see every change before anything '
+              'is written.',
+              textAlign: TextAlign.center,
+              style: TypeScale.caption.copyWith(height: 1.45, color: p.text),
+            ),
+            const SizedBox(height: Space.md),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: Space.sm,
+              runSpacing: Space.sm,
+              children: [
+                PillButton(
+                  label: 'Choose a file',
+                  icon: Icons.upload_file_rounded,
+                  selected: true,
+                  onPressed: onFile,
+                ),
+                PillButton(label: 'Paste', onPressed: onPaste),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The EXTRACTION PROMPT card: Copy, what it is for, and a quoted preview
+/// that Show opens.
+class UploadCard extends StatefulWidget {
+  const UploadCard({super.key});
 
   @override
   State<UploadCard> createState() => _UploadCardState();
@@ -529,53 +684,55 @@ class _UploadCardState extends State<UploadCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Upload schemes as JSON',
-            style: TypeScale.body.copyWith(fontWeight: FontWeight.w700),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'EXTRACTION PROMPT',
+                  style: TypeScale.label.copyWith(
+                    color: p.textMuted,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+              PillButton(
+                label: 'Copy',
+                icon: Icons.copy_rounded,
+                selected: true,
+                height: 30,
+                padding: 12,
+                onPressed: () async {
+                  await Clipboard.setData(
+                    const ClipboardData(text: evalPrompt),
+                  );
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context)
+                    ..clearSnackBars()
+                    ..showSnackBar(
+                      const SnackBar(content: Text('Prompt copied.')),
+                    );
+                },
+              ),
+            ],
           ),
+          const SizedBox(height: Space.xs),
           Text(
-            'Many courses at once. You see every change before anything is '
-            'written.',
+            'Paste this into any AI tool along with the handout PDFs. It '
+            'states the exact shape this page accepts, so what comes back '
+            'uploads without hand-editing.',
             style: caption,
           ),
-          const SizedBox(height: Space.md),
+          const SizedBox(height: Space.sm),
           Container(
-            padding: const EdgeInsets.all(Space.md),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
             decoration: BoxDecoration(
               color: p.surfaceSunken,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                LabelRow(
-                  label: Text(
-                    'EXTRACTION PROMPT',
-                    style: TypeScale.label.copyWith(color: p.textMuted),
-                  ),
-                  trailing: TextButton.icon(
-                    onPressed: () async {
-                      await Clipboard.setData(
-                        const ClipboardData(text: evalPrompt),
-                      );
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context)
-                        ..clearSnackBars()
-                        ..showSnackBar(
-                          const SnackBar(content: Text('Prompt copied.')),
-                        );
-                    },
-                    icon: const Icon(Icons.copy_rounded, size: 16),
-                    label: const Text('Copy'),
-                  ),
-                ),
-                Text(
-                  'Paste this into any AI tool along with the handout PDFs. It '
-                  'states the exact shape this page accepts, so what comes '
-                  'back uploads without hand-editing.',
-                  style: caption,
-                ),
-                const SizedBox(height: Space.sm),
                 if (_open)
                   SelectableText(
                     evalPrompt,
@@ -587,32 +744,19 @@ class _UploadCardState extends State<UploadCard> {
                     'object…”',
                     style: TypeScale.caption.copyWith(
                       fontStyle: FontStyle.italic,
+                      color: p.text,
                     ),
                   ),
-                TextButton(
-                  onPressed: () => setState(() => _open = !_open),
-                  child: Text(_open ? 'Hide' : 'Show'),
+                TextLink(
+                  _open ? 'Hide' : 'Show',
+                  onTap: () => setState(() => _open = !_open),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: Space.md),
-          Row(
-            children: [
-              Expanded(
-                child: PrimaryButton(
-                  label: 'Choose a file',
-                  icon: Icons.upload_file_rounded,
-                  onPressed: widget.onFile,
-                ),
-              ),
-              const SizedBox(width: Space.sm),
-              TextButton(onPressed: widget.onPaste, child: const Text('Paste')),
-            ],
-          ),
           const SizedBox(height: Space.sm),
           Text(
-            'Handouts differ per professor, so extraction is the messy part — '
+            'Handouts differ per professor, so extraction is the messy part, '
             'not the upload. The preview still shows every change before '
             'anything is written.',
             style: caption,
