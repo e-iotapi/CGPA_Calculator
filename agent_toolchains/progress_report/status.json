@@ -1,6 +1,6 @@
 {
- "current": "T8.6 \u00b7 Appoint",
- "note": "Group 8 under way: Controls, Owners, Publish, Open as (with new department and course pickers) and Maintainers + Person are pushed. Next is Appoint.",
+ "current": "T8.10 \u00b7 Audit log",
+ "note": "Group 8: 9 of 15 cards pushed, including Appoint, Grant terms, Public contact (kept live, as you chose) and Before you start / Work as. The UI sheet was rebuilt through T8.7. ui_check can now render one card in about 10 s.",
  "groups": [
   [
    "Group 2 \u00b7 finish",
@@ -164,6 +164,10 @@
   "T8.2",
   "T8.3",
   "T8.4",
-  "T8.5"
+  "T8.5",
+  "T8.6",
+  "T8.7",
+  "T8.8",
+  "T8.9"
  ]
 }
