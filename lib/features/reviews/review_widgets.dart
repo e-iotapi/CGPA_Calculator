@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
@@ -196,7 +197,7 @@ class StatsCard extends StatelessWidget {
   }
 }
 
-/// A 20 tall chip: the term, the professor, or (ink) the course.
+/// A 20 tall chip: the term, the professor, or (mint) the course.
 class _Chip extends StatelessWidget {
   const _Chip(this.text, {this.ink = false});
   final String text;
@@ -209,7 +210,7 @@ class _Chip extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 20),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: ink ? p.inverse : p.surfaceSunken,
+        color: ink ? p.hero : p.surfaceSunken,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Center(
@@ -218,7 +219,7 @@ class _Chip extends StatelessWidget {
           text,
           style: TypeScale.label.copyWith(
             fontSize: 9.5,
-            color: ink ? p.onInverse : p.textMuted,
+            color: ink ? p.onHero : p.textMuted,
           ),
         ),
       ),
@@ -304,6 +305,13 @@ class ReviewTile extends StatelessWidget {
               ),
             ),
           ],
+          if (showCourse && onHelpful == null) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${r.helpful} found it helpful',
+              style: TypeScale.caption.copyWith(color: p.textMuted),
+            ),
+          ],
           if (r.edited) ...[
             const SizedBox(height: 4),
             Text(
@@ -364,6 +372,39 @@ class ReviewTile extends StatelessWidget {
           if (footer != null) footer!,
         ],
       ),
+    );
+  }
+}
+
+/// The sort row: four equal pills on the board, wrapping once text is large.
+class SortPills extends StatelessWidget {
+  const SortPills({super.key, required this.value, required this.onChanged});
+  final ReviewOrder value;
+  final ValueChanged<ReviewOrder> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    PillButton pill(ReviewOrder o, {double padding = 15}) => PillButton(
+      label: o.label,
+      height: 30,
+      padding: padding,
+      selected: value == o,
+      onPressed: () => onChanged(o),
+    );
+    if (MediaQuery.textScalerOf(context).scale(10) > 13) {
+      return Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [for (final o in ReviewOrder.values) pill(o)],
+      );
+    }
+    return Row(
+      children: [
+        for (final (i, o) in ReviewOrder.values.indexed) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(child: pill(o, padding: 4)),
+        ],
+      ],
     );
   }
 }

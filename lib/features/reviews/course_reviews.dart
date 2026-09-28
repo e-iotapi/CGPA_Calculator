@@ -12,7 +12,6 @@ import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
-import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -254,44 +253,13 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
                           'professor.',
             ),
             const SizedBox(height: Space.sm),
-            // Four equal pills on the board; they wrap once text is large.
-            if (MediaQuery.textScalerOf(context).scale(10) > 13)
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final o in ReviewOrder.values)
-                    PillButton(
-                      label: o.label,
-                      height: 30,
-                      selected: _order == o,
-                      onPressed: () {
-                        setState(() => _order = o);
-                        _page(m, reset: true);
-                      },
-                    ),
-                ],
-              )
-            else
-              Row(
-                children: [
-                  for (final (i, o) in ReviewOrder.values.indexed) ...[
-                    if (i > 0) const SizedBox(width: 6),
-                    Expanded(
-                      child: PillButton(
-                        label: o.label,
-                        height: 30,
-                        padding: 4,
-                        selected: _order == o,
-                        onPressed: () {
-                          setState(() => _order = o);
-                          _page(m, reset: true);
-                        },
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+            SortPills(
+              value: _order,
+              onChanged: (o) {
+                setState(() => _order = o);
+                _page(m, reset: true);
+              },
+            ),
             const SizedBox(height: Space.sm),
             for (final r in _reviews) ...[
               ReviewTile(
