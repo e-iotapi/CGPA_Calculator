@@ -20,6 +20,7 @@ import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -421,7 +422,9 @@ void main() {
     await t.pumpWidget(app(const DeptReviews(campus: 'goa', dept: 'CS')));
     await t.pumpAndSettle();
     expect(find.text('reported one'), findsOneWidget);
-    await t.tap(find.widgetWithText(TextButton, 'Hide'));
+    expect(find.text('Reported 1'), findsOneWidget);
+    expect(find.text('1 REPORT'), findsOneWidget);
+    await t.tap(find.widgetWithText(PillButton, 'Hide'));
     await t.pumpAndSettle();
     await t.enterText(
       find.descendant(
@@ -446,7 +449,7 @@ void main() {
     expect((await courseStats()).count, 0);
     expect((await db.collection('audit').get()).docs, hasLength(1));
 
-    await t.tap(find.text('Hidden'));
+    await t.tap(find.text('Hidden 1'));
     await t.pumpAndSettle();
     expect(find.text('reported one'), findsOneWidget);
     await t.tap(find.text('Unhide'));
@@ -460,7 +463,7 @@ void main() {
     final r = await reported();
     await t.pumpWidget(app(const DeptReviews(campus: 'goa', dept: 'CS')));
     await t.pumpAndSettle();
-    await t.tap(find.widgetWithText(TextButton, 'Hide'));
+    await t.tap(find.widgetWithText(PillButton, 'Hide'));
     await t.pumpAndSettle();
     await t.tap(
       find.descendant(
