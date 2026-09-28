@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
@@ -774,6 +775,8 @@ class AuditLogPage extends StatefulWidget {
 
 class _AuditLogPageState extends State<AuditLogPage> {
   late String? _course = widget.course;
+  String? _actor; // an email; null is anyone
+  List<({String email, String name})> _actors = const [];
   final _courseField = TextEditingController();
 
   @override
@@ -782,14 +785,81 @@ class _AuditLogPageState extends State<AuditLogPage> {
     super.dispose();
   }
 
+  Future<List<AuditEntry>> _load(String? campus) async {
+    final entries = await roleStore!.audit(
+      campus: campus,
+      course: _course,
+      actor: _actor,
+    );
+    // The people to filter by: whoever appears while nobody is picked.
+    if (_actor == null) {
+      final seen = <String, String>{};
+      for (final e in entries) {
+        seen.putIfAbsent(e.actorEmail, () => e.actorName);
+      }
+      _actors = [
+        for (final MapEntry(:key, :value) in seen.entries)
+          (email: key, name: value),
+      ];
+    }
+    return entries;
+  }
+
+  Future<void> _pickActor() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder:
+          (context) => SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                AppCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      CardRow(
+                        title: 'Anyone',
+                        onTap: () => Navigator.of(context).pop(''),
+                      ),
+                      for (final a in _actors) ...[
+                        const CardDivider(),
+                        CardRow(
+                          title: a.name,
+                          subtitle: shortEmail(a.email),
+                          onTap: () => Navigator.of(context).pop(a.email),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _actor = picked.isEmpty ? null : picked);
+  }
+
+  void _setCourse() {
+    final c = _courseField.text.trim().toUpperCase();
+    if (c.isEmpty) return;
+    setState(() {
+      _course = c;
+      _courseField.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     final r = myRoles.value;
     // Owners and admins read everything; a president their campus.
     final campus =
         r.owner || r.admin
             ? widget.campus
             : widget.campus ?? r.presidencies.firstOrNull?.campus;
+    final actorName = _actors.where((a) => a.email == _actor).firstOrNull?.name;
     return PageFrame(
       header: const PageHeader(eyebrow: 'APPEND-ONLY', title: 'Audit log'),
       children: [
@@ -797,46 +867,83 @@ class _AuditLogPageState extends State<AuditLogPage> {
           ScopePills(campus: campus),
           const SizedBox(height: Space.sm),
         ],
-        Row(
-          children: [
-            Expanded(
-              child: AppTextField(
-                controller: _courseField,
-                label: _course ?? 'Filter by course',
-                hint: 'EEE F211',
-              ),
-            ),
-            const SizedBox(width: Space.sm),
-            IconButton(
-              tooltip: _course == null ? 'Filter' : 'Clear',
-              onPressed:
-                  () => setState(() {
-                    _course =
-                        _course == null
-                            ? _courseField.text.trim().toUpperCase()
-                            : null;
-                    if (_course?.isEmpty ?? false) _course = null;
-                    _courseField.clear();
-                  }),
-              icon: Icon(
-                _course == null
-                    ? Icons.filter_list_rounded
-                    : Icons.close_rounded,
-              ),
-            ),
-          ],
+        SelectRow(
+          text: _actor == null ? 'Anyone' : actorName ?? _actor!,
+          onTap: _pickActor,
         ),
         const SizedBox(height: Space.sm),
+        if (_course case final c?)
+          Align(
+            alignment: Alignment.centerLeft,
+            // Set: an ink chip that clears on tap.
+            child: Semantics(
+              button: true,
+              label: 'Clear the $c filter',
+              excludeSemantics: true,
+              child: Material(
+                color: p.inverse,
+                shape: const StadiumBorder(),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: () => setState(() => _course = null),
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 36),
+                    padding: const EdgeInsets.fromLTRB(14, 0, 10, 0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          c,
+                          style: TypeScale.body.copyWith(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: p.onInverse,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(Icons.close_rounded, size: 15, color: p.onInverse),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: AppTextField(
+                  controller: _courseField,
+                  label: 'Course',
+                  hint: 'EEE F211',
+                ),
+              ),
+              const SizedBox(width: Space.sm),
+              PillButton(label: 'Filter', onPressed: _setCourse),
+            ],
+          ),
+        const SizedBox(height: Space.sm),
         Loaded<List<AuditEntry>>(
-          key: ValueKey('$campus|$_course'),
-          load: () => roleStore!.audit(campus: campus, course: _course),
-          builder:
-              (context, entries, _) =>
-                  entries.isEmpty
-                      ? const Note('Nothing logged here yet.')
-                      : RowGroup(
-                        children: [for (final e in entries) AuditTile(e)],
-                      ),
+          key: ValueKey('$campus|$_course|$_actor'),
+          load: () => _load(campus),
+          builder: (context, entries, _) {
+            if (entries.isEmpty) return const Note('Nothing logged here yet.');
+            // Grouped by day, newest first, as the board draws it.
+            final days = <String, List<AuditEntry>>{};
+            for (final e in entries) {
+              days.putIfAbsent(_day(e.at), () => []).add(e);
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final MapEntry(key: day, value: list) in days.entries) ...[
+                  SectionLabel(day),
+                  RowGroup(children: [for (final e in list) AuditTile(e)]),
+                ],
+              ],
+            );
+          },
         ),
         const Note(
           'Every change to shared data lands here in the same write, with the '
@@ -846,6 +953,18 @@ class _AuditLogPageState extends State<AuditLogPage> {
       ],
     );
   }
+}
+
+/// "Today", "Yesterday", else "3 Oct".
+String _day(DateTime? at) {
+  if (at == null) return 'Just now';
+  final now = DateTime.now();
+  final d = DateTime(at.year, at.month, at.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final diff = today.difference(d).inDays;
+  if (diff == 0) return 'Today';
+  if (diff == 1) return 'Yesterday';
+  return shortDay(at, year: at.year != now.year);
 }
 
 class AuditTile extends StatelessWidget {
@@ -862,6 +981,9 @@ class AuditTile extends StatelessWidget {
       'course' || 'cr' => 'CR',
       final r => r.toUpperCase(),
     };
+    // Only plain values draw as chips; a whole record stays in the log.
+    bool plain(Object? v) => v is String || v is num;
+    final change = plain(e.before) && plain(e.after);
     return Padding(
       padding: const EdgeInsets.fromLTRB(15, 11, 15, 11),
       child: Column(
@@ -870,36 +992,32 @@ class AuditTile extends StatelessWidget {
           Row(
             children: [
               TierTag(role, strong: role != 'PRESIDENT'),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: e.actorName,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      TextSpan(
-                        text: '  ${shortEmail(e.actorEmail)}',
-                        style: TextStyle(fontSize: 10.5, color: p.textMuted),
-                      ),
-                    ],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TypeScale.body.copyWith(fontSize: 12.5),
-                ),
-              ),
+              const SizedBox(width: 8),
+              Expanded(child: NameEmail(e.actorName, shortEmail(e.actorEmail))),
             ],
           ),
           const SizedBox(height: 5),
           Text(
             e.summary,
             style: TypeScale.body.copyWith(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
+              color: p.text,
             ),
           ),
+          if (change) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _ValueChip('${e.before}', was: true),
+                Icon(Icons.arrow_forward_rounded, size: 14, color: p.textMuted),
+                _ValueChip('${e.after}'),
+              ],
+            ),
+          ],
+          const SizedBox(height: 4),
           Text(
             ago(e.at),
             style: TypeScale.caption.copyWith(
@@ -908,6 +1026,35 @@ class AuditTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A value before (struck, red-brown) or after (mint) a change.
+class _ValueChip extends StatelessWidget {
+  const _ValueChip(this.text, {this.was = false});
+  final String text;
+  final bool was;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: was ? p.behind.withValues(alpha: 0.12) : p.hero,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TypeScale.caption.copyWith(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          color: was ? p.behind : p.onHero,
+          decoration: was ? TextDecoration.lineThrough : null,
+          decorationColor: p.behind,
+        ),
       ),
     );
   }

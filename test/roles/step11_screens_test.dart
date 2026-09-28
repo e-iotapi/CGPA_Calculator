@@ -1024,4 +1024,35 @@ void main() {
     await t.pumpAndSettle();
     expect(find.textContaining('until 27 Sep 2027'), findsOneWidget);
   });
+
+  // ---- T8.10 Audit log -----------------------------------------------------
+
+  testWidgets('president sees their campus', (t) async {
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    for (final (campus, what) in [
+      ('goa', 'Changed the Midsem weight in EEE F211'),
+      ('hyderabad', 'Added a link to CS F211'),
+    ]) {
+      await db.collection('audit').add({
+        'actor': {'email': student, 'name': 'Arjun Rao', 'role': 'cr'},
+        'summary': what,
+        'campus': campus,
+        'before': '30%',
+        'after': '35%',
+        'at': Timestamp.fromDate(
+          DateTime.now().subtract(const Duration(hours: 1)),
+        ),
+      });
+    }
+    await t.pumpWidget(app(const AuditLogPage()));
+    await t.pumpAndSettle();
+    expect(find.text('Changed the Midsem weight in EEE F211'), findsOneWidget);
+    expect(find.text('Added a link to CS F211'), findsNothing);
+    expect(find.text('1 hour ago'), findsOneWidget);
+    expect(find.text('30%'), findsOneWidget);
+    // Grouped by day: an hour ago is today, or yesterday just after midnight.
+    final hourAgo = DateTime.now().subtract(const Duration(hours: 1));
+    final label = hourAgo.day == DateTime.now().day ? 'TODAY' : 'YESTERDAY';
+    expect(find.text(label), findsOneWidget);
+  });
 }

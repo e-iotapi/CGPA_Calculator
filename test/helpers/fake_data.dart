@@ -418,6 +418,8 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
       'summary': what,
       'campus': 'goa',
       if (course != null) 'course': course,
+      // A value change, drawn as before → after chips.
+      if (i == 0) ...{'before': '30%', 'after': '35%'},
       'at': Timestamp.fromDate(
         // From midnight, so shown times never move with the clock.
         _midnight().subtract(Duration(hours: [1, 20, 72, 120][i])),

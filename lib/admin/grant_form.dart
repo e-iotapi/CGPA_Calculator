@@ -405,7 +405,7 @@ class _AdminGrantState extends State<AdminGrant> {
               children: [
                 const SectionLabel('Scope · one per grant'),
                 if (role == GrantRole.dept) ...[
-                  _Select(
+                  SelectRow(
                     text:
                         _dept == null
                             ? 'Choose a department'
@@ -535,58 +535,6 @@ class _AdminGrantState extends State<AdminGrant> {
           ),
         ],
       ],
-    );
-  }
-}
-
-/// A 44-tall select: the choice and a chevron, opening a sheet (not a
-/// Material dropdown).
-class _Select extends StatelessWidget {
-  const _Select({
-    required this.text,
-    required this.onTap,
-    this.placeholder = false,
-  });
-  final String text;
-  final VoidCallback onTap;
-  final bool placeholder;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Material(
-      color: p.background,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: p.outline),
-      ),
-      child: InkWell(
-        customBorder: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    text,
-                    style: TypeScale.body.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: placeholder ? p.textMuted : p.text,
-                    ),
-                  ),
-                ),
-                Icon(Icons.expand_more_rounded, color: p.textMuted),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
