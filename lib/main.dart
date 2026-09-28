@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/core/env/app_env.dart';
 import 'package:cgpa_calculator/core/env/test_sign_in.dart';
@@ -100,6 +101,7 @@ Future<void> startApp(User user) async {
   await openDeviceBox();
   await openResources();
   await openReviews();
+  await openSharedCache();
   myUid = user.uid;
   stripNavigate = appRouter.go;
   restoreMyRoles();
