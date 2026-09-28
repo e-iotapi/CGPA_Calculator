@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 
@@ -79,7 +80,8 @@ class ProfessorReviewsPage extends StatelessWidget {
                     all.count == 0
                         ? null
                         : 'Across ${taught.length} '
-                            'course${taught.length == 1 ? '' : 's'}.',
+                            'course${taught.length == 1 ? '' : 's'}, '
+                            '${all.count} review${all.count == 1 ? '' : 's'}.',
               ),
               const SectionLabel('Courses taught'),
               if (taught.isEmpty)
@@ -88,32 +90,36 @@ class ProfessorReviewsPage extends StatelessWidget {
                   'CR or department adds who teaches each term.',
                 )
               else
-                RowGroup(
-                  children: [
-                    for (final t in taught)
-                      NavRow(
-                        icon: Icons.menu_book_outlined,
-                        title:
-                            '${t.courseId} · '
-                            '${catalog.master.where((m) => m.id == t.courseId).firstOrNull?.title ?? ''}',
-                        subtitle:
-                            '${[for (final x in t.terms.take(3)) termLabel(x)].join(', ')}'
-                            '${t.terms.length > 3 ? ' and ${t.terms.length - 3} more' : ''}'
-                            ' · ${t.stats.count} review${t.stats.count == 1 ? '' : 's'}',
-                        onTap:
-                            () => openRoute(
-                              context,
-                              Routes.courseReviews(
-                                t.courseId,
-                                professor: prof.id,
+                AppCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: Column(
+                    children: [
+                      for (final (i, t) in taught.indexed) ...[
+                        if (i > 0) Divider(height: 1, color: p.divider),
+                        _CourseRow(
+                          title:
+                              '${t.courseId} · '
+                              '${catalog.master.where((m) => m.id == t.courseId).firstOrNull?.title ?? ''}',
+                          subtitle:
+                              '${[for (final x in t.terms.take(3)) termLabel(x)].join(', ')}'
+                              '${t.terms.length > 3 ? ' and ${t.terms.length - 3} more' : ''}'
+                              ' · ${t.stats.count} review${t.stats.count == 1 ? '' : 's'}',
+                          onTap:
+                              () => openRoute(
+                                context,
+                                Routes.courseReviews(
+                                  t.courseId,
+                                  professor: prof.id,
+                                ),
+                                () => CourseReviewsPage(
+                                  courseId: t.courseId,
+                                  professorId: prof.id,
+                                ),
                               ),
-                              () => CourseReviewsPage(
-                                courseId: t.courseId,
-                                professorId: prof.id,
-                              ),
-                            ),
-                      ),
-                  ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               const SizedBox(height: Space.sm),
               Text(
@@ -124,6 +130,59 @@ class ProfessorReviewsPage extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// A 64 px row: the course on one line over its terms and review count.
+class _CourseRow extends StatelessWidget {
+  const _CourseRow({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final String title, subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TypeScale.body.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: p.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: p.icon),
+          ],
+        ),
+      ),
     );
   }
 }

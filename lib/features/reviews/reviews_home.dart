@@ -233,7 +233,7 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                           children: [
                             for (final pr in profs)
                               NavRow(
-                                icon: Icons.school_outlined,
+                                icon: Icons.person_outline,
                                 title: pr.name,
                                 subtitle:
                                     departments[pr.department]?.name ??
@@ -266,7 +266,15 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                       ),
                   ],
                 ),
-              ] else if (q.length < 2) ...[
+              ] else if (q.length >= 2) ...[
+                const SectionLabel('Courses'),
+                AppCard(
+                  child: Text(
+                    'No course code or name matches “${_search.text.trim()}”.',
+                    style: TypeScale.body.copyWith(fontSize: 12.5),
+                  ),
+                ),
+              ] else ...[
                 if (now.isNotEmpty) ...[
                   const SectionLabel('Your courses this semester'),
                   _Rows([
@@ -284,9 +292,12 @@ class _ReviewsHomeState extends State<ReviewsHome> {
               ],
               const SizedBox(height: Space.sm),
               Text(
-                'Reviews are written per professor and per semester, so a course '
-                'taught by someone new starts a fresh set rather than inheriting '
-                'an old reputation.',
+                q.length >= 2
+                    ? 'One box for both. Any word of a name finds a professor, '
+                        'and their old names too after a merge.'
+                    : 'Reviews are written per professor and per semester, so '
+                        'a course taught by someone new starts a fresh set '
+                        'rather than inheriting an old reputation.',
                 style: TypeScale.caption.copyWith(
                   height: 1.45,
                   color: p.textMuted,
