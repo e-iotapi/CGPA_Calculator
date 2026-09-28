@@ -1,6 +1,7 @@
 // Step 11, as registered in test/PREREGISTERED_10_11.md (S1–S14).
 import 'dart:io';
 
+import 'package:cgpa_calculator/admin/admin_home.dart';
 import 'package:cgpa_calculator/admin/roster.dart';
 import 'package:cgpa_calculator/admin/succession.dart';
 import 'package:cgpa_calculator/admin/volunteers.dart';
@@ -27,6 +28,7 @@ import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/count_badge.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -670,5 +672,53 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('+91 90000 00203'), findsOneWidget);
     expect(find.text('No phone yet'), findsOneWidget);
+  });
+
+  // ---- T8.1 Controls -------------------------------------------------------
+
+  Grant dept(String email, String scope) => Grant(
+    role: GrantRole.dept,
+    email: email,
+    name: email.split('@').first,
+    campus: 'goa',
+    scope: scope,
+    active: true,
+    expiresAt: DateTime.now().add(const Duration(days: 90)),
+  );
+
+  testWidgets('Controls counts maintainers', (t) async {
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    await seedGrant(dept('p1@goa.bits-pilani.ac.in', 'ELEC'));
+    await seedGrant(dept('p2@goa.bits-pilani.ac.in', 'CS'));
+    await t.pumpWidget(app(const AdminHome()));
+    await t.pumpAndSettle();
+    expect(
+      find.text('2 presidents · 0 course managers · 0 admins'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Me — every campus'), findsOneWidget);
+    expect(
+      find.text('CR 1 semester · president 1 year · admin 2 years'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Publish shows waiting changes in amber', (t) async {
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    for (final id in ['CS F111', 'CS F211']) {
+      await db.collection('courses').doc(id).set({'id': id, 'draft': true});
+    }
+    await t.pumpWidget(app(const AdminHome()));
+    await t.pumpAndSettle();
+    expect(find.text('2 changes waiting'), findsOneWidget);
+    final badge = t.widget<CountBadge>(find.byType(CountBadge).last);
+    expect(badge.text, '2');
+    expect(badge.tone, CountTone.waiting);
   });
 }
