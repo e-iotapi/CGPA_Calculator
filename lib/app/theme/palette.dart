@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
+import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Fill and text colour for one grade chip.
@@ -105,16 +106,121 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// offshoot course).
   GradeTone get mutedTone => (isDark ? _darkTones : _lightTones)['']!;
 
-  ThemeData get materialTheme => ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: accent),
-    extensions: [this],
-    pageTransitionsTheme: PageTransitionsTheme(
-      builders: {
-        for (final p in TargetPlatform.values)
-          p: const CircleRevealTransitionsBuilder(),
-      },
-    ),
-  );
+  ThemeData get materialTheme {
+    final b = isDark ? Brightness.dark : Brightness.light;
+    final scheme = ColorScheme.fromSeed(
+      seedColor: accent,
+      brightness: b,
+    ).copyWith(
+      primary: inverse,
+      onPrimary: onInverse,
+      secondary: accent,
+      surface: surface,
+      onSurface: text,
+      onSurfaceVariant: textMuted,
+      outline: outline,
+      outlineVariant: divider,
+      error: behind,
+    );
+    final base = ThemeData(
+      brightness: b,
+      colorScheme: scheme,
+      fontFamily: TypeScale.family,
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {
+          for (final p in TargetPlatform.values)
+            p: const CircleRevealTransitionsBuilder(),
+        },
+      ),
+    );
+    TextStyle btn(Color c) =>
+        TypeScale.button.copyWith(fontWeight: FontWeight.w700, color: c);
+    return base.copyWith(
+      scaffoldBackgroundColor: background,
+      textTheme: base.textTheme.apply(
+        fontFamily: TypeScale.family,
+        bodyColor: text,
+        displayColor: text,
+      ),
+      primaryTextTheme: base.primaryTextTheme.apply(
+        fontFamily: TypeScale.family,
+      ),
+      iconTheme: IconThemeData(color: icon),
+      dividerColor: divider,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: accent,
+          textStyle: btn(accent),
+          minimumSize: const Size(Sizes.minTouch, Sizes.minTouch),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: inverse,
+          foregroundColor: onInverse,
+          textStyle: btn(onInverse),
+          shape: const StadiumBorder(),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: text,
+          side: BorderSide(color: text, width: 1.5),
+          textStyle: btn(text),
+          shape: const StadiumBorder(),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? hero : surface,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? inverse : divider,
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? inverse : null,
+        ),
+        checkColor: WidgetStatePropertyAll(onInverse),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.row),
+        ),
+        titleTextStyle: TypeScale.section.copyWith(color: text),
+        contentTextStyle: TypeScale.body.copyWith(
+          color: textMuted,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: background,
+        dragHandleColor: outline,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: inverse,
+        behavior: SnackBarBehavior.floating,
+        contentTextStyle: TypeScale.body.copyWith(color: onInverse),
+      ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: surface,
+        headerForegroundColor: text,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TypeScale.body.copyWith(
+          color: textMuted,
+          fontWeight: FontWeight.w500,
+        ),
+        labelStyle: TypeScale.body.copyWith(color: textMuted),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: text),
+      extensions: [this],
+      pageTransitionsTheme: base.pageTransitionsTheme,
+    );
+  }
 
   static AppPalette of(BuildContext context) =>
       Theme.of(context).extension<AppPalette>() ?? light;
