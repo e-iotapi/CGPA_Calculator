@@ -23,10 +23,7 @@ import '../helpers/fake_data.dart';
 import '../helpers/fonts.dart';
 
 /// Sheets that still fail, and why (UI.md §15).
-const known = <String, String>{
-  'd_report_link':
-      'N37: the sheet does not scroll; overflows at 320 with 2x text',
-};
+const known = <String, String>{};
 
 void main() {
   setUpAll(() async {

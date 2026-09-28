@@ -1,7 +1,7 @@
 // Every student screen on canvas page 1 that has no shot test of its own,
 // rendered for a student over the fake data in test/helpers/fake_data.dart:
 // a B3 A7 dual degree at Goa, batch 23, taking CS F372 with its published
-// scheme, marks and reviews. Light and dark at 390 and 320, and 320 at 200%
+// scheme, marks and reviews. Light and dark at 390 and 320, and 320 at 150%
 // text. Fails on any layout error.
 //
 //   SHOTS_DIR=/some/dir flutter test test/ui/student_screens_test.dart
@@ -32,10 +32,7 @@ import '../helpers/fake_data.dart';
 import '../helpers/fonts.dart';
 
 /// Screens that still fail, and why (UI.md §15).
-const known = <String, String>{
-  's_course_reviews': 'N27: the summary card overflows at 320 with 2x text',
-  's_prof_reviews': 'N27: the summary card overflows at 320 with 2x text',
-};
+const known = <String, String>{};
 
 void main() {
   setUpAll(() async {

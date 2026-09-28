@@ -1,6 +1,6 @@
 // Every manager screen (canvas page 2), rendered as its role over the fake
 // data in test/helpers/fake_data.dart: light and dark at 390 and 320, and 320
-// at 200% text. Fails on any layout error. With SHOTS_DIR set, writes PNGs
+// at 150% text. Fails on any layout error. With SHOTS_DIR set, writes PNGs
 // to lay beside the boards (UI.md §14):
 //
 //   SHOTS_DIR=/some/dir flutter test test/ui/manager_screens_test.dart

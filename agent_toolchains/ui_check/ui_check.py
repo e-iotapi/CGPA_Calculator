@@ -40,7 +40,7 @@ CANARIES = {
     'canary_clean': '', 'canary_overflow': 'error',
     'canary_contrast': 'contrast', 'canary_tap': 'tap',
     'canary_unlabeled': 'unlabeled', 'canary_dead': 'dead',
-    'canary_truncated': 'truncated', 'canary_off_edge': 'off-edge',
+    'canary_truncated': 'truncated', 'canary_word_break': 'word-break', 'canary_overlap': 'overlap', 'canary_off_edge': 'off-edge',
     'canary_stretch': 'stretch', 'canary_anim': 'anim',
 }
 
