@@ -547,4 +547,66 @@ void main() {
       expect(find.textContaining('XYZ F101', findRichText: true), findsWidgets);
     });
   });
+
+  group('UI_OPT O3.5', () {
+    testWidgets('dragging the slider writes the plan once, on release', (t) async {
+      final d = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3--',
+        target: 9,
+        plan: {'2 - 1': 7, '2 - 2': 7},
+      );
+      var ticks = 0;
+      final writes = <(String, double)>[];
+      t.view.physicalSize = const Size(390, 1400);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          home: StatsScreen(
+            data: d,
+            view: StatsView.progression,
+            onViewChanged: (_) {},
+            onTargetChanged: (_) {},
+            onPlanChanged: (_, _) => ticks++,
+            onPlanChangeEnd: (sem, v) => writes.add((sem, v)),
+            onBack: () {},
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      final slider = find.byType(Slider).first;
+      await t.ensureVisible(slider);
+      await t.pumpAndSettle();
+      final w = t.getSize(slider).width;
+      final g = await t.startGesture(t.getCenter(slider));
+      for (var i = 0; i < 10; i++) {
+        await g.moveBy(Offset(w / 30, 0));
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      await g.up();
+      await t.pumpAndSettle();
+      expect(ticks, greaterThan(1));
+      expect(writes, hasLength(1));
+      expect(writes.single.$1, '2 - 1');
+    });
+
+    test('chart repaints on a palette change', () {
+      CgpaChartPainter painter({Color grid = Colors.grey}) => CgpaChartPainter(
+        actual: const [(sem: '1 - 1', cgpa: 8.0)],
+        forecast: const [],
+        target: 9,
+        line: Colors.black,
+        forecastLine: Colors.teal,
+        targetLine: Colors.amber,
+        grid: grid,
+        label: Colors.black54,
+        surface: Colors.white,
+      );
+      final a = painter();
+      expect(painter().shouldRepaint(a), isFalse);
+      expect(painter(grid: Colors.red).shouldRepaint(a), isTrue);
+    });
+  });
 }

@@ -1,6 +1,6 @@
 {
  "current": "UI_OPT O3 \u00b7 Rebuild less",
- "note": "Group 8 is done: all 15 manager cards are pushed. Since the last update: Your department (THIS WEEK card, no Appoint a CR row), Course structures (dashed mint drop zone, chips per course), Reviews (counted tabs, Keep / Hide pills), Resources (animated pill tabs, amber Reported), Professors, Hand over + Confirm (numbered timeline, typed code) and the CR course page (avg / no avg chips). Pieces repeated across screens now live once in admin/widgets.dart (InkCard, IconTile, TextLink, AmberPill, MiniChip). Next: UI_OPT O3\u2013O6 and O8, then Group 9. Open question: T8.15's COURSE AVERAGE input is marked Ask; for now the page only shows a stored average.",
+ "note": "Group 8 is done (all 15 manager cards). Since then: CRs enter the course average on their course page; 'Graded out of' is built in the scheme editor and the course average is typed on that scale (UI and wiring; the stored field is for the logic branch). UI_REBUILD_HANDOFF.md tells the backend agent what logic the UI waits for, the wiring map, and how to change the UI safely. Next: UI_OPT O3\u2013O6 and O8, then Group 9.",
  "groups": [
   [
    "Group 2 \u00b7 finish",

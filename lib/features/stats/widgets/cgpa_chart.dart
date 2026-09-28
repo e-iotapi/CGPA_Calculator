@@ -43,7 +43,7 @@ class CgpaChart extends StatelessWidget {
           height: 170,
           child: CustomPaint(
             size: Size.infinite,
-            painter: _ChartPainter(
+            painter: CgpaChartPainter(
               actual: actual,
               forecast: forecast,
               target: target,
@@ -81,8 +81,10 @@ List<int> xLabels(List<String> sems, int current) {
   return out;
 }
 
-class _ChartPainter extends CustomPainter {
-  _ChartPainter({
+/// Public for its `shouldRepaint` test only.
+@visibleForTesting
+class CgpaChartPainter extends CustomPainter {
+  CgpaChartPainter({
     required this.actual,
     required this.forecast,
     required this.target,
@@ -248,9 +250,15 @@ class _ChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ChartPainter o) =>
+  bool shouldRepaint(CgpaChartPainter o) =>
       o.actual != actual ||
       o.forecast != forecast ||
       o.target != target ||
-      o.line != line;
+      // Every colour, so a palette switch repaints it once (UI_OPT O3.5).
+      o.line != line ||
+      o.forecastLine != forecastLine ||
+      o.targetLine != targetLine ||
+      o.grid != grid ||
+      o.label != label ||
+      o.surface != surface;
 }

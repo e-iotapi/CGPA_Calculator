@@ -103,16 +103,20 @@ class _StatsPageState extends State<StatsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Built once per build (UI_OPT O3.5); refactor P5 memoises it.
+    final data = _data;
     return StatsScreen(
-      data: _data,
+      data: data,
       view: _view,
       onViewChanged: (v) => setState(() => _view = v),
       onTargetChanged: (t) {
         setState(() => _target = t);
         setStatsTarget(t);
       },
-      onPlanChanged: (sem, sgpa) {
-        setState(() => _plan[sem] = sgpa);
+      // Redraw on every tick; save once, when the slider is let go.
+      onPlanChanged: (sem, sgpa) => setState(() => _plan[sem] = sgpa),
+      onPlanChangeEnd: (sem, sgpa) {
+        _plan[sem] = sgpa;
         setStatsPlan(_plan);
       },
       onIncludeChanged: (sem, on) {
@@ -142,6 +146,7 @@ class StatsScreen extends StatelessWidget {
     required this.onViewChanged,
     required this.onTargetChanged,
     required this.onPlanChanged,
+    this.onPlanChangeEnd,
     this.onIncludeChanged,
     required this.onBack,
     this.onEditTotal,
@@ -154,6 +159,9 @@ class StatsScreen extends StatelessWidget {
   final ValueChanged<StatsView> onViewChanged;
   final ValueChanged<double> onTargetChanged;
   final void Function(String sem, double sgpa) onPlanChanged;
+
+  /// A plan slider let go: the one time the plan is saved.
+  final void Function(String sem, double sgpa)? onPlanChangeEnd;
 
   /// A future semester ticked into, or out of, the forecast.
   final void Function(String sem, bool included)? onIncludeChanged;
@@ -281,6 +289,7 @@ class StatsScreen extends StatelessWidget {
                             data: data,
                             onTargetChanged: onTargetChanged,
                             onPlanChanged: onPlanChanged,
+                            onPlanChangeEnd: onPlanChangeEnd,
                             onIncludeChanged: onIncludeChanged,
                           ),
                 ),
