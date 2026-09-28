@@ -53,6 +53,8 @@ void main() {
       980,
     ),
     ('m_open_as', () => const OpenAsPage(), As.owner, 844),
+    ('m_view_as_dept', () => const ViewAsDeptPage(), As.owner, 1400),
+    ('m_view_as_course', () => const ViewAsCoursePage(), As.owner, 844),
     ('m_publish', () => const PublishPage(), As.owner, 844),
     ('m_merge', () => const ProfessorMerge(), As.owner, 844),
     (

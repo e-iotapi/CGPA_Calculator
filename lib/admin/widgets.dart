@@ -242,6 +242,15 @@ class ChoicePills<T> extends StatelessWidget {
     Widget pill(T v) {
       final on = v == selected;
       final n = count?.call(v);
+      final text = Text(
+        n == null ? label(v) : '${label(v)} $n',
+        maxLines: equal ? 1 : null,
+        style: TypeScale.body.copyWith(
+          fontSize: 12.5,
+          fontWeight: on ? FontWeight.w700 : FontWeight.w600,
+          color: on ? p.onInverse : p.text,
+        ),
+      );
       return Semantics(
         selected: on,
         button: true,
@@ -256,18 +265,17 @@ class ChoicePills<T> extends StatelessWidget {
             child: Container(
               height: Sizes.pill,
               constraints: const BoxConstraints(minWidth: 44),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+              // Equal tabs share the width, so they keep only a little
+              // padding of their own (§10.1 item 2).
+              padding: EdgeInsets.symmetric(horizontal: equal ? 4 : 14),
               child: Center(
                 widthFactor: 1,
                 heightFactor: 1,
-                child: Text(
-                  n == null ? label(v) : '${label(v)} $n',
-                  style: TypeScale.body.copyWith(
-                    fontSize: 12.5,
-                    fontWeight: on ? FontWeight.w700 : FontWeight.w600,
-                    color: on ? p.onInverse : p.text,
-                  ),
-                ),
+                // An equal tab shrinks its label rather than break a word.
+                child:
+                    equal
+                        ? FittedBox(fit: BoxFit.scaleDown, child: text)
+                        : text,
               ),
             ),
           ),

@@ -26,6 +26,7 @@ class CardRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.minHeight = 52,
+    this.titleLines = 1,
   });
 
   final Widget? leading;
@@ -34,6 +35,9 @@ class CardRow extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final double minHeight;
+
+  /// How many lines the title may take before it ellipsizes.
+  final int titleLines;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +55,7 @@ class CardRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    maxLines: 1,
+                    maxLines: titleLines,
                     overflow: TextOverflow.ellipsis,
                     style: TypeScale.body.copyWith(
                       fontSize: 13,

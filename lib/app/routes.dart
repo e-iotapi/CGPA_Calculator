@@ -35,6 +35,8 @@ abstract final class Routes {
   static const adminPublish = '/admin/publish';
   static const adminMerge = '/admin/professors/merge';
   static const openAs = '/admin/open-as';
+  static const openAsDept = '/admin/open-as/department';
+  static const openAsCourse = '/admin/open-as/course';
 
   // Presidents and CRs: the scope is in the path (§16.1).
   static String dept(String campus, String dept) => '/maintain/$campus/$dept';
