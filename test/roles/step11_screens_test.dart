@@ -2,6 +2,7 @@
 import 'dart:io';
 
 import 'package:cgpa_calculator/admin/admin_home.dart';
+import 'package:cgpa_calculator/admin/config_pages.dart';
 import 'package:cgpa_calculator/admin/roster.dart';
 import 'package:cgpa_calculator/admin/succession.dart';
 import 'package:cgpa_calculator/admin/volunteers.dart';
@@ -720,5 +721,30 @@ void main() {
     final badge = t.widget<CountBadge>(find.byType(CountBadge).last);
     expect(badge.text, '2');
     expect(badge.tone, CountTone.waiting);
+  });
+
+  // ---- T8.2 Owners ---------------------------------------------------------
+
+  testWidgets('Remove is 44 px', (t) async {
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    for (final e in ['owner@example.com', 'other@example.com']) {
+      await db.collection('owners').doc(e).set({
+        'email': e,
+        'name': e.split('@').first,
+        'active': true,
+      });
+    }
+    await t.pumpWidget(app(const OwnersPage()));
+    await t.pumpAndSettle();
+    expect(find.text('Remove'), findsOneWidget);
+    expect(find.text('You can\'t remove yourself'), findsOneWidget);
+    final hit = find.ancestor(
+      of: find.text('Remove'),
+      matching: find.byType(InkWell),
+    );
+    expect(t.getSize(hit.first).height, greaterThanOrEqualTo(44));
   });
 }

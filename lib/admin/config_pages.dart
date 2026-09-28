@@ -5,7 +5,9 @@ import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 void _say(BuildContext context, String text) =>
@@ -50,89 +52,98 @@ class _OwnersPageState extends State<OwnersPage> {
         }
       }
 
-      return PageFrame(
-        header: PageHeader(eyebrow: '$active ACTIVE', title: 'Owners'),
-        children: [
-          const Note(
-            'Owners hold every power, on every campus, with no expiry. Any '
-            'verified Google account can be one — it does not need a BITS '
-            'address.',
-          ),
-          const SizedBox(height: Space.sm),
-          RowGroup(
+      String note(Map<String, dynamic> o) {
+        final by = o['addedBy'];
+        final first = by is! Map || by['email'] == o['email'];
+        final at = o['addedAt'];
+        final when = at is Timestamp ? ', ${shortDay(at.toDate())}' : '';
+        final how =
+            first
+                ? 'first owner, set in the Firebase console'
+                : 'added by ${by['name']}$when';
+        if (o['email'] == me) return 'You · $how';
+        return how[0].toUpperCase() + how.substring(1);
+      }
+
+      Widget block(Map<String, dynamic> o) {
+        final on = o['active'] == true;
+        final mine = o['email'] == me;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(15, 12, 8, 12),
+          child: Row(
             children: [
-              for (final o in owners)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TierTag(
-                              o['active'] == true ? 'OWNER' : 'INACTIVE',
-                              strong: o['active'] == true,
-                            ),
-                            const SizedBox(height: 6),
-                            NameEmail('${o['name'] ?? ''}', '${o['email']}'),
-                            Text(
-                              o['email'] == me
-                                  ? 'You · you can\'t remove yourself'
-                                  : o['addedBy'] is Map
-                                  ? 'Added by ${(o['addedBy'] as Map)['name']}'
-                                  : 'Set in the Firebase console',
-                              style: TypeScale.caption.copyWith(
-                                fontSize: 10.5,
-                                color: p.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    on
+                        ? const TierTag('OWNER')
+                        : const TierTag('INACTIVE', strong: true),
+                    const SizedBox(height: 6),
+                    NameEmail('${o['name'] ?? ''}', '${o['email']}'),
+                    const SizedBox(height: 2),
+                    Text(
+                      note(o),
+                      style: TypeScale.caption.copyWith(
+                        fontSize: 10.5,
+                        color: p.textMuted,
                       ),
-                      if (o['email'] != me)
-                        TextButton(
-                          onPressed:
-                              () => run(
-                                () => roleStore!.setOwnerActive(
-                                  o['email'] as String,
-                                  o['active'] != true,
-                                ),
-                                o['active'] == true
-                                    ? 'Removed. Kept for the audit log.'
-                                    : 'Restored.',
-                              ),
+                    ),
+                    if (mine) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: const BoxConstraints(minHeight: 30),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: p.surfaceSunken,
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Center(
+                          widthFactor: 1,
+                          heightFactor: 1,
                           child: Text(
-                            o['active'] == true ? 'Remove' : 'Restore',
+                            'You can\'t remove yourself',
+                            style: TypeScale.caption.copyWith(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: p.textMuted,
+                            ),
                           ),
                         ),
+                      ),
                     ],
-                  ),
+                  ],
+                ),
+              ),
+              if (!mine)
+                _SmallPill(
+                  label: on ? 'Remove' : 'Restore',
+                  color: on ? p.behind : p.text,
+                  onTap:
+                      () => run(
+                        () => roleStore!.setOwnerActive(
+                          o['email'] as String,
+                          !on,
+                        ),
+                        on ? 'Removed. Kept for the audit log.' : 'Restored.',
+                      ),
                 ),
             ],
           ),
-          const SectionLabel('Add an owner'),
-          AppCard(
-            child: Column(
-              children: [
-                AppTextField(
-                  controller: _email,
-                  label: 'Email',
-                  hint: 'name@gmail.com',
-                ),
-                const SizedBox(height: Space.sm),
-                AppTextField(controller: _name, label: 'Name'),
-              ],
-            ),
-          ),
-          const Note(
-            'They sign in with this account. Removing an owner marks them '
-            'inactive and is logged; nobody can remove themselves, so there is '
-            'always one left. Every owner lost at once? The Firebase console is '
-            'the only way back in.',
-          ),
-          const SizedBox(height: Space.lg),
-          PrimaryButton(
+        );
+      }
+
+      final inactive = [
+        for (final o in owners)
+          if (o['active'] != true) o,
+      ];
+      return PageFrame(
+        header: PageHeader(eyebrow: '$active ACTIVE', title: 'Owners'),
+        bottom: BottomAction(
+          child: PrimaryButton(
             label: 'Add owner',
             onPressed: () {
               final e = _email.text.trim();
@@ -146,10 +157,106 @@ class _OwnersPageState extends State<OwnersPage> {
               }, 'Added.');
             },
           ),
+        ),
+        children: [
+          const Note(
+            'Owners hold every power, on every campus, with no expiry. Any '
+            'verified Google account can be one — it does not need a BITS '
+            'address.',
+          ),
+          const SizedBox(height: Space.sm),
+          RowGroup(
+            children: [
+              for (final o in owners)
+                if (o['active'] == true) block(o),
+            ],
+          ),
+          if (inactive.isNotEmpty) ...[
+            const SectionLabel('Inactive'),
+            RowGroup(children: [for (final o in inactive) block(o)]),
+          ],
+          const SectionLabel('Add an owner'),
+          AppCard(
+            child: Column(
+              children: [
+                AppTextField(
+                  controller: _email,
+                  label: 'Email',
+                  hint: 'name@gmail.com',
+                  labelAbove: true,
+                ),
+                const SizedBox(height: Space.sm),
+                AppTextField(
+                  controller: _name,
+                  label: 'Name',
+                  labelAbove: true,
+                ),
+              ],
+            ),
+          ),
+          const Note(
+            'They sign in with this account. Removing an owner marks them '
+            'inactive and is logged; nobody can remove themselves, so there is '
+            'always one left. Every owner lost at once? The Firebase console is '
+            'the only way back in.',
+          ),
         ],
       );
     },
   );
+}
+
+/// A 32 tall outlined pill with a 44 px hit area (Owners' Remove, N16).
+class _SmallPill extends StatelessWidget {
+  const _SmallPill({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      onTap: onTap,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+          child: Center(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: ShapeDecoration(
+                shape: StadiumBorder(side: BorderSide(color: p.outline)),
+              ),
+              child: Center(
+                widthFactor: 1,
+                heightFactor: 1,
+                child: Text(
+                  label,
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Board `Terms`: how long a grant lasts from the day it is given. Admins
@@ -219,9 +326,7 @@ class _TermsPageState extends State<TermsPage> {
                   child: Text(
                     '$days d',
                     textAlign: TextAlign.center,
-                    style: TypeScale.body.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TypeScale.body.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
                 IconButton(
