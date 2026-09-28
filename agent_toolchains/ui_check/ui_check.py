@@ -2,7 +2,10 @@
 """UI check: render every screen, read the reports as text, and look at
 pixels only where the fallback rules say to. See ../README.md.
 
-  python3 agent_toolchains/ui_check/ui_check.py run [--card NAME] [TEST_FILES...]
+  python3 agent_toolchains/ui_check/ui_check.py run [--card NAME] [--only N1,N2] [TEST_FILES...]
+      --only renders just the screens whose test name starts with one of the
+      names (plus the canaries): a fast look at one card. Anything a shared
+      widget change could reach still needs a run without it.
   python3 agent_toolchains/ui_check/ui_check.py compare [--card NAME]
   python3 agent_toolchains/ui_check/ui_check.py accept
   python3 agent_toolchains/ui_check/ui_check.py sheet [GLOB] [--scale 0.33]
@@ -20,6 +23,7 @@ import fnmatch
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -83,16 +87,18 @@ def at_1x(img):
 
 # ---- run ---------------------------------------------------------------------
 
-def run(paths, card):
+def run(paths, card, only=None):
     shutil.rmtree(NEW, ignore_errors=True)
     os.makedirs(NEW)
-    partial = bool(paths)
+    partial = bool(paths) or bool(only)
     if partial:
         open(os.path.join(NEW, '.partial'), 'w').close()
     targets = (paths or SUITES) + [CANARY_TEST]
     env = dict(os.environ, SHOTS_DIR=NEW)
     env['PATH'] = '/opt/flutter/bin:' + env.get('PATH', '')
-    proc = subprocess.run(['flutter', 'test', '--reporter', 'json', '--timeout', '60s', *targets],
+    name = (['--name', '^(canary_.*|' + '|'.join(re.escape(o) + '.*' for o in only) + ')$']
+            if only else [])
+    proc = subprocess.run(['flutter', 'test', '--reporter', 'json', '--timeout', '60s', *name, *targets],
                           cwd=ROOT, env=env, capture_output=True, text=True)
     names, failed, errors, done = {}, [], {}, None
     for line in proc.stdout.splitlines():
@@ -389,9 +395,14 @@ def main(argv):
     if '--card' in rest:
         i = rest.index('--card')
         card = rest[i + 1]
+        del rest[i:i + 2]
+    only = None
+    if '--only' in rest:
+        i = rest.index('--only')
+        only = rest[i + 1].split(',')
         rest = rest[:i] + rest[i + 2:]
     if cmd == 'run':
-        return run(rest, card)
+        return run(rest, card, only)
     if cmd == 'compare':
         return compare(card)
     if cmd == 'accept':
