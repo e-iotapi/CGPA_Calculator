@@ -1,7 +1,6 @@
-import 'package:cgpa_calculator/app/theme/palette.dart';
-import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/app/routes.dart';
+import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
@@ -9,6 +8,7 @@ import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
+import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -34,6 +34,38 @@ Future<void> signOut() async {
   await FirebaseAuth.instance.signOut();
   await Sync.clearLocal();
   reloadPage();
+}
+
+/// Settings › Discipline: Pick a programme, with the same filter as setup's
+/// picker — M.Sc. for the dual half, B.E. (never A5) for the other — plus
+/// the current code and the choices that are not programmes.
+Future<String?> pickDisciplineHalf(
+  BuildContext context, {
+  required bool dual,
+  required String half,
+}) {
+  final choices = disciplineOptions(dual: dual, current: half);
+  final options = [
+    for (final p in programmesAt(campus))
+      if (dual ? p.isMsc : !p.isMsc && p.code != 'A5') p,
+  ];
+  if (programmeFor(half) case final cur? when !options.contains(cur)) {
+    options.add(cur);
+  }
+  return Navigator.of(context).push<String>(
+    MaterialPageRoute(
+      builder:
+          (_) => ProgrammePickPage(
+            heading: dual ? 'Dual degree' : 'Discipline',
+            options: options,
+            selected: half,
+            extras: [
+              for (final (code, label) in choices)
+                if (programmeFor(code) == null) (code, label),
+            ],
+          ),
+    ),
+  );
 }
 
 class _SettingsPageState extends State<SettingsPage> {
@@ -110,58 +142,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<T?> _pick<T>(
-    BuildContext context,
-    String title,
-    List<(T, String)> options,
-    T current,
-  ) {
-    final p = AppPalette.of(context);
-    return showModalBottomSheet<T>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      backgroundColor: p.background,
-      builder:
-          (c) => ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(c).height * 0.7,
-            ),
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.only(bottom: Space.lg),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Space.gutter,
-                    0,
-                    Space.gutter,
-                    Space.sm,
-                  ),
-                  child: Text(
-                    title,
-                    style: TypeScale.title.copyWith(color: p.text),
-                  ),
-                ),
-                for (final (v, label) in options)
-                  ListTile(
-                    title: Text(
-                      label,
-                      style: TypeScale.body.copyWith(color: p.text),
-                    ),
-                    trailing:
-                        v == current
-                            ? Icon(Icons.check_rounded, color: p.accent)
-                            : null,
-                    selected: v == current,
-                    onTap: () => Navigator.pop(c, v),
-                  ),
-              ],
-            ),
-          ),
-    );
-  }
-
   Future<bool> _confirm(
     BuildContext context,
     String title,
@@ -176,12 +156,7 @@ class _SettingsPageState extends State<SettingsPage> {
         dual
             ? selecteddiscipline.substring(0, 2)
             : selecteddiscipline.substring(2, 4);
-    final v = await _pick(
-      context,
-      dual ? 'Dual degree' : 'Discipline',
-      disciplineOptions(dual: dual, current: half),
-      half,
-    );
+    final v = await pickDisciplineHalf(context, dual: dual, half: half);
     if (v == null || v == half || !context.mounted) return;
     final change = changeDiscipline(
       selecteddiscipline,

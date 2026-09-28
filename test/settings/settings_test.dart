@@ -3,7 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
+import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
+import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -171,5 +173,34 @@ void main() {
         });
       }
     }
+  });
+
+  testWidgets('Discipline opens the programme picker', (t) async {
+    String? picked;
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: Builder(
+          builder:
+              (c) => TextButton(
+                onPressed:
+                    () async =>
+                        picked = await pickDisciplineHalf(
+                          c,
+                          dual: true,
+                          half: 'B3',
+                        ),
+                child: const Text('open'),
+              ),
+        ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    expect(find.byType(ProgrammePickPage), findsOneWidget);
+    expect(find.text('None'), findsOneWidget, reason: 'not a programme');
+    await t.tap(find.text('None'));
+    await t.pumpAndSettle();
+    expect(picked, '--');
   });
 }
