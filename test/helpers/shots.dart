@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../agent_toolchains/ui_check/ui_checks.dart';
 
 /// Where screenshot tests write PNGs; null skips them.
 final shotsDir = Platform.environment['SHOTS_DIR'];
@@ -13,7 +14,8 @@ final shotsDir = Platform.environment['SHOTS_DIR'];
 const boardSizes = [('390', Size(390, 844)), ('320', Size(320, 640))];
 
 /// Pumps [screen] in light and dark at each of [sizes] and writes
-/// `$SHOTS_DIR/<name>_<light|dark>_<width>.png`. Fails on any overflow.
+/// `$SHOTS_DIR/<name>_<light|dark>_<width>.png`, with a .json of its
+/// [uiIssues] beside it. Fails on any overflow.
 /// Pass a taller size to see the whole of a board drawn full length.
 Future<void> shoot(
   WidgetTester t,
@@ -49,16 +51,8 @@ Future<void> shoot(
       expect(t.takeException(), isNull, reason: '$name $label');
       final out = shotsDir;
       if (out == null) continue;
-      await t.runAsync(() async {
-        final img = await captureImage(
-          t.element(find.byType(RepaintBoundary).first),
-        );
-        final png = await img.toByteData(format: ui.ImageByteFormat.png);
-        final mode = palette.isDark ? 'dark' : 'light';
-        File(
-          '$out/${name}_${mode}_$label.png',
-        ).writeAsBytesSync(png!.buffer.asUint8List());
-      });
+      final mode = palette.isDark ? 'dark' : 'light';
+      await recordRender(t, out, '${name}_${mode}_$label', const []);
     }
   }
 }
