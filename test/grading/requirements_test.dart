@@ -99,15 +99,34 @@ void main() {
         degreeAudit([], d).categories.map((c) => c.label).toList();
     expect(labels('----'), isEmpty);
     expect(labels('--A7'), [
-      'CDC (A7)',
-      'Disciplinary Electives (A7)',
+      'A7 Core',
+      'Disciplinary Electives',
       'Humanity Electives',
       'Open Electives',
     ]);
     expect(labels('B3A7').length, 6);
-    expect(labels('B3--').first, 'CDC (B3)');
+    expect(labels('B3--').first, 'B3 Core · CDC1');
     final bMinus = degreeAudit([], 'B-A7').categories;
-    expect(bMinus[2].requiredCredits, isNull); // CDC1 on a B- shows no target
+    expect(bMinus[0].requiredCredits, isNull); // CDC1 on a B- shows no target
+  });
+
+  test('dual degree order and names', () {
+    List<String> labels(String d) =>
+        degreeAudit([], d).categories.map((c) => c.label).toList();
+    expect(labels('B3A7'), [
+      'B3 Core · CDC1',
+      'Disciplinary Elective 1',
+      'A7 Core · CDC2',
+      'Disciplinary Elective 2',
+      'Humanity Electives',
+      'Open Electives',
+    ]);
+    expect(labels('--A7'), [
+      'A7 Core',
+      'Disciplinary Electives',
+      'Humanity Electives',
+      'Open Electives',
+    ]);
   });
 
   group('needs from a performance sheet', () {
@@ -123,7 +142,7 @@ void main() {
       );
       final a = degreeAudit([], '--A7', needs: needs);
       expect(card(a, 'Humanity Electives').requiredCredits, 6);
-      expect(card(a, 'Disciplinary Electives (A7)').requiredCourses, 5);
+      expect(card(a, 'Disciplinary Electives').requiredCourses, 5);
       // Nothing required: totals only.
       expect(card(a, 'Open Electives').requiredCredits, isNull);
     });
@@ -138,8 +157,8 @@ void main() {
     test('a dual keeps a card per half, with the table\'s share', () {
       const needs = DegreeNeeds(degree: 'B3A7', del: (courses: 9, units: 27));
       final a = degreeAudit([], 'B3A7', needs: needs);
-      expect(card(a, 'Disciplinary Electives (B3)').requiredCredits, 18);
-      expect(card(a, 'Disciplinary Electives (A7)').requiredCredits, 12);
+      expect(card(a, 'Disciplinary Elective 1').requiredCredits, 18);
+      expect(card(a, 'Disciplinary Elective 2').requiredCredits, 12);
     });
 
     test('bring one core card, counting every core course', () {
@@ -264,7 +283,7 @@ void main() {
       AuditCategory at(String l) =>
           a.categories.singleWhere((c) => c.label == l);
       // A7 needs 12 credits of DEL: four 3-credit courses.
-      expect(at('Disciplinary Electives (A7)').credits, 12);
+      expect(at('Disciplinary Electives').credits, 12);
       expect(at('Open Electives').credits, 6);
       expect(at('Open Electives').spilled, hasLength(2));
     });
@@ -290,11 +309,12 @@ void main() {
 
     test('and count where they are placed', () {
       final a = degreeAudit([el('CS F266', 'Disciplinary Elective1')], 'B3A7');
-      int del(String half) =>
-          a.categories
-              .singleWhere((c) => c.label == 'Disciplinary Electives ($half)')
-              .courses;
-      expect((del('A7'), del('B3')), (1, 0));
+      int del(String label) =>
+          a.categories.singleWhere((c) => c.label == label).courses;
+      expect(
+        (del('Disciplinary Elective 2'), del('Disciplinary Elective 1')),
+        (1, 0),
+      );
     });
   });
 

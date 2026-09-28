@@ -51,6 +51,11 @@ void main() {
       expect(disciplineLabel('--', dual: false), 'Other');
       expect(disciplineOptions(dual: false).first, ('A1', 'B.E. Chemical (A1)'));
     });
+
+    test('short discipline label: code first, no degree prefix', () {
+      expect(shortProgrammeLabel('A7'), 'A7 · Computer Science');
+      expect(shortProgrammeLabel('B3').startsWith('B3 · '), isTrue);
+    });
   });
 
   testWidgets('lays out at 320, 768, 1440 and 200% text', (t) async {
@@ -116,10 +121,14 @@ void main() {
     await pump(const Size(320, 640), scale: 2);
     expect(t.takeException(), isNull, reason: '200%');
 
+    await pump(const Size(320, 640));
+    // Short enough not to ellipsize at 320.
+    expect(find.text('A7 · Computer Science'), findsOneWidget);
+
     await pump(const Size(390, 844));
-    // Codes carry their names; campus is readable.
-    expect(find.text('B.E. Computer Science (A7)'), findsOneWidget);
-    expect(find.text('M.Sc. Economics (B3)'), findsOneWidget);
+    // The code first, the degree prefix dropped; campus is readable.
+    expect(find.text('A7 · Computer Science'), findsOneWidget);
+    expect(find.text('B3 · Economics'), findsOneWidget);
     expect(find.text('Goa'), findsOneWidget);
     expect(find.text('2024'), findsOneWidget);
     // Campus and batch are final: shown, never offered as a control.
