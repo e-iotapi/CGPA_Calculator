@@ -2417,6 +2417,48 @@ checkbox. `s_course_reviews`, `s_prof_reviews` and `d_report_link` are off the k
 - **For Group 9 (150%):** the Reviews search hint "Course code, name or professor" and a row
   subtitle are cut off at 320 × 1.5.
 
+### 13.2.12 Group 8: managers (28 Sep 2026)
+T8.1–T8.15, from `09080cf` to `2272c56`. The user set the scope mid-group: UI and its wiring
+only, since role and offering logic are rebuilt on another branch. What the UI waits for
+is in `UI_REBUILD_HANDOFF.md`.
+
+- **Departures (user's rule on long labels):** "Draft a change" (T8.3), the tier pill
+  "President" (T8.6), "Hyd" on campus tabs (the board's short form).
+- **Departure, T8.6:** "Can not be found" uses the palette's `behind`, not #9A2F14; no new
+  role colour.
+- **User answers:** T8.8 keeps the live contact read (Departure from ARCHITECTURE §10.5);
+  T8.13 drops DeptHome's "Appoint a CR" row (it lives under People → Roster).
+- **UI only, behind seams:** the Secretary tier (button disabled with a caption), "Graded
+  out of" (`admin/offering_scale.dart`; the scheme editor says it is not saved yet), and
+  site analytics ("Coming later").
+- **Added at the user's request:** CRs enter the course average on their course page, typed
+  on the manager's scale; Open as lists a row per ELEC branch; New component opens like
+  Edit component; Department Resources' tabs are animated equal pills with an amber
+  Reported; Merge picks the department with `SelectRow`.
+- **Fixed on the way:** the contact page's Save stayed disabled because the check read the
+  fields before the saved details loaded; ui_check's summary skipped new screens' issues.
+- **For Group 9 (150%):** eyebrows on Publish, Open as, Grant and the contact page; the
+  Grant and contact Save labels; names and emails beside tags; the "Expiring" pill; a
+  `SelectRow` fill equal to the page background; `CompactField` in dark mode; the Several
+  parts label at 320; the handover confirm's emails.
+
+### 13.2.13 UI_OPT O3–O6 and O8 (28 Sep 2026)
+O3 `bac86a7`, O4 with O8.1 and O8.3 `96ff0bd`, O5 and O6 after.
+
+- **O3:** Home's build saves nothing; each handler saves what it changed
+  (`features/semester/home_persist.dart`). Course rows are keyed by Hive key. The Stats
+  plan saves once per drag.
+- **Fix (O3.4):** the profile switch ignored reduced motion; it now switches at once.
+- **O4:** no `Opacity` over a subtree except two static rows, listed with reasons in
+  `test/perf/no_opacity_test.dart`. Cards clip only when their content runs edge to edge
+  (no padding, or `clip: true`), so a pressed row's highlight stays inside the corners.
+- **Departure resolved for the board (O6.1):** under reduced motion the Reported dot keeps
+  a slower, smaller pulse (dot only, 1 ↔ 0.4, 2400 ms), as §10.1.2 draws it; the card had
+  stopped it. The pulse also pauses under a pushed page. A test that settled Department
+  Resources under reduced motion now pumps frames instead.
+- **O8.2 and O8.4 need a device:** backgrounding Safari on iOS 15 for 5 minutes, and the
+  O0.4 rows on an iPhone 7/8. Not run here.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.

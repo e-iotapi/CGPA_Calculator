@@ -21,12 +21,10 @@ Future<void> _pump(WidgetTester t, Widget child, {bool still = false}) async {
   await t.pump();
 }
 
-final _nudge = find.byWidgetPredicate(
-  (w) =>
-      w is AnimatedBuilder &&
-      w.animation is AnimationController &&
-      (w.animation as AnimationController).duration ==
-          const Duration(milliseconds: 4500),
+/// The nudge: a scale transition over the strip (UI_OPT O6.2).
+final _nudge = find.ancestor(
+  of: find.text('Install Pointer'),
+  matching: find.byType(ScaleTransition),
 );
 
 void main() {
@@ -37,16 +35,27 @@ void main() {
       still: true,
     );
     await t.scrollUntilVisible(find.text('Install Pointer'), 200);
-    expect(
-      find.ancestor(of: find.text('Install Pointer'), matching: _nudge),
-      findsNothing,
-    );
+    await t.pump();
+    expect(t.binding.transientCallbackCount, 0);
     await _pump(t, ErpImportPage(onDone: () {}, installable: true));
     await t.scrollUntilVisible(find.text('Install Pointer'), 200);
+    await t.pump();
+    expect(t.binding.transientCallbackCount, greaterThan(0));
+  });
+
+  testWidgets('the nudge moves a layer, not widgets', (t) async {
+    await _pump(t, ErpImportPage(onDone: () {}, installable: true));
+    await t.scrollUntilVisible(find.text('Install Pointer'), 200);
+    expect(_nudge, findsOneWidget);
     expect(
-      find.ancestor(of: find.text('Install Pointer'), matching: _nudge),
+      find.ancestor(of: _nudge, matching: find.byType(RepaintBoundary)),
       findsWidgets,
     );
+    final label = t.widget(find.text('Install Pointer'));
+    for (var i = 0; i < 10; i++) {
+      await t.pump(const Duration(milliseconds: 450));
+    }
+    expect(identical(t.widget(find.text('Install Pointer')), label), isTrue);
   });
 
   testWidgets('Skip calls onDone', (t) async {

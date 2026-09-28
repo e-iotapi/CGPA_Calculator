@@ -486,7 +486,8 @@ class _InstallStripState extends State<_InstallStrip>
     TweenSequenceItem(tween: ConstantTween(1), weight: 10),
   ]);
 
-  static const _deg = 6 * 3.141592653589793 / 180;
+  // In turns, for RotationTransition: 6 degrees.
+  static const _deg = 6 / 360;
   static final _turn = TweenSequence<double>([
     TweenSequenceItem(tween: ConstantTween(0), weight: 80),
     TweenSequenceItem(tween: Tween(begin: 0, end: _deg), weight: 3),
@@ -495,22 +496,35 @@ class _InstallStripState extends State<_InstallStrip>
     TweenSequenceItem(tween: ConstantTween(0), weight: 5),
   ]);
 
+  late final _scaled = _scale.animate(_nudge);
+  late final _turned = _turn.animate(_nudge);
+
+  /// Runs only while motion is allowed and the page is on top (UI_OPT O6.2).
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = MediaQuery.disableAnimationsOf(context);
+    final shown = ModalRoute.isCurrentOf(context) ?? true;
+    if (still || !shown) {
+      _nudge.stop();
+      if (still) _nudge.value = 0;
+    } else if (!_nudge.isAnimating) {
+      _nudge.repeat();
+    }
+  }
+
   @override
   void dispose() {
     _nudge.dispose();
     super.dispose();
   }
 
+  // Built once: the nudge scales and turns layers through transitions, so
+  // nothing rebuilds per frame (UI_OPT O6.2).
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final still = MediaQuery.disableAnimationsOf(context);
-    if (still) {
-      _nudge.stop();
-    } else if (!_nudge.isAnimating) {
-      _nudge.repeat();
-    }
-    Widget card(double turn) => Container(
+    final card = Container(
       padding: const EdgeInsets.fromLTRB(12, 11, 11, 11),
       decoration: BoxDecoration(
         color: p.navBackground,
@@ -553,8 +567,8 @@ class _InstallStripState extends State<_InstallStrip>
             ),
           ),
           const SizedBox(width: Space.sm),
-          Transform.rotate(
-            angle: turn,
+          RotationTransition(
+            turns: _turned,
             child: FilledButton(
               onPressed: widget.onInstall,
               style: FilledButton.styleFrom(
@@ -574,15 +588,7 @@ class _InstallStripState extends State<_InstallStrip>
         ],
       ),
     );
-    if (still) return card(0);
-    return AnimatedBuilder(
-      animation: _nudge,
-      builder:
-          (context, _) => Transform.scale(
-            scale: _scale.transform(_nudge.value),
-            child: card(_turn.transform(_nudge.value)),
-          ),
-    );
+    return RepaintBoundary(child: ScaleTransition(scale: _scaled, child: card));
   }
 }
 
