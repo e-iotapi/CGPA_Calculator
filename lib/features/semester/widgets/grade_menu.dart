@@ -212,7 +212,10 @@ class GradeMenu extends StatelessWidget {
                   Expanded(child: pill('ONG', quiet: true, text: 'Ongoing')),
                   const SizedBox(width: 5),
                   Expanded(
-                    child: pill('', quiet: true, text: 'Not graded yet'),
+                    child: Tooltip(
+                      message: 'Not graded yet',
+                      child: pill('', quiet: true, text: 'Not yet'),
+                    ),
                   ),
                 ],
               ),
