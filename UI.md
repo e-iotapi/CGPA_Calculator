@@ -2464,6 +2464,26 @@ O3 `bac86a7`, O4 with O8.1 and O8.3 `96ff0bd`, O6 `d698a7f`, O5 `0358816`.
 - **O8.2 and O8.4 need a device:** backgrounding Safari on iOS 15 for 5 minutes, and the
   O0.4 rows on an iPhone 7/8. Not run here.
 
+### 13.2.14 Group 9: last pass (28 Sep 2026)
+T9.2 `fe24b19`, T9.1 `34de21f` and `4f9d324`, T9.3 in the commit after.
+
+- **T9.2:** the six colour aliases and the `'Montserrat'` family are gone. The export
+  snackbar uses palette roles and `TypeScale`. The system bars follow the palette.
+- **T9.1 (as the user chose):** eyebrows keep their ellipsis at large text. Emails in rows
+  show the short campus form (`f20230456@goa`, `shared/short_email.dart`). The 150% pass
+  stopped after the worst cuts (calendar month, Stats title and tabs, long search hints,
+  two buttons), as the user asked: 120% is the bar.
+- **T9.3 (styled with shared parts, as the user chose; Departure: no boards):** every
+  dialog is the shared `AppDialog` (`shared/widgets/confirm_dialog.dart`, which
+  `ConfirmDialog` now builds on): surface fill, radius 22, section title, muted body,
+  44-tall stadium pills, stacked when there are more than two. Fields inside use
+  `appFieldDecoration` (the `AppTextField` look). Converted: Write n schemes, Paste JSON,
+  hide reason, add or rename a professor, Credits your degree needs, Import from
+  (copy profile), the ERP degree confirm, Settings' rename profile, Import from old site
+  and Report a problem (its types are `PillButton`s), and Home's Start from. The Who
+  teaches sheet uses palette text. The other §17 sheets already used the palette and the
+  theme's sheet defaults; they stay.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.

@@ -19,6 +19,7 @@ import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 
 ProfessorStore get _store => ProfessorStore(roleStore!.db, roles: roleStore);
@@ -44,8 +45,9 @@ Future<String?> _nameDialog(
               for (final p in others)
                 if (c.text.trim().length > 2 && likelySame(p.name, c.text)) p,
             ];
-            return AlertDialog(
-              title: Text(title),
+            final pal = AppPalette.of(context);
+            return AppDialog(
+              title: title,
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,7 +55,9 @@ Future<String?> _nameDialog(
                   TextField(
                     controller: c,
                     autofocus: true,
-                    decoration: const InputDecoration(hintText: 'Dr. R. Menon'),
+                    style: appFieldStyle(pal),
+                    cursorColor: pal.text,
+                    decoration: appFieldDecoration(pal, hint: 'Dr. R. Menon'),
                     onChanged: (_) => setState(() {}),
                   ),
                   if (similar.isNotEmpty) ...[
@@ -62,23 +66,21 @@ Future<String?> _nameDialog(
                       'Already listed: ${similar.map((p) => p.name).join(', ')}. '
                       'If that is the same person, use it instead.',
                       style: TypeScale.caption.copyWith(
-                        color: AppPalette.of(context).noticeTone.text,
+                        color: pal.noticeTone.text,
                       ),
                     ),
                   ],
                 ],
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed:
+                DialogAction('Cancel', onTap: () => Navigator.pop(context)),
+                DialogAction(
+                  similar.isEmpty ? 'Save' : 'Add anyway',
+                  onTap:
                       c.text.trim().length < 2
                           ? null
                           : () => Navigator.pop(context, c.text.trim()),
-                  child: Text(similar.isEmpty ? 'Save' : 'Add anyway'),
+                  ink: true,
                 ),
               ],
             );
@@ -605,29 +607,40 @@ class TakenBy extends StatefulWidget {
 class _TakenByState extends State<TakenBy> {
   Future<void> _change(List<Professor> profs) async {
     final chosen = {...?widget.offering?.professors};
+    final pal = AppPalette.of(context);
     final picked = await showModalBottomSheet<Set<String>>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       builder:
           (context) => StatefulBuilder(
             builder:
                 (context, setState) => SafeArea(
                   child: ListView(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.all(Space.lg),
+                    padding: const EdgeInsets.fromLTRB(
+                      Space.lg,
+                      0,
+                      Space.lg,
+                      Space.lg,
+                    ),
                     children: [
                       Text(
                         'Who teaches ${widget.courseId}?',
-                        style: TypeScale.title,
+                        style: TypeScale.title.copyWith(color: pal.text),
                       ),
                       Text(
                         'From the department list. Only a president can add a name.',
-                        style: TypeScale.caption,
+                        style: TypeScale.caption.copyWith(color: pal.textMuted),
                       ),
                       for (final x in profs)
                         CheckboxListTile(
                           value: chosen.contains(x.id),
-                          title: Text(x.name),
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            x.name,
+                            style: TypeScale.body.copyWith(color: pal.text),
+                          ),
                           onChanged:
                               (v) => setState(() {
                                 if (v == true && chosen.length < 2) {

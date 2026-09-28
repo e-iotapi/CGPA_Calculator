@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 
 typedef _Row =
     ({
@@ -85,28 +86,15 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         if (r.effect != ImportEffect.same && !_landed.contains(r.next.courseId))
           r.next,
     ];
-    final ok = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Write ${todo.length} schemes?'),
-            content: const Text(
-              'Every student taking these courses sees the new schemes. Each '
-              'write is logged under your name.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Write'),
-              ),
-            ],
-          ),
+    final ok = await confirmDialog(
+      context,
+      title: 'Write ${todo.length} schemes?',
+      body:
+          'Every student taking these courses sees the new schemes. Each '
+          'write is logged under your name.',
+      action: 'Write',
     );
-    if (ok != true) return;
+    if (!ok) return;
     setState(() {
       _writing = true;
       _stopped = null;

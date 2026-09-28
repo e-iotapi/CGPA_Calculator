@@ -16,6 +16,7 @@ import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/pointer_mark.dart';
 import 'package:flutter/foundation.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -173,30 +174,29 @@ class _ErpImportPageState extends State<ErpImportPage> {
       d.substring(0, 2),
       d.substring(2, 4),
     ].where((h) => h != '--').map(programmeName).join(' + ');
+    final body =
+        'This sheet is for $names, 20$b batch. ${_setup ? 'Pointer will set '
+                'that up instead, then import.' : 'Change your degree and batch '
+                'in Settings, then import again. Changing them clears your '
+                'grades.'}';
     final ok = await showDialog<bool>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: Text(
-              _setup ? 'Use your sheet\'s degree?' : 'Set your degree first',
-            ),
-            content: Text(
-              _setup
-                  ? 'This sheet is for $names, 20$b batch. Pointer will set '
-                      'that up instead, then import.'
-                  : 'This sheet is for $names, 20$b batch. Change your degree '
-                      'and batch in Settings, then import again. Changing '
-                      'them clears your grades.',
-            ),
+          (c) => AppDialog(
+            title:
+                _setup ? 'Use your sheet\'s degree?' : 'Set your degree first',
+            body: body,
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: Text(_setup ? 'Cancel' : 'OK'),
+              DialogAction(
+                _setup ? 'Cancel' : 'OK',
+                onTap: () => Navigator.pop(c, false),
+                ink: !_setup,
               ),
               if (_setup)
-                TextButton(
-                  onPressed: () => Navigator.pop(c, true),
-                  child: const Text('Use it'),
+                DialogAction(
+                  'Use it',
+                  onTap: () => Navigator.pop(c, true),
+                  ink: true,
                 ),
             ],
           ),

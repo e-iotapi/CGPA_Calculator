@@ -10,6 +10,8 @@ import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 
 enum _View { all, reported, hidden }
@@ -343,25 +345,29 @@ class _ReasonDialogState extends State<_ReasonDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Hide this review?'),
-    content: TextField(
-      controller: _reason,
-      autofocus: true,
-      decoration: const InputDecoration(
-        labelText: 'Reason',
-        hintText: 'Names a person, abusive, not about the course…',
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return AppDialog(
+      title: 'Hide this review?',
+      content: TextField(
+        controller: _reason,
+        autofocus: true,
+        style: appFieldStyle(p),
+        cursorColor: p.text,
+        decoration: appFieldDecoration(
+          p,
+          label: 'Reason',
+          hint: 'Names a person, abusive, not about the course…',
+        ),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      TextButton(
-        onPressed: () => Navigator.pop(context, _reason.text.trim()),
-        child: const Text('Hide'),
-      ),
-    ],
-  );
+      actions: [
+        DialogAction('Cancel', onTap: () => Navigator.pop(context)),
+        DialogAction(
+          'Hide',
+          onTap: () => Navigator.pop(context, _reason.text.trim()),
+          ink: true,
+        ),
+      ],
+    );
+  }
 }

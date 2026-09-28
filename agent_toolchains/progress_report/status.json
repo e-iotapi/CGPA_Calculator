@@ -1,6 +1,6 @@
 {
-  "current": "Group 9 · last pass",
-  "note": "UI_OPT is done (O8's two device checks need an iPhone). A fresh screen sheet is committed (ui_sheet/ui_sheet.png) for your manual pass. Group 9: the legacy colour aliases and the old SemiBold font family are gone, and the system bars follow the palette. Next: the 150% text pass, the Report-a-bug address, the unboarded screens, then a UI-only demo deploy.",
+  "current": "UI-only demo deploy",
+  "note": "Every card is done. Group 9 finished: every dialog now uses one shared look (surface card, section title, stadium pills), fields inside dialogs match the app's inputs, and the professor picker uses palette text. All 553 tests pass. Next: the UI-only demo you can click through.",
   "groups": [
     [
       "Group 2 · finish",
@@ -179,6 +179,7 @@
     "O4",
     "O6",
     "O8",
-    "O5"
+    "O5",
+    "G9"
   ]
 }
