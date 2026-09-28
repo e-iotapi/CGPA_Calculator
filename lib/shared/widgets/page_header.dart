@@ -1,6 +1,7 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:flutter/material.dart';
 
 /// Eyebrow, title and a round back button, for pushed screens.
@@ -136,24 +137,38 @@ class _TitleBlock extends StatelessWidget {
 
 /// Background, safe area, max width and padding for a pushed screen.
 class PageFrame extends StatelessWidget {
-  const PageFrame({super.key, required this.header, required this.children});
+  const PageFrame({
+    super.key,
+    required this.header,
+    required this.children,
+    this.bottom,
+  });
 
   final Widget header;
   final List<Widget> children;
 
+  /// A pinned `BottomAction`; the list pads itself clear of it.
+  final Widget? bottom;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final list = ListView(
+      padding: EdgeInsets.fromLTRB(
+        18,
+        Space.lg,
+        18,
+        bottom == null ? Space.xxl : BottomAction.heightOf(context) + Space.md,
+      ),
+      children: [header, const SizedBox(height: Space.md), ...children],
+    );
     return Scaffold(
       backgroundColor: p.background,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(18, Space.lg, 18, Space.xxl),
-              children: [header, const SizedBox(height: Space.md), ...children],
-            ),
+            child: bottom == null ? list : Stack(children: [list, bottom!]),
           ),
         ),
       ),

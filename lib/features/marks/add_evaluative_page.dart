@@ -4,11 +4,13 @@ import 'package:cgpa_calculator/core/grading/marks.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/features/marks/marks_format.dart';
-import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
-import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:cgpa_calculator/core/grading/official_scheme.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
@@ -263,7 +265,169 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
     if (d != null) setState(() => f.date = isoDate(d));
   }
 
-  Widget _averageField(Evaluative? draft, TextStyle muted) {
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final n = _active.length;
+    final draft = _draft;
+    final name = _name.text.trim();
+    final head = TypeScale.label.copyWith(
+      fontSize: 9.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.4,
+      color: p.textMuted,
+    );
+    Widget card(List<Widget> children) => Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 9,
+        children: children,
+      ),
+    );
+
+    return PageFrame(
+      header: PageHeader(
+        close: true,
+        eyebrow:
+            '${widget.courseId} · '
+            '${widget.existing == null ? 'NEW' : 'EDIT'} COMPONENT',
+        title: name.isEmpty ? 'New component' : name,
+        actions: [
+          if (widget.existingKey != null)
+            CircleIconButton(
+              icon: Icons.delete_outline_rounded,
+              tooltip: 'Delete component',
+              onPressed: _delete,
+              size: 44,
+            ),
+        ],
+      ),
+      bottom: BottomAction(
+        child: PrimaryButton(
+          label: 'Save',
+          onPressed: draft == null ? null : _save,
+        ),
+      ),
+      children: [
+        if (widget.official != null) ...[
+          const Notice(
+            warning: true,
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Official component. ',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                TextSpan(
+                  text:
+                      'Your marks are always yours. Changing the weight, an '
+                      'out of, a date or an average makes this component '
+                      'yours, and it stops updating.',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+        card([
+          AppTextField(
+            controller: _name,
+            label: 'COMPONENT NAME',
+            labelAbove: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.weighted ? 'WEIGHT' : 'OUT OF', style: head),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 60,
+                        child: CompactField(
+                          c: _weight,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      if (widget.weighted) ...[
+                        const SizedBox(width: 5),
+                        Text(
+                          '%',
+                          style: TypeScale.body.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: p.icon,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: _averageField(draft, head)),
+            ],
+          ),
+          if (widget.weighted)
+            Text(_unassignedLine(), style: head.copyWith(letterSpacing: 0)),
+        ]),
+        const SizedBox(height: 10),
+        card([
+          SegmentedPair<bool>(
+            a: (false, 'One mark'),
+            b: (true, 'Several parts'),
+            value: _several,
+            onChanged:
+                (several) => setState(() {
+                  _several = several;
+                  if (several && _parts.length < 2) _parts.add(_PartFields());
+                }),
+          ),
+          if (_several && n >= 2) ...[
+            Text('HOW MANY COUNT', style: head),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (var k = n; k >= 1; k--)
+                  _CountPill(
+                    label: k == n ? 'All $n' : 'Best $k of $n',
+                    selected: (_best == 0 || _best >= n) ? k == n : _best == k,
+                    onTap: () => setState(() => _best = k == n ? 0 : k),
+                  ),
+              ],
+            ),
+          ] else if (!_several)
+            _singleRow(head),
+        ]),
+        if (_several) ...[
+          const SizedBox(height: 10),
+          _partsCard(draft, head, card),
+        ],
+        const SizedBox(height: 10),
+        _preview(draft, p),
+      ],
+    );
+  }
+
+  String _unassignedLine() {
+    final left = widget.unassigned - (double.tryParse(_weight.text) ?? 0);
+    return left >= 0
+        ? '${marks2(left)}% still unassigned'
+        : '${marks2(-left)}% over 100';
+  }
+
+  Widget _averageField(Evaluative? draft, TextStyle head) {
+    final p = AppPalette.of(context);
     final a =
         draft == null
             ? null
@@ -272,232 +436,277 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
               widget.averagesFrom,
               detachedFor(widget.courseId),
             );
-    final derived = draft == null ? null : componentAverage(draft);
     final outOf = draft?.parts.fold<double>(0, (s, x) => s + x.outOf) ?? 0;
+    final shown =
+        _average.text.trim().isEmpty &&
+        a != null &&
+        a.source != AverageSource.yours;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppTextField(
-          controller: _average,
-          label: 'Class average for the component',
-          hint:
-              derived != null && derived.derived
-                  ? marks2(derived.value)
-                  : 'Optional',
-          number: true,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          [
-            if (outOf > 0) 'of ${marks2(outOf)}',
-            if (a != null) a.source.label.toLowerCase(),
-            if (a != null && a.source != AverageSource.official) sourceLine(a),
-          ].join(' · '),
-          style: muted,
-        ),
+        Text('CLASS AVERAGE', style: head),
+        const SizedBox(height: 5),
+        if (shown)
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Color.lerp(p.surface, p.hero, 0.4),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  marks2(a.value),
+                  style: TypeScale.body.copyWith(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: p.isDark ? p.hero : const Color(0xFF1F5240),
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    [
+                      if (outOf > 0) 'of ${marks2(outOf)}',
+                      a.source == AverageSource.official
+                          ? 'official'
+                          : 'from parts',
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: p.isDark ? p.hero : const Color(0xFF2C7A62),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          SizedBox(
+            height: 40,
+            child: CompactField(
+              c: _average,
+              hint: outOf > 0 ? 'of ${marks2(outOf)}' : 'Optional',
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    final muted = TypeScale.caption.copyWith(color: p.textMuted, height: 1.4);
-    final n = _active.length;
-    final draft = _draft;
-    final unassigned = widget.unassigned - (double.tryParse(_weight.text) ?? 0);
-
-    return PageFrame(
-      header: PageHeader(
-        eyebrow: widget.courseId,
-        title: widget.existing == null ? 'Add evaluative' : 'Edit evaluative',
-        actions: [
-          if (widget.existingKey != null)
-            CircleIconButton(
-              icon: Icons.delete_outline_rounded,
-              tooltip: 'Delete evaluative',
-              onPressed: _delete,
-              size: 42,
-            ),
-        ],
+  Widget _singleRow(TextStyle head) {
+    final f = _parts.first;
+    void changed(String _) => setState(() {});
+    Widget col(String label, Widget child, {double? width}) => SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [Text(label, style: head), const SizedBox(height: 5), child],
       ),
+    );
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.end,
       children: [
-        AppTextField(
-          controller: _name,
-          label: 'Component name',
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: Space.md),
-        AppTextField(
-          controller: _weight,
-          label:
-              widget.weighted ? 'Weight of the component' : 'Marks it is worth',
-          suffix: widget.weighted ? '%' : 'marks',
-          number: true,
-          onChanged: (_) => setState(() {}),
-        ),
-        if (widget.weighted) ...[
-          const SizedBox(height: 6),
-          Text(
-            unassigned >= 0
-                ? '${marks2(unassigned)}% still unassigned'
-                : '${marks2(-unassigned)}% over 100',
-            style: muted,
-          ),
-        ],
-        const FieldLabel('Class average'),
-        _averageField(draft, muted),
-        const FieldLabel('Structure'),
-        Row(
-          children: [
-            for (final several in [false, true]) ...[
-              if (several) const SizedBox(width: Space.sm),
-              Expanded(
-                child: PillButton(
-                  label: several ? 'Several parts' : 'One mark',
-                  selected: _several == several,
-                  expand: true,
-                  height: 42,
-                  onPressed:
-                      () => setState(() {
-                        _several = several;
-                        if (several && _parts.length < 2) {
-                          _parts.add(_PartFields());
-                        }
-                      }),
-                ),
-              ),
-            ],
-          ],
-        ),
-        if (_several && n >= 2) ...[
-          const FieldLabel('How many count'),
-          Wrap(
-            spacing: Space.sm,
-            runSpacing: Space.sm,
-            children: [
-              for (var k = n; k >= 1; k--)
-                PillButton(
-                  label: k == n ? 'All $n' : 'Best $k of $n',
-                  selected: (_best == 0 || _best >= n) ? k == n : _best == k,
-                  onPressed: () => setState(() => _best = k == n ? 0 : k),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (_best > 0 && _best < n)
-            Text(
-              'The lowest scoring part is dropped automatically, and keeps '
-              'updating as you enter marks.',
-              style: muted,
-            ),
-        ],
-        FieldLabel(_several ? 'Parts' : 'Marks'),
-        if (_several)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Space.sm),
-            child: Text(
-              'name · date · marks · out of · class average',
-              style: muted,
-            ),
-          ),
-        for (final (i, f) in _active.indexed) ...[
-          _partRow(f, i),
-          const SizedBox(height: Space.sm),
-        ],
-        if (!_several) ...[
-          _DateField(
-            date: _parts.first.date,
+        col('YOU', CompactField(c: f.marks, onChanged: changed), width: 64),
+        col('OUT OF', CompactField(c: f.outOf, onChanged: changed), width: 64),
+        col(
+          'DATE',
+          _DateChip(
+            date: f.date,
             label: 'Date',
-            onPick: () => _pickDate(_parts.first),
-            onClear: () => setState(() => _parts.first.date = null),
+            onPick: () => _pickDate(f),
+            onClear: () => setState(() => f.date = null),
           ),
-          const SizedBox(height: 6),
-        ],
-        Text('Give it a date to see it on the calendar.', style: muted),
-        const SizedBox(height: Space.sm),
-        if (draft != null && droppedParts(draft).isNotEmpty)
-          Text(
-            '${droppedParts(draft).map((d) => d.name.isEmpty ? 'A part' : d.name).join(', ')} '
-            '${droppedParts(draft).length == 1 ? 'is' : 'are'} currently dropped.',
-            style: muted,
-          ),
-        if (_several)
-          TextButton.icon(
-            onPressed: () => setState(() => _parts.add(_PartFields())),
-            icon: Icon(Icons.add_rounded, color: p.text, size: 18),
-            label: Text(
-              'Add another part',
-              style: TypeScale.button.copyWith(
-                fontWeight: FontWeight.w700,
-                color: p.text,
-              ),
-            ),
-          ),
-        const SizedBox(height: Space.md),
-        _preview(draft, p),
-        const SizedBox(height: Space.lg),
-        PrimaryButton(
-          label: 'Save evaluative',
-          onPressed: draft == null ? null : _save,
         ),
       ],
     );
   }
 
-  Widget _partRow(_PartFields f, int i) {
+  Widget _partsCard(
+    Evaluative? draft,
+    TextStyle head,
+    Widget Function(List<Widget>) card,
+  ) {
+    final p = AppPalette.of(context);
+    final colHead = head.copyWith(fontSize: 8.5, letterSpacing: 0.2);
+    final dropped =
+        draft == null ? const <EvalPart>{} : droppedParts(draft).toSet();
+    return LayoutBuilder(
+      builder: (context, c) {
+        final narrow =
+            c.maxWidth < 340 || MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        Widget headCell(String t, double w) => SizedBox(
+          width: w,
+          child: Text(t, textAlign: TextAlign.center, style: colHead),
+        );
+        return card([
+          Row(
+            children: [
+              Expanded(child: Text('PARTS', style: head)),
+              if (!narrow) ...[
+                headCell('DATE', 52),
+                const SizedBox(width: 5),
+                headCell('YOU', 36),
+                const SizedBox(width: 5),
+                headCell('OUT OF', 36),
+                const SizedBox(width: 5),
+                headCell('AVG', 46),
+              ],
+            ],
+          ),
+          for (final (i, f) in _parts.indexed)
+            _partRow(
+              f,
+              i,
+              narrow: narrow,
+              dropped:
+                  draft != null &&
+                  i < draft.parts.length &&
+                  dropped.contains(draft.parts[i]),
+            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  'Averages fill in by themselves when the CR publishes '
+                  'them. The copy button adds the next part below.',
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: p.textMuted,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Semantics(
+                button: true,
+                label: 'Add a part',
+                excludeSemantics: true,
+                child: InkWell(
+                  onTap: () => setState(() => _parts.add(_PartFields())),
+                  customBorder: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: DashedOutline(
+                    color: p.outline,
+                    radius: 18,
+                    child: SizedBox(
+                      height: 36,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Center(
+                          child: Text(
+                            '+ Part',
+                            style: TypeScale.caption.copyWith(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: p.text,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ]);
+      },
+    );
+  }
+
+  Widget _partRow(
+    _PartFields f,
+    int i, {
+    required bool narrow,
+    required bool dropped,
+  }) {
     final p = AppPalette.of(context);
     void changed(String _) => setState(() {});
-    final numbers = Row(
-      children: [
-        Expanded(
-          child: AppTextField(
-            controller: f.marks,
-            label: 'Marks',
-            number: true,
-            dense: true,
-            onChanged: changed,
-          ),
+    Widget field(Widget child, double w) {
+      final box = SizedBox(width: w, child: child);
+      return dropped
+          ? DashedOutline(color: p.outline, radius: 11, child: box)
+          : box;
+    }
+
+    final official = _partOfficial(i) && f.average.text.isNotEmpty;
+    final fields = [
+      field(
+        _DateChip(
+          date: f.date,
+          label: 'Part ${i + 1} date',
+          onPick: () => _pickDate(f),
+          onClear: () => setState(() => f.date = null),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text('/', style: TextStyle(color: p.textMuted)),
-        ),
-        Expanded(
-          child: AppTextField(
-            controller: f.outOf,
-            label: 'Out of',
-            number: true,
-            dense: true,
-            onChanged: changed,
-          ),
-        ),
-      ],
+        52,
+      ),
+      field(CompactField(c: f.marks, hint: 'You', onChanged: changed), 36),
+      field(CompactField(c: f.outOf, hint: 'Of', onChanged: changed), 36),
+      field(
+        official
+            ? Tooltip(
+              message: 'Published by the CR',
+              child: CompactField(c: f.average, official: true),
+            )
+            : CompactField(c: f.average, hint: 'Avg', onChanged: changed),
+        46,
+      ),
+    ];
+    final partLabel = Text(
+      dropped ? 'PART ${i + 1} · DROPPED' : 'PART ${i + 1}',
+      style: TypeScale.label.copyWith(
+        fontSize: 9.5,
+        fontWeight: FontWeight.w700,
+        color: p.textMuted.withValues(alpha: 0.8),
+      ),
     );
-    if (!_several) return numbers;
-    return AppCard(
-      padding: const EdgeInsets.all(10),
-      radius: 16,
+    return Opacity(
+      opacity: dropped ? 0.6 : 1,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Expanded(
-                child: AppTextField(
-                  controller: f.name,
-                  label: 'Part ${i + 1} name',
-                  dense: true,
-                  onChanged: changed,
+                child: SizedBox(
+                  height: 36,
+                  child: TextField(
+                    controller: f.name,
+                    onChanged: changed,
+                    style: TypeScale.body.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: p.text,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Part ${i + 1} name',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(11),
+                        borderSide: BorderSide(color: p.outline),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(11),
+                        borderSide: BorderSide(color: p.outline),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              _DateField(
-                date: f.date,
-                label: 'Part ${i + 1} date',
-                compact: true,
-                onPick: () => _pickDate(f),
-                onClear: () => setState(() => f.date = null),
               ),
               IconButton(
                 tooltip: 'Duplicate part ${i + 1}',
@@ -505,7 +714,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
                     () => setState(
                       () => _parts.insert(i + 1, _PartFields.after(f)),
                     ),
-                icon: Icon(Icons.copy_rounded, color: p.textMuted, size: 17),
+                icon: Icon(Icons.copy_rounded, color: p.textMuted, size: 16),
               ),
               if (_parts.length > 2)
                 IconButton(
@@ -515,22 +724,25 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
                         _parts.removeAt(i).dispose();
                         if (_best >= _parts.length) _best = 0;
                       }),
-                  icon: Icon(Icons.close_rounded, color: p.textMuted, size: 18),
+                  icon: Icon(Icons.close_rounded, color: p.textMuted, size: 15),
                 ),
             ],
           ),
           const SizedBox(height: 6),
-          numbers,
-          const SizedBox(height: 6),
-          AppTextField(
-            controller: f.average,
-            label:
-                'Class average for this part'
-                '${_partOfficial(i) ? ' · official' : ''}',
-            number: true,
-            dense: true,
-            onChanged: changed,
-          ),
+          if (narrow) ...[
+            partLabel,
+            const SizedBox(height: 4),
+            Wrap(spacing: 5, runSpacing: 5, children: fields),
+          ] else
+            Row(
+              children: [
+                Expanded(child: partLabel),
+                for (final (j, w) in fields.indexed) ...[
+                  if (j > 0) const SizedBox(width: 5),
+                  w,
+                ],
+              ],
+            ),
         ],
       ),
     );
@@ -538,42 +750,73 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
 
   Widget _preview(Evaluative? d, AppPalette p) {
     final value = d == null ? null : contribution(d);
-    final counted = d == null ? const <EvalPart>[] : countedParts(d);
-    final got = counted.fold(0.0, (s, x) => s + (x.marks ?? 0));
-    final max = counted.fold(0.0, (s, x) => s + x.outOf);
-    final how =
-        d == null
-            ? 'Fill in a name, a weight and each part\'s maximum.'
-            : counted.isEmpty
-            ? 'Nothing graded yet — it counts once a mark is in. Then a '
-                'blank part scores zero.'
-            : '${d.countBest > 0 ? 'best ${d.countBest} of ${d.parts.length}' : 'all counted'}'
-                ' → ${marks2(got)} of ${marks2(max)}, the counted parts\' '
-                'own maximums';
+    final avg = d == null ? null : componentAverage(d);
+    final how = [
+      if (d == null)
+        'Fill in a name, a weight and each out of'
+      else if (d.countBest > 0)
+        'best ${d.countBest} of ${d.parts.length}'
+      else if (d.parts.length > 1)
+        'all ${d.parts.length} count'
+      else
+        'one mark',
+      if (avg != null) 'class ${marks2(avg.value)}',
+    ].join(' · ');
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.fromLTRB(15, 11, 15, 11),
       decoration: BoxDecoration(
         color: p.hero,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            'THIS COMPONENT GIVES YOU',
-            style: TypeScale.label.copyWith(color: p.onHeroMuted),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'THIS COMPONENT GIVES YOU',
+                  style: TypeScale.label.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: p.onHero,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  how,
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: p.onHeroMuted,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(how, style: TypeScale.caption.copyWith(color: p.onHeroMuted)),
-          const SizedBox(height: 4),
-          Text(
-            value == null
-                ? '—'
-                : '${value.toStringAsFixed(2)} / ${marks2(d!.weight)}',
-            style: TypeScale.display.copyWith(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: p.onHero,
+          const SizedBox(width: 10),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: value == null ? '—' : value.toStringAsFixed(1),
+                  style: TypeScale.display.copyWith(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1,
+                    color: p.onHero,
+                  ),
+                ),
+                if (d != null)
+                  TextSpan(
+                    text: ' / ${marks2(d.weight)}',
+                    style: TypeScale.body.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: p.onHeroMuted,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -582,15 +825,60 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
   }
 }
 
-/// Looks like the inputs around it; opens the date picker. Set, it shows the
-/// date and a button to clear it.
-class _DateField extends StatelessWidget {
-  const _DateField({
+/// Board 3.6: the selected count pill is mint.
+class _CountPill extends StatelessWidget {
+  const _CountPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? p.hero : Colors.transparent,
+        shape: StadiumBorder(
+          side: BorderSide(color: selected ? p.hero : p.outline),
+        ),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Center(
+              widthFactor: 1,
+              child: Text(
+                label,
+                style: TypeScale.caption.copyWith(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? p.onHero : p.text,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A compact date field: "8 Sep", or "Date"; set, a × clears it.
+class _DateChip extends StatelessWidget {
+  const _DateChip({
     required this.date,
     required this.label,
     required this.onPick,
     required this.onClear,
-    this.compact = false,
   });
 
   /// ISO date, or null.
@@ -599,83 +887,60 @@ class _DateField extends StatelessWidget {
   final VoidCallback onPick;
   final VoidCallback onClear;
 
-  /// Beside a part's name: just the date.
-  final bool compact;
-
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final set = date != null;
-    final text =
-        set
-            ? shortDate(date!)
-            : compact
-            ? 'Date'
-            : 'Add a date';
-    final pick = InkWell(
-      onTap: onPick,
-      child: Semantics(
-        button: true,
-        label: set ? '$label, ${shortDate(date!)}' : label,
-        excludeSemantics: true,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: Sizes.minTouch),
-          child: Padding(
-            padding: EdgeInsets.only(left: 10, right: set ? 2 : 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.event_outlined,
-                  size: 17,
-                  color: set ? p.text : p.textMuted,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.caption.copyWith(
-                      fontSize: 12.5,
-                      fontWeight: set ? FontWeight.w600 : FontWeight.w500,
-                      color: set ? p.text : p.textMuted,
+    return Material(
+      color: const Color(0xFFF8F8F5),
+      borderRadius: BorderRadius.circular(11),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: 36,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: InkWell(
+                onTap: onPick,
+                child: Semantics(
+                  button: true,
+                  label: set ? '$label, ${shortDate(date!)}' : label,
+                  excludeSemantics: true,
+                  child: Container(
+                    height: 36,
+                    constraints: const BoxConstraints(minWidth: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    alignment: Alignment.center,
+                    child: Text(
+                      set ? shortDate(date!) : 'Date',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TypeScale.caption.copyWith(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: set ? const Color(0xFF17170F) : p.textMuted,
+                      ),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+            if (set)
+              Tooltip(
+                message: 'Clear date',
+                child: InkWell(
+                  onTap: onClear,
+                  child: const SizedBox(
+                    width: 20,
+                    height: 36,
+                    child: Icon(Icons.close_rounded, size: 12),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
-    final field = Material(
-      color: p.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: p.outline),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Row(
-        mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
-        children: [
-          if (compact) Flexible(child: pick) else Expanded(child: pick),
-          if (set)
-            IconButton(
-              tooltip: 'Clear date',
-              visualDensity: VisualDensity.compact,
-              onPressed: onClear,
-              icon: Icon(Icons.close_rounded, size: 16, color: p.textMuted),
-            ),
-        ],
-      ),
-    );
-    // Beside a name the row gives no width limit of its own.
-    return compact
-        ? ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 128),
-          child: field,
-        )
-        : field;
   }
 }
