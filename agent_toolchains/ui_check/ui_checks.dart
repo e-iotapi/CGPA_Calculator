@@ -10,7 +10,9 @@
 //   unlabeled   a tappable target with no label or tooltip
 //   dead        announced as an enabled button, but has no tap action
 //   truncated   text cut short by maxLines / an ellipsis
+//   word-break  a word wrapped mid-word ("Rem" / "ove")
 //   off-edge    text painted past the right edge of the screen
+//   overlap     two visible texts drawn over each other
 //   stretch     a pill or badge that should hug its label fills the width
 //   anim        frames still being scheduled after the screen settled
 import 'dart:convert';
@@ -83,6 +85,9 @@ Future<List<String>> uiIssues(WidgetTester t) async {
   final screen = t.view.physicalSize / t.view.devicePixelRatio;
 
   final texts = <RenderParagraph>[];
+  _order = 0;
+  _covers.clear();
+  _textOrder.clear();
   final faint = <(String, String)>[];
   for (final view in t.binding.renderViews) {
     _walkRender(view, screen, false, out, texts);
@@ -93,6 +98,7 @@ Future<List<String>> uiIssues(WidgetTester t) async {
         if (line != null) faint.add((_clip(p.text.toPlainText()), line));
       }
     }
+    _overlaps(texts, out);
     texts.clear();
   }
 
@@ -145,6 +151,24 @@ void _walkRender(
 ]) {
   seen ??= Offset.zero & screen;
   if (o is RenderOffstage && o.offstage) return;
+  // Laid out but not shown: a closed dropdown's other items, a faded hint.
+  if (o is RenderOpacity && o.opacity == 0) return;
+  if (o is RenderAnimatedOpacity && o.opacity.value == 0) return;
+  _order++;
+  if (o is RenderBox && o.hasSize && o.attached && _opaque(o)) {
+    _covers.add((
+      _order,
+      MatrixUtils.transformRect(o.getTransformTo(null), Offset.zero & o.size),
+    ));
+  }
+  if (o is RenderIndexedStack) {
+    var k = 0;
+    final shown = o.index;
+    o.visitChildren((c) {
+      if (k++ == shown) _walkRender(c, screen, sideways, out, texts, seen);
+    });
+    return;
+  }
   if (o is RenderViewportBase && o.hasSize && o.attached) {
     // A scroll view shows only its own box; rows past it are laid out
     // ahead of scrolling but nobody sees them.
@@ -163,13 +187,86 @@ void _walkRender(
     final text = _clip(o.text.toPlainText());
     if (text.isNotEmpty && box.overlaps(seen)) {
       texts.add(o);
+      _textOrder[o] = _order;
       if (o.didExceedMaxLines) out.add('truncated: "$text"');
+      if (_brokenWord(o) case final w?) {
+        out.add('word-break: "$w" split across lines in "$text"');
+      }
       if (!sideways && box.right > screen.width + 0.5) {
         out.add('off-edge: "$text" ends at ${box.right.round()}');
       }
     }
   }
   o.visitChildren((c) => _walkRender(c, screen, sideways, out, texts, seen));
+}
+
+// Paint order of the current walk: a box painted after a text, over it, and
+// opaque, hides it.
+var _order = 0;
+final _covers = <(int, Rect)>[];
+final _textOrder = <RenderParagraph, int>{};
+
+bool _opaque(RenderBox o) {
+  Color? c;
+  if (o is RenderDecoratedBox && o.decoration is BoxDecoration) {
+    c = (o.decoration as BoxDecoration).color;
+  } else if (o is RenderPhysicalShape) {
+    c = o.color;
+  } else if (o is RenderPhysicalModel) {
+    c = o.color;
+  } else if (o.runtimeType.toString() == '_RenderColoredBox') {
+    // ColoredBox's render object is private; its color getter is public.
+    c = (o as dynamic).color as Color;
+  }
+  return c != null && c.a > 0.99;
+}
+
+bool _hidden(RenderParagraph p, Offset at) {
+  final mine = _textOrder[p] ?? 0;
+  return _covers.any((c) => c.$1 > mine && c.$2.contains(at));
+}
+
+/// Two pieces of visible text drawn over each other (a bar without a
+/// background over scrolled text, a label run into another).
+void _overlaps(List<RenderParagraph> texts, Set<String> out) {
+  final boxes = [
+    for (final p in texts)
+      if (p.attached)
+        (
+          p,
+          MatrixUtils.transformRect(
+            p.getTransformTo(null),
+            Offset.zero & p.size,
+          ).deflate(1),
+        ),
+  ];
+  for (var i = 0; i < boxes.length; i++) {
+    for (var j = i + 1; j < boxes.length; j++) {
+      final (a, ra) = boxes[i];
+      final (b, rb) = boxes[j];
+      final hit = ra.intersect(rb);
+      if (hit.width <= 2 || hit.height <= 2) continue;
+      final small = min(ra.width * ra.height, rb.width * rb.height);
+      if (hit.width * hit.height < small * 0.2) continue;
+      if (_hidden(a, hit.center) || _hidden(b, hit.center)) continue;
+      out.add(
+        'overlap: "${_clip(a.text.toPlainText())}" over '
+        '"${_clip(b.text.toPlainText())}"',
+      );
+    }
+  }
+}
+
+/// The first word [p] wraps in the middle of ("Rem" / "ove"), if any.
+String? _brokenWord(RenderParagraph p) {
+  final plain = p.text.toPlainText();
+  for (final m in RegExp(r'[A-Za-z]{2,}').allMatches(plain)) {
+    final boxes = p.getBoxesForSelection(
+      TextSelection(baseOffset: m.start, extentOffset: m.end),
+    );
+    if (boxes.map((b) => b.top.round()).toSet().length > 1) return m[0];
+  }
+  return null;
 }
 
 /// The view as RGBA at logical pixels, so global offsets index it.

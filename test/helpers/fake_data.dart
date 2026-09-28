@@ -642,11 +642,12 @@ final shotsOut = Platform.environment['SHOTS_DIR'];
 /// One render: a label, a size and a text scale.
 typedef Frame = (String label, Size size, double scale);
 
-/// 390 at the board's height, 320 × 640, and 320 at 200% text (light only).
+/// 390 at the board's height, 320 × 640, and 320 at 150% text (light only);
+/// 200% is not checked (UI.md §13.2.10).
 List<Frame> framesFor(double tall) => [
   ('390', Size(390, tall), 1),
   ('320', const Size(320, 640), 1),
-  ('320x2', const Size(320, 640), 2),
+  ('320x1.5', const Size(320, 640), 1.5),
 ];
 
 /// Renders [screen] as [who] over freshly seeded data, in light and dark at

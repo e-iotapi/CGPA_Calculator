@@ -48,6 +48,20 @@ final canaries = <String, (Widget, String)>{
             ],
           ),
         ),
+        // Text an opaque card covers: hidden, so not an overlap.
+        const SizedBox(
+          width: 200,
+          height: 30,
+          child: Stack(
+            children: [
+              Text('Underneath'),
+              ColoredBox(
+                color: Colors.white,
+                child: SizedBox(width: 200, height: 30, child: Text('On top')),
+              ),
+            ],
+          ),
+        ),
         // A disabled button, faint on purpose: WCAG exempts it.
         const SizedBox(height: 12),
         const SizedBox(
@@ -105,6 +119,21 @@ final canaries = <String, (Widget, String)>{
       child: const SizedBox(width: 48, height: 48),
     ),
     'dead',
+  ),
+  'canary_word_break': (
+    const SizedBox(
+      width: 40,
+      child: Text('Remove', style: TextStyle(fontSize: 20)),
+    ),
+    'word-break',
+  ),
+  'canary_overlap': (
+    const SizedBox(
+      width: 200,
+      height: 40,
+      child: Stack(children: [Text('Skip this step'), Text('Choose a file')]),
+    ),
+    'overlap',
   ),
   'canary_truncated': (
     const SizedBox(

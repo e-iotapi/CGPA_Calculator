@@ -25,7 +25,7 @@ python3 agent_toolchains/ui_check/ui_check.py audit 4             # random clean
 ```
 
 A full run takes about a minute for about 300 renders: each screen in light and
-dark at 390, 320, and 320 with 200% text. The summary is in
+dark at 390, 320, and 320 with 150% text (200% is not checked). The summary is in
 `build/ui_check/summary.txt`, and every image it names comes with a token
 estimate. The exit status is 0 for clean, 1 for something to look at, and
 2 when the tooling itself is broken.
