@@ -7,6 +7,7 @@ git ignores.
 | Toolchain | What it does |
 |---|---|
 | `ui_check/` | Renders every screen, reports UI bugs as text, and diffs against the accepted run, so you open pixels only when a rule below says to. |
+| `code/` | Surgical editing, one-line verify gates, and a commit helper that enforces this repo's rules. |
 | `progress_report/` | Builds the one-page progress report from `status.json` and the git log. |
 
 Setup, once per container: `pip install pillow numpy`, and put flutter on
@@ -125,6 +126,37 @@ Three limits apply however much you look:
 
 These are for users to find. When a user reports one, add it to the fake data
 or the canaries so it is caught next time.
+
+## code
+
+These are surgical tools. They refuse rather than guess, and they write nothing unless every check passes.
+
+- `verify.py` runs the gates before any commit and prints one line per gate:
+  - `format`: changed files that were formatted at HEAD. Legacy files, and
+    files unformatted at HEAD, are left alone.
+  - `analyze`: only the known findings are allowed, counted by (file, rule).
+  - `tests`: failing tests are listed by name.
+  - Optional flags: `--ui <screen>` adds the ui_check run, `--fast` skips the
+    tests, and `--selftest` plants one problem per gate and requires each
+    gate to catch it. Run the self-test whenever you change the tool or the
+    rules.
+- `edit.py` does exact text or `--regex` replacement across files or
+  `--glob`s. The rules:
+  - It runs dry unless you pass `--write`.
+  - The total match count must equal `--count` exactly.
+  - At most `--max-lines` (default 40) lines may change.
+  - PLAN.md and legacy files are refused unless you name them with `--allow`.
+  - It applies all or nothing.
+  - Read the dry run before adding `--write`.
+- `commit.py -m "msg" files…` stages only the named files. It refuses
+  forbidden files, files with no change, the wrong branch, and a failing
+  verify. It adds the trailer, pushes, and lists the changed files it left out.
+- `rules.py` holds the lists: legacy files, forbidden files, the known
+  analyze findings and the trailer. Change a rule there, and only when the
+  repo's rules change.
+
+For symbol lookups (definition, references, signature) use the Dart MCP
+server from the Dart and Flutter plugin instead of reading whole files.
 
 ## progress_report
 
