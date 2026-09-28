@@ -2327,6 +2327,32 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Checks**: `flutter analyze` 7 infos; `flutter test` 477 passed, 50
   skipped.
 
+### 13.2.9 Group 6 closed — T6.1–T6.6 (28 Sep 2026)
+- **T6.1 · Grade menu**: "Not graded yet" reads "Not yet", with that
+  tooltip.
+- **T6.2 + T6.3 · Add a course / Enter it manually**: own handle, 30 px
+  radius, 34% scrim, a 34 px Close, `TypeScale.sheetTitle` (21/700, new);
+  the "3 cr" chip; white filled fields, a two-line title, a three-box
+  credits stepper (0.5–20), a 31 px grade grid with Ongoing and Not yet
+  on their own row; Counts as opens a sheet of rows (`pickCategory`).
+- **T6.4 · Confirm dialogs**: new `confirmDialog` / `ConfirmDialog`, used
+  for Remove course, Over n credits, Settings' confirms and Clear grades.
+  New `d_confirm` render row.
+- **T6.5 · Settings › Discipline**: opens `ProgrammePickPage` through
+  `pickDisciplineHalf`, with setup's filter.
+- **T6.6 · Edit course**: restyled only, as the card says.
+- **Departures**:
+  - The profile "Start … from" dialog (`home_page.dart`) lists several
+    profiles, not yes / no, so it keeps its own dialog.
+  - Clear grades' copy is now "Clear grades?" / "Every grade in this
+    semester is cleared. The courses stay."
+  - `ProgrammePickPage` gained `extras` so Settings keeps "Other" and
+    "None", which are not programmes.
+  - T6.6 has no board; the restyle follows Add a course. Replace it when
+    a board exists.
+- **Checks**: `flutter analyze` 7 infos; `flutter test` 483 passed, 50
+  skipped.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
