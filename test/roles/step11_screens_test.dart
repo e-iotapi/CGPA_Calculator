@@ -806,8 +806,16 @@ void main() {
     await t.tap(find.text('Department president'));
     await t.pumpAndSettle();
     expect(find.text('Which department?'), findsOneWidget);
-    expect(find.text('Electronics'), findsOneWidget);
-    expect(find.textContaining('ELEC · A3 · A8 · AA · AC'), findsOneWidget);
+    // A row per ELEC programme, each with its own presidents.
+    for (final branch in [
+      'Electrical & Electronics',
+      'Electronics and Instrumentation',
+      'Electronics and Communication',
+      'Electronics and Computer',
+    ]) {
+      expect(find.text(branch), findsOneWidget);
+    }
+    expect(find.textContaining('A3 · 0 presidents'), findsOneWidget);
   });
 
   test('last opened sits on top', () {
