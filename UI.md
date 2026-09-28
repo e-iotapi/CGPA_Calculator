@@ -2185,6 +2185,30 @@ stats_page}.dart`, `lib/features/stats/widgets/{cgpa_chart,progression_view}.dar
 - **Checks**: `flutter analyze` 7 infos; `flutter test` 416 passed, 50
   skipped.
 
+### 13.2.5 UI_OPT O7 — web load and assets (28 Sep 2026)
+- **O7.1**: new `tools/font_chars.txt` (186 codepoints: every character
+  `lib/**/*.dart` string literals use, printable ASCII, the required extras,
+  and Latin-1 Supplement) and `tools/subset_fonts.sh` (`pyftsubset`, all
+  layout features kept). `fonts/*.ttf` subsetted: 2.1 MB → 428 KB. New
+  `test/perf/font_chars_test.dart` guards against an unlisted character.
+  `pubspec.yaml` unchanged (`Montserrat` already points at SemiBold).
+  **Not verified**: a pixel diff against pre-subset screenshots — there was
+  no `SHOTS_DIR` baseline saved before this change to diff against. The full
+  render-test suite (397+ widget tests using `loadAppFonts`) passes clean
+  against the subset fonts, which would catch a missing-glyph crash but not
+  a subtler shape change.
+- **O7.2**: `web/index.html`'s `MutationObserver` now hooks the canvas once
+  at `flutter-first-frame`, watches only the Flutter view's own shadow root
+  (`childList`, not `subtree` on `body`), and disconnects after 10s with no
+  new canvas. Manual-only check (DevTools Performance while typing); not run
+  here, noted in `UI_PERF_BASELINE.md`.
+- **O7.3**: `landing/_headers` gets `Cache-Control` for `/calculator/assets/*`
+  (`max-age=86400, stale-while-revalidate=604800`) and `/calculator/canvaskit/*`
+  (`max-age=604800`); `index.html`/bootstrap/service-worker untouched.
+- **O7.4**: no code (a note not to duplicate refactor P7's work).
+- **Checks**: `flutter analyze` 7 infos; `flutter test` 417 passed, 50
+  skipped.
+
 ### 13.3 Second audit and the fix guide (27 Sep 2026) · UI.md only, no code changed
 - At the user's request no Dart code was changed. A Stats-axes patch was written, tested (19
   passed, analyze clean) and reverted; it is written out in §20 T2.1.
