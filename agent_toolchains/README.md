@@ -23,6 +23,7 @@ python3 agent_toolchains/ui_check/ui_check.py accept              # after the lo
 python3 agent_toolchains/ui_check/ui_check.py sheet 's_*'         # thumbnails
 python3 agent_toolchains/ui_check/ui_check.py show 's_more_*'     # full size
 python3 agent_toolchains/ui_check/ui_check.py audit 4             # random clean ones
+python3 agent_toolchains/ui_check/ui_check.py atlas               # ui_sheet/ for a person
 ```
 
 A full run takes about a minute for about 300 renders: each screen in light and
@@ -52,6 +53,11 @@ The pieces:
 - `ui_check.py`: runs the suites and checks the canaries. It diffs pixels and
   issue lines against `build/ui_check/base/`, crops what changed, and applies
   the rules below.
+
+`atlas` is for people, not agents. After a full `run`, it writes one image,
+`ui_sheet/ui_sheet.png`: every screen at 390 and 100% text, with light and dark
+side by side at 1x under the screen's name. Rebuild and commit it when asked
+for a manual pass. It is far too large to read yourself.
 
 The baseline lives in `build/` and is never committed, because renders differ
 slightly between machines. In a fresh container, start with `run`, do a

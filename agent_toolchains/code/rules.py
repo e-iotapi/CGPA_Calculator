@@ -15,6 +15,10 @@ LEGACY = ['lib/main.dart', 'lib/home_page.dart', 'lib/script.dart',
 FORBIDDEN = ['test/fixtures/transcript.csv', 'test/fixtures/performance_sheet.json',
              '*.pdf', 'PLAN.md', 'idthp', '*.png', '*.jpg', 'test/ui/zz_*', 'build/*']
 
+# Committed although they match FORBIDDEN: the UI sheet the user asked for
+# (ui_check.py atlas), for their own manual pass.
+ALLOWED = ['ui_sheet/ui_sheet.png']
+
 # Never edited by the edit tool without --allow (docs of record).
 PROTECTED = ['PLAN.md']
 
