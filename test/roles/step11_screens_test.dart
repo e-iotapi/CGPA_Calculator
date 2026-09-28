@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/admin/people.dart';
 import 'package:cgpa_calculator/admin/professors.dart';
 import 'package:cgpa_calculator/admin/publish_page.dart';
 import 'package:cgpa_calculator/admin/roster.dart';
+import 'package:cgpa_calculator/admin/scheme_editor.dart';
 import 'package:cgpa_calculator/admin/succession.dart';
 import 'package:cgpa_calculator/admin/volunteers.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
@@ -1193,6 +1194,44 @@ void main() {
     expect(find.text('avg 12.4'), findsOneWidget);
     expect(find.text('no avg'), findsWidgets);
     expect(find.text('Pick from department resources'), findsOneWidget);
+  });
+
+  testWidgets('the scheme editor bounds the average by the scale', (t) async {
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    await t.pumpWidget(
+      app(
+        const SchemeEditorPage(
+          courseId: 'CS F372',
+          campus: 'goa',
+          term: '2026-27-1',
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+    Finder field(String label) => find.descendant(
+      of:
+          find
+              .ancestor(
+                of: find.text(label.toUpperCase()),
+                matching: find.byType(Column),
+              )
+              .first,
+      matching: find.byType(TextField),
+    );
+    expect(find.text('GRADED OUT OF'), findsOneWidget);
+    expect(find.textContaining('Not saved yet'), findsOneWidget);
+    expect(find.text('COURSE AVERAGE (OUT OF 100)'), findsOneWidget);
+    await t.enterText(field('Graded out of'), '200');
+    await t.pump();
+    expect(find.text('COURSE AVERAGE (OUT OF 200)'), findsOneWidget);
+    await t.enterText(field('Course average (out of 200)'), '250');
+    await t.pump();
+    await t.tap(find.text('Marks out of a total'));
+    await t.pump();
+    expect(find.text('GRADED OUT OF'), findsNothing);
+    await t.enterText(field('Course out of'), '50');
+    await t.pump();
+    expect(find.text('COURSE AVERAGE (OUT OF 50)'), findsOneWidget);
   });
 
   testWidgets('a CR enters the course average', (t) async {

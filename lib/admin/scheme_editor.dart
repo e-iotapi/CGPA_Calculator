@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/admin/offering_scale.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
@@ -80,12 +81,38 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
   late final _total = TextEditingController(
     text: _n(widget.existing?.totalMarks ?? 100),
   );
-  late final _courseAverage = TextEditingController(
-    text:
-        widget.existing?.courseAverage == null
-            ? ''
-            : _n(widget.existing!.courseAverage!),
+
+  /// "Graded out of" for a weighted course (offering_scale.dart).
+  late final _outOf = TextEditingController(
+    text: _n(
+      switch (widget.existing) {
+            final e? => offeringOutOf(e),
+            null => null,
+          } ??
+          100,
+    ),
   );
+
+  /// The saved average, shown on the saved scale.
+  late final _courseAverage = TextEditingController(
+    text: switch (widget.existing) {
+      Offering(courseAverage: final a?) && final e => _n(
+        toShown(
+          a,
+          scale: scaleOf(e),
+          units: courseUnits(weighted: e.weighted, totalMarks: e.totalMarks),
+        ),
+      ),
+      _ => '',
+    },
+  );
+
+  /// Course units as typed: percent when weighted, else the total.
+  double get _units =>
+      courseUnits(weighted: _weighted, totalMarks: _num(_total) ?? 100);
+
+  /// What the course average is typed out of.
+  double get _scale => _weighted ? (_num(_outOf) ?? 100) : _units;
   late final List<_Component> _components = [
     for (final c in widget.existing?.components ?? const <OfferedComponent>[])
       _Component(
@@ -103,6 +130,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
   @override
   void dispose() {
     _total.dispose();
+    _outOf.dispose();
     _courseAverage.dispose();
     for (final c in _components) {
       c.dispose();
@@ -169,18 +197,30 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
     if (!_weighted && (total == null || total <= 0)) {
       return (null, 'Say what the course is out of.');
     }
+    final outOf = _num(_outOf);
+    if (_weighted && (outOf == null || outOf <= 0)) {
+      return (null, 'Say what the course is graded out of.');
+    }
+    final avg = _num(_courseAverage);
+    if (avg != null && (avg < 0 || avg > _scale)) {
+      return (null, 'The course average is out of ${_n(_scale)}.');
+    }
     final e = widget.existing;
     return (
-      Offering(
-        courseId: widget.courseId,
-        campus: widget.campus,
-        term: widget.term,
-        weighted: _weighted,
-        totalMarks: _weighted ? 100 : total!,
-        components: comps,
-        courseAverage: _num(_courseAverage),
-        professors: e?.professors ?? const [],
-        updatedAt: e?.updatedAt ?? 0,
+      withOutOf(
+        Offering(
+          courseId: widget.courseId,
+          campus: widget.campus,
+          term: widget.term,
+          weighted: _weighted,
+          totalMarks: _weighted ? 100 : total!,
+          components: comps,
+          courseAverage:
+              avg == null ? null : toStored(avg, scale: _scale, units: _units),
+          professors: e?.professors ?? const [],
+          updatedAt: e?.updatedAt ?? 0,
+        ),
+        _weighted ? outOf : null,
       ),
       null,
     );
@@ -387,17 +427,36 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
             controller: _total,
             label: 'Course out of',
             number: true,
-            dense: true,
+            labelAbove: true,
             onChanged: (_) => setState(() {}),
+          ),
+        ] else ...[
+          const SizedBox(height: Space.sm),
+          AppTextField(
+            controller: _outOf,
+            label: 'Graded out of',
+            number: true,
+            labelAbove: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          Text(
+            outOfStored
+                ? 'Students see the course out of this; they no longer set '
+                    'it themselves.'
+                : 'Not saved yet: it lands with the offering update. Until '
+                    'then students set it themselves.',
+            style: TypeScale.caption.copyWith(
+              color: outOfStored ? p.textMuted : p.noticeTone.text,
+            ),
           ),
         ],
         const SizedBox(height: Space.sm),
         AppTextField(
           controller: _courseAverage,
-          label: 'Course average (out of 100)',
+          label: 'Course average (out of ${_n(_scale)})',
           hint: 'Blank until it is out',
           number: true,
-          dense: true,
+          labelAbove: true,
         ),
         Text(
           'Averages are stored against this term and this component set. An '

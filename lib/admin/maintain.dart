@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/admin/bulk_upload.dart';
 import 'package:cgpa_calculator/admin/dept_resources.dart';
+import 'package:cgpa_calculator/admin/offering_scale.dart';
 import 'package:cgpa_calculator/admin/professors.dart';
 import 'package:cgpa_calculator/admin/scheme_editor.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
@@ -744,8 +745,9 @@ class _UploadCardState extends State<UploadCard> {
   }
 }
 
-/// `CrHome`'s COURSE AVERAGE: the CR types it out of 100 once it is out, and
-/// it is saved on this term's offering with the scheme it belongs to.
+/// `CrHome`'s COURSE AVERAGE: the CR types it on the course's scale (0 to
+/// "Graded out of", see offering_scale.dart) once it is out; it is stored in
+/// course units on this term's offering, with the scheme it belongs to.
 class _CourseAverage extends StatefulWidget {
   const _CourseAverage({required this.o, required this.onSaved});
   final Offering o;
@@ -756,9 +758,18 @@ class _CourseAverage extends StatefulWidget {
 }
 
 class _CourseAverageState extends State<_CourseAverage> {
-  late final _c = TextEditingController(
-    text: widget.o.courseAverage == null ? '' : _n(widget.o.courseAverage!),
+  late final double _scale = scaleOf(widget.o);
+  late final double _units = courseUnits(
+    weighted: widget.o.weighted,
+    totalMarks: widget.o.totalMarks,
   );
+
+  /// The saved average on the manager's scale.
+  late final double? _shown = switch (widget.o.courseAverage) {
+    final a? => toShown(a, scale: _scale, units: _units),
+    null => null,
+  };
+  late final _c = TextEditingController(text: _shown == null ? '' : _n(_shown));
   bool _saving = false;
 
   @override
@@ -767,12 +778,12 @@ class _CourseAverageState extends State<_CourseAverage> {
     super.dispose();
   }
 
-  /// The typed value: null when blank, NaN when it isn't 0–100.
+  /// The typed value: null when blank, NaN when it isn't 0 to the scale.
   double? get _value {
     final t = _c.text.trim();
     if (t.isEmpty) return null;
     final v = double.tryParse(t);
-    return v == null || v < 0 || v > 100 ? double.nan : v;
+    return v == null || v < 0 || v > _scale ? double.nan : v;
   }
 
   Future<void> _save() async {
@@ -781,22 +792,26 @@ class _CourseAverageState extends State<_CourseAverage> {
     setState(() => _saving = true);
     try {
       await _store.save(
-        Offering(
-          courseId: o.courseId,
-          campus: o.campus,
-          term: o.term,
-          weighted: o.weighted,
-          totalMarks: o.totalMarks,
-          components: o.components,
-          courseAverage: v,
-          professors: o.professors,
-          updatedAt: o.updatedAt,
+        withOutOf(
+          Offering(
+            courseId: o.courseId,
+            campus: o.campus,
+            term: o.term,
+            weighted: o.weighted,
+            totalMarks: o.totalMarks,
+            components: o.components,
+            courseAverage:
+                v == null ? null : toStored(v, scale: _scale, units: _units),
+            professors: o.professors,
+            updatedAt: o.updatedAt,
+          ),
+          offeringOutOf(o),
         ),
         v == null
             ? 'Cleared the course average for ${o.courseId} in '
                 '${termLabel(o.term)}'
             : 'Set the course average for ${o.courseId} in '
-                '${termLabel(o.term)} to ${_n(v)}',
+                '${termLabel(o.term)} to ${_n(v)} of ${_n(_scale)}',
       );
       widget.onSaved();
     } catch (e) {
@@ -815,7 +830,7 @@ class _CourseAverageState extends State<_CourseAverage> {
     final p = AppPalette.of(context);
     final v = _value;
     final bad = v != null && v.isNaN;
-    final changed = v != widget.o.courseAverage && !bad;
+    final changed = v != _shown && !bad;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -826,7 +841,7 @@ class _CourseAverageState extends State<_CourseAverage> {
               Expanded(
                 child: AppTextField(
                   controller: _c,
-                  label: 'Out of 100',
+                  label: 'Out of ${_n(_scale)}',
                   hint: 'Blank until it is out',
                   number: true,
                   labelAbove: true,
@@ -848,7 +863,7 @@ class _CourseAverageState extends State<_CourseAverage> {
         const SizedBox(height: Space.xs),
         Text(
           bad
-              ? 'Type a number from 0 to 100.'
+              ? 'Type a number from 0 to ${_n(_scale)}.'
               : 'Stored against this term and this component set. Students '
                   'see it beside their own marks; clear it to take it back.',
           style: TypeScale.caption.copyWith(

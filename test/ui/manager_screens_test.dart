@@ -5,6 +5,7 @@
 //
 //   SHOTS_DIR=/some/dir flutter test test/ui/manager_screens_test.dart
 import 'package:cgpa_calculator/admin/admin.dart';
+import 'package:cgpa_calculator/admin/scheme_editor.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/more/representatives_page.dart';
@@ -136,6 +137,16 @@ void main() {
       () => const CrHome(campus: 'goa', courseId: 'CS F372'),
       As.cr,
       900,
+    ),
+    (
+      'm_scheme_editor',
+      () => SchemeEditorPage(
+        courseId: 'CS F372',
+        campus: 'goa',
+        term: maintainedTerm,
+      ),
+      As.cr,
+      1000,
     ),
     ('m_role_switch', () => const RoleSwitchPage(), As.president, 844),
     (
