@@ -261,6 +261,28 @@
       ]
     },
     {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "campus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "department",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hidden",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reports",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "stats",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
