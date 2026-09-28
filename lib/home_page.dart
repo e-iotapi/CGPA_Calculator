@@ -30,6 +30,7 @@ import 'package:cgpa_calculator/features/semester/widgets/copy_profile_button.da
 import 'package:cgpa_calculator/features/semester/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 
@@ -424,44 +425,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _confirmClearSemester() async {
-    final clear = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: thm.backcolor,
-            title: Text(
-              "Clear Grades",
-              style: TextStyle(fontFamily: "Montserrat", color: thm.textcolor),
-            ),
-            content: Text(
-              "Are you sure you want to clear all grades for this semester?",
-              style: TextStyle(fontFamily: "Montserrat", color: thm.textcolor),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(
-                  "Cancel",
-                  style: TextStyle(
-                    fontFamily: "Montserrat",
-                    color: thm.textcolor,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(
-                  "Clear",
-                  style: TextStyle(
-                    fontFamily: "Montserrat",
-                    color: thm.highcolor,
-                  ),
-                ),
-              ),
-            ],
-          ),
+    final clear = await confirmDialog(
+      context,
+      title: 'Clear grades?',
+      body: 'Every grade in this semester is cleared. The courses stay.',
+      action: 'Clear',
+      danger: true,
     );
-    if (clear != true) return;
+    if (!clear) return;
     await clearSemesterGrades(currentsem, selectedprofile);
     setState(() {
       sgpa = sgcalc(currentsem);

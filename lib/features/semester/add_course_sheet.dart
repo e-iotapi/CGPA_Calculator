@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 
 /// Opens the add sheet. Resolves to the course to store, or null.
@@ -488,29 +489,16 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
     final total = semesterCredits(widget.held, widget.sem) + course.credits;
     if (total > maxSemesterCredits) {
       String f(double v) => v == v.roundToDouble() ? '${v.toInt()}' : '$v';
-      final go = await showDialog<bool>(
-        context: context,
-        builder:
-            (c) => AlertDialog(
-              title: Text('Over ${f(maxSemesterCredits)} credits'),
-              content: Text(
-                'This takes ${semLabel(widget.sem)} to ${f(total)} credits. '
-                'A semester can carry at most ${f(maxSemesterCredits)} unless '
-                'the administration on your campus has approved more.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(c, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(c, true),
-                  child: const Text('I have approval, add it'),
-                ),
-              ],
-            ),
+      final go = await confirmDialog(
+        context,
+        title: 'Over ${f(maxSemesterCredits)} credits',
+        body:
+            'This takes ${semLabel(widget.sem)} to ${f(total)} credits. '
+            'A semester can carry at most ${f(maxSemesterCredits)} unless '
+            'the administration on your campus has approved more.',
+        action: 'I have approval, add it',
       );
-      if (go != true) return;
+      if (!go) return;
     }
     if (context.mounted) Navigator.pop(context, course);
   }

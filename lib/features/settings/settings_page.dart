@@ -15,6 +15,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cgpa_calculator/features/settings/install_guide.dart';
 import 'package:flutter/foundation.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -167,25 +168,7 @@ class _SettingsPageState extends State<SettingsPage> {
     String body,
     String action,
   ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder:
-          (c) => AlertDialog(
-            title: Text(title),
-            content: Text(body),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: Text(action),
-              ),
-            ],
-          ),
-    );
-    return ok == true;
+    return confirmDialog(context, title: title, body: body, action: action);
   }
 
   Future<void> _pickDiscipline(BuildContext context, bool dual) async {
