@@ -11,7 +11,6 @@ Future<void> loadAppFonts() async {
       ..addFont(Future.value(ByteData.sublistView(bytes)))).load();
   }
 
-  await load('Montserrat', 'fonts/Montserrat-SemiBold.ttf');
   final full = FontLoader('MontserratFull');
   for (final w in ['Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold']) {
     final bytes = File('fonts/Montserrat-$w.ttf').readAsBytesSync();

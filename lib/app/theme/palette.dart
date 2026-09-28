@@ -13,9 +13,8 @@ class GradeTone {
 /// Every colour the app paints with, by role.
 ///
 /// Reaches widgets as a [ThemeExtension], so new code reads it with
-/// [AppPalette.of]. Old code still reads the global `thm` through the legacy
-/// getters at the bottom (`backcolor`, `textcolor`…), which map onto the roles
-/// one-to-one; they go once the globals are migrated.
+/// [AppPalette.of]. Code above the app's Theme (the sign-in snackbar, the
+/// system bars) reads the global `thm` by the same role names.
 @immutable
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
@@ -263,14 +262,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
   AppPalette lerp(AppPalette? other, double t) =>
       other == null || t < 0.5 ? this : other;
 
-  // Legacy names still read by the remaining legacy screens.
+  // Legacy name still read by the remaining legacy screens.
   String get theme => name;
-  Color get backcolor => background;
-  Color get textcolor => text;
-  Color get sepcolor => divider;
-  Color get highcolor => accent;
-  Color get cardcolor => surface;
-  Color get bordcolor => border;
 
   /// The redesign's light mode.
   static const light = AppPalette(

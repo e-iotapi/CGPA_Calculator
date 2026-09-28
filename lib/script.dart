@@ -229,11 +229,15 @@ Future<void> clearSemesterGrades(String sem, int profile) async {
   } catch (e) {}
 }
 
+/// The system bars follow the palette (UI.md T9.2): the nav bar takes the
+/// page background, and its icons and the status bar's contrast with it.
 void setnavcolor() {
+  final dark = thm.isDark;
   SystemChrome.setSystemUIOverlayStyle(
-    SystemUiOverlayStyle.light.copyWith(
-      systemNavigationBarColor: thm.backcolor,
-      systemNavigationBarIconBrightness: Brightness.dark,
+    (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
+      systemNavigationBarColor: thm.background,
+      systemNavigationBarIconBrightness:
+          dark ? Brightness.light : Brightness.dark,
     ),
   );
 }
