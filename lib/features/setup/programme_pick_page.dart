@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:flutter/material.dart';
 
 /// A pushed, searchable list of programmes: code badge and full name. Pops
@@ -14,6 +15,7 @@ class ProgrammePickPage extends StatefulWidget {
     this.selected,
     this.trailing,
     this.note,
+    this.extras = const [],
   });
 
   /// "SECOND DEGREE · GOA".
@@ -26,6 +28,9 @@ class ProgrammePickPage extends StatefulWidget {
 
   /// Under the list: what runs on another campus.
   final String? note;
+
+  /// Choices that are not programmes, as (code, label): "Other", "None".
+  final List<(String, String)> extras;
 
   @override
   State<ProgrammePickPage> createState() => _ProgrammePickPageState();
@@ -141,6 +146,23 @@ class _ProgrammePickPageState extends State<ProgrammePickPage> {
                             onTap: () => Navigator.pop(context, prog.code),
                           ),
                         ],
+                        if (_query.trim().isEmpty)
+                          for (final (code, label) in widget.extras) ...[
+                            Divider(
+                              height: 1,
+                              indent: 13,
+                              endIndent: 13,
+                              color: p.divider,
+                            ),
+                            CardRow(
+                              title: label,
+                              trailing:
+                                  code == widget.selected
+                                      ? Icon(Icons.check_rounded, color: p.text)
+                                      : const SizedBox.shrink(),
+                              onTap: () => Navigator.pop(context, code),
+                            ),
+                          ],
                         if (shown.isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(Space.lg),
