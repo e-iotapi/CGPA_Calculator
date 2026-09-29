@@ -20,6 +20,9 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--project') out.project = argv[++i];
   }
+  // An alias from .firebaserc ("staging") resolves to its project id.
+  const aliases = loadJson(path.join(root, '.firebaserc')).projects ?? {};
+  out.project = aliases[out.project] ?? out.project;
   return out;
 }
 
@@ -38,7 +41,16 @@ async function main() {
   if (args.project === PROD_PROJECT_ID) {
     throw new Error(`Refusing to seed the production project (${PROD_PROJECT_ID}).`);
   }
-  const usingEmulator = args.project === 'demo-pointer' || !process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const usingEmulator = args.project === 'demo-pointer';
+  if (!usingEmulator) {
+    // Never fall back to the emulator for a real project: say what is missing.
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      throw new Error(`Seeding ${args.project} needs GOOGLE_APPLICATION_CREDENTIALS (a service-account key file).`);
+    }
+    if (!process.env.STAGING_PASSWORD) {
+      throw new Error('Seeding staging needs STAGING_PASSWORD; the accounts.json password is public.');
+    }
+  }
   if (usingEmulator) {
     process.env.FIRESTORE_EMULATOR_HOST ??= 'localhost:8085';
     process.env.FIREBASE_AUTH_EMULATOR_HOST ??= 'localhost:9099';
@@ -49,7 +61,8 @@ async function main() {
   const auth = admin.auth();
 
   const accountsConfig = loadJson(path.join(root, 'test_env', 'accounts.json'));
-  const { password, accounts } = accountsConfig;
+  const { accounts } = accountsConfig;
+  const password = usingEmulator ? accountsConfig.password : process.env.STAGING_PASSWORD;
   const byKey = Object.fromEntries(accounts.map((a) => [a.key, a]));
 
   if (usingEmulator) {
