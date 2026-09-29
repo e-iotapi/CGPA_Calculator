@@ -26,12 +26,22 @@ runtime, so no spec here could reach a signed-in app to time (see the T6
 commit for the full explanation). Record the first real numbers on a
 machine or CI runner with normal internet access, before starting P1.
 
-| Page | Cold (home) / first open | Second open | Second-open reads |
+First local numbers, 29 Sep 2026, after B7–B15 (the schema of
+PERF_TEST_PLAN.md §A). Playwright's Chromium on the seeded emulator,
+throttled to 300 ms latency and 1.6 Mbps down, as perf.spec sets it.
+
+| Page | Cold (home) / first open | Second open | Target |
 |---|---|---|---|
-| Home | | — | — |
-| Representatives | — | | |
-| Course reviews | — | | |
-| Resources | — | | |
+| Home, cold | 33.2 s | — | < 3 s ✗ |
+| Representatives | < 1.5 s ✓ | 611 ms | < 300 ms ✗ |
+| Course reviews | < 1.5 s ✓ | 805 ms | < 300 ms ✗ |
+| Resources | < 1.5 s ✓ | 688 ms | < 300 ms ✗ |
+
+- The cold home is the download: `main.dart.js` is 3.9 MB, about 19 s alone
+  at 1.6 Mbps, before CanvasKit. P7 (deferred libraries) and the bundle
+  report (P4.6) are the levers; no Firestore work is on this path.
+- Second opens re-render the page (no reads; see below); the 300 ms target
+  counts the route push and first frame under throttling.
 
 ## After P1 → P2 → P2b → P2c
 

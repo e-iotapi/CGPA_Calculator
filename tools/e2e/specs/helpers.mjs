@@ -34,13 +34,26 @@ export async function installLocalCanvasKit(page) {
   });
 }
 
+/// Waits until the app has nothing loading: the page has loaded and no
+/// progress indicator is on screen. networkidle never comes, because the
+/// Firestore SDK keeps its channel open.
+export async function settled(page) {
+  await page.waitForLoadState('load');
+  await page.waitForTimeout(50); // let a tap's route push its first frame
+  await page.waitForFunction(
+    () => !document.querySelector('[role="progressbar"]'),
+    null,
+    { timeout: 20_000, polling: 50 },
+  );
+}
+
 /// Signs in as [key] from test_env/accounts.json via the ?as= test hook
 /// (T1), without waiting for any particular screen — for accounts that
 /// land on degree setup rather than Home (student_new, faculty).
 export async function signInRaw(page, key) {
   await installLocalCanvasKit(page);
   await page.goto(`/?as=${key}`);
-  await page.waitForLoadState('networkidle');
+  await settled(page);
 }
 
 /// Signs in as [key] and waits for the home page's bottom nav to render.
@@ -62,7 +75,7 @@ export async function assertNoErrors(page) {
 
 export async function goto(page, route) {
   await page.goto(route);
-  await page.waitForLoadState('networkidle');
+  await settled(page);
 }
 
 /// Visits [route] and checks it rendered something real, with no error text.
