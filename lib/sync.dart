@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -69,6 +70,7 @@ class Sync {
   static Future<void> init(String uid) async {
     if (_meta.get('uid') != uid) {
       await clearLocal();
+      await clearAccountCaches();
       await _meta.put('uid', uid);
     }
     _doc = _db.collection('users').doc(uid);
