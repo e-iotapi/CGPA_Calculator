@@ -20,6 +20,7 @@ import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show SetOptions;
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
@@ -181,14 +182,15 @@ void main() {
   testWidgets('R2 most reviewed on the campus, by count', (t) async {
     await courses(t, []);
     Future<void> stat(String id, int count) =>
-        db.collection('courses').doc(id).collection('stats').doc('goa').set({
-          'count': count,
-          'starSum': count * 4,
-          'recommendCount': count ~/ 2,
-          'campus': 'goa',
-          'courseId': id,
-          'scope': 'course',
-        });
+        db.collection('reviewIndex').doc('goa').set({
+          'c': {
+            id: {
+              'count': count,
+              'starSum': count * 4,
+              'recommendCount': count ~/ 2,
+            },
+          },
+        }, SetOptions(merge: true));
     await stat('MATH F111', 5);
     await stat('CS F211', 12);
     await stat('BITS F111', 2);

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -33,6 +34,47 @@ class ReviewStore {
   DocumentReference<Map<String, dynamic>> _stats(String courseId, String id) =>
       db.collection('courses').doc(courseId).collection('stats').doc(id);
 
+  DocumentReference<Map<String, dynamic>> _index(String campus) =>
+      db.collection('reviewIndex').doc(campus);
+
+  /// Every course's counter on [campus], from one doc (`reviewIndex`),
+  /// cached 12 h; [fresh] reads it live.
+  Future<Map<String, ReviewStats>> _courseIndex(
+    String campus, {
+    bool fresh = false,
+  }) async {
+    Future<Map<String, ReviewStats>> fetch() async {
+      final d = await Perf.time('reviews.index', () => _index(campus).get());
+      return {
+        for (final e in ((d.data()?['c'] as Map?) ?? const {}).entries)
+          '${e.key}': ReviewStats.fromMap(Map<String, dynamic>.from(e.value)),
+      };
+    }
+
+    if (fresh) return fetch();
+    return cacheFirst(
+      key: 'rix|$campus',
+      maxAge: const Duration(hours: 12),
+      fetch: fetch,
+      encode:
+          (m) => {
+            for (final e in m.entries)
+              e.key: {
+                'count': e.value.count,
+                'starSum': e.value.starSum,
+                'recommendCount': e.value.recommendCount,
+              },
+          },
+      decode:
+          (o) => {
+            for (final e in (o as Map).entries)
+              '${e.key}': ReviewStats.fromMap(
+                Map<String, dynamic>.from(e.value),
+              ),
+          },
+    );
+  }
+
   String? myReviewId(String courseId) =>
       uid == null ? null : hashedId(uid!, courseId);
 
@@ -42,16 +84,21 @@ class ReviewStore {
     String courseId,
     String campus, {
     List<String>? professorIds,
+    bool fresh = false,
   }) async {
-    final ids =
-        professorIds == null
-            ? [statsId(campus)]
-            : [for (final p in professorIds) statsId(campus, p)];
+    if (professorIds == null) {
+      return (await _courseIndex(campus, fresh: fresh))[courseId] ??
+          const ReviewStats();
+    }
+    final ids = [for (final p in professorIds) statsId(campus, p)];
     // Budget: 1 read per professor id, sequentially, per course (P0) — the
     // "Diagnosis" section's reviews_home.dart courses-tab bottleneck.
     var total = const ReviewStats();
     for (final id in ids) {
-      final d = await Perf.time('reviews.stats', () => _stats(courseId, id).get());
+      final d = await Perf.time(
+        'reviews.stats',
+        () => _stats(courseId, id).get(),
+      );
       total += ReviewStats.fromMap(d.data());
     }
     return total;
@@ -65,13 +112,14 @@ class ReviewStore {
   ) async {
     final q = await Perf.time(
       'reviews.byProfessor',
-      () => db
-          .collection('courses')
-          .doc(courseId)
-          .collection('stats')
-          .where('campus', isEqualTo: campus)
-          .where('scope', isEqualTo: 'professor')
-          .get(),
+      () =>
+          db
+              .collection('courses')
+              .doc(courseId)
+              .collection('stats')
+              .where('campus', isEqualTo: campus)
+              .where('scope', isEqualTo: 'professor')
+              .get(),
     );
     return {
       for (final d in q.docs)
@@ -84,24 +132,13 @@ class ReviewStore {
   Future<List<({String courseId, ReviewStats stats})>> mostReviewed(
     String campus, {
     int limit = 10,
+    bool fresh = false,
   }) async {
-    final q = await Perf.time(
-      'reviews.mostReviewed',
-      () => db
-          .collectionGroup('stats')
-          .where('campus', isEqualTo: campus)
-          .where('scope', isEqualTo: 'course')
-          .orderBy('count', descending: true)
-          .limit(limit)
-          .get(),
-    );
-    return [
-      for (final d in q.docs)
-        (
-          courseId: d.data()['courseId'] as String? ?? '',
-          stats: ReviewStats.fromMap(d.data()),
-        ),
-    ];
+    final all = [
+      for (final e in (await _courseIndex(campus, fresh: fresh)).entries)
+        if (e.value.count > 0) (courseId: e.key, stats: e.value),
+    ]..sort((a, b) => b.stats.count.compareTo(a.stats.count));
+    return all.take(limit).toList();
   }
 
   /// One page of visible reviews on [campus], newest page after [after].
@@ -159,7 +196,10 @@ class ReviewStore {
   Future<Review?> mine(String courseId) async {
     final id = myReviewId(courseId);
     if (id == null) return null;
-    final d = await Perf.time('reviews.mine', () => entries(courseId).doc(id).get());
+    final d = await Perf.time(
+      'reviews.mine',
+      () => entries(courseId).doc(id).get(),
+    );
     final m = d.data();
     return m == null ? null : Review.fromMap(id, courseId, m);
   }
@@ -187,6 +227,18 @@ class ReviewStore {
         'touchedBy': reviewId,
       }, SetOptions(merge: true));
     }
+    // ponytail: old app versions skip this, so the index can lag their
+    // reviews; backfill from stats if the drift shows.
+    b.set(_index(campus), {
+      'k': courseId,
+      'c': {
+        courseId: {
+          'count': FieldValue.increment(count),
+          'starSum': FieldValue.increment(stars),
+          'recommendCount': FieldValue.increment(recommend),
+        },
+      },
+    }, SetOptions(merge: true));
   }
 
   /// Posts, or edits, this person's review of [courseId]. An edit keeps its
@@ -257,6 +309,9 @@ class ReviewStore {
 
   /// Drops [courseId]'s cached pages after a write, so the change shows.
   Future<void> _forget(String courseId) async {
+    await sharedCacheBox?.deleteAll(
+      sharedCacheBox!.keys.where((k) => '$k'.startsWith('rix|')).toList(),
+    );
     final c = _cache;
     if (c == null) return;
     await c.deleteAll(
@@ -357,6 +412,7 @@ class ReviewStore {
       );
     }
     await b.commit();
+    await _forget(r.courseId);
   }
 
   /// Hides [r] with a reason; its counters come off (§10.3).

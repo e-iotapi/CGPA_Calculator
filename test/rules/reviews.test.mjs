@@ -18,13 +18,21 @@ async function offering(professors = ['p1']) {
   await seed((db) => setDoc(doc(db, 'courses', C, 'offerings', 'goa_2025-26-2'), { professors }));
 }
 
-function count(b, db, reviewId, d, dc, ds, dr) {
+function count(b, db, reviewId, d, dc, ds, dr, ix = true) {
   for (const p of [null, d.professorId].filter((x, i) => i == 0 || x)) {
     b.set(doc(db, 'courses', C, 'stats', p ? `goa_${p}` : 'goa'), {
       count: increment(dc), starSum: increment(ds), recommendCount: increment(dr),
       campus: 'goa', courseId: C, scope: p ? 'professor' : 'course', professorId: p, touchedBy: reviewId,
     }, { merge: true });
   }
+  if (ix) index(b, db, dc, ds, dr);
+}
+
+function index(b, db, dc, ds, dr, course = C) {
+  b.set(doc(db, 'reviewIndex', 'goa'), {
+    k: course,
+    c: { [course]: { count: increment(dc), starSum: increment(ds), recommendCount: increment(dr) } },
+  }, { merge: true });
 }
 
 function post(db, who, extra = {}, { dc = 1, ds, dr } = {}) {
@@ -57,6 +65,33 @@ describe('reviews', () => {
     await offering([]);
     await assertFails(post(as(STUDENT), STUDENT));
     await assertSucceeds(post(as(STUDENT), STUDENT, { professorId: null }));
+  });
+
+  test('the campus index moves with the course counter, never alone', async () => {
+    await offering();
+    await assertSucceeds(post(as(STUDENT), STUDENT));
+    const ix = await getDoc(doc(as(STUDENT), 'reviewIndex', 'goa'));
+    if (ix.data().c[C].count !== 1 || ix.data().c[C].starSum !== 4) throw new Error('bad index');
+    const db = as(STUDENT);
+    const alone = writeBatch(db);
+    index(alone, db, 5, 20, 5);
+    await assertFails(alone.commit());
+    await assertFails(getDoc(doc(as(OTHER), 'reviewIndex', 'goa')));
+  });
+
+  test('the index entry must match its own course', async () => {
+    await offering();
+    const db = as(STUDENT);
+    const id = hash(STUDENT, C);
+    const b = writeBatch(db);
+    const d = {
+      courseId: C, department: 'ELEC', stars: 4, recommend: true, campus: 'goa', term: '2025-26-2',
+      professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    };
+    b.set(doc(db, 'reviews', C, 'entries', id), d);
+    count(b, db, id, d, 1, 4, 1, false);
+    index(b, db, 1, 4, 1, 'CS F111');
+    await assertFails(b.commit());
   });
 
   test('counters cannot be written on their own', async () => {
