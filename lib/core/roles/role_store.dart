@@ -410,12 +410,29 @@ class RoleStore {
   /// ends at [outgoingExpiry]. Both grants, both staff entries and both
   /// audit entries in one batch. False when nobody by that address has
   /// signed in.
-  Future<bool> handOver(Grant mine, String email, {DateTime? now}) async {
+  ///
+  /// [secretary] names the next secretary too: their grant ends with the new
+  /// president's, and the outgoing secretary's with mine.
+  Future<bool> handOver(
+    Grant mine,
+    String email, {
+    String? secretary,
+    DateTime? now,
+  }) async {
     final address = email.trim().toLowerCase();
     final problem = successorProblem(mine, address);
     if (problem != null) throw StateError(problem);
+    final sec = secretary?.trim().toLowerCase();
+    if (sec != null) {
+      if (successorProblem(mine, sec) case final p?) throw StateError(p);
+      if (sec == address) {
+        throw StateError('The next secretary cannot be the next president.');
+      }
+    }
     final name = await personName(address);
     if (name == null) return false;
+    final secName = sec == null ? null : await personName(sec);
+    if (sec != null && secName == null) return false;
     final at = now ?? DateTime.now();
     final t = await terms();
     final next = Grant(
@@ -459,8 +476,49 @@ class RoleStore {
     });
     _staffInto(b, ours, shortened);
     await _relist(b, shortened);
+    if (sec != null) {
+      for (final old in await _secretaries(mine)) {
+        if (!old.expiresAt.isAfter(ends)) continue;
+        _grantInto(
+          b,
+          old.copyWith(expiresAt: ends),
+          await _staff(old.email),
+          'Secretary term of ${old.name} ends with the handover',
+          before: old,
+        );
+      }
+      _grantInto(
+        b,
+        Grant(
+          role: GrantRole.dept,
+          email: sec,
+          name: secName!,
+          campus: mine.campus,
+          scope: mine.scope,
+          active: true,
+          expiresAt: next.expiresAt,
+          secretary: true,
+        ),
+        await _staff(sec),
+        'Appointed $secName secretary of ${mine.scope}',
+      );
+    }
     await b.commit();
     return true;
+  }
+
+  /// Live secretaries of [mine]'s department.
+  Future<List<Grant>> _secretaries(Grant mine) async {
+    final q =
+        await db
+            .collection('grants')
+            .where('role', isEqualTo: 'dept')
+            .where('campus', isEqualTo: mine.campus)
+            .where('scope', isEqualTo: mine.scope)
+            .where('secretary', isEqualTo: true)
+            .where('active', isEqualTo: true)
+            .get();
+    return [for (final d in q.docs) Grant.fromMap(d.data())];
   }
 
   /// Cancels a running handover: the successor's grant is revoked and mine
@@ -520,6 +578,27 @@ class RoleStore {
     });
     _staffInto(b, ours, restored);
     await _relist(b, restored);
+    // ponytail: told apart by expiry — the new secretary ends with the new
+    // president, the outgoing one with my shortened term.
+    for (final g in await _secretaries(mine)) {
+      if (g.expiresAt == next.expiresAt) {
+        _grantInto(
+          b,
+          g.copyWith(active: false),
+          await _staff(g.email),
+          'Cancelled ${g.name} as secretary with the handover',
+          before: g,
+        );
+      } else if (g.expiresAt == mine.expiresAt) {
+        _grantInto(
+          b,
+          g.copyWith(expiresAt: before),
+          await _staff(g.email),
+          'Restored ${g.name}\'s secretary term',
+          before: g,
+        );
+      }
+    }
     await b.commit();
   }
 

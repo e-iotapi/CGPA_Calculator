@@ -103,6 +103,18 @@ class Grant {
 
   String get id => grantId(role, campus, scope, email);
 
+  Grant copyWith({bool? active, DateTime? expiresAt}) => Grant(
+    role: role,
+    email: email,
+    name: name,
+    campus: campus,
+    scope: scope,
+    programme: programme,
+    active: active ?? this.active,
+    expiresAt: expiresAt ?? this.expiresAt,
+    secretary: secretary,
+  );
+
   bool liveAt(DateTime now) => active && now.isBefore(expiresAt);
 
   /// "ELEC · A3", "CS F301", "Every campus".

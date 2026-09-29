@@ -133,46 +133,80 @@ class Succession extends StatefulWidget {
 }
 
 class _SuccessionState extends State<Succession> {
-  final _email = TextEditingController();
-  String? _name;
-  bool _looked = false, _busy = false;
+  // Two of the same lookup: the next president, and an optional secretary.
+  final _email = TextEditingController(), _sec = TextEditingController();
+  final _name = <TextEditingController, String?>{};
+  final _looked = <TextEditingController>{};
+  final _debounce = <TextEditingController, Timer>{};
+  bool _busy = false;
   int _loads = 0;
-  Timer? _debounce;
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    for (final t in _debounce.values) {
+      t.cancel();
+    }
     _email.dispose();
+    _sec.dispose();
     super.dispose();
   }
 
   /// Looks the address up once typing pauses.
-  void _typed(Grant mine) {
-    _debounce?.cancel();
+  void _typed(Grant mine, TextEditingController c) {
+    _debounce[c]?.cancel();
     setState(() {
-      _looked = false;
-      _name = null;
+      _looked.remove(c);
+      _name[c] = null;
     });
-    if (_email.text.trim().isEmpty) return;
-    _debounce = Timer(const Duration(milliseconds: 400), () => _lookUp(mine));
+    if (c.text.trim().isEmpty) return;
+    _debounce[c] = Timer(
+      const Duration(milliseconds: 400),
+      () => _lookUp(mine, c),
+    );
   }
 
-  Future<void> _lookUp(Grant mine) async {
-    final typed = _email.text;
+  Future<void> _lookUp(Grant mine, TextEditingController c) async {
+    final typed = c.text;
     final problem = RoleStore.successorProblem(mine, typed);
     if (problem != null) {
       setState(() {
-        _looked = true;
-        _name = null;
+        _looked.add(c);
+        _name[c] = null;
       });
       return;
     }
     final n = await _roles.personName(typed.trim().toLowerCase());
-    if (!mounted || typed != _email.text) return;
+    if (!mounted || typed != c.text) return;
     setState(() {
-      _looked = true;
-      _name = n;
+      _looked.add(c);
+      _name[c] = n;
     });
+  }
+
+  /// The line under an address field: the rule, the problem, or who it is.
+  Widget _status(Grant mine, TextEditingController c, String rule) {
+    final p = AppPalette.of(context);
+    final caption = TypeScale.caption.copyWith(
+      height: 1.45,
+      color: p.textMuted,
+    );
+    final address = c.text.trim().toLowerCase();
+    final problem = RoleStore.successorProblem(mine, address);
+    if (!_looked.contains(c)) return Text(rule, style: caption);
+    if (problem != null) {
+      return Text(problem, style: caption.copyWith(color: p.behind));
+    }
+    if (_name[c] == null) {
+      return Text(
+        'Can not be found. They need to sign in to Pointer once first.',
+        style: caption.copyWith(color: p.behind),
+      );
+    }
+    return Text(
+      '✓ ${_name[c]} · ${campusName(campusOfAddress(address)!)} address'
+      ' — ${batchOfAddress(address)} batch',
+      style: caption.copyWith(fontWeight: FontWeight.w700, color: p.text),
+    );
   }
 
   Future<void> _cancel(Grant mine) async {
@@ -270,8 +304,19 @@ class _SuccessionState extends State<Succession> {
         final now = DateTime.now();
         final ends = RoleStore.outgoingExpiry(mine, now);
         final days = ends.difference(now).inDays;
-        final ready = _looked && problem == null && _name != null;
-        final who = ready ? _name! : 'They';
+        final secAddress = _sec.text.trim().toLowerCase();
+        final secReady =
+            secAddress.isEmpty ||
+            (_looked.contains(_sec) &&
+                _name[_sec] != null &&
+                secAddress != address &&
+                RoleStore.successorProblem(mine, secAddress) == null);
+        final ready =
+            _looked.contains(_email) &&
+            problem == null &&
+            _name[_email] != null &&
+            secReady;
+        final who = ready ? _name[_email]! : 'They';
         return PageFrame(
           header: _header(
             widget.campus,
@@ -289,6 +334,7 @@ class _SuccessionState extends State<Succession> {
                           widget.campus,
                           widget.dept,
                           address,
+                          secretary: secAddress.isEmpty ? null : secAddress,
                         ),
                       )
                       : null,
@@ -308,31 +354,30 @@ class _SuccessionState extends State<Succession> {
               label: 'Their BITS address',
               hint: 'f2024…@${widget.campus}.bits-pilani.ac.in',
               labelAbove: true,
-              onChanged: (_) => _typed(mine),
+              onChanged: (_) => _typed(mine, _email),
             ),
             const SizedBox(height: Space.xs),
-            if (!_looked)
-              Text(
-                'A successor must be on ${campusName(widget.campus)}, and '
-                'must have signed in to Pointer once.',
-                style: caption,
-              )
-            else if (problem != null)
-              Text(problem, style: caption.copyWith(color: p.behind))
-            else if (_name == null)
-              Text(
-                'Can not be found. They need to sign in to Pointer once first.',
-                style: caption.copyWith(color: p.behind),
-              )
-            else
-              Text(
-                '✓ $_name · ${campusName(campusOfAddress(address)!)} address'
-                ' — ${batchOfAddress(address)} batch',
-                style: caption.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: p.text,
-                ),
-              ),
+            _status(
+              mine,
+              _email,
+              'A successor must be on ${campusName(widget.campus)}, and '
+              'must have signed in to Pointer once.',
+            ),
+            const SizedBox(height: Space.md),
+            AppTextField(
+              controller: _sec,
+              label: 'Next secretary (optional)',
+              hint: 'f2024…@${widget.campus}.bits-pilani.ac.in',
+              labelAbove: true,
+              onChanged: (_) => _typed(mine, _sec),
+            ),
+            const SizedBox(height: Space.xs),
+            _status(
+              mine,
+              _sec,
+              'Their term ends with the new president\'s. The current '
+              'secretary\'s ends with yours.',
+            ),
             const SectionLabel('What happens'),
             AppCard(
               child: Column(
@@ -383,8 +428,12 @@ class SuccessionConfirm extends StatefulWidget {
     required this.campus,
     required this.dept,
     required this.to,
+    this.secretary,
   });
   final String campus, dept, to;
+
+  /// The next secretary's address, when one was named.
+  final String? secretary;
 
   @override
   State<SuccessionConfirm> createState() => _SuccessionConfirmState();
@@ -413,7 +462,11 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
               : 'You no longer hold ${widget.dept}.',
         );
       }
-      final ok = await _roles.handOver(mine, widget.to);
+      final ok = await _roles.handOver(
+        mine,
+        widget.to,
+        secretary: widget.secretary,
+      );
       if (!ok) throw StateError('${widget.to} has not signed in yet.');
       await refreshMyRoles();
       if (!mounted) return;
@@ -545,6 +598,10 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
                       side('TO', _id(widget.to), widget.to),
                     ],
                   ),
+                  if (widget.secretary case final sec?) ...[
+                    const SizedBox(height: Space.sm),
+                    side('NEXT SECRETARY', _id(sec), sec),
+                  ],
                   const SizedBox(height: Space.sm),
                   Text(
                     '${mine?.programme ?? widget.dept} '

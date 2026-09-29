@@ -212,6 +212,7 @@ final List<RouteBase> appRoutes = [
                         campus: s.pathParameters['campus']!,
                         dept: s.pathParameters['dept']!,
                         to: s.uri.queryParameters['to'] ?? '',
+                        secretary: s.uri.queryParameters['sec'],
                       ),
                     ),
               ),
