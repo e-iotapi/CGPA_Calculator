@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { goto, installLocalCanvasKit, signIn } from './helpers.mjs';
+import { goto, installLocalCanvasKit, signIn, settled } from './helpers.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const MORE_ROWS = ['Representatives', 'Course reviews', 'Resources'];
@@ -47,10 +47,10 @@ async function busyDay(page, accountKey) {
   await page.getByText('More', { exact: true }).click();
   for (const rowTitle of MORE_ROWS) {
     for (let i = 0; i < 2; i++) {
-      const row = page.getByText(rowTitle, { exact: true });
+      const row = page.getByRole('button', { name: new RegExp(`^${rowTitle}`) }).first();
       await expect(row).toBeVisible({ timeout: 10_000 });
       await row.click();
-      await page.waitForLoadState('networkidle');
+      await settled(page);
       await page.goBack();
     }
   }
@@ -85,6 +85,8 @@ function updateQuotaMd(rowLabel, counters) {
 }
 
 test.describe('quota', () => {
+  // Several full app loads per test; the budgets are asserted inside.
+  test.describe.configure({ timeout: 180_000 });
   test('a busy day as student_full stays within budget', async ({ page }) => {
     const counters = await busyDay(page, 'student_full');
     test.skip(counters == null, 'window.pointerPerf not built yet (P0)');

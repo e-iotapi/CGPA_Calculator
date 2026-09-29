@@ -47,6 +47,10 @@ void main() async {
   await Firebase.initializeApp(
     options: appEnv == AppEnv.staging
         ? StagingFirebaseOptions.currentPlatform
+        // The emulators hold one project's data per id: the seed's.
+        : appEnv == AppEnv.emulator
+        ? DefaultFirebaseOptions.currentPlatform
+            .copyWith(projectId: 'demo-pointer')
         : DefaultFirebaseOptions.currentPlatform,
   );
   configureEnv();

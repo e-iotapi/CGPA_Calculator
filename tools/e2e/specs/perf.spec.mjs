@@ -7,7 +7,7 @@
 // would reload the whole app and reset every in-memory counter, defeating
 // the point of testing a cache-first *second* open.
 import { expect, test } from '@playwright/test';
-import { installLocalCanvasKit, signIn } from './helpers.mjs';
+import { installLocalCanvasKit, signIn, settled } from './helpers.mjs';
 
 const MORE_ROWS = ['Representatives', 'Course reviews', 'Resources'];
 
@@ -25,6 +25,8 @@ async function throttle(page) {
 }
 
 test.describe('perf', () => {
+  // Several full app loads per test; the budgets are asserted inside.
+  test.describe.configure({ timeout: 180_000 });
   test('home renders cold in under 3s', async ({ page }) => {
     await installLocalCanvasKit(page);
     await throttle(page);
@@ -39,12 +41,12 @@ test.describe('perf', () => {
       await throttle(page);
       await signIn(page, 'student_full');
       await page.getByText('More', { exact: true }).click();
-      const row = page.getByText(rowTitle, { exact: true });
+      const row = page.getByRole('button', { name: new RegExp(`^${rowTitle}`) }).first();
       await expect(row).toBeVisible({ timeout: 10_000 });
 
       const firstStart = Date.now();
       await row.click();
-      await page.waitForLoadState('networkidle');
+      await settled(page);
       const firstMs = Date.now() - firstStart;
 
       const before = await page.evaluate(() => window.pointerPerf?.summary?.()?.reads ?? null);
@@ -53,7 +55,7 @@ test.describe('perf', () => {
 
       const secondStart = Date.now();
       await row.click();
-      await page.waitForLoadState('networkidle');
+      await settled(page);
       const secondMs = Date.now() - secondStart;
 
       expect(firstMs, `${rowTitle} first open`).toBeLessThan(1500);

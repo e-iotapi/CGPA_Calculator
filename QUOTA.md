@@ -36,3 +36,23 @@ appear here.
 
 <!-- measured:student_full -->
 <!-- measured:president -->
+
+## Measured, 29 Sep 2026 (after B7–B15)
+
+`window.pointerPerf` in the browser, emulator seed, student_full on Goa:
+
+| What | Reads | Writes |
+|---|---|---|
+| First open on a new device | 9 (users doc 1, roles 1, catalogue 2, offerings 4) | 0 |
+| Any later open (caches warm) | 0 | 0 |
+| Representatives | 2 (repIndex 1, own volunteer offer 1) | 0 |
+| Course reviews home | 1 (reviewIndex) | 0 |
+| Resources | 5 on this seed, 1 with the `links` map | 0 |
+
+- Resources falls back to the old per-department query where
+  `resourceVersions/{campus}` has no `links` map yet (seeded and existing
+  production links). Backfill it once, or re-save one link per campus.
+- The Playwright busy-day spec (quota.spec) needs its flow updated for the
+  rebuilt UI (an overlay intercepts the More tap; the president lands on
+  RepProfile first) before it can gate a deploy.
+
