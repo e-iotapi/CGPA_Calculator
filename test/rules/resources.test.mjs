@@ -40,7 +40,7 @@ function base(extra = {}) {
 }
 
 /// A resource write the way the app makes it: resource, audit, version bump.
-async function put(db, actor, id, data, { update = false, bump = true, auditPath } = {}) {
+async function put(db, actor, id, data, { update = false, bump = true, auditPath, link } = {}) {
   const b = writeBatch(db);
   const a = doc(collection(db, 'audit'));
   const ref = doc(db, 'resources', id);
@@ -60,7 +60,10 @@ async function put(db, actor, id, data, { update = false, bump = true, auditPath
   });
   if (bump) {
     const v = (await getDoc(doc(db, 'resourceVersions', 'goa'))).data()?.v ?? 0;
-    b.set(doc(db, 'resourceVersions', 'goa'), { v: v + 1 });
+    const copy = link ?? (update ? null : (({ title, url, department, scope, courseIds, pinnedToDepartment }) =>
+      ({ title, url, department, scope, courseIds, pinnedToDepartment }))(data));
+    b.set(doc(db, 'resourceVersions', 'goa'),
+      copy ? { v: v + 1, k: id, links: { [id]: copy } } : { v: v + 1 }, { merge: true });
   }
   return b.commit();
 }
@@ -100,6 +103,14 @@ describe('resources', () => {
   test('every write moves the campus version and is audited', async () => {
     await assertFails(put(as(PRES), PRES, 'r1', base(), { bump: false }));
     await assertFails(put(as(PRES), PRES, 'r1', base(), { auditPath: 'resources/other' }));
+  });
+
+  test('the campus copy of a link matches the link', async () => {
+    const b = base();
+    await assertFails(put(as(PRES), PRES, 'r1', b, { link: { ...b, url: 'https://evil.example.com/' } }));
+    await assertSucceeds(put(as(PRES), PRES, 'r1', b));
+    const v = await getDoc(doc(as(STUDENT), 'resourceVersions', 'goa'));
+    if (v.data().links.r1.url !== b.url) throw new Error('no copy');
   });
 
   test('a CR adds course links for their own course only', async () => {

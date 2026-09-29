@@ -32,15 +32,8 @@ class ResourceStore {
   CollectionReference<Map<String, dynamic>> get _resources =>
       _db.collection('resources');
 
-  // Budget: 1 read per department visited, even on a cache hit (P0) — the
-  // version check always goes to the network today; P2c makes this cheap.
-  Future<int> _version(String campus) async {
-    final d = await Perf.time(
-      'resources.version',
-      () => _db.collection('resourceVersions').doc(campus).get(),
-    );
-    return (d.data()?['v'] as num?)?.toInt() ?? 0;
-  }
+  DocumentReference<Map<String, dynamic>> _versions(String campus) =>
+      _db.collection('resourceVersions').doc(campus);
 
   /// Every live link in [department] on [campus]; from the cache when the
   /// campus version has not moved. Offline, the cache as it stands.
@@ -55,19 +48,41 @@ class ResourceStore {
       fromCache = [for (final r in m['rows'] as List) Resource.fromMap(r)];
     }
     try {
-      final v = await _version(campus);
-      if (fromCache != null && v == cachedV) return fromCache;
-      final q = await Perf.time(
-        'resources.department',
-        () => _resources
-            .where('campus', isEqualTo: campus)
-            .where('department', isEqualTo: department)
-            .get(),
+      // 1 read: the campus's version doc carries every live link.
+      final vd = await Perf.time(
+        'resources.version',
+        () => _versions(campus).get(),
       );
-      final rows = [
-        for (final d in q.docs)
-          if (Resource.fromMap(d.data(), d.id) case final r when !r.removed) r,
-      ];
+      final v = (vd.data()?['v'] as num?)?.toInt() ?? 0;
+      if (fromCache != null && v == cachedV) return fromCache;
+      final List<Resource> rows;
+      if (vd.data()?['links'] case final Map links) {
+        rows = [
+          for (final e in links.entries)
+            if (Resource.fromMap({
+                  ...e.value as Map,
+                  'campus': campus,
+                }, '${e.key}')
+                case final r when r.department == department && !r.removed)
+              r,
+        ];
+      } else {
+        // ponytail: campuses whose links predate the index; drop once
+        // every campus has been re-saved or backfilled.
+        final q = await Perf.time(
+          'resources.department',
+          () =>
+              _resources
+                  .where('campus', isEqualTo: campus)
+                  .where('department', isEqualTo: department)
+                  .get(),
+        );
+        rows = [
+          for (final d in q.docs)
+            if (Resource.fromMap(d.data(), d.id) case final r when !r.removed)
+              r,
+        ];
+      }
       await _cache?.put(
         key,
         jsonEncode({
@@ -82,11 +97,20 @@ class ResourceStore {
     }
   }
 
-  void _bump(WriteBatch b, String campus) => b.set(
-    _db.collection('resourceVersions').doc(campus),
-    {'v': FieldValue.increment(1)},
-    SetOptions(merge: true),
-  );
+  /// Moves the campus version and, for [r], its copy in `links` (gone
+  /// once removed).
+  void _bump(WriteBatch b, String campus, [Resource? r, String? id]) {
+    final m =
+        r?.toMap()
+          ?..remove('id')
+          ..remove('campus')
+          ..remove('removed');
+    b.set(_versions(campus), {
+      'v': FieldValue.increment(1),
+      if (r != null) 'k': id ?? r.id,
+      if (r != null) 'links': {id ?? r.id: r.removed ? FieldValue.delete() : m},
+    }, SetOptions(merge: true));
+  }
 
   /// Adds [r] (its id is ignored). [actingFor] is the course a CR adds it
   /// for; presidents and owners leave it null.
@@ -108,7 +132,16 @@ class ResourceStore {
       'auditId': audit,
       'actingFor': actingFor ?? '',
     });
-    _bump(b, r.campus);
+    _bump(
+      b,
+      r.campus,
+      Resource.fromMap({
+        ...r.toMap(),
+        'addedBy': {'name': roles.myName, 'email': roles.me},
+        'addedAt': DateTime.now().millisecondsSinceEpoch,
+      }, ref.id),
+      ref.id,
+    );
     await b.commit();
     return ref.id;
   }
@@ -150,7 +183,7 @@ class ResourceStore {
         'auditId': audit,
       });
     }
-    _bump(b, next.campus);
+    _bump(b, next.campus, next);
     await b.commit();
   }
 
