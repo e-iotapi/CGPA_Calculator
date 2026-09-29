@@ -102,7 +102,13 @@ class DeptHome extends StatelessWidget {
   Future<_HomeData> _load() async {
     final courses = deptCourses(dept);
     final links = await _maybe(resourceStore?.department(campus, dept));
-    final flags = await _maybe(resourceStore?.flags(campus, dept));
+    final rawFlags = await _maybe(resourceStore?.flags(campus, dept));
+    // A report can outlive its link; only count ones still listed (BUG-13).
+    final liveIds = {for (final r in links ?? const []) r.id};
+    final flags = [
+      for (final f in rawFlags ?? const [])
+        if (liveIds.contains(f.resourceId)) f,
+    ];
     final reported = await _maybe(
       reviewStore?.moderation(campus, dept, hidden: false, reportedOnly: true),
     );
@@ -116,7 +122,7 @@ class DeptHome extends StatelessWidget {
         maintainedTerm,
       ),
       links: links == null ? null : departmentList(links).length,
-      flagged: flags?.length,
+      flagged: flags.length,
       reported: reported?.length,
       profs: profs?.length,
       audit: await _maybe(roleStore!.audit(campus: campus, limit: 200)),
