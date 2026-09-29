@@ -54,9 +54,24 @@ class AllDepartments implements DepartmentSource {
   Future<List<String>> at(String campus) async => departments.keys.toList();
 }
 
-DepartmentSource departmentSource = const AllDepartments();
+/// The departments a campus runs, from the programme list (no Firestore).
+class CampusDepartments implements DepartmentSource {
+  const CampusDepartments();
+
+  @override
+  Future<List<String>> at(String campus) async => departmentsAt(campus);
+}
+
+DepartmentSource departmentSource = const CampusDepartments();
 
 /// The branches on [campus] (every department when it is not known yet,
 /// e.g. before an address is typed), in [departmentSource]'s order.
-Future<List<Branch>> campusBranches(String? campus) async =>
-    deptBranches(campus == null ? null : await departmentSource.at(campus));
+/// A branch not run on [campus] (AC on Hyderabad) is left out.
+Future<List<Branch>> campusBranches(String? campus) async {
+  if (campus == null) return deptBranches();
+  final here = {for (final p in programmesAt(Campus.named(campus))) p.code};
+  return [
+    for (final b in deptBranches(await departmentSource.at(campus)))
+      if (b.programme == null || here.contains(b.programme)) b,
+  ];
+}

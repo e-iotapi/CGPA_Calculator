@@ -3,6 +3,7 @@
 /// agree on who is a student and which department a course is in.
 library;
 
+import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
 
 final _student = RegExp(
@@ -271,6 +272,16 @@ const departments = <String, ({String name, List<String> programmes})>{
 };
 
 String departmentName(String key) => departments[key]?.name ?? key;
+
+/// Department keys a campus runs, in [departments] order: those with a
+/// programme offered there (`programmesAt`, DISCIPLINES_GOA_HYD.md).
+List<String> departmentsAt(String campus) {
+  final here = {for (final p in programmesAt(Campus.named(campus))) p.code};
+  return [
+    for (final e in departments.entries)
+      if (e.value.programmes.any(here.contains)) e.key,
+  ];
+}
 
 /// The department a programme belongs to: ELEC for A3.
 String? departmentOfProgramme(String code) =>
