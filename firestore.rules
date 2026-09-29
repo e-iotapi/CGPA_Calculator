@@ -112,7 +112,7 @@ service cloud.firestore {
         || isPresidentOn(campusOf(me()));
       allow list: if false;
       allow create, update: if mayUse() && email == me()
-        && request.resource.data.keys().hasOnly(['name', 'campus', 'firstSignIn'])
+        && request.resource.data.keys().hasOnly(['name', 'campus', 'firstSignIn', 'lastSeen'])
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 80
@@ -404,6 +404,40 @@ service cloud.firestore {
         && request.resource.data.adminDays is int
         && request.resource.data.adminDays > 0 && request.resource.data.adminDays <= 1500
         && audited('config/grantTerms');
+    }
+
+    // ---- Campus heads (PERF_TEST_PLAN.md §A) -----------------------------
+
+    // One small doc per campus says what moved, so an app open reads it
+    // instead of polling the catalogue marker, the contact and each offering.
+    function staffOn(campus) {
+      let s = get(staffPath(me())).data;
+      return s.campus == campus && request.time < s.expiresAt
+        && (s.presidentOf.size() > 0 || s.get('courses', []).size() > 0);
+    }
+
+    function headDiff() {
+      return request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys();
+    }
+
+    match /heads/{campus} {
+      allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      // Offering versions move in the batch that saves a scheme. ponytail:
+      // not tied to the offering written; a stray bump only costs students
+      // one re-read of that course, never wrong data.
+      allow create, update: if (
+          (isOwner() || isAdmin() || staffOn(campus))
+            && headDiff().hasOnly(['offerings'])
+            && request.resource.data.offerings is map)
+        || (isOwner() && headDiff().hasOnly(['catalog', 'catalogSchema'])
+            && request.resource.data.catalog
+                 == getAfter(/databases/$(db)/documents/catalog/marker).data.version)
+        || ((isOwner() || isAdmin()) && headDiff().hasOnly(['contact'])
+            && request.resource.data.contact.contactEnabled
+                 == getAfter(/databases/$(db)/documents/config/public).data.contactEnabled
+            && request.resource.data.contact.contactTarget
+                 == getAfter(/databases/$(db)/documents/config/public).data.contactTarget);
+      allow delete: if false;
     }
 
     match /config/public {
@@ -843,9 +877,16 @@ service cloud.firestore {
     // ---- The user's own data -----------------------------------------------
 
     match /users/{uid} {
-      allow read, delete: if mayUse() && request.auth.uid == uid;
+      allow get, delete: if mayUse() && request.auth.uid == uid;
+      // The pull check: where uid == me and rev > mine (§A.4).
+      allow list: if mayUse() && resource.data.uid == request.auth.uid;
+      // rev moves by exactly one per push, so a plain update is safe without
+      // a transaction read: another device's push makes this one fail, and
+      // the app pulls (PERF_TEST_PLAN.md §A.4).
       allow create, update: if mayUse() && request.auth.uid == uid
         && request.resource.data.rev is int
+        && (resource == null || request.resource.data.rev == resource.data.rev + 1)
+        && request.resource.data.get('uid', uid) == uid
         && request.resource.data.data is string
         && request.resource.data.data.size() < 500000
         // The pre-step-3 snapshot, kept once so the migration can be undone.

@@ -3,6 +3,8 @@
 /// with its audit entry; firestore.rules refuses it otherwise.
 library;
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -74,19 +76,34 @@ class RoleStore {
 
   // ---- People --------------------------------------------------------------
 
-  /// Every sign-in makes sure `people/{me}` exists, so the person can be
-  /// appointed (§16.3 fix 12). Written once.
+  /// Makes sure `people/{me}` exists, so the person can be appointed
+  /// (§16.3 fix 12), and moves `lastSeen` (site analytics). [known]: this
+  /// device already recorded them, so only `lastSeen` is written, unread.
   Future<void> recordSignIn({
     required String name,
     required String campus,
+    bool known = false,
   }) async {
     final ref = db.collection('people').doc(me);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (known) {
+      try {
+        await ref.update({'lastSeen': now});
+        return;
+      } on FirebaseException catch (e) {
+        if (e.code != 'not-found') rethrow;
+      }
+    }
     final d = await ref.get();
-    if (d.exists) return;
+    if (d.exists) {
+      await ref.update({'lastSeen': now});
+      return;
+    }
     await ref.set({
       'name': name.isEmpty ? me.split('@').first : name,
       'campus': campus,
-      'firstSignIn': DateTime.now().millisecondsSinceEpoch,
+      'firstSignIn': now,
+      'lastSeen': now,
     });
   }
 
@@ -582,12 +599,37 @@ class RoleStore {
 
   // ---- Public contact ------------------------------------------------------
 
-  Future<PublicContact?> publicContact() async {
-    final d = await Perf.time(
-      'roles.publicContact',
-      () => db.collection('config').doc('public').get(),
-    );
-    final m = d.data();
+  /// The public contact. Students get it from their campus head (no read of
+  /// its own) or a 7-day cache; [fresh] reads it live, as its editor does.
+  /// Budget: ~0 reads/user/day.
+  Future<PublicContact?> publicContact({bool fresh = false}) async {
+    Map<String, dynamic>? m;
+    if (!fresh) {
+      final campus = campusOfAddress(me);
+      final head = campus == null ? null : await headFor(campus, db: db);
+      m = head?.contact?.cast<String, dynamic>();
+      m ??= await cacheFirst<Map<String, dynamic>?>(
+        key: 'contact|public',
+        maxAge: const Duration(days: 7),
+        fetch:
+            () async =>
+                (await Perf.time(
+                  'roles.publicContact',
+                  () => db.collection('config').doc('public').get(),
+                )).data(),
+        encode:
+            (v) =>
+                v == null
+                    ? null
+                    : {
+                      for (final e in v.entries)
+                        if (e.key.startsWith('contact')) e.key: e.value,
+                    },
+        decode: (v) => (v as Map?)?.cast<String, dynamic>(),
+      );
+    } else {
+      m = (await db.collection('config').doc('public').get()).data();
+    }
     if (m == null) return null;
     return (
       name: m['contactName'] as String? ?? '',
@@ -643,6 +685,16 @@ class RoleStore {
       'updatedAt': FieldValue.serverTimestamp(),
       'auditId': id,
     });
+    setOnAllHeads(b, db, {
+      'contact': {
+        'contactName': c.name,
+        'contactMethod': c.method,
+        'contactTarget': c.target,
+        'contactEnabled': c.enabled,
+      },
+    });
     await b.commit();
+    await forget('contact|');
+    await forget('head|');
   }
 }

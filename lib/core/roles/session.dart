@@ -26,14 +26,23 @@ RoleStore startRoles(
   required String email,
   required String name,
 }) {
-  final store = roleStore = RoleStore(
-    db,
-    me: email,
-    myName: name,
-    actingAs: actingNow,
-  );
+  final store =
+      roleStore = RoleStore(db, me: email, myName: name, actingAs: actingNow);
   if (campusOfAddress(email) case final campus?) {
-    unawaited(store.recordSignIn(name: name, campus: campus).catchError((_) {}));
+    // Budget: ≤ 1 write a week per device; the first time also 1 read.
+    final at = _device?.get('signInAt');
+    final seen = _device?.get('signInAs') == email;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (!seen ||
+        at is! int ||
+        now - at > const Duration(days: 7).inMilliseconds) {
+      unawaited(
+        store
+            .recordSignIn(name: name, campus: campus, known: seen)
+            .then((_) => _device?.putAll({'signInAt': now, 'signInAs': email}))
+            .catchError((_) {}),
+      );
+    }
   }
   return store;
 }
@@ -110,12 +119,14 @@ void _use(MyRoles r) {
   if (!r.owner) viewAs.value = null;
 }
 
-/// The last known roles, for an instant start (and offline).
-void restoreMyRoles() {
+/// The last known roles, for an instant start (and offline). Roles cached
+/// for another address are ignored (a shared device, a switched account).
+void restoreMyRoles({String? email}) {
   final raw = _device?.get('roles');
   if (raw is! String) return;
   try {
     final m = jsonDecode(raw) as Map<String, dynamic>;
+    if (email != null && m['email'] != email.toLowerCase()) return;
     _use(
       MyRoles(
         email: m['email'] as String,
@@ -133,6 +144,25 @@ void restoreMyRoles() {
   }
 }
 
+/// [refreshMyRoles] at most once a week per device and person: a new
+/// appointment shows then, or at once after signing out and in (which
+/// clears the device cache). The rules check every write anyway.
+/// Budget: 2 reads a week per device.
+Future<void> refreshMyRolesIfDue() async {
+  final at = _device?.get('rolesAt');
+  final raw = _device?.get('roles');
+  final email = roleStore?.me;
+  final mine =
+      raw is String && email != null && raw.contains('"email":"$email"');
+  if (mine &&
+      at is int &&
+      DateTime.now().millisecondsSinceEpoch - at <
+          const Duration(days: 7).inMilliseconds) {
+    return;
+  }
+  await refreshMyRoles();
+}
+
 /// Reads the person's roles again. Offline, keeps what it had.
 Future<void> refreshMyRoles() async {
   final store = roleStore;
@@ -140,6 +170,7 @@ Future<void> refreshMyRoles() async {
   try {
     final r = await store.loadMine();
     _use(r);
+    await _device?.put('rolesAt', DateTime.now().millisecondsSinceEpoch);
     await _device?.put(
       'roles',
       jsonEncode({

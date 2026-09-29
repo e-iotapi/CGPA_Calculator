@@ -79,7 +79,12 @@ Future<T> _run<T>(
 ) async {
   try {
     final value = await fetch();
-    await box?.put(key, jsonEncode({'at': at, 'v': encode(value)}));
+    // Hive updates memory at once; the disk write need not hold the caller.
+    unawaited(
+      box
+          ?.put(key, jsonEncode({'at': at, 'v': encode(value)}))
+          .catchError((Object e) => debugPrint('[Pointer cache] $key: $e')),
+    );
     return value;
   } finally {
     _inFlight.remove(key);
@@ -91,8 +96,6 @@ Future<T> _run<T>(
 Future<void> forget(String keyPrefix, {Box? box}) async {
   final b = box ?? sharedCacheBox;
   if (b == null) return;
-  final keys = b.keys.where(
-    (k) => k is String && k.startsWith(keyPrefix),
-  );
+  final keys = b.keys.where((k) => k is String && k.startsWith(keyPrefix));
   await b.deleteAll(keys);
 }
