@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
+import 'package:cgpa_calculator/core/roles/maintain_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
@@ -381,24 +382,18 @@ class _ViewAsCoursePageState extends State<ViewAsCoursePage> {
 
   Future<List<_Offered>> _load() async {
     final store = roleStore!;
-    final got =
-        await store.db
-            .collectionGroup('offerings')
-            .where('campus', isEqualTo: _campus)
-            .where('term', isEqualTo: _term)
-            .get();
+    final got = await MaintainStore(store).campusOfferings(_campus, _term);
     final grants = await store.roster(campus: _campus);
     final profs = ProfessorStore(store.db);
     final names = <String, String>{};
     final now = DateTime.now();
     final out = <_Offered>[];
-    for (final d in got.docs) {
-      final m = d.data();
-      final id = m['courseId'] as String? ?? '';
+    for (final o in got) {
+      final id = o.courseId;
       if (id.isEmpty) continue;
       final ps = <String>[];
-      for (final pid in (m['professors'] as List? ?? const [])) {
-        final n = names['$pid'] ??= (await profs.get('$pid'))?.name ?? '';
+      for (final pid in o.professors) {
+        final n = names[pid] ??= (await profs.get(pid))?.name ?? '';
         if (n.isNotEmpty) ps.add(n);
       }
       out.add((

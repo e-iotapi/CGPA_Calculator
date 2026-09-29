@@ -107,7 +107,10 @@ class RoleStore {
   Future<MyRoles> loadMine({DateTime? now}) async {
     var owner = false;
     try {
-      final o = await Perf.time('roles.owner', () => db.collection('owners').doc(me).get());
+      final o = await Perf.time(
+        'roles.owner',
+        () => db.collection('owners').doc(me).get(),
+      );
       owner = o.data()?['active'] == true;
     } on FirebaseException {
       owner = false;
@@ -592,6 +595,32 @@ class RoleStore {
       target: m['contactTarget'] as String? ?? '',
       enabled: m['contactEnabled'] as bool? ?? false,
     );
+  }
+
+  /// Who last changed the public contact, with their role from the audit
+  /// entry the save wrote; null when it was never set. Read live (T8.8).
+  Future<({String name, String? role, DateTime? at})?>
+  publicContactChange() async {
+    final m = (await db.collection('config').doc('public').get()).data();
+    final by = m?['updatedBy'] as Map?;
+    if (m == null || by == null) return null;
+    String? role;
+    if (m['auditId'] case final String id) {
+      final e = (await db.collection('audit').doc(id).get()).data();
+      role = (e?['actor'] as Map?)?['role'] as String?;
+    }
+    return (
+      name: by['name'] as String? ?? '',
+      role: role,
+      at: (m['updatedAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  /// One grant document, read fresh (a handover in progress lives only on
+  /// it); null when absent.
+  Future<Grant?> grant(String id) async {
+    final m = (await db.collection('grants').doc(id).get()).data();
+    return m == null ? null : Grant.fromMap(m);
   }
 
   Future<void> savePublicContact(PublicContact c) async {

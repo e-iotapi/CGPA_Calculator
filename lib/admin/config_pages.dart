@@ -561,23 +561,9 @@ class _PublicContactPageState extends State<PublicContactPage> {
   Future<(PublicContact?, ({String name, String? role, DateTime? at})?)>
   _load() async {
     final store = roleStore!;
-    final c = await store.publicContact();
-    final m = (await store.db.collection('config').doc('public').get()).data();
-    final by = m?['updatedBy'] as Map?;
-    if (by == null) return (c, null);
-    String? role;
-    if (m?['auditId'] case final String id) {
-      final e = (await store.db.collection('audit').doc(id).get()).data();
-      role = (e?['actor'] as Map?)?['role'] as String?;
-    }
-    return (
-      c,
-      (
-        name: by['name'] as String? ?? '',
-        role: role,
-        at: (m?['updatedAt'] as Timestamp?)?.toDate(),
-      ),
-    );
+    final (c, changed) =
+        await (store.publicContact(), store.publicContactChange()).wait;
+    return (c, changed);
   }
 
   @override

@@ -20,15 +20,10 @@ RoleStore get _roles => roleStore!;
 /// The signed-in president's grant for [dept], read fresh: a handover in
 /// progress lives only on the document.
 Future<Grant?> _myGrant(String campus, String dept) async {
-  final d =
-      await _roles.db
-          .collection('grants')
-          .doc(grantId(GrantRole.dept, campus, dept, _roles.me))
-          .get();
-  final m = d.data();
-  if (m == null) return null;
-  final g = Grant.fromMap(m);
-  return g.liveAt(DateTime.now()) ? g : null;
+  final g = await _roles.grant(
+    grantId(GrantRole.dept, campus, dept, _roles.me),
+  );
+  return g != null && g.liveAt(DateTime.now()) ? g : null;
 }
 
 /// The grant the pages show: the signed-in president's, or, for an owner or
