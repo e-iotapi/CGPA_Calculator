@@ -3,6 +3,9 @@
 # MUST be allow-popups, or signInWithPopup silently fails.
 /*
   Cross-Origin-Opener-Policy: same-origin-allow-popups
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: frame-ancestors 'none'
 /
   Cache-Control: no-cache
 /index.html
@@ -14,6 +17,14 @@
 /calculator/index.html
   Cache-Control: no-cache
 /calculator/flutter_service_worker.js
+  Cache-Control: no-cache
+/calculator/main.dart.js
+  Cache-Control: no-cache
+/calculator/flutter_bootstrap.js
+  Cache-Control: no-cache
+/calculator/flutter.js
+  Cache-Control: no-cache
+/calculator/version.json
   Cache-Control: no-cache
 # UI_OPT O7.3: Flutter web file names aren't content-hashed, so not
 # "immutable" — a short max-age with revalidation in the background.

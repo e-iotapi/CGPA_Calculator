@@ -94,10 +94,13 @@ Future<Catalog> loadCatalog({
   Box? cache,
   Future<String> Function()? asset,
 }) async {
-  final box = cache ?? await Hive.openBox(catalogBoxName);
-  final fallback = Catalog.fromJson(
-    await (asset ?? () => rootBundle.loadString(catalogAsset))(),
-  );
+  // Started together, not one after the other: the box open and the asset
+  // read don't depend on each other.
+  final boxFuture =
+      cache != null ? Future.value(cache) : Hive.openBox(catalogBoxName);
+  final assetFuture = (asset ?? () => rootBundle.loadString(catalogAsset))();
+  final box = await boxFuture;
+  final fallback = Catalog.fromJson(await assetFuture);
   var use = fallback;
   final cached = box.get('json');
   if (cached is String) {

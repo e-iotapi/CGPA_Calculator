@@ -25,6 +25,11 @@ node tools/test_env/seed.mjs --project staging
 
 flutter build web --release \
   --dart-define=POINTER_ENV=staging \
-  --dart-define=POINTER_TEST_PASSWORD="$STAGING_PASSWORD"
+  --dart-define=POINTER_TEST_PASSWORD="$STAGING_PASSWORD" \
+  --build-number="$(date +%s)"
+
+# Staging serves the app at /, not /calculator/ (prod's path, BUG-39) — the
+# manifest is built assuming prod's path, so fix start_url/scope for here.
+sed -i 's#"/calculator/"#"/"#g' build/web/manifest.json
 
 fb deploy --only hosting:staging --project staging

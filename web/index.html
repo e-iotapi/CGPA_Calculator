@@ -11,7 +11,11 @@
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
-    gtag('config', 'G-3Q30MVTZ45');
+    // Strip ?as=<role>: it's how an owner "Open as"-views another role, not
+    // a page identity, and it should not end up in analytics as a role key.
+    var gaUrl = new URL(location.href);
+    gaUrl.searchParams.delete('as');
+    gtag('config', 'G-3Q30MVTZ45', { page_location: gaUrl.toString() });
   </script>
 
   <meta charset="UTF-8" />
@@ -202,10 +206,10 @@
   </script>
 
 
-  <!-- Montserrat: preconnect + display=swap so the font never blocks first paint. -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;800&display=swap" rel="stylesheet">
+  <!-- Montserrat ships bundled (pubspec.yaml fonts:), so there is no Google
+       Fonts request here — a remote copy of the same family would just be
+       downloaded twice. The splash below falls back to system-ui until the
+       engine paints. -->
 
   <!-- Loading screen: pure CSS, paints before the engine boots. Compositor-only
        animations (transform/opacity) for slow connections. -->
