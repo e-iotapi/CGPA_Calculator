@@ -44,6 +44,7 @@ void main() {
     ),
     ('m_grant_pres', () => const AdminGrant(), As.president, 1130),
     ('m_owners', () => const OwnersPage(), As.owner, 860),
+    ('m_analytics', () => SiteAnalytics(now: analyticsNow), As.owner, 2400),
     ('m_terms', () => const TermsPage(), As.owner, 844),
     ('m_terms_admin', () => const TermsPage(), As.admin, 844),
     ('m_contact', () => const PublicContactPage(), As.owner, 900),

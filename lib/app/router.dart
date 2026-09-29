@@ -131,6 +131,7 @@ final List<RouteBase> appRoutes = [
             () => _adminOnly() || myRoles.value.presidencies.isNotEmpty,
           ),
           _admin('owners', () => admin.OwnersPage(), _ownerOnly),
+          _admin('analytics', () => admin.SiteAnalytics(), _ownerOnly),
           _admin('terms', () => admin.TermsPage(), _adminOnly),
           _admin('contact', () => admin.PublicContactPage(), _adminOnly),
           _admin('audit', () => admin.AuditLogPage(), _staff),

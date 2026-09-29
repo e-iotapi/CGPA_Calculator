@@ -29,6 +29,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/script.dart' as app;
 import 'package:cgpa_calculator/sync.dart';
+import 'package:cgpa_calculator/core/analytics/analytics_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:hive/hive.dart';
@@ -123,6 +124,9 @@ final term = currentTerm(DateTime.now());
 // ---- Firestore --------------------------------------------------------------
 
 /// Fills [db] with everything the shared screens read.
+/// "Now" for the analytics seed and its render entry.
+final analyticsNow = DateTime.utc(2026, 9, 29, 12);
+
 Future<void> seedFirestore(FakeFirebaseFirestore db) async {
   Future<void> grant(Grant g) => db.collection('grants').doc(g.id).set({
     'role': g.role.key,
@@ -160,10 +164,28 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
         'active': false,
         'addedBy': {'email': ownerEmail, 'name': 'Owner One'},
       });
-  for (final a in As.values) {
+  for (final (i, a) in As.values.indexed) {
     await db.collection('people').doc(a.email).set({
       'name': a.name,
       'campus': a == As.admin ? 'hyderabad' : 'goa',
+      // Site analytics counts these, against [analyticsNow].
+      'firstSignIn': analyticsNow.millisecondsSinceEpoch - i * 3 * 86400000,
+      'lastSeen': analyticsNow.millisecondsSinceEpoch - i * 86400000,
+    });
+  }
+  // Sampled day docs for the last week (×20 on screen).
+  for (var i = 0; i < 7; i++) {
+    final day = istDay(analyticsNow.subtract(Duration(days: i)));
+    await db.collection('analytics').doc(day).set({
+      'sample': 20,
+      'goa': {
+        'dau': 30 + 7 * i,
+        'h': {'09': 8 + i, '13': 14, '21': 20 - i},
+      },
+      'hyderabad': {
+        'dau': 22 + i,
+        'h': {'10': 6, '22': 11},
+      },
     });
   }
   // Staff phones, and what students see on Representatives.

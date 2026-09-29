@@ -6,6 +6,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/analytics/analytics_store.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -43,6 +44,12 @@ RoleStore startRoles(
             .catchError((_) {}),
       );
     }
+    // Site analytics: 1 in 20 people a day, ≤ 1 write an hour (§D).
+    unawaited(
+      AnalyticsStore(db)
+          .recordOpen(uid: email, campus: campus, device: _device)
+          .catchError((_) {}),
+    );
   }
   return store;
 }
