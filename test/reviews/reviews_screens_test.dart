@@ -102,10 +102,11 @@ void main() {
     int stars = 4,
     bool take = true,
     String? text,
+    String term = '2024-25-1',
   }) => as(uid).save(
     courseId: id,
     campus: 'goa',
-    term: '2024-25-1',
+    term: term,
     professorId: prof,
     stars: stars,
     recommend: take,
@@ -292,6 +293,33 @@ void main() {
     await t.tap(find.text('All'));
     await t.pumpAndSettle();
     expect(find.text('3.0'), findsOneWidget);
+  });
+
+  testWidgets('R13 search, year and semester narrow the list and the card', (
+    t,
+  ) async {
+    await courses(t, []);
+    await t.runAsync(() async {
+      await review('u1', text: 'Great labs', term: '2025-26-1', stars: 5);
+      await review('u2', text: 'Heavy quizzes', term: '2025-26-2', stars: 2);
+      await review('u3', text: 'Summer rush', term: '2024-25-S');
+    });
+    await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
+    await t.pumpAndSettle();
+    await t.tap(find.text('2025-26'));
+    await t.pumpAndSettle();
+    expect(find.text('Summer rush'), findsNothing);
+    expect(find.textContaining('2 of 3 reviews'), findsOneWidget);
+    await t.tap(find.text('Sem 2'));
+    await t.pumpAndSettle();
+    expect(find.text('Heavy quizzes'), findsOneWidget);
+    expect(find.text('Great labs'), findsNothing);
+    await t.enterText(find.widgetWithText(TextField, 'Search reviews'), 'labs');
+    await t.pumpAndSettle();
+    expect(find.text('No reviews match.'), findsOneWidget);
+    await t.tap(find.text('Clear filters'));
+    await t.pumpAndSettle();
+    expect(find.text('Summer rush'), findsOneWidget);
   });
 
   testWidgets('R7 a Taught by pill filters to that professor', (t) async {
