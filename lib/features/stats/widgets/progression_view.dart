@@ -41,48 +41,54 @@ class ProgressionView extends StatelessWidget {
     );
     // Anything that rounds to 0.00 is no change.
     final delta = double.parse(data.delta.toStringAsFixed(2));
+    // No current CGPA to compare against yet (BUG-07): don't claim a rise
+    // or fall "on today" when there is no today figure.
+    final hasCgpa = data.done.gradedCredits > 0;
     return StatsBody(
       footer: StatsFooter(
         label: 'YOU FINISH AT',
         emphasis: true,
         value: '${data.finish.toStringAsFixed(2)} CGPA',
-        trailing: Semantics(
-          label:
-              '${delta.abs().toStringAsFixed(2)} '
-              '${delta < 0 ? 'down' : 'up'} on today',
-          excludeSemantics: true,
-          child: Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 13),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(17),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  delta < 0
-                      ? Icons.trending_down_rounded
-                      : delta > 0
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_flat_rounded,
-                  size: 15,
-                  color: p.hero,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  '${delta < 0 ? '−' : '+'}${delta.abs().toStringAsFixed(2)}',
-                  style: TypeScale.button.copyWith(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: p.hero,
+        trailing:
+            !hasCgpa
+                ? const SizedBox.shrink()
+                : Semantics(
+                  label:
+                      '${delta.abs().toStringAsFixed(2)} '
+                      '${delta < 0 ? 'down' : 'up'} on today',
+                  excludeSemantics: true,
+                  child: Container(
+                    height: 34,
+                    padding: const EdgeInsets.symmetric(horizontal: 13),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          delta < 0
+                              ? Icons.trending_down_rounded
+                              : delta > 0
+                              ? Icons.trending_up_rounded
+                              : Icons.trending_flat_rounded,
+                          size: 15,
+                          color: p.hero,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${delta < 0 ? '−' : '+'}${delta.abs().toStringAsFixed(2)}',
+                          style: TypeScale.button.copyWith(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: p.hero,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
       ),
       children: [
         AppCard(

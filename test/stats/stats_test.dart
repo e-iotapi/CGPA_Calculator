@@ -193,6 +193,68 @@ void main() {
         expect(d.audit.totalCredits + d.remaining, 226);
       },
     );
+
+    test('a new user with no CGPA gets a reachable default target (BUG-07)', () {
+      expect(StatsData.defaultTarget(0), 7.5);
+      // Unchanged for someone who already has a CGPA.
+      expect(StatsData.defaultTarget(8.2), 8.5);
+    });
+
+    test(
+      'finish vs today is the gap between the two rounded figures shown, '
+      'not the raw gap (BUG-52)',
+      () {
+        final d = StatsData.from(
+          all: [
+            _c('1 - 1', 999, 8), // B
+            _c('1 - 1', 1, 9), // A-
+            _c('1 - 2', 200, GradeCode.clr), // outstanding
+          ],
+          discipline: 'B3--',
+          target: 9,
+          plan: {'1 - 2': 8.0256},
+        );
+        // Raw: cgpa 8.001 rounds to "8.00", finish 8.0051 rounds to
+        // "8.01" — a real 0.01 rise once rounded, though the raw gap
+        // (0.0041) is under 0.005 and would round to "0.00" on its own.
+        expect(d.cgpa, closeTo(8.001, 1e-9));
+        expect(d.finish, closeTo(8.0051, 1e-6));
+        expect(d.delta, closeTo(0.01, 1e-9));
+      },
+    );
+
+    test(
+      'the "not with a repeat of X" caveat only follows a reachable '
+      'verdict — appending it to "a stretch" contradicted itself (BUG-23)',
+      () {
+        final courses = [
+          _c('1 - 1', 1, 9), // term SGPA 9.00
+          _c('1 - 2', 1, 5), // term SGPA 5.00 — the weak one
+          _c('2 - 1', 2, GradeCode.clr), // outstanding, so req is defined
+        ];
+        // avg of the two terms is 7.00; target 6.5 needs 6.00 (reachable,
+        // but the weak term alone would not have been enough).
+        final reachable = StatsData.from(
+          all: courses,
+          discipline: 'B3--',
+          target: 6.5,
+        );
+        expect(reachable.required, 6);
+        expect(reachable.note, contains('reachable'));
+        expect(reachable.note, contains('but not with a repeat of 1 - 2'));
+
+        // Target 7.5 needs 8.00 — a stretch even the best average misses,
+        // so singling out the weak term as "the" problem is misleading.
+        final stretch = StatsData.from(
+          all: courses,
+          discipline: 'B3--',
+          target: 7.5,
+        );
+        expect(stretch.required, 8);
+        expect(stretch.note, contains('a stretch'));
+        expect(stretch.note, isNot(contains('but not with a repeat')));
+      },
+    );
   });
 
   group('chart axes (board Stats)', () {

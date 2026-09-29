@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/count_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
@@ -122,11 +123,47 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
       widget.existing == null || widget.existing!.parts.length > 1;
   late int _best = widget.existing?.countBest ?? 0;
 
+  /// A snapshot of every field, taken once the initial (possibly padded)
+  /// parts are in place — compared against on close to ask before
+  /// discarding (BUG-18).
+  late final String _initialSnapshot;
+
   @override
   void initState() {
     super.initState();
     if (_parts.isEmpty) _parts.add(_PartFields());
     if (_several && _parts.length < 2) _parts.add(_PartFields());
+    _initialSnapshot = _snapshot();
+  }
+
+  String _snapshot() => [
+    _name.text,
+    _weight.text,
+    _average.text,
+    _several,
+    _best,
+    for (final f in _parts)
+      [f.name.text, f.marks.text, f.outOf.text, f.average.text, f.date ?? ''],
+  ].join('|');
+
+  bool get _dirty => _snapshot() != _initialSnapshot;
+
+  /// "Discard changes?" before closing with unsaved edits (BUG-18), the
+  /// same confirm-dialog pattern used elsewhere (e.g. removing a course).
+  Future<void> _close(BuildContext context) async {
+    if (!_dirty) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    final discard = await confirmDialog(
+      context,
+      title: 'Discard changes?',
+      body: 'The marks you typed for this component will be lost.',
+      cancel: 'Keep editing',
+      action: 'Discard',
+      danger: true,
+    );
+    if (discard && context.mounted) Navigator.of(context).maybePop();
   }
 
   @override
@@ -142,12 +179,50 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
 
   List<_PartFields> get _active => _several ? _parts : _parts.take(1).toList();
 
+  /// Weight field error: 0–100 when the course is weighted (BUG-04); just
+  /// "more than 0" against the course's own total otherwise.
+  String? get _weightError {
+    final w = double.tryParse(_weight.text);
+    return widget.weighted ? percentError(w) : positiveError(w);
+  }
+
+  /// Every part's out-of, summed — the maximum the top-level class average
+  /// can't exceed.
+  double get _partsOutOf => _active.fold<double>(
+    0,
+    (s, f) => s + (double.tryParse(f.outOf.text) ?? 0),
+  );
+
+  /// The first field problem as currently typed, or null — drives Save's
+  /// disabled state and the one error line shown for the compact fields
+  /// (BUG-04), which have no room of their own for per-field text.
+  String? get _fieldProblem {
+    if (_weightError != null) return _weightError;
+    // Deliberately not gating on `widget.unassigned` going negative here:
+    // that's the course-wide "adds up to over 100" rule, which is the CR
+    // scheme editor's call (BUG-05, enforced there) — this page already
+    // shows it as an informational line, not a hard stop, since the
+    // component's own 0–100 range (above) is what BUG-04 asks for.
+    for (final f in _active) {
+      final o = double.tryParse(f.outOf.text);
+      if (positiveError(o) case final err?) return err;
+      if (boundedError(double.tryParse(f.marks.text), o) case final err?) {
+        return err;
+      }
+      if (boundedError(double.tryParse(f.average.text), o) case final err?) {
+        return err;
+      }
+    }
+    return boundedError(double.tryParse(_average.text), _partsOutOf);
+  }
+
   /// The evaluative as currently entered, or null if it cannot be saved.
   Evaluative? get _draft {
     final w = double.tryParse(_weight.text);
     final parts = [for (final f in _active) f.toPart(!_several)];
     if (_name.text.trim().isEmpty || w == null || w <= 0) return null;
     if (parts.any((p) => p == null)) return null;
+    if (_fieldProblem != null) return null;
     return Evaluative(
       courseId: widget.courseId,
       name: _name.text.trim(),
@@ -298,6 +373,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
     return PageFrame(
       header: PageHeader(
         close: true,
+        onBack: () => _close(context),
         eyebrow:
             '${widget.courseId} · '
             '${widget.existing == null ? 'NEW' : 'EDIT'} COMPONENT',
@@ -360,6 +436,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
                         width: 60,
                         child: CompactField(
                           c: _weight,
+                          error: _weightError != null,
                           onChanged: (_) => setState(() {}),
                         ),
                       ),
@@ -384,6 +461,11 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
           ),
           if (widget.weighted)
             Text(_unassignedLine(), style: head.copyWith(letterSpacing: 0)),
+          if (_fieldProblem case final problem?)
+            Text(
+              problem,
+              style: head.copyWith(letterSpacing: 0, color: p.behind),
+            ),
         ]),
         const SizedBox(height: 10),
         card([
@@ -441,7 +523,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
               widget.averagesFrom,
               detachedFor(widget.courseId),
             );
-    final outOf = draft?.parts.fold<double>(0, (s, x) => s + x.outOf) ?? 0;
+    final outOf = _partsOutOf;
     final shown =
         _average.text.trim().isEmpty &&
         a != null &&
@@ -498,6 +580,8 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
             child: CompactField(
               c: _average,
               hint: outOf > 0 ? 'of ${marks2(outOf)}' : 'Optional',
+              error:
+                  boundedError(double.tryParse(_average.text), outOf) != null,
               onChanged: (_) => setState(() {}),
             ),
           ),
@@ -507,6 +591,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
 
   Widget _singleRow(TextStyle head) {
     final f = _parts.first;
+    final outOf = double.tryParse(f.outOf.text);
     void changed(String _) => setState(() {});
     Widget col(String label, Widget child, {double? width}) => SizedBox(
       width: width,
@@ -520,8 +605,24 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.end,
       children: [
-        col('YOU', CompactField(c: f.marks, onChanged: changed), width: 64),
-        col('OUT OF', CompactField(c: f.outOf, onChanged: changed), width: 64),
+        col(
+          'YOU',
+          CompactField(
+            c: f.marks,
+            error: boundedError(double.tryParse(f.marks.text), outOf) != null,
+            onChanged: changed,
+          ),
+          width: 64,
+        ),
+        col(
+          'OUT OF',
+          CompactField(
+            c: f.outOf,
+            error: positiveError(outOf) != null,
+            onChanged: changed,
+          ),
+          width: 64,
+        ),
         col(
           'DATE',
           _DateChip(
@@ -639,6 +740,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
   }) {
     final p = AppPalette.of(context);
     void changed(String _) => setState(() {});
+    final outOf = double.tryParse(f.outOf.text);
     Widget field(Widget child, double w) {
       final box = SizedBox(width: w, child: child);
       return dropped
@@ -657,15 +759,37 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
         ),
         52,
       ),
-      field(CompactField(c: f.marks, hint: 'You', onChanged: changed), 36),
-      field(CompactField(c: f.outOf, hint: 'Of', onChanged: changed), 36),
+      field(
+        CompactField(
+          c: f.marks,
+          hint: 'You',
+          error: boundedError(double.tryParse(f.marks.text), outOf) != null,
+          onChanged: changed,
+        ),
+        36,
+      ),
+      field(
+        CompactField(
+          c: f.outOf,
+          hint: 'Of',
+          error: positiveError(outOf) != null,
+          onChanged: changed,
+        ),
+        36,
+      ),
       field(
         official
             ? Tooltip(
               message: 'Published by the CR',
               child: CompactField(c: f.average, official: true),
             )
-            : CompactField(c: f.average, hint: 'Avg', onChanged: changed),
+            : CompactField(
+              c: f.average,
+              hint: 'Avg',
+              error:
+                  boundedError(double.tryParse(f.average.text), outOf) != null,
+              onChanged: changed,
+            ),
         46,
       ),
     ];
@@ -851,7 +975,7 @@ class _DateChip extends StatelessWidget {
     final p = AppPalette.of(context);
     final set = date != null;
     return Material(
-      color: const Color(0xFFF8F8F5),
+      color: p.surface,
       borderRadius: BorderRadius.circular(11),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
@@ -878,7 +1002,7 @@ class _DateChip extends StatelessWidget {
                       style: TypeScale.caption.copyWith(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
-                        color: set ? const Color(0xFF17170F) : p.textMuted,
+                        color: set ? p.text : p.textMuted,
                       ),
                     ),
                   ),
@@ -890,10 +1014,10 @@ class _DateChip extends StatelessWidget {
                 message: 'Clear date',
                 child: InkWell(
                   onTap: onClear,
-                  child: const SizedBox(
+                  child: SizedBox(
                     width: 20,
                     height: 36,
-                    child: Icon(Icons.close_rounded, size: 12),
+                    child: Icon(Icons.close_rounded, size: 12, color: p.text),
                   ),
                 ),
               ),

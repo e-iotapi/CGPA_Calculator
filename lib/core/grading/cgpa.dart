@@ -4,14 +4,13 @@ import 'package:cgpa_calculator/course.dart';
 /// The single implementation of SGPA and CGPA. Anything that shows a GPA or a
 /// credit count calls this, or it will silently disagree with the home screen.
 ///
-/// The rule, which is not the obvious sum/credits:
+/// The rule (the app's own copy, in the grade picker): "RC and W drop the
+/// credits from your CGPA. GD keeps them but not the points."
 ///  * points      = Σ grade × credits over courses with a letter grade (> 0)
-///  * denominator = credits of letter-graded and GD courses, minus the GD
-///    credits — i.e. GD passes but carries no weight
+///  * denominator = credits of letter-graded and GD courses — GD counts
+///    toward the denominator with zero points, RC/W/NC don't count at all
 ///  * shown       = every credit except those with a non-GD negative code
 ///                  (NC, CLR, RC, W…)
-/// On a real transcript this is 1195 / 155 = 7.71 with 158 credits shown,
-/// where 1195 / 158 would give 7.56.
 
 /// Which grade column to read. Actual and Expected match the
 /// `selectedprofile` global; the other three exist only in Compare.
@@ -72,21 +71,15 @@ class GpaTally {
 }
 
 GpaTally tally(Iterable<Course> courses, Profile profile) {
-  double s1 = 0, dontCount = 0, points = 0, shown = 0;
+  double graded = 0, points = 0, shown = 0;
   for (final c in courses) {
     final g = gradeOf(c, profile);
-    // Kept in the original's shape — GD added then subtracted — so the
-    // floating-point result is identical to what the app always showed.
-    if (g > 0 || g == GradeCode.gd) s1 += c.credits;
-    if (g == GradeCode.gd) dontCount += c.credits;
+    // GD counts toward the denominator (kept) but never earns points.
+    if (g > 0 || g == GradeCode.gd) graded += c.credits;
     if (g > 0) points += g * c.credits;
     if (!(g < 0 && g != GradeCode.gd)) shown += c.credits;
   }
-  return GpaTally(
-    points: points,
-    gradedCredits: s1 - dontCount,
-    shownCredits: shown,
-  );
+  return GpaTally(points: points, gradedCredits: graded, shownCredits: shown);
 }
 
 GpaTally semesterTally(
