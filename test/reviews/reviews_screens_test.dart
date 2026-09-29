@@ -464,6 +464,7 @@ void main() {
       ),
       'Names a person',
     );
+    await t.pump(); // enables Hide now a reason is typed (BUG-28)
     await t.tap(
       find.descendant(of: find.byType(AppDialog), matching: find.text('Hide')),
     );

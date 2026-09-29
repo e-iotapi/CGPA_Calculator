@@ -124,7 +124,13 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
     );
   }
 
+  // The debounced search (UI_OPT O5.2) means the box can outrun _hits while
+  // typing; track which query _hits answers so a still-pending search can't
+  // leave the previous query's rows on screen and tappable (BUG-17).
+  String _hitsQuery = '';
+
   void _search(String q) => setState(() {
+    _hitsQuery = q;
     _hits = searchCourses(
       q,
       held: widget.held,
@@ -135,6 +141,9 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
       _picked = null;
     }
   });
+
+  List<CourseHit> get _currentHits =>
+      _hitsQuery == _query.text ? _hits : const [];
 
   void _pick(CourseHit h) => setState(() {
     _picked = h;
@@ -232,7 +241,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
                   suffixText:
                       _query.text.trim().isEmpty
                           ? null
-                          : '${_hits.length} found',
+                          : '${_currentHits.length} found',
                   filled: true,
                   fillColor: p.surface,
                   border: OutlineInputBorder(
@@ -249,7 +258,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               Expanded(
                 child: ListView(
                   children: [
-                    for (final h in _hits) ...[
+                    for (final h in _currentHits) ...[
                       _HitRow(
                         hit: h,
                         picked: h.id == _picked?.id,
@@ -579,6 +588,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
       return Semantics(
         button: true,
         selected: on,
+        label: 'Grade $text',
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () => setState(() => _grade = value),

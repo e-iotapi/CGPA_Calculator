@@ -20,6 +20,12 @@ void main() {
     expect(p.matches('iyer'), isFalse);
   });
 
+  test('an exact-name duplicate is blocked, case- and space-insensitive', () {
+    expect(sameName('Dr. QA Tester', 'dr. qa tester'), isTrue);
+    expect(sameName('  Ramesh Menon ', 'Ramesh Menon'), isTrue);
+    expect(sameName('Ramesh Menon', 'Dr. R. Menon'), isFalse);
+  });
+
   test('a likely duplicate is caught before Add', () {
     expect(likelySame('Dr. R. Menon', 'Ramesh Menon'), isTrue);
     expect(likelySame('Menon', 'Ramesh Menon'), isTrue);

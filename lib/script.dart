@@ -22,7 +22,10 @@ void saveImageWeb(Uint8List bytes, String filename) =>
     downloadBytes(bytes, filename, 'image/png');
 
 String _csvCell(Object? v) {
-  final s = v?.toString() ?? '';
+  var s = v?.toString() ?? '';
+  // Formula injection (BUG-45): a leading =, +, - or @ is a formula trigger
+  // in Excel/Sheets. Prefix with ' so the cell is read as plain text.
+  if (RegExp(r'^[=+\-@]').hasMatch(s)) s = "'$s";
   return RegExp(r'[",\n\r]').hasMatch(s)
       ? '"${s.replaceAll('"', '""')}"'
       : s;

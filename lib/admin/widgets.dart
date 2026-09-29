@@ -259,6 +259,7 @@ class ChoicePills<T> extends StatelessWidget {
       return Semantics(
         selected: on,
         button: true,
+        label: n == null ? label(v) : '${label(v)} $n',
         child: Material(
           color: on ? p.inverse : Colors.transparent,
           shape: StadiumBorder(
