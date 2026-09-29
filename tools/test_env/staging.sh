@@ -14,7 +14,11 @@ if [ -z "${STAGING_PASSWORD:-}" ]; then
   exit 1
 fi
 
-firebase deploy --only firestore:rules,firestore:indexes --project staging
+# The CLI deploys as your `firebase login`; the service-account key is for
+# the seed alone (it lacks deploy permissions and the CLI stalls on it).
+fb() { env -u GOOGLE_APPLICATION_CREDENTIALS firebase "$@"; }
+
+fb deploy --only firestore:rules,firestore:indexes --project staging
 
 (cd tools/test_env && npm install --no-fund --no-audit)
 node tools/test_env/seed.mjs --project staging
@@ -23,4 +27,4 @@ flutter build web --release \
   --dart-define=POINTER_ENV=staging \
   --dart-define=POINTER_TEST_PASSWORD="$STAGING_PASSWORD"
 
-firebase deploy --only hosting:staging --project staging
+fb deploy --only hosting:staging --project staging
