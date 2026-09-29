@@ -16,6 +16,7 @@ class AppTextField extends StatelessWidget {
     this.dense = false,
     this.suffix,
     this.labelAbove = false,
+    this.error,
   });
 
   final TextEditingController controller;
@@ -32,12 +33,18 @@ class AppTextField extends StatelessWidget {
   /// upper case, instead of floating inside it.
   final bool labelAbove;
 
+  /// Shown under the field in the notice colour; also switches the border.
+  final String? error;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(dense ? 12 : 14),
       borderSide: BorderSide(color: p.outline),
+    );
+    final errorBorder = border.copyWith(
+      borderSide: BorderSide(color: p.behind, width: 1.5),
     );
     final field = TextField(
       controller: controller,
@@ -56,9 +63,22 @@ class AppTextField extends StatelessWidget {
       cursorColor: p.text,
       decoration: InputDecoration(
         isDense: true,
-        labelText: labelAbove || dense ? null : label,
-        hintText: hint ?? (labelAbove || dense ? label : null),
+        // labelAbove shows the label as its own Text above the box, so the
+        // box itself keeps no internal label (hintText carries the
+        // placeholder instead). Otherwise: always labelText, never a bare
+        // hintText standing in for it — a dense field used to drop the
+        // label to null and rely on hintText alone (BUG-29), and that text
+        // vanishes once something is typed, so a screen reader announces
+        // nothing for the rest of the field's life. never-float keeps the
+        // same collapsed-placeholder look dense fields had before.
+        labelText: labelAbove ? null : label,
+        floatingLabelBehavior:
+            !labelAbove && dense
+                ? FloatingLabelBehavior.never
+                : FloatingLabelBehavior.auto,
+        hintText: labelAbove ? (hint ?? label) : (dense ? null : hint),
         suffixText: suffix,
+        errorText: error,
         filled: true,
         fillColor: labelAbove ? p.background : p.surface,
         contentPadding: EdgeInsets.symmetric(
@@ -69,11 +89,15 @@ class AppTextField extends StatelessWidget {
         floatingLabelStyle: TypeScale.caption.copyWith(color: p.textMuted),
         hintStyle: TypeScale.caption.copyWith(fontSize: 12, color: p.textMuted),
         suffixStyle: TypeScale.caption.copyWith(color: p.textMuted),
+        errorStyle: TypeScale.caption.copyWith(fontSize: 11, color: p.behind),
+        errorMaxLines: 2,
         border: border,
         enabledBorder: border,
         focusedBorder: border.copyWith(
           borderSide: BorderSide(color: p.text, width: 1.5),
         ),
+        errorBorder: errorBorder,
+        focusedErrorBorder: errorBorder,
       ),
     );
     if (!labelAbove) return field;
@@ -108,12 +132,17 @@ class CompactField extends StatelessWidget {
     this.hint,
     this.official = false,
     this.onChanged,
+    this.error = false,
   });
 
   final TextEditingController c;
   final String? hint;
   final bool official;
   final ValueChanged<String>? onChanged;
+
+  /// Red border for an out-of-range value (BUG-04). No room for error text
+  /// in a 36-tall box — the page shows one line for the first problem.
+  final bool error;
 
   @override
   Widget build(BuildContext context) {
@@ -163,12 +192,19 @@ class CompactField extends StatelessWidget {
         decoration: InputDecoration(
           isDense: true,
           filled: true,
-          fillColor: const Color(0xFFF8F8F5),
+          // Was a hardcoded near-white fill, so dark mode's near-white text
+          // (p.text) sat on a near-white box: invisible "You"/"Out of"
+          // marks (BUG-09). p.surface is the same token the working
+          // Component name field fills with.
+          fillColor: p.surface,
           hintText: hint,
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(11),
-            borderSide: BorderSide.none,
+            borderSide:
+                error
+                    ? BorderSide(color: p.behind, width: 1.5)
+                    : BorderSide.none,
           ),
         ),
       ),

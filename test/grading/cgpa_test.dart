@@ -59,8 +59,11 @@ List<Course> _loadTranscript() {
 
 void main() {
   group('matches the original implementation', () {
-    // Every stored value a course can hold, weighted towards the awkward ones.
-    const values = [10, 9, 8, 7, 6, 5, 4, 2, -1, -2, -3, -3, -3, -5, -6, -7];
+    // Every stored value a course can hold, weighted towards the awkward
+    // ones. GD (-3) is excluded: the original dropped GD credits from the
+    // denominator entirely (BUG-06), which this implementation no longer
+    // does — see the GD-specific tests below.
+    const values = [10, 9, 8, 7, 6, 5, 4, 2, -1, -2, -5, -6, -7];
     const credits = [0.0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 20];
 
     test('on 2,000 random course sets, both profiles', () {
@@ -111,18 +114,67 @@ void main() {
     });
   });
 
-  test('GD passes but carries no weight; NC, RC and W are not shown', () {
-    final t = tally([
-      _course('1 - 1', 4, 10, 0), // A: 40 points
-      _course('1 - 1', 3, GradeCode.gd, 0), // shown, not weighted
-      _course('1 - 1', 2, GradeCode.nc, 0),
-      _course('1 - 1', 2, GradeCode.rc, 0),
-      _course('1 - 1', 2, GradeCode.w, 0),
-    ], Profile.actual);
-    expect(t.points, 40);
-    expect(t.gradedCredits, 4);
-    expect(t.shownCredits, 7);
-    expect(t.rounded, 10);
+  test(
+    'GD keeps its credits in the GPA denominator but earns no points '
+    '(BUG-06); NC, RC and W drop out of both credits and the denominator',
+    () {
+      final courses = [
+        _course('1 - 1', 4, 10, 0), // A: 40 points, 4 credits
+        _course('1 - 1', 3, GradeCode.gd, 0), // GD: 0 points, 3 credits kept
+        _course('1 - 1', 2, GradeCode.nc, 0),
+        _course('1 - 1', 2, GradeCode.rc, 0),
+        _course('1 - 1', 2, GradeCode.w, 0),
+        _course('1 - 1', 5, 0, 0), // ungraded: not in denominator or shown
+      ];
+      final t = tally(courses, Profile.actual);
+      expect(t.points, 40);
+      expect(t.gradedCredits, 7); // A's 4 + GD's 3
+      // Shown: everything except a non-GD negative code — the ungraded
+      // course's 5 credits still show (it just isn't in the GPA yet).
+      expect(t.shownCredits, 12); // A's 4 + GD's 3 + ungraded's 5
+      expect(t.rounded, closeTo(40 / 7, 0.005));
+
+      // SGPA must equal the sum over the visible, graded courses: same
+      // course set, same discipline filter, as semesterTally uses.
+      const d = 'B3A7';
+      final visible = courses.where((c) => inDiscipline(c, d));
+      expect(
+        semesterTally(
+          courses,
+          sem: '1 - 1',
+          discipline: d,
+          profile: Profile.actual,
+        ).rounded,
+        tally(visible, Profile.actual).rounded,
+      );
+    },
+  );
+
+  test('a course counted in SGPA/CGPA is never hidden from the visible list '
+      '(BUG-40): inDiscipline matches "--" the same way regardless of which '
+      'half of the discipline code holds it', () {
+    final open = _course('2 - 1', 3, 9, 9, '--'); // catalogue open elective
+    final real = _course('2 - 1', 3, 10, 10, 'A7');
+    final courses = [open, real];
+
+    // Single degree stored either as "A7--" or "--A7" must treat "--"
+    // identically: both halves are checked, in either order.
+    for (final discipline in ['A7--', '--A7']) {
+      final visible = courses.where((c) => inDiscipline(c, discipline));
+      expect(
+        visible,
+        containsAll([open, real]),
+        reason: 'discipline "$discipline" hid a course it still counts',
+      );
+      final gpa = semesterTally(
+        courses,
+        sem: '2 - 1',
+        discipline: discipline,
+        profile: Profile.actual,
+      );
+      // Every course the GPA counts must be in the visible set.
+      expect(gpa.gradedCredits, tally(visible, Profile.actual).gradedCredits);
+    }
   });
 
   test('nothing graded reads as 0 and "0"', () {
