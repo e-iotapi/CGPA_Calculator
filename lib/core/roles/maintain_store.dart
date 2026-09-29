@@ -34,6 +34,18 @@ class MaintainStore {
     return m == null ? null : Offering.fromMap(m);
   }
 
+  /// Every offering on [campus] in [term] (Open as › course picker; the
+  /// collection-group index on campus, term).
+  Future<List<Offering>> campusOfferings(String campus, String term) async {
+    final q =
+        await _db
+            .collectionGroup('offerings')
+            .where('campus', isEqualTo: campus)
+            .where('term', isEqualTo: term)
+            .get();
+    return [for (final d in q.docs) Offering.fromMap(d.data())];
+  }
+
   /// This term's offerings for [courseIds]; missing ones are absent.
   Future<Map<String, Offering>> offerings(
     Iterable<String> courseIds,
