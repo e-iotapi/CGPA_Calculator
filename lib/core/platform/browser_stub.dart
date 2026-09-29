@@ -19,3 +19,5 @@ bool promptInstall() => false;
 Future<String?> pickPdfText() async => null;
 
 void onPageHidden(void Function() run) {}
+
+void onDomPointerDown(void Function(double x, double y) run) {}

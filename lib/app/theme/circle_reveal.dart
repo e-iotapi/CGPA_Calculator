@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/perf/frame_stats.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -24,6 +25,16 @@ final bool _onIos = installTarget().device == InstallDevice.ios;
 /// theme switch grow their circle from here.
 abstract final class TapOrigin {
   static Offset? last;
+  static bool _listening = false;
+
+  /// Also records taps from the page itself: with the semantics tree on
+  /// (screen readers, the test env) a tapped button gets no pointer event,
+  /// so iOS grew the circle from an older tap.
+  static void listen() {
+    if (_listening) return;
+    _listening = true;
+    onDomPointerDown((x, y) => last = Offset(x, y));
+  }
 }
 
 /// Records every pointer-down for [TapOrigin], without taking part in hit
@@ -34,11 +45,37 @@ class TapOriginTracker extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Listener(
-    behavior: HitTestBehavior.translucent,
-    onPointerDown: (e) => TapOrigin.last = e.position,
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    TapOrigin.listen();
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (e) => TapOrigin.last = e.position,
+      child: child,
+    );
+  }
+}
+
+/// Some browsers (Firefox on Linux) read WebGL snapshots back upside down.
+/// Snapshots one known picture, top half filled, and checks which way up it
+/// came back. False off the web or if the check fails.
+Future<bool> snapshotsFlipped() async {
+  if (!kIsWeb) return false;
+  try {
+    final rec = ui.PictureRecorder();
+    Canvas(rec).drawRect(
+      const Rect.fromLTWH(0, 0, 1, 1),
+      Paint()..color = const Color(0xFFFFFFFF),
+    );
+    final picture = rec.endRecording();
+    final image = picture.toImageSync(1, 2);
+    picture.dispose();
+    final bytes = await image.toByteData();
+    image.dispose();
+    // RGBA: byte 3 is the top pixel's alpha, byte 7 the bottom's.
+    return bytes != null && bytes.getUint8(3) == 0 && bytes.getUint8(7) != 0;
+  } catch (_) {
+    return false;
+  }
 }
 
 /// Radius that covers all of [size] from [center].
@@ -188,8 +225,18 @@ class _ThemeRevealState extends State<ThemeReveal>
   Offset _origin = Offset.zero;
 
   ui.Image? _preparedImage;
+  bool _flipped = false;
   bool _capturing = false;
   Timer? _expireTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    snapshotsFlipped().then((f) {
+      _flipped = f;
+      debugPrint('[Pointer theme] snapshots flipped: $f');
+    });
+  }
 
   @override
   void dispose() {
@@ -222,7 +269,10 @@ class _ThemeRevealState extends State<ThemeReveal>
 
   void _prepare() {
     final box = _box;
-    if (box == null || _preparedImage != null || _capturing || _anim.isAnimating) {
+    if (box == null ||
+        _preparedImage != null ||
+        _capturing ||
+        _anim.isAnimating) {
       return;
     }
     _capturing = true;
@@ -295,6 +345,7 @@ class _ThemeRevealState extends State<ThemeReveal>
                         painter: _HolePainter(
                           old,
                           _origin,
+                          _flipped,
                           Curves.easeInOutCubic.transform(_anim.value),
                           deviceTier == DeviceTier.low
                               ? FilterQuality.low
@@ -313,10 +364,11 @@ class _ThemeRevealState extends State<ThemeReveal>
 /// The old screen with a growing circular hole; it fades out at the end so
 /// the last corners do not snap.
 class _HolePainter extends CustomPainter {
-  _HolePainter(this.image, this.center, this.t, this.quality);
+  _HolePainter(this.image, this.center, this.flipped, this.t, this.quality);
 
   final ui.Image image;
   final Offset center;
+  final bool flipped;
   final double t;
   final FilterQuality quality;
 
@@ -330,6 +382,11 @@ class _HolePainter extends CustomPainter {
           ..addOval(Rect.fromCircle(center: center, radius: r));
     canvas.save();
     canvas.clipPath(hole);
+    if (flipped) {
+      canvas
+        ..translate(0, size.height)
+        ..scale(1, -1);
+    }
     canvas.drawImageRect(
       image,
       Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),

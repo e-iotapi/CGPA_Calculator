@@ -19,6 +19,12 @@ void reloadPage() => impl.reloadPage();
 /// closing the tab): the last moment to flush pending writes.
 void onPageHidden(void Function() run) => impl.onPageHidden(run);
 
+/// Runs [run] with every pointer-down's page position, seen by the page
+/// before Flutter: with the semantics tree on, a tap on a button reaches
+/// Flutter as a tap action with no position.
+void onDomPointerDown(void Function(double x, double y) run) =>
+    impl.onDomPointerDown(run);
+
 /// The browser's user agent, for bug reports.
 String userAgent() => impl.userAgent();
 
