@@ -15,7 +15,7 @@ import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const catalogBoxName = 'catalogBox';
 

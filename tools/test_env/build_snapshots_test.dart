@@ -29,7 +29,7 @@ import 'package:cgpa_calculator/features/reviews/review_widgets.dart'
 import 'package:cgpa_calculator/script.dart' as app;
 import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const _seedEnv = 'POINTER_SEED';
 

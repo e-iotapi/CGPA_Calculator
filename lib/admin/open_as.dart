@@ -19,7 +19,7 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const _recentKey = 'openAsRecent';
 const _campuses = ['goa', 'hyderabad', 'pilani', 'dubai'];

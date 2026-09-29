@@ -7,7 +7,7 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/volunteer_message.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const pres = 'f20230802@goa.bits-pilani.ac.in';
 final until = DateTime(2027, 1, 1);

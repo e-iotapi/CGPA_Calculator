@@ -5,7 +5,7 @@ import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const resourcesBoxName = 'resourcesBox';
 

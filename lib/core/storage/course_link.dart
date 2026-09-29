@@ -14,7 +14,7 @@ library;
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// The catalogue's title and credits for [id]: the newest chart row, else the
 /// master list. Null for an id the catalogue has never had.

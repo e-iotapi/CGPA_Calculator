@@ -7,7 +7,7 @@ import 'package:cgpa_calculator/features/setup/degree_setup_page.dart';
 import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
 import 'package:cgpa_calculator/script.dart' as app;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 void main() {
   test('owner setup saves campus and batch', () async {

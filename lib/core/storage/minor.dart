@@ -1,5 +1,5 @@
 import 'package:cgpa_calculator/core/models/minors.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 Box get _settings => Hive.box('settingsBox');
 

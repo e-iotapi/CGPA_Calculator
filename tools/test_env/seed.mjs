@@ -10,7 +10,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import admin from 'firebase-admin';
+import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PROD_PROJECT_ID = 'cgpa-calculator-fb90c';
@@ -56,9 +58,9 @@ async function main() {
     process.env.FIREBASE_AUTH_EMULATOR_HOST ??= 'localhost:9099';
   }
 
-  admin.initializeApp({ projectId: args.project });
-  const db = admin.firestore();
-  const auth = admin.auth();
+  initializeApp({ projectId: args.project });
+  const db = getFirestore();
+  const auth = getAuth();
 
   const accountsConfig = loadJson(path.join(root, 'test_env', 'accounts.json'));
   const { accounts } = accountsConfig;
@@ -188,7 +190,7 @@ async function seedUserDocs(db, accounts) {
       s({
         rev: 1,
         data: readFileSync(file, 'utf8'),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }),
     );
   }
@@ -199,7 +201,7 @@ async function seedUserDocs(db, accounts) {
 const OWNER_ACTOR = { email: 'seed@pointer.test', name: 'Seed script', role: 'owner' };
 
 function audit(batch, { actor = OWNER_ACTOR, action, path: p, campus, course, before, after, uploadId }) {
-  const ref = admin.firestore().collection('audit').doc();
+  const ref = getFirestore().collection('audit').doc();
   const data = {
     actor: { email: actor.email, name: actor.name, role: actor.role },
     action,
@@ -208,7 +210,7 @@ function audit(batch, { actor = OWNER_ACTOR, action, path: p, campus, course, be
     campus,
     before: before ?? null,
     after: after ?? null,
-    at: admin.firestore.FieldValue.serverTimestamp(),
+    at: FieldValue.serverTimestamp(),
   };
   if (course != null) data.course = course;
   if (uploadId != null) data.uploadId = uploadId;
@@ -233,7 +235,7 @@ async function seedOwners(db, byKey) {
       name: owner.name,
       active: true,
       addedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
-      addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      addedAt: FieldValue.serverTimestamp(),
       auditId,
     }),
   );
@@ -266,7 +268,7 @@ async function seedConfig(db, byKey) {
       contactTarget: '910000000000',
       contactEnabled: true,
       updatedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       auditId: publicAuditId,
     }),
   );
@@ -305,7 +307,7 @@ const grantId = (g) => `${g.role}|${g.campus}|${g.scope}|${g.email}`;
 // One clock per run: a directory entry's `until` must equal its grant's
 // expiresAt exactly, or the rules refuse the person's next profile save.
 const seededAt = Date.now();
-const inDays = (n) => admin.firestore.Timestamp.fromMillis(seededAt + n * 864e5);
+const inDays = (n) => Timestamp.fromMillis(seededAt + n * 864e5);
 
 async function seedGrantsAndStaff(db, byKey) {
   for (const a of accounts_with_roles(byKey)) {
@@ -343,7 +345,7 @@ async function seedOneGrant(db, account, r) {
     active,
     expiresAt,
     grantedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
-    grantedAt: admin.firestore.FieldValue.serverTimestamp(),
+    grantedAt: FieldValue.serverTimestamp(),
     auditId,
   }));
   batch.set(db.doc(`staff/${account.email}`), s({
@@ -383,7 +385,7 @@ async function seedContacts(db, byKey) {
       name: a.name ?? a.key,
       phone: profile.phone ?? '',
       email: a.email,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     }));
     batch.set(db.doc(`directory/${a.email}`), s({
       name: a.name ?? a.key,
@@ -396,7 +398,7 @@ async function seedContacts(db, byKey) {
       ...(profile.showEmail ? { email: a.email } : {}),
       ...(profile.whatsapp ? { whatsapp: profile.whatsapp } : {}),
       ...(profile.phone ? { phone: profile.phone } : {}),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     }));
     await batch.commit();
   }
@@ -429,7 +431,7 @@ async function seedVolunteers(db, byKey) {
       dept: o.dept,
       term,
       open: o.open,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     if (!o.open) {
       data.closedBy = { email: o.email, name: o.name };
@@ -496,7 +498,7 @@ async function seedProfessors(db, byKey) {
       mergedIds: [],
       active: true,
       updatedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       auditId,
     }));
     ids.push(ref.id);
@@ -514,7 +516,7 @@ async function seedProfessors(db, byKey) {
     mergedInto: keepRao,
     active: false,
     updatedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
     auditId: mergeAuditId,
   });
   const keptName = 'Dr. K. Rao';
@@ -524,7 +526,7 @@ async function seedProfessors(db, byKey) {
     aliases: [absorbedName],
     nameTokens: [...new Set([...nameTokens(keptName), ...nameTokens(absorbedName)])],
     updatedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
     auditId: mergeAuditId,
   });
   await mergeBatch.commit();
@@ -564,7 +566,7 @@ async function seedOfferings(db, byKey, professorIds) {
       totalMarks: 100,
       components,
       professors: [professorIds.menon],
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       updatedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
       auditId,
     }));
@@ -621,19 +623,19 @@ async function seedReviews(db, byKey, professorIds) {
         reason: hidden ? 'off-topic' : null,
         helpful: 0,
         reports: courseId === goaCourses[1] && i === 1 ? 1 : 0,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }));
       if (!hidden) bump(courseId, 'goa', professorIds.menon, stars, stars >= 3);
       // One reported (but not hidden) review, so moderation has both cases.
       if (courseId === goaCourses[1] && i === 1) {
         batch.set(ref.collection('reports').doc(hashedId('reporter-0', reviewId)), s({
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         }));
       }
       if (i === 0) {
         batch.set(ref.collection('votes').doc(hashedId('voter-0', reviewId)), s({
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         }));
       }
     }
@@ -656,8 +658,8 @@ async function seedReviews(db, byKey, professorIds) {
     hidden: false,
     helpful: 0,
     reports: 0,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }));
   bump(hydCourseId, 'hyderabad', professorIds.iyer, 4, true);
 
@@ -745,14 +747,14 @@ async function seedResources(db, byKey) {
         courseIds: [],
         pinnedToDepartment: true,
         addedBy: { email: owner.email, name: owner.name },
-        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+        addedAt: FieldValue.serverTimestamp(),
         removed: false,
         auditId,
         actingFor: '',
       }));
       if (dept === departments[0] && i === 0) flaggedRef = ref;
     }
-    batch.set(db.doc(`resourceVersions/goa`), s({ v: admin.firestore.FieldValue.increment(1) }), { merge: true });
+    batch.set(db.doc(`resourceVersions/goa`), s({ v: FieldValue.increment(1) }), { merge: true });
     await batch.commit();
   }
 
@@ -764,7 +766,7 @@ async function seedResources(db, byKey) {
     reason: 'broken',
     note: 'Link no longer opens.',
     campus: 'goa',
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   }));
   reportBatch.set(db.doc(`resourceFlags/${flaggedRef.id}`), s({
     campus: 'goa',
@@ -773,7 +775,7 @@ async function seedResources(db, byKey) {
     open: true,
     count: 1,
     reasons: { broken: 1 },
-    lastAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastAt: FieldValue.serverTimestamp(),
   }));
   await reportBatch.commit();
 }

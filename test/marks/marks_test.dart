@@ -19,12 +19,12 @@ import 'package:cgpa_calculator/features/semester/widgets/course_row.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 // For a record in the format written before averages existed.
 // ignore: implementation_imports
-import 'package:hive/src/binary/binary_reader_impl.dart';
+import 'package:hive_ce/src/binary/binary_reader_impl.dart';
 // ignore: implementation_imports
-import 'package:hive/src/binary/binary_writer_impl.dart';
+import 'package:hive_ce/src/binary/binary_writer_impl.dart';
 
 import '../helpers/fake_data.dart' show takingId, takingOffering;
 import '../helpers/fonts.dart';

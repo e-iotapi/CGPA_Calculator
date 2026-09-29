@@ -10,7 +10,7 @@ import 'package:cgpa_calculator/core/storage/overrides.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const _id = 'CS F372';
 

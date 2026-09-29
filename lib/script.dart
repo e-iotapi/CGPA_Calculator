@@ -14,7 +14,7 @@ import 'package:cgpa_calculator/core/storage/seed.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 export 'package:cgpa_calculator/core/grading/grade_scale.dart';
 

@@ -6,7 +6,7 @@ import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 String _asset() => File(catalogAsset).readAsStringSync();
 

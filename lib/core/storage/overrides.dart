@@ -8,7 +8,7 @@
 /// has met a published offering.
 library;
 
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const _key = 'overrides';
 const seenKey = '_seen';

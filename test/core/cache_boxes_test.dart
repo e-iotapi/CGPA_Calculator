@@ -3,7 +3,7 @@ import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:io';
 
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 void main() {
   test('no cache box is synced into the user document', () {

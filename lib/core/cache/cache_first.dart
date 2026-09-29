@@ -10,7 +10,7 @@ import 'dart:convert';
 
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 Future<void> openSharedCache() => Hive.openBox(sharedCacheBoxName);
 

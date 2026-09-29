@@ -18,7 +18,7 @@ import 'package:cgpa_calculator/shared/widgets/pointer_mark.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// ERP → My Academics. A navigation collection rather than a report, so a

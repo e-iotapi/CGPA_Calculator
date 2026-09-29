@@ -1,4 +1,4 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 // Hive typeIds 1–3; Course is 0. Adapters are written by hand so no build
 // step is needed. Field numbers are permanent — add, never renumber. Later

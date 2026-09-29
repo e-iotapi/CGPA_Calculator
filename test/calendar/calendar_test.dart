@@ -12,7 +12,7 @@ import 'package:cgpa_calculator/shared/widgets/offline_strip.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 import '../helpers/fonts.dart';
 import '../helpers/shots.dart';

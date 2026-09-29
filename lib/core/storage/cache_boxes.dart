@@ -1,4 +1,4 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// Hive boxes that cache shared data read from Firestore — the catalogue
 /// bundle (ARCHITECTURE.md §3), and later reviews, resources, reports and the

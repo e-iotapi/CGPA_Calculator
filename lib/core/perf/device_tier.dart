@@ -1,7 +1,7 @@
 import 'package:cgpa_calculator/core/platform/browser.dart' as browser;
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 enum DeviceTier { low, normal }
 
