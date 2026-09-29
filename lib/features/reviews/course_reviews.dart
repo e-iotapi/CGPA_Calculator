@@ -310,6 +310,15 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
                         ? null
                         : () async {
                           final ok = await reviewStore!.vote(r);
+                          if (ok) {
+                            final i = _reviews.indexWhere((x) => x.id == r.id);
+                            if (i != -1) {
+                              setState(
+                                () =>
+                                    _reviews[i] = r.withHelpful(r.helpful + 1),
+                              );
+                            }
+                          }
                           if (!context.mounted) return;
                           sayReview(
                             context,
