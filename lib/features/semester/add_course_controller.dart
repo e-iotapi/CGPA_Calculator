@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
+import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 
@@ -83,7 +84,9 @@ List<String> categoryOptions(String discipline) {
     Elective.open.tag,
     Elective.humanity.tag,
     if (b) Elective.del2.tag,
-    if (a && !discipline.startsWith('B')) Elective.del1.tag,
+    // A single M.Sc. has its own DEL (decided 28 Sep 2026); a dual's comes
+    // from the B.E. half.
+    if (a && !isDualDiscipline(discipline)) Elective.del1.tag,
   ];
 }
 
@@ -123,7 +126,8 @@ List<CourseHit> searchCourses(
         title: displayTitle(m.id, m.title),
         credits: m.credits,
         category: categoryFor(m.id, discipline),
-        heldIn: held.where((c) => courseGraph.same(c.id, m.id)).firstOrNull?.sem,
+        heldIn:
+            held.where((c) => courseGraph.same(c.id, m.id)).firstOrNull?.sem,
       ),
   ];
 }

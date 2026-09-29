@@ -457,7 +457,7 @@ DegreeAudit degreeAudit(
   Need? need,
 ) {
   // Every semester, a dual's fifth year included.
-  final order = semestersFor('B');
+  final order = semestersFor('B3A7');
   int at(Course c) {
     final i = order.indexOf(c.sem);
     return i < 0 ? order.length : i;

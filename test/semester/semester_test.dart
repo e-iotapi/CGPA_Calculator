@@ -205,6 +205,11 @@ void main() {
       expect(semestersFor('B3A7'), contains('5 - 2'));
       expect(semestersFor('A7'), isNot(contains('ST 2')));
       expect(semestersFor('A7'), baseSemesters);
+      // A single M.Sc. ends at 4 − 2 like a B.E.
+      expect(semestersFor('B3--'), baseSemesters);
+      expect(isDualDiscipline('B3--'), isFalse);
+      expect(isDualDiscipline('--A7'), isFalse);
+      expect(isDualDiscipline('B3A7'), isTrue);
     });
 
     test('credits and GPA formatting', () {

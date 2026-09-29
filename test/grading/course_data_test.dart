@@ -135,13 +135,30 @@ void main() {
       elective: 'CDCN',
     );
 
-    test('moves to 5 − 2 for a dual, stays for a single degree', () async {
+    test(
+      'a dual gets PS II at 5 − 1 and 5 − 2; a single degree keeps 4 − 2',
+      () async {
+        final box = await Hive.openBox<Course>('ps');
+        await box.put('BITS F412', ps(GradeCode.clr));
+        await placeDualPracticeSchool(box, 'B3--');
+        expect(box.get('BITS F412')!.sem, '4 - 2');
+        expect(box.length, 1);
+        await placeDualPracticeSchool(box, 'B3A7');
+        expect(box.get('BITS F412')!.sem, '5 - 1');
+        expect(box.get(secondPsKey)!.sem, '5 - 2');
+        expect(box.get(secondPsKey)!.id, 'BITS F412');
+        // Idempotent.
+        await placeDualPracticeSchool(box, 'B3A7');
+        expect(box.length, 2);
+      },
+    );
+
+    test('the old code\'s single row at 5 − 2 gains one at 5 − 1', () async {
       final box = await Hive.openBox<Course>('ps');
-      await box.put('BITS F412', ps(GradeCode.clr));
-      await placeDualPracticeSchool(box, 'B3--');
-      expect(box.get('BITS F412')!.sem, '4 - 2');
+      await box.put('BITS F412', ps(GradeCode.clr).copyWith(sem: '5 - 2'));
       await placeDualPracticeSchool(box, 'B3A7');
       expect(box.get('BITS F412')!.sem, '5 - 2');
+      expect(box.get(secondPsKey)!.sem, '5 - 1');
     });
 
     test('a graded row is never moved', () async {
@@ -149,6 +166,7 @@ void main() {
       await box.put('BITS F412', ps(10));
       await placeDualPracticeSchool(box, 'B3A7');
       expect(box.get('BITS F412')!.sem, '4 - 2');
+      expect(box.length, 1);
     });
   });
 

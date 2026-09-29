@@ -53,7 +53,13 @@ Future<void> applyCourseEdit(Course course, CourseEdit edit) async {
   } else if (edit.saved case final saved?) {
     // A category changed here is set by hand, as on the Degree page.
     if (saved.elective != course.elective) await pinCategory(course.id);
-    await saveCourse(saved);
+    // Under the key read (§14.6): a dual's two PS II rows share an id, so
+    // matching on id and semester would overwrite the other after a move.
+    if (course.isInBox) {
+      await course.box!.put(course.key, saved);
+    } else {
+      await saveCourse(saved);
+    }
   }
 }
 

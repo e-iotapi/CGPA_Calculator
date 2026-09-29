@@ -214,6 +214,8 @@ void main() {
   test('my departments: courses taken and my degree programmes', () {
     expect(myDepartments(['EEE F211', 'CS F111'], ['--']), ['CS', 'ELEC']);
     expect(myDepartments([], ['A3', 'B-']), ['ELEC']);
+    // A single M.Sc. (D6): "B3--" is just B3, the economics department.
+    expect(myDepartments([], ['B3', '--']), ['ECON']);
   });
 
   test('volunteer offers: this term, by course', () async {
