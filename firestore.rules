@@ -420,6 +420,33 @@ service cloud.firestore {
       return request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys();
     }
 
+    // Every course's review counter on a campus in one doc: an entry moves
+    // only by what its stats doc moved in the same batch.
+    match /reviewIndex/{campus} {
+      allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['c', 'k'])
+        && indexMoved(campus);
+      allow delete: if false;
+    }
+
+    function indexMoved(campus) {
+      let was = resource == null ? {} : resource.data.get('c', {});
+      let now = request.resource.data.c;
+      let k = request.resource.data.k;
+      let ks = now.diff(was).affectedKeys();
+      let p = /databases/$(db)/documents/courses/$(k)/stats/$(campus);
+      let before = exists(p) ? get(p).data : {};
+      let after = getAfter(p).data;
+      let o = was.get(k, {});
+      return ks.hasOnly([k])
+        && now[k].keys().hasOnly(['count', 'starSum', 'recommendCount'])
+        && now[k].count - o.get('count', 0) == after.count - before.get('count', 0)
+        && now[k].starSum - o.get('starSum', 0) == after.starSum - before.get('starSum', 0)
+        && now[k].recommendCount - o.get('recommendCount', 0)
+             == after.recommendCount - before.get('recommendCount', 0);
+    }
+
     match /heads/{campus} {
       allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
       // Offering versions move in the batch that saves a scheme. ponytail:
