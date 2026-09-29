@@ -179,16 +179,22 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
       'email': e,
     });
   }
-  Future<void> listed(String e, String n, String role, String scope) =>
-      db.collection('directory').doc(e).set({
-        'name': n,
-        'campus': 'goa',
-        'roles': [
-          {'role': role, 'scope': scope, 'until': Timestamp.fromDate(_far)},
-        ],
-        'email': e,
-        'whatsapp': '9876543210',
-      });
+  Future<void> listed(String e, String n, String role, String scope) async {
+    final entry = {
+      'name': n,
+      'campus': 'goa',
+      'roles': [
+        {'role': role, 'scope': scope, 'until': Timestamp.fromDate(_far)},
+      ],
+      'email': e,
+      'whatsapp': '9876543210',
+    };
+    await db.collection('directory').doc(e).set(entry);
+    await db.collection('repIndex').doc('goa').set({
+      'p': {e: entry},
+    }, SetOptions(merge: true));
+  }
+
   await listed(presEmail, 'Meera Iyer', 'dept', 'ELEC');
   await listed(pres2Email, 'Rohan Deshpande', 'dept', 'CS');
   await listed(crEmail, 'Arjun Rao', 'course', takingId);

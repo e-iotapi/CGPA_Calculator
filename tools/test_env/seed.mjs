@@ -66,6 +66,7 @@ async function main() {
   const catalogVersion = await seedCatalog(db, byKey);
   await seedGrantsAndStaff(db, byKey);
   await seedContacts(db, byKey);
+  await seedRepIndex(db);
   await seedVolunteers(db, byKey);
   await seedPeople(db, accounts);
   const professorIds = await seedProfessors(db, byKey);
@@ -90,7 +91,7 @@ async function wipeEmulator(projectId) {
 const SEEDED_COLLECTIONS = [
   'owners', 'grants', 'staff', 'audit', 'staffContacts', 'directory',
   'volunteers', 'people', 'professors', 'resources', 'resourceVersions',
-  'users', 'reviewIndex',
+  'users', 'reviewIndex', 'repIndex',
 ];
 const SEEDED_COLLECTION_GROUPS = [
   'offerings', 'entries', 'votes', 'reports', 'stats', 'campus',
@@ -337,6 +338,17 @@ async function seedOneGrant(db, account, r) {
     lastGrant: id,
   }), { merge: true });
   await batch.commit();
+}
+
+// The per-campus copy of the directory the app reads (repIndex).
+async function seedRepIndex(db) {
+  const byCampus = {};
+  for (const d of (await db.collection('directory').get()).docs) {
+    (byCampus[d.data().campus] ??= {})[d.id] = d.data();
+  }
+  const b = db.batch();
+  for (const [campus, p] of Object.entries(byCampus)) b.set(db.doc(`repIndex/${campus}`), { k: 'seed', p });
+  await b.commit();
 }
 
 // ---- staffContacts + directory -----------------------------------------

@@ -338,6 +338,28 @@ service cloud.firestore {
 
     // What a president or CR shows the students of their campus: at least
     // one way to reach them, each chosen separately.
+    // Every listed person on a campus in one doc: each writes only their
+    // own key, a copy of their directory entry after the batch.
+    match /repIndex/{campus} {
+      allow get: if mayUse() && campus == campusOf(me());
+      // Any key may be refreshed, but only to a copy of that person's own
+      // directory entry after the batch, which its own rules guard.
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['k', 'p'])
+        && repCopy(request.resource.data.k,
+                   resource == null ? {} : resource.data.get('p', {}));
+      allow delete: if false;
+    }
+
+    function repCopy(k, was) {
+      let now = request.resource.data.p;
+      let d = /databases/$(db)/documents/directory/$(k);
+      return now.diff(was).affectedKeys().hasOnly([k])
+        && (existsAfter(d)
+            ? now[k] == getAfter(d).data
+            : !(k in now));
+    }
+
     match /directory/{email} {
       allow get, list: if mayUse() && resource.data.campus == campusOf(me());
       allow create, update: if isStudent(me()) && email == me()
