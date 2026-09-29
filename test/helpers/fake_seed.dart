@@ -296,6 +296,9 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
         'hidden': true,
         'hiddenReason': 'Names a person',
       });
+      await d.reference.parent.parent!.collection('campus').doc('goa').update({
+        'r.${d.id}': FieldValue.delete(),
+      });
     }
   }
 

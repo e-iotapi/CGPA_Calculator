@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
-  collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, increment, limit, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
+  collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, increment, limit, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { OTHER, PRES, STUDENT, as, env, name, seed, useEmulator } from './helpers.mjs';
 
@@ -35,7 +35,11 @@ function index(b, db, dc, ds, dr, course = C) {
   }, { merge: true });
 }
 
-function post(db, who, extra = {}, { dc = 1, ds, dr } = {}) {
+function mirror(b, db, id, entry) {
+  b.set(doc(db, 'reviews', C, 'campus', 'goa'), { k: id, r: { [id]: entry } }, { merge: true });
+}
+
+function post(db, who, extra = {}, { dc = 1, ds, dr, m = {} } = {}) {
   const id = hash(who, C);
   const d = {
     courseId: C, department: 'ELEC', stars: 4, recommend: true, text: 'Good', campus: 'goa', term: '2025-26-2',
@@ -45,6 +49,10 @@ function post(db, who, extra = {}, { dc = 1, ds, dr } = {}) {
   const b = writeBatch(db);
   b.set(doc(db, 'reviews', C, 'entries', id), d);
   count(b, db, id, d, dc, ds ?? d.stars, dr ?? (d.recommend ? 1 : 0));
+  if (m) {
+    const { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt } = d;
+    mirror(b, db, id, { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt, ...m });
+  }
   return b.commit();
 }
 
@@ -94,6 +102,19 @@ describe('reviews', () => {
     await assertFails(b.commit());
   });
 
+  test('the campus copy mirrors the review exactly, only there', async () => {
+    await offering();
+    await assertFails(post(as(STUDENT), STUDENT, {}, { m: { stars: 5 } }));
+    await assertFails(post(as(STUDENT), STUDENT, {}, { m: { helpful: 3 } }));
+    await assertSucceeds(post(as(STUDENT), STUDENT));
+    const db = as(S2);
+    const b = writeBatch(db);
+    mirror(b, db, hash(STUDENT, C), { stars: 1 });
+    await assertFails(b.commit());
+    await assertSucceeds(getDoc(doc(as(S2), 'reviews', C, 'campus', 'goa')));
+    await assertFails(getDoc(doc(as(OTHER), 'reviews', C, 'campus', 'goa')));
+  });
+
   test('counters cannot be written on their own', async () => {
     await assertFails(setDoc(doc(as(STUDENT), 'courses', C, 'stats', 'goa'), {
       count: 100, starSum: 500, recommendCount: 100, campus: 'goa', courseId: C, scope: 'course', professorId: null, touchedBy: 'x',
@@ -132,6 +153,7 @@ describe('reviews', () => {
       const b = writeBatch(db);
       b.set(doc(db, 'reviews', C, 'entries', id, 'votes', hash(who, id)), { createdAt: serverTimestamp() });
       b.update(doc(db, 'reviews', C, 'entries', id), { helpful: increment(by) });
+      mirror(b, db, id, { helpful: increment(by) });
       return b.commit();
     };
     await assertFails(vote(S2, 5));
@@ -157,12 +179,15 @@ describe('reviews', () => {
       });
       b.set(a, { actor: { email: who, name: name(who), role: 'test' }, action: 'hide', path: `reviews/${C}/entries/${id}`, campus: 'goa', at: serverTimestamp() });
       count(b, db, id, { professorId: 'p1' }, dc, -4 * -dc, -1 * -dc);
+      mirror(b, db, id, deleteField());
       return b.commit();
     };
     await assertFails(hide(S2));
     await assertFails(hide(PRES, { reason: '' }));
     await assertFails(hide(PRES, { dc: 0 }));
     await assertSucceeds(hide(PRES));
+    const m = await getDoc(doc(as(S2), 'reviews', C, 'campus', 'goa'));
+    if (id in m.data().r) throw new Error('hidden review still mirrored');
     await assertFails(getDoc(doc(as(S2), 'reviews', C, 'entries', id)));
     // The author can still read their own, hidden or not.
     await assertSucceeds(getDoc(doc(as(STUDENT), 'reviews', C, 'entries', id)));
