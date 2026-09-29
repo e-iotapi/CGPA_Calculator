@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
+import 'package:cgpa_calculator/core/reviews/review_filter.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
@@ -47,8 +48,15 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
   late bool _picked = widget.professorId != null;
   final _profSearch = TextEditingController();
 
+  final _q = TextEditingController();
+  String? _year, _sem;
+
+  ReviewFilter get _filter =>
+      ReviewFilter(year: _year, sem: _sem, query: _q.text);
+
   @override
   void dispose() {
+    _q.dispose();
     _profSearch.dispose();
     super.dispose();
   }
@@ -170,7 +178,11 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
       },
       builder: (context, m, _) {
         final sel = m.taughtBy.where((x) => x.$1.id == _prof).firstOrNull;
-        final stats = sel?.$2 ?? m.course;
+        final f = _filter;
+        final shown = f.apply(_reviews, _names);
+        final years = ReviewFilter.yearsIn(_reviews);
+        final stats =
+            f.active ? ReviewFilter.statsOf(shown) : sel?.$2 ?? m.course;
         final took = tookIt(widget.courseId);
         final action =
             m.mine != null
@@ -243,10 +255,38 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
               ),
               const SizedBox(height: Space.sm),
             ],
+            SearchBox(
+              controller: _q,
+              hint: 'Search reviews',
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: Space.xs),
+            if (years.length > 1) ...[
+              ChoicePills<String?>(
+                values: [null, ...years],
+                selected: _year,
+                label: (y) => y ?? 'All years',
+                onSelected: (y) => setState(() => _year = y),
+              ),
+              const SizedBox(height: Space.xs),
+            ],
+            ChoicePills<String?>(
+              values: const [null, '1', '2', 'S'],
+              selected: _sem,
+              label: (x) => x == null ? 'Any semester' : semesterLabels[x]!,
+              onSelected: (x) => setState(() => _sem = x),
+            ),
+            const SizedBox(height: Space.sm),
             StatsCard(
               stats: stats,
               note:
-                  sel == null || m.course.average == null
+                  f.active
+                      ? [
+                        _year ?? 'All years',
+                        if (_sem != null) semesterLabels[_sem],
+                        '${shown.length} of ${_reviews.length} reviews',
+                      ].join(' · ')
+                      : sel == null || m.course.average == null
                       ? null
                       : '${sel.$1.name} only. The whole course sits at '
                           '${m.course.average!.toStringAsFixed(1)} across every '
@@ -261,7 +301,7 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
               },
             ),
             const SizedBox(height: Space.sm),
-            for (final r in _reviews) ...[
+            for (final r in shown) ...[
               ReviewTile(
                 r: r,
                 professor: _names[r.professorId],
@@ -294,6 +334,17 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
                         },
               ),
               const SizedBox(height: Space.xs),
+            ],
+            if (_reviews.isNotEmpty && shown.isEmpty) ...[
+              const Note('No reviews match.'),
+              TextButton(
+                onPressed:
+                    () => setState(() {
+                      _q.clear();
+                      _year = _sem = null;
+                    }),
+                child: const Text('Clear filters'),
+              ),
             ],
             if (_reviews.isEmpty)
               const Note(
