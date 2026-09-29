@@ -157,6 +157,18 @@ describe('succession', () => {
     await assertSucceeds(getDoc(doc(as(PRES), 'staff', STUDENT)));
     await assertFails(getDoc(doc(as(STUDENT), 'staff', OTHER)));
   });
+
+  // RoleStore._relist() get()s the handing-over president's own directory
+  // entry to keep its listed expiry in step; most presidents have never
+  // filled one in, so the doc does not exist. A get() on a not-yet-existing
+  // doc must not error (BUG-49: it used to, because the old rule
+  // dereferenced resource.data unconditionally).
+  test('a handover reads a not-yet-existing directory entry without erroring', async () => {
+    const before = days(100);
+    await seed((db) => updateDoc(doc(db, 'grants', mine), { expiresAt: before }));
+    await assertSucceeds(getDoc(doc(as(PRES), 'directory', PRES)));
+    await assertSucceeds(handOver(days(19.9), { extend: before }));
+  });
 });
 
 describe('staff contacts', () => {

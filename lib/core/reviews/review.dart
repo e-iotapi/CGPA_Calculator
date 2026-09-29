@@ -51,6 +51,27 @@ class Review {
 
   bool get edited => updatedAt > createdAt + 1000;
 
+  /// After a successful vote: the server write already moved the counter,
+  /// this just keeps the on-screen tile from lagging behind it (fix for a
+  /// helpful count that only updates on reload).
+  Review withHelpful(int n) => Review(
+    id: id,
+    courseId: courseId,
+    stars: stars,
+    recommend: recommend,
+    campus: campus,
+    term: term,
+    professorId: professorId,
+    text: text,
+    hidden: hidden,
+    reason: reason,
+    hiddenByName: hiddenByName,
+    helpful: n,
+    reports: reports,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+  );
+
   /// The shape cached in Hive.
   Map<String, dynamic> toMap() => {
     'stars': stars,
