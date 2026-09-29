@@ -82,7 +82,7 @@ void main() {
       expect(d.summary, 'WhatsApp');
       expect(d.name, 'P');
       expect(await store.profileDue(r), isFalse);
-    expect(await store.staffPhones(), {pres: '+91 98765 43210'});
+      expect(await store.staffPhones(), {pres: '+91 98765 43210'});
       expect(
         (await store.directory('goa')).single.liveAt(DateTime(2026)),
         hasLength(1),
@@ -156,6 +156,61 @@ void main() {
     expect(gone['presidentOf'], isEmpty);
   });
 
+  test('handover with a next secretary; cancel undoes both', () async {
+    final db = FakeFirebaseFirestore();
+    final roles = RoleStore(db, me: pres, myName: 'P');
+    const next = 'f20240001@goa.bits-pilani.ac.in';
+    const sec = 'f20240002@goa.bits-pilani.ac.in';
+    const oldSec = 'f20240003@goa.bits-pilani.ac.in';
+    for (final e in [next, sec]) {
+      await db.collection('people').doc(e).set({'name': e, 'campus': 'goa'});
+    }
+    await db.collection('config').doc('grantTerms').set({
+      'crDays': 183,
+      'presidentDays': 365,
+      'adminDays': 730,
+    });
+    final mine = grant(GrantRole.dept, 'ELEC');
+    await db.collection('grants').doc(mine.id).set({
+      'role': 'dept',
+      'email': pres,
+      'name': 'P',
+      'campus': 'goa',
+      'scope': 'ELEC',
+      'programme': 'A3',
+      'active': true,
+      'expiresAt': until,
+    });
+    final oldId = grantId(GrantRole.dept, 'goa', 'ELEC', oldSec);
+    await db.collection('grants').doc(oldId).set({
+      'role': 'dept',
+      'email': oldSec,
+      'name': 'O',
+      'campus': 'goa',
+      'scope': 'ELEC',
+      'secretary': true,
+      'active': true,
+      'expiresAt': until,
+    });
+    Future<Grant> g(String id) async =>
+        Grant.fromMap((await db.collection('grants').doc(id).get()).data()!);
+    final secId = grantId(GrantRole.dept, 'goa', 'ELEC', sec);
+
+    final now = DateTime(2026, 9, 27);
+    expect(await roles.handOver(mine, next, secretary: sec, now: now), isTrue);
+    final after = await g(mine.id);
+    final president = await g(grantId(GrantRole.dept, 'goa', 'ELEC', next));
+    final newSec = await g(secId);
+    expect(newSec.secretary, isTrue);
+    expect(newSec.programme, isNull);
+    expect(newSec.expiresAt, president.expiresAt);
+    expect((await g(oldId)).expiresAt, after.expiresAt);
+
+    await roles.cancelHandover(after);
+    expect((await g(secId)).active, isFalse);
+    expect((await g(oldId)).expiresAt, until);
+  });
+
   test('volunteer offers: this term, by course', () async {
     final db = FakeFirebaseFirestore();
     const s = 'f20230456@goa.bits-pilani.ac.in';
@@ -191,10 +246,7 @@ void main() {
 
     // A second call within 24h is served from cache: it doesn't see a write
     // made directly against Firestore, bypassing the store.
-    await db
-        .collection('volunteers')
-        .doc(v1.id)
-        .update({'open': false});
+    await db.collection('volunteers').doc(v1.id).update({'open': false});
     final v2 = await store.myOffer('goa', 'EEE F211');
     expect(v2!.open, isTrue);
 

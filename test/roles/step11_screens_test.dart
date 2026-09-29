@@ -501,7 +501,7 @@ void main() {
     await t.pumpWidget(app(const Succession(campus: 'goa', dept: 'ELEC')));
     await t.pumpAndSettle();
     Future<void> lookUp(String address) async {
-      await t.enterText(find.byType(TextField), address);
+      await t.enterText(find.byType(TextField).first, address);
       await t.pump(const Duration(milliseconds: 500));
       await t.pumpAndSettle();
     }
@@ -515,6 +515,32 @@ void main() {
     expect(find.textContaining('✓ '), findsOneWidget);
     final ends = RoleStore.outgoingExpiry(presidency(), DateTime.now());
     expect(find.textContaining(shortDay(ends, year: true)), findsOneWidget);
+  });
+
+  testWidgets('S9b a next secretary is looked up the same way, optional', (
+    t,
+  ) async {
+    await presidentOfElec();
+    const sec = 'f20240002@goa.bits-pilani.ac.in';
+    await db.collection('people').doc(sec).set({
+      'name': 'Kiran Das',
+      'campus': 'goa',
+    });
+    await t.pumpWidget(app(const Succession(campus: 'goa', dept: 'ELEC')));
+    await t.pumpAndSettle();
+    Future<void> type(int i, String a) async {
+      await t.enterText(find.byType(TextField).at(i), a);
+      await t.pump(const Duration(milliseconds: 500));
+      await t.pumpAndSettle();
+    }
+
+    await type(0, next);
+    expect(button(t, 'Review the handover'), isNotNull);
+    await type(1, 'f20249999@goa.bits-pilani.ac.in');
+    expect(button(t, 'Review the handover'), isNull);
+    await type(1, sec);
+    expect(find.textContaining('✓ Kiran Das'), findsOneWidget);
+    expect(button(t, 'Review the handover'), isNotNull);
   });
 
   testWidgets('S10 SuccessionConfirm: the code is typed, then it happens', (
@@ -1232,7 +1258,7 @@ void main() {
     await t.pumpWidget(app(const Succession(campus: 'goa', dept: 'ELEC')));
     await t.pumpAndSettle();
     expect(find.textContaining('Previewing as'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2)); // president, secretary
     expect(find.text('Review the handover'), findsOneWidget);
   });
 

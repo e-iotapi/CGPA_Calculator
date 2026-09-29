@@ -36,7 +36,7 @@ function audit(b, db, path) {
 }
 
 /// The handover batch the app writes; [ends] is the outgoing expiry.
-function handOver(ends, { to = STUDENT, extend } = {}) {
+function handOver(ends, { to = STUDENT, extend, secretary } = {}) {
   const db = as(PRES);
   const b = writeBatch(db);
   const next = `dept|goa|ELEC|${to}`;
@@ -58,6 +58,19 @@ function handOver(ends, { to = STUDENT, extend } = {}) {
     email: PRES, campus: 'goa', owner: false, admin: false,
     presidentOf: ['ELEC'], courses: [], expiresAt: days(100), lastGrant: mine,
   });
+  if (secretary) {
+    const sec = `dept|goa|ELEC|${secretary}`;
+    b.set(doc(db, 'grants', sec), {
+      role: 'dept', campus: 'goa', scope: 'ELEC', email: secretary, secretary: true,
+      name: name(secretary), active: true, expiresAt: days(300),
+      grantedBy: { email: PRES, name: name(PRES) }, grantedAt: serverTimestamp(),
+      auditId: audit(b, db, `grants/${sec}`),
+    });
+    b.set(doc(db, 'staff', secretary), {
+      email: secretary, name: name(secretary), campus: 'goa', owner: false, admin: false,
+      presidentOf: ['ELEC'], courses: [], expiresAt: days(300), lastGrant: sec,
+    });
+  }
   return b.commit();
 }
 
@@ -78,6 +91,16 @@ describe('succession', () => {
     await assertSucceeds(handOver(days(19.9), { extend: before }));
     const g = (await getDoc(doc(as(PRES), 'grants', theirs))).data();
     if (g.active !== true) throw new Error('successor not live');
+  });
+
+  test('a handover names the next secretary in the same batch', async () => {
+    const before = days(100);
+    const S3 = 'f20230777@goa.bits-pilani.ac.in';
+    await seed(async (db) => {
+      await updateDoc(doc(db, 'grants', mine), { expiresAt: before });
+      await setDoc(doc(db, 'people', S3), { name: name(S3), campus: 'goa', firstSignIn: 1 });
+    });
+    await assertSucceeds(handOver(days(19.9), { extend: before, secretary: S3 }));
   });
 
   test('the overlap never extends a term, and one runs at a time', async () => {

@@ -50,8 +50,14 @@ abstract final class Routes {
       '/maintain/$campus/$dept/reviews';
   static String deptSuccession(String campus, String dept) =>
       '/maintain/$campus/$dept/succession';
-  static String deptSuccessionConfirm(String campus, String dept, String to) =>
-      '/maintain/$campus/$dept/succession/confirm?to=${Uri.encodeQueryComponent(to)}';
+  static String deptSuccessionConfirm(
+    String campus,
+    String dept,
+    String to, {
+    String? secretary,
+  }) =>
+      '/maintain/$campus/$dept/succession/confirm?to=${Uri.encodeQueryComponent(to)}'
+      '${secretary == null ? '' : '&sec=${Uri.encodeQueryComponent(secretary)}'}';
   static String crCourse(String campus, String courseId) =>
       '/maintain/$campus/course/${Uri.encodeComponent(courseId)}';
 }
