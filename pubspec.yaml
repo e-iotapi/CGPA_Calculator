@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  url_launcher: ^6.3.2
   hive_ce: ^2.20.1
   hive_ce_flutter: ^2.4.0
   firebase_core: ^4.15.0

@@ -19,7 +19,6 @@ import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// ERP → My Academics. A navigation collection rather than a report, so a
 /// signed-out user goes through SSO and still lands in the right place.
@@ -362,12 +361,7 @@ class _ErpImportPageState extends State<ErpImportPage> {
                         label: 'Open ERP',
                         trailing: Icons.open_in_new_rounded,
                         // A new tab: a half-finished setup is never lost.
-                        onPressed:
-                            () => launchUrl(
-                              erpMyAcademics,
-                              mode: LaunchMode.externalApplication,
-                              webOnlyWindowName: '_blank',
-                            ),
+                        onPressed: () => openUrl('$erpMyAcademics'),
                       ),
                     ]),
                     const SizedBox(height: Space.md),

@@ -1,5 +1,3 @@
-import 'package:flutter/widgets.dart';
-
 enum WindowSize {
   /// One column, bottom pill nav.
   compact,
@@ -24,8 +22,4 @@ abstract final class Breakpoints {
           : width >= medium
           ? WindowSize.medium
           : WindowSize.compact;
-}
-
-extension WindowSizeContext on BuildContext {
-  WindowSize get windowSize => Breakpoints.of(MediaQuery.sizeOf(this).width);
 }

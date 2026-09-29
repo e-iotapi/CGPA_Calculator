@@ -2,7 +2,6 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
-import 'package:cgpa_calculator/shared/widgets/card_label.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/code_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/count_badge.dart';
@@ -247,11 +246,6 @@ void main() {
   });
 
   group('T3.10: shared parts', () {
-    testWidgets('CardLabel upper-cases its text', (t) async {
-      await t.pumpWidget(_host(const CardLabel('structure')));
-      expect(find.text('STRUCTURE'), findsOneWidget);
-    });
-
     testWidgets('SegmentedPair reports the tapped side', (t) async {
       var picked = 0;
       await t.pumpWidget(

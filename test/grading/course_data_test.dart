@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
@@ -7,7 +8,6 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/seed.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
-import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 
@@ -31,11 +31,11 @@ const _a7Chart = [
 
 void main() {
   test('A7 carries every course on its chart', () {
-    expect(_ids(hydCourseListNew, 'A7'), containsAll(_a7Chart));
+    expect(_ids(catalog.chartNew, 'A7'), containsAll(_a7Chart));
   });
 
   test('PS-II in every discipline, old and new lists', () {
-    for (final list in [hydCourseList, hydCourseListNew]) {
+    for (final list in [catalog.chartOld, catalog.chartNew]) {
       for (final d in {for (final c in list) c.discipline}) {
         expect(_ids(list, d), contains('BITS F412'), reason: d);
       }
@@ -45,7 +45,7 @@ void main() {
   test('ECON F211 and MGTS F211 are two separate courses', () {
     for (final d in ['A1', 'A7', 'AC', 'AJ', 'B3', 'B7']) {
       expect(
-        _ids(hydCourseListNew, d),
+        _ids(catalog.chartNew, d),
         containsAll(['ECON F211', 'MGTS F211']),
         reason: d,
       );
@@ -54,9 +54,9 @@ void main() {
   });
 
   test('AC has the current first year; AJ has its core', () {
-    expect(_ids(hydCourseListNew, 'AC'), containsAll(['MATH F101', 'CS F111']));
+    expect(_ids(catalog.chartNew, 'AC'), containsAll(['MATH F101', 'CS F111']));
     expect(
-      _ids(hydCourseListNew, 'AJ'),
+      _ids(catalog.chartNew, 'AJ'),
       containsAll([
         for (final n in [211, 212, 221, 311, 324]) 'ENVS F$n',
       ]),
@@ -64,7 +64,7 @@ void main() {
   });
 
   test('thesis variants are searchable', () {
-    final ids = {for (final m in mcourselist) m.id};
+    final ids = {for (final m in catalog.master) m.id};
     expect(
       ids,
       containsAll(['BITS F412', 'BITS F421T', 'BITS F425T', 'BITS F424T']),
@@ -72,7 +72,7 @@ void main() {
   });
 
   test('every seed row is ungraded, so no one’s CGPA moves', () {
-    for (final c in [...hydCourseList, ...hydCourseListNew]) {
+    for (final c in [...catalog.chartOld, ...catalog.chartNew]) {
       expect(c.grade1, GradeCode.clr, reason: c.id);
       expect(c.grade2, GradeCode.clr, reason: c.id);
     }
@@ -82,7 +82,7 @@ void main() {
     final mine = loadTranscript();
     final held = {for (final c in mine) normalizeCourseId(c.id)};
     final seeded = [
-      for (final c in hydCourseListNew)
+      for (final c in catalog.chartNew)
         if (c.discipline == mine.first.discipline &&
             !held.contains(normalizeCourseId(c.id)))
           c,

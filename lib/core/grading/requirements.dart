@@ -6,9 +6,6 @@ import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
 
-/// Credits a degree needs in total.
-const degreeTotalCredits = 144;
-
 /// CDC and disciplinary-elective requirements for one discipline half.
 class Requirement {
   const Requirement(

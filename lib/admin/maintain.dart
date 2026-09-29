@@ -805,20 +805,18 @@ class _CourseAverageState extends State<_CourseAverage> {
     setState(() => _saving = true);
     try {
       await _store.save(
-        withOutOf(
-          Offering(
-            courseId: o.courseId,
-            campus: o.campus,
-            term: o.term,
-            weighted: o.weighted,
-            totalMarks: o.totalMarks,
-            components: o.components,
-            courseAverage:
-                v == null ? null : toStored(v, scale: _scale, units: _units),
-            professors: o.professors,
-            updatedAt: o.updatedAt,
-          ),
-          offeringOutOf(o),
+        Offering(
+          courseId: o.courseId,
+          campus: o.campus,
+          term: o.term,
+          weighted: o.weighted,
+          totalMarks: o.totalMarks,
+          components: o.components,
+          courseAverage:
+              v == null ? null : toStored(v, scale: _scale, units: _units),
+          professors: o.professors,
+          updatedAt: o.updatedAt,
+          outOf: o.outOf,
         ),
         v == null
             ? 'Cleared the course average for ${o.courseId} in '
