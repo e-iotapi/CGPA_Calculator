@@ -165,17 +165,23 @@ void main() {
     bool email_ = false,
     String? whatsapp,
     String? phone,
-  }) => db.collection('directory').doc(email).set({
-    'name': name,
-    'campus': 'goa',
-    'roles': [
-      for (final (role, scope, until) in roles)
-        {'role': role, 'scope': scope, 'until': Timestamp.fromDate(until)},
-    ],
-    if (email_) 'email': email,
-    if (whatsapp != null) 'whatsapp': whatsapp,
-    if (phone != null) 'phone': phone,
-  });
+  }) async {
+    final entry = {
+      'name': name,
+      'campus': 'goa',
+      'roles': [
+        for (final (role, scope, until) in roles)
+          {'role': role, 'scope': scope, 'until': Timestamp.fromDate(until)},
+      ],
+      if (email_) 'email': email,
+      if (whatsapp != null) 'whatsapp': whatsapp,
+      if (phone != null) 'phone': phone,
+    };
+    await db.collection('directory').doc(email).set(entry);
+    await db.collection('repIndex').doc('goa').set({
+      'p': {email: entry},
+    }, SetOptions(merge: true));
+  }
 
   VoidCallback? button(WidgetTester t, String label) =>
       t

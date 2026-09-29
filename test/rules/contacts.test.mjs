@@ -173,6 +173,25 @@ describe('directory', () => {
     await assertFails(getDocs(query(collection(as(OTHER), 'directory'), where('campus', '==', 'goa'))));
   });
 
+  test('the campus index holds my own entry, exactly', async () => {
+    const until = await exactUntil();
+    const e = entry({ roles: [{ role: 'dept', scope: 'ELEC', until }], email: PRES });
+    const save = (copy, who = PRES) => {
+      const db = as(who);
+      const b = writeBatch(db);
+      b.set(doc(db, 'directory', PRES), e);
+      b.set(doc(db, 'repIndex', 'goa'), { k: who, p: { [who]: copy } }, { merge: true });
+      return b.commit();
+    };
+    await assertFails(save({ ...e, name: 'Someone else' }));
+    await assertSucceeds(save(e));
+    await assertSucceeds(getDoc(doc(as(STUDENT), 'repIndex', 'goa')));
+    await assertFails(getDoc(doc(as(OTHER), 'repIndex', 'goa')));
+    const db = as(STUDENT);
+    await assertFails(setDoc(doc(db, 'repIndex', 'goa'), { k: PRES, p: { [PRES]: { name: 'x' } } }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'repIndex', 'goa'), { k: STUDENT, p: { [PRES]: { name: 'x' } } }, { merge: true }));
+  });
+
   test('a role not held is refused', async () => {
     const until = await exactUntil();
     await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({

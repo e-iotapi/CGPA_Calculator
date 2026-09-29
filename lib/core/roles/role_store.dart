@@ -525,7 +525,8 @@ class RoleStore {
     final ref = db.collection('directory').doc(g.email);
     final m = (await ref.get()).data();
     if (m == null) return;
-    b.update(ref, {
+    final next = {
+      ...m,
       'roles': [
         for (final r in m['roles'] as List? ?? const [])
           if (r is Map && r['role'] == g.role.key && r['scope'] == g.scope)
@@ -534,7 +535,13 @@ class RoleStore {
             r,
       ],
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    b
+      ..set(ref, next)
+      ..set(db.collection('repIndex').doc(m['campus'] as String? ?? g.campus), {
+        'k': g.email,
+        'p': {g.email: next},
+      }, SetOptions(merge: true));
   }
 
   static String _day(DateTime d) => '${d.day}/${d.month}/${d.year}';

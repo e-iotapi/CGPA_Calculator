@@ -196,7 +196,7 @@ class ContactStore {
     final listed = listedRoles(r);
     if (listed.isNotEmpty) {
       final wa = whatsapp?.trim();
-      b.set(_directory(roles.me), {
+      final entry = {
         'name': name.trim(),
         'campus': campusOfAddress(roles.me),
         'roles': [
@@ -211,9 +211,17 @@ class ContactStore {
         if (wa != null && wa.isNotEmpty) 'whatsapp': wa,
         if (showPhone) 'phone': phone.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+      final campus = campusOfAddress(roles.me) ?? '';
+      b
+        ..set(_directory(roles.me), entry)
+        ..set(_repIndex(campus), {
+          'k': roles.me,
+          'p': {roles.me: entry},
+        }, SetOptions(merge: true));
     }
     await b.commit();
+    await sharedCacheBox?.delete('reps|${campusOfAddress(roles.me) ?? ''}');
   }
 
   /// Every staff phone number, by address: the roster shows them to other
@@ -231,16 +239,50 @@ class ContactStore {
     }
   }
 
-  /// Every president and CR listed on [campus].
-  // Budget: 1 read per person listed on the campus (P0); no per-campus cap
-  // yet, so this grows with staff count until P2b scopes it.
-  Future<List<DirectoryEntry>> directory(String campus) async {
-    final q = await Perf.time(
-      'contacts.directory',
-      () => db.collection('directory').where('campus', isEqualTo: campus).get(),
-    );
-    return [for (final d in q.docs) DirectoryEntry.fromMap(d.id, d.data())];
+  DocumentReference<Map<String, dynamic>> _repIndex(String campus) =>
+      db.collection('repIndex').doc(campus);
+
+  /// Every president and CR listed on [campus], from one doc
+  /// (`repIndex/{campus}`), cached 6 h; [fresh] reads it live.
+  // ponytail: one doc per campus caps near 3,000 listed people.
+  Future<List<DirectoryEntry>> directory(
+    String campus, {
+    bool fresh = false,
+  }) async {
+    Future<Map<String, dynamic>> fetch() async {
+      final d = await Perf.time(
+        'contacts.directory',
+        () => _repIndex(campus).get(),
+      );
+      return {
+        for (final e in ((d.data()?['p'] as Map?) ?? const {}).entries)
+          '${e.key}': _jsonSafe(e.value),
+      };
+    }
+
+    final m =
+        fresh
+            ? await fetch()
+            : await cacheFirst<Map<String, dynamic>>(
+              key: 'reps|$campus',
+              maxAge: const Duration(hours: 6),
+              fetch: fetch,
+              encode: (m) => m,
+              decode: (o) => Map<String, dynamic>.from(o as Map),
+            );
+    return [
+      for (final e in m.entries)
+        DirectoryEntry.fromMap(e.key, Map<String, dynamic>.from(e.value)),
+    ];
   }
+
+  /// Timestamps as millis, so the entry caches as JSON.
+  static Object? _jsonSafe(Object? v) => switch (v) {
+    Timestamp t => t.millisecondsSinceEpoch,
+    Map m => {for (final e in m.entries) '${e.key}': _jsonSafe(e.value)},
+    List l => [for (final x in l) _jsonSafe(x)],
+    _ => v,
+  };
 
   // ---- Volunteers (fix 16) -------------------------------------------------
 
@@ -256,15 +298,15 @@ class ContactStore {
         key: 'offer|$campus|$courseId|${roles.me}',
         maxAge: const Duration(hours: 24),
         fetch: () async {
-          final m = (await Perf.time(
-            'contacts.myOffer',
-            () => _offer(volunteerId(campus, courseId, roles.me)).get(),
-          )).data();
+          final m =
+              (await Perf.time(
+                'contacts.myOffer',
+                () => _offer(volunteerId(campus, courseId, roles.me)).get(),
+              )).data();
           return m == null ? null : Volunteer.fromMap(m);
         },
         encode: (v) => v?.toMap(),
-        decode:
-            (v) => v == null ? null : Volunteer.fromMap((v as Map).cast()),
+        decode: (v) => v == null ? null : Volunteer.fromMap((v as Map).cast()),
       );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') return null;
