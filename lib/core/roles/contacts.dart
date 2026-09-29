@@ -239,7 +239,7 @@ class ContactStore {
         ..set(_repIndex(campus), {
           'k': roles.me,
           'p': {roles.me: entry},
-        }, SetOptions(merge: true));
+        }, _replacing(roles.me));
     }
     await b.commit();
     await sharedCacheBox?.delete('reps|${campusOfAddress(roles.me) ?? ''}');
@@ -259,6 +259,15 @@ class ContactStore {
       rethrow;
     }
   }
+
+  /// Replaces [email]'s whole entry: a deep merge would keep fields the new
+  /// entry dropped (a contact turned off), and the rules want an exact copy.
+  static SetOptions _replacing(String email) => SetOptions(
+    mergeFields: [
+      FieldPath(const ['k']),
+      FieldPath(['p', email]),
+    ],
+  );
 
   DocumentReference<Map<String, dynamic>> _repIndex(String campus) =>
       db.collection('repIndex').doc(campus);

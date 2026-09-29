@@ -621,10 +621,19 @@ class RoleStore {
     };
     b
       ..set(ref, next)
-      ..set(db.collection('repIndex').doc(m['campus'] as String? ?? g.campus), {
-        'k': g.email,
-        'p': {g.email: next},
-      }, SetOptions(merge: true));
+      ..set(
+        db.collection('repIndex').doc(m['campus'] as String? ?? g.campus),
+        {
+          'k': g.email,
+          'p': {g.email: next},
+        },
+        SetOptions(
+          mergeFields: [
+            FieldPath(const ['k']),
+            FieldPath(['p', g.email]),
+          ],
+        ),
+      );
   }
 
   static String _day(DateTime d) => '${d.day}/${d.month}/${d.year}';
