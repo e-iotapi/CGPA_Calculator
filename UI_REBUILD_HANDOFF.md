@@ -317,18 +317,18 @@ model shape goes in `fake_seed.dart`, and the demo picks it up.
 ---
 
 ## 6 · Backend checklist
-- [ ] §3.1 Secretary: store + rules + `appoint` + `myRoles`; then enable the tier in
+- [x] §3.1 Secretary: store + rules + `appoint` + `myRoles`; then enable the tier in
       `grant_form.dart`, hide Hand over for secretaries.
-- [ ] §3.2 Graded out of: `Offering.outOf`, seam functions, `outOfStored = true`,
+- [x] §3.2 Graded out of: `Offering.outOf`, seam functions, `outOfStored = true`,
       `official_scheme.dart` sync with a detach granule, eval import, flip the two tests.
-- [ ] §3.5 Move the three direct Firestore reads behind store methods.
-- [ ] §3.4 Optional: count queries for the client-side counts.
-- [ ] §3.8 Serve possible duplicates; set `duplicateSource`.
-- [ ] §3.9 Serve the campus-wise department list; set `departmentSource`.
-- [ ] §3.10 Rules: accept any http(s) link; drop `allowedHosts`.
-- [ ] Before merging, on `pointer-rebuild` itself: `ui_check.py run`, then `ui_check.py
+- [x] §3.5 Move the three direct Firestore reads behind store methods.
+- [ ] §3.4 Optional: count queries for the client-side counts. (Cut: admin-only, few users.)
+- [ ] §3.8 Serve possible duplicates; set `duplicateSource`. (Cut: no Functions on Spark; client-side `NameDuplicates` stays.)
+- [x] §3.9 Serve the campus-wise department list; set `departmentSource`.
+- [x] §3.10 Rules: accept any http(s) link; drop `allowedHosts`.
+- [x] Before merging, on `pointer-rebuild` itself: `ui_check.py run`, then `ui_check.py
       accept`. The baseline lives in `build/ui_check/base/`, not in git, so a fresh checkout
       has none; this records the finished UI (354 renders, no issues) to compare against.
-- [ ] After merging: §5.1 gates green, `known` maps still empty, `ui_check.py run` shows no
+- [x] After merging: §5.1 gates green, `known` maps still empty, `ui_check.py run` shows no
       new issues against that baseline. A changed screen is fine only if the change was
       meant; an issue is a regression.
