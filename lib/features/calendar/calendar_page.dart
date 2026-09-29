@@ -172,9 +172,12 @@ class _CalendarPageState extends State<CalendarPage> {
         icon: Icons.chevron_left_rounded,
         tooltip: 'Previous month',
         onPressed:
-            () => setState(
-              () => _month = DateTime(_month.year, _month.month - 1),
-            ),
+            () => setState(() {
+              _month = DateTime(_month.year, _month.month - 1);
+              // The day label below would otherwise keep naming a date
+              // that's no longer on screen (BUG-24).
+              _selected = null;
+            }),
         size: 40,
       ),
       const SizedBox(width: 7),
@@ -182,9 +185,10 @@ class _CalendarPageState extends State<CalendarPage> {
         icon: Icons.chevron_right_rounded,
         tooltip: 'Next month',
         onPressed:
-            () => setState(
-              () => _month = DateTime(_month.year, _month.month + 1),
-            ),
+            () => setState(() {
+              _month = DateTime(_month.year, _month.month + 1);
+              _selected = null;
+            }),
         size: 40,
       ),
       const SizedBox(width: 7),

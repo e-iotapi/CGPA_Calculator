@@ -217,6 +217,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     controller.dispose();
     if (name == null) return;
+    final blank = name.trim().isEmpty;
     setState(() {
       final n = profileName(name, 'Profile $i');
       switch (i) {
@@ -229,6 +230,10 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     });
     await setprof();
+    // A spaces-only name is silently dropped to the default (BUG-28): say so.
+    if (blank && context.mounted) {
+      _toast(context, "A blank name isn't allowed — kept 'Profile $i'.");
+    }
   }
 
   Future<void> _reset(BuildContext context) async {
@@ -276,12 +281,7 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       counts = Sync.validate(text);
     } catch (e) {
-      _toast(
-        context,
-        e is FormatException
-            ? "That file isn't a grade backup: ${e.message}"
-            : '$e',
-      );
+      _toast(context, "That file isn't a grade backup.");
       return;
     }
     final summary = [
@@ -305,7 +305,12 @@ class _SettingsPageState extends State<SettingsPage> {
       await Sync.push();
       reloadPage();
     } catch (e) {
-      if (context.mounted) _toast(context, 'Import failed: $e');
+      if (context.mounted) {
+        _toast(
+          context,
+          "Import failed. Check it's the right file and try again.",
+        );
+      }
     }
   }
 
@@ -323,26 +328,37 @@ class _SettingsPageState extends State<SettingsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder:
-          (c) => AppDialog(
-            title: 'Import from old site',
-            content: TextField(
-              controller: controller,
-              maxLines: 8,
-              style: appFieldStyle(AppPalette.of(c)),
-              cursorColor: AppPalette.of(c).text,
-              decoration: appFieldDecoration(
-                AppPalette.of(c),
-                hint: 'Paste the JSON copied from the old site',
-              ),
-            ),
-            actions: [
-              DialogAction('Cancel', onTap: () => Navigator.pop(c, false)),
-              DialogAction(
-                'Import',
-                onTap: () => Navigator.pop(c, true),
-                ink: true,
-              ),
-            ],
+          (c) => StatefulBuilder(
+            builder:
+                (c, setDialog) => AppDialog(
+                  title: 'Import from old site',
+                  content: TextField(
+                    controller: controller,
+                    maxLines: 8,
+                    onChanged: (_) => setDialog(() {}),
+                    style: appFieldStyle(AppPalette.of(c)),
+                    cursorColor: AppPalette.of(c).text,
+                    decoration: appFieldDecoration(
+                      AppPalette.of(c),
+                      hint: 'Paste the JSON copied from the old site',
+                    ),
+                  ),
+                  actions: [
+                    DialogAction(
+                      'Cancel',
+                      onTap: () => Navigator.pop(c, false),
+                    ),
+                    DialogAction(
+                      'Import',
+                      // Disabled while empty, not a silent no-op (BUG-44).
+                      onTap:
+                          controller.text.trim().isEmpty
+                              ? null
+                              : () => Navigator.pop(c, true),
+                      ink: true,
+                    ),
+                  ],
+                ),
           ),
     );
     final text = controller.text;
@@ -353,7 +369,9 @@ class _SettingsPageState extends State<SettingsPage> {
       await Sync.push();
       reloadPage();
     } catch (e) {
-      if (context.mounted) _toast(context, 'Import failed: $e');
+      if (context.mounted) {
+        _toast(context, "That doesn't look like exported data. Import failed.");
+      }
     }
   }
 
