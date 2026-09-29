@@ -79,9 +79,14 @@ class Grant {
     this.grantedAt,
     this.handedTo,
     this.expiresBefore,
+    this.secretary = false,
   });
 
   final GrantRole role;
+
+  /// Dept grants only: a secretary holds every president right but handing
+  /// over and appointing secretaries.
+  final bool secretary;
   final String email, name, campus, scope;
 
   /// Dept grants only: the programme appointed for ("A3").
@@ -121,6 +126,7 @@ class Grant {
     grantedAt: asDate(m['grantedAt']),
     handedTo: m['handedTo'] as String?,
     expiresBefore: asDate(m['expiresBefore']),
+    secretary: m['secretary'] as bool? ?? false,
   );
 }
 

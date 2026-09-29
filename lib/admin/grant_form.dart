@@ -226,19 +226,28 @@ class _AdminGrantState extends State<AdminGrant> {
         .toList();
   }
 
+  /// A secretary ends with the appointing president's own term.
+  DateTime? get _secretaryEnds {
+    if (!_secretary) return null;
+    final mine =
+        _roles.presidencies
+            .where((g) => g.campus == _campus && g.scope == _scope)
+            .firstOrNull;
+    return mine == null || mine.expiresAt.isAfter(_fullTerm)
+        ? null
+        : mine.expiresAt;
+  }
+
   DateTime get _fullTerm =>
       DateTime.now().add(Duration(days: termDays(_terms, _role!)));
 
-  // Secretary grants need the roles update (another branch); the form is
-  // drawn and wired up to here.
   bool get _ready =>
       !_busy &&
-      !_secretary &&
       _found != null &&
       _refusal == null &&
       _campus != null &&
       _scope != null &&
-      (_role != GrantRole.dept || _programme != null);
+      (_role != GrantRole.dept || _secretary || _programme != null);
 
   Future<void> _grant() async {
     setState(() => _busy = true);
@@ -248,8 +257,12 @@ class _AdminGrantState extends State<AdminGrant> {
         email: _address,
         campus: _campus!,
         scope: _scope!,
-        programme: _role == GrantRole.dept ? _programme : null,
-        expiresAt: _early && _earlier != null ? _earlier! : _fullTerm,
+        programme: _role == GrantRole.dept && !_secretary ? _programme : null,
+        secretary: _role == GrantRole.dept && _secretary,
+        expiresAt:
+            _early && _earlier != null
+                ? _earlier!
+                : _secretaryEnds ?? _fullTerm,
         closeOffers: widget.closeOffers,
       );
       if (!mounted) return;
@@ -289,8 +302,6 @@ class _AdminGrantState extends State<AdminGrant> {
     return PageFrame(
       header: const PageHeader(eyebrow: 'NEW GRANT', title: 'Appoint someone'),
       bottom: BottomAction(
-        caption:
-            _secretary ? 'Secretary grants open with the roles update.' : null,
         child: PrimaryButton(
           label:
               _busy

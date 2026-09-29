@@ -285,6 +285,7 @@ class RoleStore {
         'campus': g.campus,
         'scope': g.scope,
         if (g.programme != null) 'programme': g.programme,
+        if (g.secretary) 'secretary': true,
         'grantedBy': {'email': me, 'name': myName},
         'grantedAt': FieldValue.serverTimestamp(),
       });
@@ -317,6 +318,7 @@ class RoleStore {
     required String scope,
     required DateTime expiresAt,
     String? programme,
+    bool secretary = false,
     List<String> closeOffers = const [],
   }) async {
     final address = email.trim().toLowerCase();
@@ -336,9 +338,11 @@ class RoleStore {
       programme: programme,
       active: true,
       expiresAt: expiresAt,
+      secretary: secretary,
     );
     final what = switch (role) {
       GrantRole.admin => 'admin',
+      GrantRole.dept when secretary => 'secretary of $scope',
       GrantRole.dept =>
         'president of $scope${programme == null ? '' : ' for $programme'}',
       GrantRole.course => 'CR for $scope',

@@ -270,18 +270,24 @@ class DeptHome extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: Space.sm),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: CardRow(
-                leading: IconTile(Icons.swap_horiz_rounded, amber: true),
-                title: 'Hand over to your successor',
-                titleLines: 2,
-                subtitle: 'They start now · you keep access for 20 days',
-                minHeight: 58,
-                onTap: () => context.push(Routes.deptSuccession(campus, dept)),
+            // A secretary never hands over.
+            if (!myRoles.value.presidencies.any(
+              (g) => g.campus == campus && g.scope == dept && g.secretary,
+            )) ...[
+              const SizedBox(height: Space.sm),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: CardRow(
+                  leading: IconTile(Icons.swap_horiz_rounded, amber: true),
+                  title: 'Hand over to your successor',
+                  titleLines: 2,
+                  subtitle: 'They start now · you keep access for 20 days',
+                  minHeight: 58,
+                  onTap:
+                      () => context.push(Routes.deptSuccession(campus, dept)),
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: Space.sm),
             InkCard(
               eyebrow: 'THIS WEEK',
