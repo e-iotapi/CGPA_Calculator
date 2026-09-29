@@ -8,7 +8,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const sampleEvery = 20;
 const campuses = ['goa', 'hyderabad', 'pilani'];

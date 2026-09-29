@@ -1,6 +1,6 @@
 import 'package:cgpa_calculator/core/grading/marks.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// Evaluatives and course configs, keyed `eval:<courseId>:<n>` and
 /// `config:<courseId>`. Registered with sync in lib/sync.dart (§2.4).

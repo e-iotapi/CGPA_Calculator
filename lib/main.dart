@@ -33,7 +33,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
 

@@ -2,7 +2,7 @@ import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/requirements.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const coursesBoxName = 'coursesBox';
 

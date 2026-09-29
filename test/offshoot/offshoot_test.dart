@@ -9,7 +9,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 import '../helpers/fonts.dart';
 

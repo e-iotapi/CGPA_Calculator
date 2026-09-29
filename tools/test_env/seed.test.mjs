@@ -6,7 +6,8 @@ import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import admin from 'firebase-admin';
+import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 import accountsConfig from '../../test_env/accounts.json' with { type: 'json' };
 
@@ -15,8 +16,7 @@ const byKey = Object.fromEntries(accountsConfig.accounts.map((a) => [a.key, a]))
 let env;
 before(async () => {
   process.env.FIREBASE_AUTH_EMULATOR_HOST ??= 'localhost:9099';
-  admin.initializeApp({ projectId: 'demo-pointer' }, 'seed-test-lookup');
-  const authApp = admin.app('seed-test-lookup').auth();
+  const authApp = getAuth(initializeApp({ projectId: 'demo-pointer' }, 'seed-test-lookup'));
   // seed.mjs never writes uids back to accounts.json; resolve them fresh.
   for (const a of accountsConfig.accounts) {
     a.uid = (await authApp.getUserByEmail(a.email)).uid;

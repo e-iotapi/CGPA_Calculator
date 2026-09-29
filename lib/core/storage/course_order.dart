@@ -1,5 +1,5 @@
 import 'package:cgpa_calculator/course.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// The order a student dragged each semester's courses into, as semester →
 /// course ids. One order for every grade profile: it is a view preference,

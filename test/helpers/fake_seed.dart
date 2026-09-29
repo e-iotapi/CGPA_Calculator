@@ -32,7 +32,7 @@ import 'package:cgpa_calculator/sync.dart';
 import 'package:cgpa_calculator/core/analytics/analytics_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 // ---- People (made up) -------------------------------------------------------
 

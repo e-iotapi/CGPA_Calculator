@@ -2,7 +2,7 @@ import 'package:cgpa_calculator/core/grading/offshoot.dart';
 import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 Box get _settings => Hive.box('settingsBox');
 

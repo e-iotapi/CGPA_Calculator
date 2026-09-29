@@ -9,7 +9,7 @@ import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/core/storage/overrides.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const offeringsBoxName = 'offeringsBox';
 

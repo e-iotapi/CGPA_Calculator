@@ -9,7 +9,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 import '../helpers/transcript.dart';
 

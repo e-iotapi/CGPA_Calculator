@@ -10,7 +10,7 @@ import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// What the edit sheet asks for: the course to store, or its removal.
 typedef CourseEdit = ({Course? saved, bool removed});

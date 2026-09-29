@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:cgpa_calculator/core/analytics/analytics_store.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// The first of name(0), name(1), … that [ok] accepts.
 String first(String Function(int) name, bool Function(String) ok) {

@@ -4,7 +4,7 @@ import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const reviewsBoxName = 'reviewsBox';
 

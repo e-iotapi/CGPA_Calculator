@@ -18,7 +18,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';

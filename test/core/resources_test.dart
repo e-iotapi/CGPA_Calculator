@@ -3,7 +3,7 @@ import 'package:cgpa_calculator/core/resources/resource_store.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 void main() {
   test('any http(s) website, shown by its host', () {

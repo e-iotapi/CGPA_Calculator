@@ -8,7 +8,7 @@ import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 EvalPart _p(String n, double? m, double o) =>
     EvalPart(name: n, marks: m, outOf: o);

@@ -8,7 +8,7 @@ import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// Keeps the three Hive boxes mirrored into a single Firestore document.
 ///

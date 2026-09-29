@@ -12,7 +12,7 @@ import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 ReviewStore? get reviewStore => switch (roleStore) {
   final r? => ReviewStore(r.db, uid: myUid, roles: r),

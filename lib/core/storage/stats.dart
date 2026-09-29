@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:cgpa_calculator/core/grading/requirements.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 // JSON-safe values only: settingsBox is JSON-encoded by sync (§2.3).
 
