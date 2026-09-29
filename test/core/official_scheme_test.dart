@@ -332,10 +332,37 @@ void main() {
         _id,
         'goa',
         '2026-27-1',
-        now: t0.add(const Duration(hours: 13)),
+        now: t0.add(const Duration(hours: 25)),
       );
       expect(reads, 2);
     });
+
+    test(
+      'with a head version, an offering is re-read only when it moves',
+      () async {
+        var reads = 0;
+        final source = _Source(() {
+          reads++;
+          return _off([_comp('mid', 'Mid Semester', 30)]);
+        });
+        final t0 = DateTime(2026, 9, 27, 10);
+        Future<void> at(int hours, int version) => refreshOffering(
+          source,
+          _id,
+          'goa',
+          '2026-27-1',
+          version: version,
+          now: t0.add(Duration(hours: hours)),
+        );
+        await at(0, 1);
+        await at(30, 1); // past the 24 h age, same version: no read
+        expect(reads, 1);
+        await at(31, 2); // a CR saved: read at once
+        expect(reads, 2);
+        await at(31 + 24 * 8, 2); // a week on, re-checked anyway
+        expect(reads, 3);
+      },
+    );
   });
 }
 

@@ -90,9 +90,11 @@ Future<void> startApp(User user) async {
   await Perf.time('startup.loadCatalog', loadCatalog);
   await Perf.time('startup.syncInit', () => Sync.init(user.uid));
   await openOfferings();
+  await openSharedCache(); // before anything reads a campus head
   offeringSource = FirestoreOfferingSource();
+  final bootCampus = Hive.box('settingsBox').get('campus') as String?;
   unawaited(refreshCatalog(
-    FirestoreCatalogSource(),
+    bootCampus == null ? FirestoreCatalogSource() : HeadCatalogSource(bootCampus),
     beforeUse: relinkStoredCourses,
   ));
   await Perf.time('startup.basicStartup', basicStartup);
@@ -102,10 +104,9 @@ Future<void> startApp(User user) async {
   await openDeviceBox();
   await openResources();
   await openReviews();
-  await openSharedCache();
   myUid = user.uid;
   stripNavigate = appRouter.go;
-  restoreMyRoles();
+  restoreMyRoles(email: user.email);
   final email = user.email;
   ownerSetupDue.value = ownerSetupNeeded(
     myRoles.value,
@@ -119,7 +120,7 @@ Future<void> startApp(User user) async {
       email: email,
       name: user.displayName ?? '',
     );
-    unawaited(refreshMyRoles().then((_) => checkProfile()));
+    unawaited(refreshMyRolesIfDue().then((_) => checkProfile()));
   }
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

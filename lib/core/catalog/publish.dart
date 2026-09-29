@@ -4,6 +4,7 @@
 library;
 
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
@@ -233,6 +234,10 @@ class CatalogStore {
       'version': next.version,
       'schema': next.schema,
       'auditId': id,
+    });
+    setOnAllHeads(b, _db, {
+      'catalog': next.version,
+      'catalogSchema': next.schema,
     });
     for (final e in from) {
       b.update(_db.collection('courses').doc(e.id), {'draft': false});

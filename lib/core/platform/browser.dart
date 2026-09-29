@@ -15,6 +15,10 @@ Future<String?> pickTextFile(String accept) => impl.pickTextFile(accept);
 
 void reloadPage() => impl.reloadPage();
 
+/// Runs [run] when the page is hidden or closed (tab switch, app switch,
+/// closing the tab): the last moment to flush pending writes.
+void onPageHidden(void Function() run) => impl.onPageHidden(run);
+
 /// The browser's user agent, for bug reports.
 String userAgent() => impl.userAgent();
 

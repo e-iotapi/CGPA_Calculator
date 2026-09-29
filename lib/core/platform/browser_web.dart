@@ -82,8 +82,9 @@ bool hasTouch() => web.window.navigator.maxTouchPoints > 0;
 /// Logical CPU cores, when the browser exposes it.
 int? hardwareConcurrency() =>
     (web.window.navigator as JSObject)
-        .getProperty<JSAny?>('hardwareConcurrency'.toJS)
-        ?.dartify() as int?;
+            .getProperty<JSAny?>('hardwareConcurrency'.toJS)
+            ?.dartify()
+        as int?;
 
 /// Approximate device RAM in GB (Chrome only; null elsewhere).
 double? deviceMemory() {
@@ -112,4 +113,14 @@ Future<String?> pickPdfText() async {
           .callMethod<JSPromise<JSString?>>('pickPdfText'.toJS)
           .toDart;
   return result?.toDart;
+}
+
+void onPageHidden(void Function() run) {
+  web.document.addEventListener(
+    'visibilitychange',
+    ((web.Event _) {
+      if (web.document.visibilityState == 'hidden') run();
+    }).toJS,
+  );
+  web.window.addEventListener('pagehide', ((web.Event _) => run()).toJS);
 }

@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/core/grading/eval_import.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -85,6 +86,7 @@ class MaintainStore {
   Future<void> save(Offering o, String summary) async {
     final b = _db.batch();
     _put(b, o, summary);
+    bumpOfferings(b, _db, o.campus, o.term, [o.courseId]);
     await b.commit();
   }
 
@@ -105,6 +107,15 @@ class MaintainStore {
           'Uploaded the ${termLabel(o.term)} scheme for ${o.courseId}',
           uploadId: uploadId,
         );
+      }
+      for (final campus in {for (final o in chunk) o.campus}) {
+        final here = chunk.where((o) => o.campus == campus);
+        for (final term in {for (final o in here) o.term}) {
+          bumpOfferings(b, _db, campus, term, [
+            for (final o in here)
+              if (o.term == term) o.courseId,
+          ]);
+        }
       }
       try {
         await b.commit();

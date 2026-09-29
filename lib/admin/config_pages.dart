@@ -562,7 +562,10 @@ class _PublicContactPageState extends State<PublicContactPage> {
   _load() async {
     final store = roleStore!;
     final (c, changed) =
-        await (store.publicContact(), store.publicContactChange()).wait;
+        await (
+          store.publicContact(fresh: true),
+          store.publicContactChange(),
+        ).wait;
     return (c, changed);
   }
 

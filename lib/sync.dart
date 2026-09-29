@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
+import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,9 +11,14 @@ import 'package:hive/hive.dart';
 
 /// Keeps the three Hive boxes mirrored into a single Firestore document.
 ///
-/// The whole local state is pushed as one JSON snapshot, debounced 1.5s after
-/// any box change, guarded by an optimistic `rev` counter. On conflict the
-/// server wins and the un-pushed local snapshot is stashed in syncMeta['backup'].
+/// The whole local state is pushed as one JSON snapshot, debounced 30 s after
+/// any box change and flushed when the page is hidden, guarded by an
+/// optimistic `rev` counter that the rules enforce. On conflict the server
+/// wins and the un-pushed local snapshot is stashed in syncMeta['backup'].
+///
+/// Budget (PERF_TEST_PLAN.md §A.4): a push is 1 write and 0 reads; the pull
+/// check runs at most once a day (plus on a conflict) and returns nothing,
+/// billed as 1 read, when the server copy has not moved.
 class Sync {
   static const _boxes = [
     'settingsBox',
@@ -28,6 +34,17 @@ class Sync {
   static late Box _meta; // uid, rev, last (last synced snapshot), backup
   static late DocumentReference<Map<String, dynamic>> _doc;
   static Timer? _debounce;
+
+  /// How long after the last change a push waits; a hidden page pushes now.
+  static const debounce = Duration(seconds: 30);
+
+  /// The pull check runs at most this often on a device that has synced.
+  static const pullEvery = Duration(hours: 24);
+
+  /// Tests point Sync at a fake Firestore.
+  @visibleForTesting
+  static FirebaseFirestore? db;
+  static FirebaseFirestore get _db => db ?? FirebaseFirestore.instance;
   static final List<StreamSubscription> _subs = [];
 
   static Box _box(String n) =>
@@ -54,17 +71,32 @@ class Sync {
       await clearLocal();
       await _meta.put('uid', uid);
     }
-    _doc = FirebaseFirestore.instance.collection('users').doc(uid);
-    await pull();
+    _doc = _db.collection('users').doc(uid);
+    final at = _meta.get('pulledAt') as int?;
+    if (at == null ||
+        DateTime.now().millisecondsSinceEpoch - at >= pullEvery.inMilliseconds) {
+      await pull();
+    }
     for (final n in _boxes) {
       _subs.add(
         _box(n).watch().listen((_) {
           _debounce?.cancel();
-          _debounce = Timer(const Duration(milliseconds: 1500), push);
+          _debounce = Timer(debounce, push);
         }),
       );
     }
+    if (!_hooked) {
+      _hooked = true;
+      onPageHidden(() {
+        if (_debounce?.isActive ?? false) {
+          _debounce!.cancel();
+          unawaited(push());
+        }
+      });
+    }
   }
+
+  static bool _hooked = false;
 
   /// Local changes not yet pushed. False before sync has started.
   static bool get hasUnsynced {
@@ -105,9 +137,44 @@ class Sync {
 
   static Course _course(Map m) => decodeCourse(m);
 
-  static Future<void> pull() async {
+  /// Checks the server copy and applies it when newer. A device that has
+  /// synced asks only for a copy with a higher rev, so an unchanged server
+  /// sends nothing back (1 read, no 500 KB download); [full] reads it whole.
+  static Future<void> pull({bool full = false}) async {
     try {
-      final s = await Perf.time('sync.pull', () => _doc.get());
+      final int local = _meta.get('rev', defaultValue: 0);
+      DocumentSnapshot<Map<String, dynamic>>? found;
+      // A doc last pushed by an older app version has no uid field, so the
+      // check cannot see its changes: read it whole at least once a week.
+      final fullAt = _meta.get('fullAt') as int?;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (fullAt == null || now - fullAt > const Duration(days: 7).inMilliseconds) {
+        full = true;
+      }
+      if (!full && local > 0) {
+        final q = await Perf.time(
+          'sync.pull',
+          () => _db
+              .collection('users')
+              .where('uid', isEqualTo: _doc.id)
+              .where('rev', isGreaterThan: local)
+              .get(),
+        );
+        await _meta.put('pulledAt', DateTime.now().millisecondsSinceEpoch);
+        if (q.docs.isEmpty) {
+          if (snapshot() != _meta.get('last')) await push();
+          return;
+        }
+        found = q.docs.first;
+      }
+      final DocumentSnapshot<Map<String, dynamic>> s;
+      if (found != null) {
+        s = found;
+      } else {
+        s = await Perf.time('sync.pull', () => _doc.get());
+        await _meta.put('fullAt', DateTime.now().millisecondsSinceEpoch);
+      }
+      await _meta.put('pulledAt', DateTime.now().millisecondsSinceEpoch);
       final cur = snapshot();
       final String? last = _meta.get('last');
       if (!s.exists) {
@@ -133,8 +200,29 @@ class Sync {
       final cur = snapshot();
       if (cur == _meta.get('last')) return;
       final int base = _meta.get('rev', defaultValue: 0);
-      final newRev = await FirebaseFirestore.instance
-          .runTransaction<int?>((tx) async {
+      // After one transaction push on this device (which keeps the one-time
+      // v1 copy), a push is a plain update the rules accept only as rev + 1:
+      // 1 write, no read. A refusal means another device moved on first.
+      if (base > 0 && _meta.get('v1ok') == true) {
+        try {
+          await Perf.time(
+            'sync.push.write',
+            () => _doc.update({
+              'rev': base + 1,
+              'uid': _doc.id,
+              'data': cur,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }),
+          );
+          Perf.markWrite('sync.push.write');
+          await _meta.putAll({'rev': base + 1, 'last': cur});
+        } on FirebaseException catch (e) {
+          if (e.code != 'permission-denied' && e.code != 'not-found') rethrow;
+          await pull(full: true);
+        }
+        return;
+      }
+      final newRev = await _db.runTransaction<int?>((tx) async {
             final s = await tx.get(_doc);
             Perf.mark('sync.push.read');
             final int serverRev = s.exists ? s.data()!['rev'] : 0;
@@ -146,6 +234,7 @@ class Sync {
                 (old != null && !old.contains('"format":2') ? old : null);
             tx.set(_doc, {
               'rev': base + 1,
+              'uid': _doc.id,
               'data': cur,
               if (v1 != null) 'v1': v1,
               'updatedAt': FieldValue.serverTimestamp(),
@@ -154,10 +243,10 @@ class Sync {
             return base + 1;
           });
       if (newRev == null) {
-        await pull();
+        await pull(full: true);
         return;
       }
-      await _meta.putAll({'rev': newRev, 'last': cur});
+      await _meta.putAll({'rev': newRev, 'last': cur, 'v1ok': true});
     } catch (e) {
       debugPrint('push failed: $e'); // retried on next change/launch
     }

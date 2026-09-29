@@ -17,3 +17,5 @@ double? deviceMemory() => null;
 bool promptInstall() => false;
 
 Future<String?> pickPdfText() async => null;
+
+void onPageHidden(void Function() run) {}

@@ -3,6 +3,7 @@
 library;
 
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
@@ -24,14 +25,24 @@ Offering? offeringFor(Course c) {
   return cachedOffering(c.id, app.campus!.name, term);
 }
 
-/// Reads [c]'s offering again when the copy is older than [maxAge].
+/// Reads [c]'s offering again when its version on the campus head moved, or
+/// — before any head names it — when the copy is older than [maxAge].
 Future<Offering?> refreshOfferingFor(
   Course c, {
-  Duration maxAge = const Duration(minutes: 10),
+  Duration maxAge = const Duration(hours: 24),
 }) async {
   final term = termFor(c), source = offeringSource;
   if (term == null || source == null) return offeringFor(c);
-  return refreshOffering(source, c.id, app.campus!.name, term, maxAge: maxAge);
+  final campus = app.campus!.name;
+  final head = await headFor(campus);
+  return refreshOffering(
+    source,
+    c.id,
+    campus,
+    term,
+    maxAge: maxAge,
+    version: head?.offering(c.id, term),
+  );
 }
 
 /// The term running on [now]: August–December is semester 1, January–May
@@ -55,6 +66,6 @@ Future<void> refreshCurrentOfferings({DateTime? now}) async {
   for (final c in allCourses().toList()) {
     final taking = c.grade1 == GradeCode.ongoing || c.grade1 == GradeCode.clr;
     if (!taking || termFor(c) != term) continue;
-    await refreshOfferingFor(c, maxAge: const Duration(hours: 12));
+    await refreshOfferingFor(c);
   }
 }

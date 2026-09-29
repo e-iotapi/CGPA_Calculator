@@ -27,12 +27,13 @@ class FirestoreOfferingSource implements OfferingSource {
   Future<Offering?> get(String courseId, String campus, String term) async {
     final d = await Perf.time(
       'offerings.get',
-      () => _db
-          .collection('courses')
-          .doc(courseId)
-          .collection('offerings')
-          .doc(offeringId(campus, term))
-          .get(),
+      () =>
+          _db
+              .collection('courses')
+              .doc(courseId)
+              .collection('offerings')
+              .doc(offeringId(campus, term))
+              .get(),
     );
     final m = d.data();
     return m == null ? null : Offering.fromMap(m);
@@ -54,27 +55,35 @@ Offering? cachedOffering(String courseId, String campus, String term) {
   return Offering.fromMap(v['data'] as Map);
 }
 
-/// Reads the offering when the cached copy is older than [maxAge], caches it
-/// (a missing one too, so it is not asked for again at once) and applies it.
-/// Returns the offering in use. Offline, the cached one.
+/// Reads the offering when [version] (from the campus head) moved since the
+/// cached copy, or — with no version — when the copy is older than [maxAge];
+/// caches it (a missing one too, so it is not asked for again at once) and
+/// applies it. Returns the offering in use. Offline, the cached one.
+/// Budget: 0 reads while the head's version is unchanged (re-checked weekly).
 Future<Offering?> refreshOffering(
   OfferingSource source,
   String courseId,
   String campus,
   String term, {
-  Duration maxAge = const Duration(hours: 12),
+  Duration maxAge = const Duration(hours: 24),
+  int? version,
   DateTime? now,
 }) async {
   final box = _cache ?? await Hive.openBox(offeringsBoxName);
   final key = _cacheKey(courseId, campus, term);
   final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
   final cached = box.get(key);
-  if (cached is Map && at - (cached['at'] as int) < maxAge.inMilliseconds) {
-    return cachedOffering(courseId, campus, term);
+  if (cached is Map) {
+    final age = at - (cached['at'] as int);
+    final same = version != null && cached['ver'] == version;
+    if (same && age < const Duration(days: 7).inMilliseconds ||
+        version == null && age < maxAge.inMilliseconds) {
+      return cachedOffering(courseId, campus, term);
+    }
   }
   try {
     final off = await source.get(courseId, campus, term);
-    await box.put(key, {'at': at, 'data': off?.toMap()});
+    await box.put(key, {'at': at, 'data': off?.toMap(), 'ver': version});
     if (off != null) await applyOfficial(courseId, off);
     return off;
   } on Object catch (e) {
