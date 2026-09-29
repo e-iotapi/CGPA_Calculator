@@ -863,13 +863,36 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // The version moves on every link write, and `links` holds a copy of
+    // each live link that matches it after the batch (removed: no copy).
     match /resourceVersions/{campus} {
       allow read: if mayUse();
-      allow create: if mayUse() && request.resource.data.keys().hasOnly(['v'])
-        && request.resource.data.v == 1;
-      allow update: if mayUse() && request.resource.data.keys().hasOnly(['v'])
-        && request.resource.data.v == resource.data.v + 1;
+      allow create: if mayUse() && request.resource.data.keys().hasOnly(['v', 'k', 'links'])
+        && request.resource.data.v == 1
+        && linksMirror(campus, {});
+      allow update: if mayUse() && request.resource.data.keys().hasOnly(['v', 'k', 'links'])
+        && request.resource.data.v == resource.data.v + 1
+        && linksMirror(campus, resource.data.get('links', {}));
       allow delete: if false;
+    }
+
+    function linksMirror(campus, was) {
+      let now = request.resource.data.get('links', {});
+      let k = request.resource.data.get('k', '');
+      let ks = now.diff(was).affectedKeys();
+      return ks.size() == 0
+        || (ks.hasOnly([k]) && linkCopy(campus, k, now));
+    }
+
+    function linkCopy(campus, k, now) {
+      let r = getAfter(/databases/$(db)/documents/resources/$(k)).data;
+      return r.campus == campus
+        && (r.get('removed', false) == true
+            ? !(k in now)
+            : now[k].title == r.title && now[k].url == r.url
+              && now[k].department == r.department && now[k].scope == r.scope
+              && now[k].courseIds == r.courseIds
+              && now[k].pinnedToDepartment == r.pinnedToDepartment);
     }
 
     // Reports: one per person per link, id sha256(uid + resourceId), no uid
