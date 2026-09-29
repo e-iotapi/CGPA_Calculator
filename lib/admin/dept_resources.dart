@@ -523,7 +523,17 @@ class _DeptResourcesState extends State<DeptResources> {
         c == null
             ? await _store.flags(widget.campus, widget.dept)
             : await _store.courseFlags(widget.campus, c);
-    return (links: links, flags: flags);
+    // A report can outlive its link (removed, or moved departments); drop
+    // it here so every count on this screen agrees with what is listed
+    // (BUG-13: "Reported 4" over a list of 1).
+    final ids = {for (final r in links) r.id};
+    return (
+      links: links,
+      flags: [
+        for (final f in flags)
+          if (ids.contains(f.resourceId)) f,
+      ],
+    );
   }
 
   void _reload() => setState(() => _loads++);
