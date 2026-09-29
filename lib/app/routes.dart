@@ -33,6 +33,7 @@ abstract final class Routes {
   static const adminRoster = '/admin/roster';
   static const adminVolunteers = '/admin/roster/volunteers';
   static const adminPublish = '/admin/publish';
+  static const adminAnalytics = '/admin/analytics';
   static const adminMerge = '/admin/professors/merge';
   static const openAs = '/admin/open-as';
   static const openAsDept = '/admin/open-as/department';

@@ -28,11 +28,15 @@ describe('people', () => {
     await assertFails(setDoc(doc(as(NEVER), 'people', NEVER), { name: 'Me', campus: 'pilani', firstSignIn: 1 }));
   });
 
-  test('checked by owners, admins and presidents; never browsed', async () => {
+  test('checked by owners, admins and presidents; browsed by owners only', async () => {
     await assertSucceeds(getDoc(doc(as(OWNER), 'people', STUDENT)));
     await assertSucceeds(getDoc(doc(as(PRES), 'people', STUDENT)));
     await assertFails(getDoc(doc(as(STUDENT), 'people', OTHER)));
-    await assertFails(getDocs(collection(as(OWNER), 'people')));
+    // Owners list people for site analytics' count(), which rules treat
+    // as a listing; nobody else browses.
+    await assertSucceeds(getDocs(collection(as(OWNER), 'people')));
+    await assertFails(getDocs(collection(as(ADMIN), 'people')));
+    await assertFails(getDocs(collection(as(PRES), 'people')));
   });
 });
 

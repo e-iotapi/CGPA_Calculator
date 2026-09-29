@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/analytics/analytics_store.dart';
 import 'package:cgpa_calculator/core/catalog/publish.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -10,6 +11,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/count_badge.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -247,11 +249,11 @@ class _AdminHomeState extends State<AdminHome> {
               'See the app as any role; saves stay yours',
               () => go(Routes.openAs),
             ),
-            const _Row(
+            _Row(
               Icons.insights_outlined,
               'Site analytics',
-              'Coming later',
-              null,
+              'Users, daily actives and the busiest hours',
+              () => go(Routes.adminAnalytics),
             ),
           ]),
         ],
@@ -333,6 +335,194 @@ class _Rows extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// "1,240".
+String _thousands(int n) =>
+    n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
+
+/// Owners only (§4, "Publishing, analytics"): Controls' structure over the
+/// sampled day docs and exact people counts (PERF_TEST_PLAN.md §D). Rows of
+/// numbers, no charts; about 40 reads an open.
+class SiteAnalytics extends StatefulWidget {
+  const SiteAnalytics({super.key, this.now});
+
+  /// Fixed in render tests, so the dates do not move daily.
+  final DateTime? now;
+
+  @override
+  State<SiteAnalytics> createState() => _SiteAnalyticsState();
+}
+
+class _SiteAnalyticsState extends State<SiteAnalytics> {
+  String? _campus;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final store = AnalyticsStore(roleStore!.db);
+    return Loaded<(PeopleCounts, List<DayCounts>)>(
+      key: ValueKey(_campus),
+      load: () async {
+        final r = await Future.wait<Object>([
+          store.counts(campus: _campus, now: widget.now),
+          store.days(30, campus: _campus, now: widget.now),
+        ]);
+        return (r[0] as PeopleCounts, r[1] as List<DayCounts>);
+      },
+      builder: (context, data, _) {
+        final (people, days) = data;
+        final today = days.first;
+        final peakDay = days.fold<DayCounts?>(
+          null,
+          (b, d) => d.dau > 0 && (b == null || d.dau > b.dau) ? d : b,
+        );
+        Widget rows(List<Widget> children) => AppCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final (i, c) in children.indexed) ...[
+                if (i > 0) const CardDivider(),
+                c,
+              ],
+            ],
+          ),
+        );
+        CardRow row(
+          String title,
+          String value, {
+          String? subtitle,
+          bool peak = false,
+        }) => CardRow(
+          title: title,
+          subtitle: subtitle,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (peak) ...[
+                const CountBadge('PEAK', tone: CountTone.on),
+                const SizedBox(width: Space.xs),
+              ],
+              Text(
+                value,
+                style: TypeScale.body.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        );
+        String day(String d) {
+          final t = DateTime.parse(d);
+          const w = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          const m = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec',
+          ];
+          return '${w[t.weekday - 1]} ${t.day} ${m[t.month - 1]}';
+        }
+
+        final hours =
+            today.hours.entries.toList()
+              ..sort((a, b) => a.key.compareTo(b.key));
+        return PageFrame(
+          header: const PageHeader(
+            eyebrow: 'OWNERS ONLY',
+            title: 'Site analytics',
+          ),
+          children: [
+            ChoicePills<String?>(
+              values: const [null, ...campuses],
+              selected: _campus,
+              label: (c) => c == null ? 'All campuses' : campusName(c),
+              onSelected: (c) => setState(() => _campus = c),
+            ),
+            const SizedBox(height: Space.sm),
+            Container(
+              padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
+              decoration: BoxDecoration(
+                color: p.navBackground,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const TierTag('TODAY'),
+                  const SizedBox(height: Space.sm),
+                  Text(
+                    'About ${_thousands(today.dau)} active · '
+                    '${_thousands(people.users)} users · '
+                    '${_thousands(people.newToday)} new',
+                    style: TypeScale.body.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: p.isDark ? p.text : p.onInverse,
+                    ),
+                  ),
+                  const SizedBox(height: Space.xs),
+                  Text(
+                    today.peak == null
+                        ? 'No sampled activity yet today.'
+                        : 'Busiest so far ${today.peak!.key}:00, '
+                            'about ${_thousands(today.peak!.value)} opens.',
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                      color: p.navIcon,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SectionLabel('Users'),
+            rows([
+              row('Signed up', _thousands(people.users)),
+              row('New this week', _thousands(people.newWeek)),
+              row(
+                'Active this week',
+                _thousands(people.week),
+                subtitle: 'Seen in the last 7 days, give or take a week',
+              ),
+              row('Active this month', _thousands(people.month)),
+            ]),
+            const SectionLabel('Daily actives, last 30 days'),
+            rows([
+              for (final d in days)
+                row(day(d.day), _thousands(d.dau), peak: d == peakDay),
+            ]),
+            if (hours.isNotEmpty) ...[
+              const SectionLabel('Today by hour'),
+              rows([
+                for (final h in hours)
+                  row(
+                    '${h.key}:00',
+                    _thousands(h.value),
+                    peak: h.key == today.peak?.key,
+                  ),
+              ]),
+            ],
+            const SizedBox(height: Space.sm),
+            const Notice(
+              text: TextSpan(
+                text:
+                    'Active counts are estimates from 1 in 20 people a day, '
+                    'in India time. User counts are exact.',
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
