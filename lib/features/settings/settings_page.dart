@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
@@ -36,6 +37,7 @@ Future<void> signOut() async {
   await Sync.stop();
   await FirebaseAuth.instance.signOut();
   await Sync.clearLocal();
+  await clearAccountCaches();
   reloadPage();
 }
 

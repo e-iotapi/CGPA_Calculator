@@ -1,3 +1,5 @@
+import 'package:hive/hive.dart';
+
 /// Hive boxes that cache shared data read from Firestore — the catalogue
 /// bundle (ARCHITECTURE.md §3), and later reviews, resources, reports and the
 /// directory. Each is opened with Hive alone and never registered in `Sync`,
@@ -20,3 +22,11 @@ const sharedCacheBoxName = 'sharedCache';
 /// Per-device state that must not follow the account to another device:
 /// the role Pointer opens in (§16.3 fix 15) and the cached roles.
 const deviceBoxName = 'deviceBox';
+
+/// Empties every open cache box but the catalogue (the same for everyone):
+/// what one account saw must not show to the next on this device.
+Future<void> clearAccountCaches() async {
+  for (final n in cacheBoxes) {
+    if (n != 'catalogBox' && Hive.isBoxOpen(n)) await Hive.box(n).clear();
+  }
+}
