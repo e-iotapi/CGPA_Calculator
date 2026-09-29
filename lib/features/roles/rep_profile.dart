@@ -105,6 +105,9 @@ class _RepProfilePageState extends State<RepProfilePage> {
   Future<void> _save() async {
     setState(() => _busy = true);
     try {
+      // The listing must match each grant's expiry as it stands now; a
+      // cached copy (up to 7 days old) misses a handover or renewal.
+      await refreshMyRoles();
       await contactStore!.saveProfile(
         myRoles.value,
         name: _name.text,

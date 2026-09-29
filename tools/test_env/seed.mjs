@@ -302,7 +302,10 @@ async function seedCatalog(db, byKey) {
 // ---- grants + staff ---------------------------------------------------
 
 const grantId = (g) => `${g.role}|${g.campus}|${g.scope}|${g.email}`;
-const inDays = (n) => admin.firestore.Timestamp.fromMillis(Date.now() + n * 864e5);
+// One clock per run: a directory entry's `until` must equal its grant's
+// expiresAt exactly, or the rules refuse the person's next profile save.
+const seededAt = Date.now();
+const inDays = (n) => admin.firestore.Timestamp.fromMillis(seededAt + n * 864e5);
 
 async function seedGrantsAndStaff(db, byKey) {
   for (const a of accounts_with_roles(byKey)) {

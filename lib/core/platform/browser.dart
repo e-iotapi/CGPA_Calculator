@@ -25,6 +25,9 @@ void onPageHidden(void Function() run) => impl.onPageHidden(run);
 void onDomPointerDown(void Function(double x, double y) run) =>
     impl.onDomPointerDown(run);
 
+/// Deletes Firebase Auth's saved sign-in on this origin.
+void forgetSavedSignIn() => impl.forgetSavedSignIn();
+
 /// The browser's user agent, for bug reports.
 String userAgent() => impl.userAgent();
 

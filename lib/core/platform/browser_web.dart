@@ -133,3 +133,7 @@ void onDomPointerDown(void Function(double x, double y) run) {
     web.AddEventListenerOptions(capture: true, passive: true),
   );
 }
+
+// IndexedDB runs requests in order, so Firebase's later open waits for this.
+void forgetSavedSignIn() =>
+    web.window.indexedDB.deleteDatabase('firebaseLocalStorageDb');
