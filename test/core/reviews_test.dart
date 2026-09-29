@@ -11,6 +11,22 @@ void main() {
     expect(hashedId('uid1', 'CS F111'), matches(RegExp(r'^[0-9a-f]{64}$')));
   });
 
+  test('withHelpful bumps the count and keeps everything else', () {
+    const r = Review(
+      id: 'x',
+      courseId: 'CS F111',
+      stars: 4,
+      recommend: true,
+      campus: 'goa',
+      term: '2026-1',
+      helpful: 2,
+    );
+    final bumped = r.withHelpful(3);
+    expect(bumped.helpful, 3);
+    expect(bumped.stars, r.stars);
+    expect(bumped.id, r.id);
+  });
+
   test('stats add up; empty stats say nothing', () {
     const a = ReviewStats(count: 2, starSum: 9, recommendCount: 2);
     const b = ReviewStats(count: 2, starSum: 5, recommendCount: 0);

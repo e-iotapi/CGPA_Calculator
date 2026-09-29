@@ -140,6 +140,20 @@ describe('grants', () => {
     await assertSucceeds(revoke(as(ADMIN), ADMIN, self, { presidentOf: [] }));
   });
 
+  // RoleStore.appoint() first get()s the grant doc to tell a fresh
+  // appointment from a renewal; that doc does not exist yet for a first
+  // appointment. A get() on a not-yet-existing grant must not error
+  // (BUG-02/BUG-49: readsRoster() used to dereference resource.data
+  // unconditionally, so any non-owner/admin appointer's pre-read failed).
+  test('a get() on a not-yet-existing grant does not error', async () => {
+    const id = `course|goa|EEE F211|${STUDENT}`;
+    await assertSucceeds(getDoc(doc(as(PRES), 'grants', id)));
+    await assertSucceeds(getDoc(doc(as(ADMIN), 'grants', id)));
+    // Nothing to leak when there is no document: any mayUse() reader may
+    // see that it is absent.
+    await assertSucceeds(getDoc(doc(as(OTHER), 'grants', id)));
+  });
+
   test('nobody writes their own staff index to look like a president', async () => {
     await assertFails(
       setDoc(doc(as(STUDENT), 'staff', STUDENT), {
