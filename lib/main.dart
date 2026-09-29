@@ -92,10 +92,15 @@ Future<void> startApp(User user) async {
   // Budget: timing only (P0); loadCatalog/Sync.init read no Firestore
   // documents worth counting on their own — Sync.pull's users/{uid} get is
   // counted inside sync.dart.
-  await Perf.time('startup.loadCatalog', loadCatalog);
+  // openOfferings/openSharedCache are independent Hive boxes: start them
+  // alongside the catalogue load instead of after it.
+  final catalogDone = Perf.time('startup.loadCatalog', loadCatalog);
+  final offeringsDone = openOfferings();
+  final sharedCacheDone = openSharedCache();
+  await catalogDone;
   await Perf.time('startup.syncInit', () => Sync.init(user.uid));
-  await openOfferings();
-  await openSharedCache(); // before anything reads a campus head
+  await offeringsDone;
+  await sharedCacheDone; // before anything reads a campus head
   offeringSource = FirestoreOfferingSource();
   final bootCampus = Hive.box('settingsBox').get('campus') as String?;
   unawaited(refreshCatalog(
@@ -106,9 +111,7 @@ Future<void> startApp(User user) async {
   unawaited(refreshCurrentOfferings());
   // Roles (ARCHITECTURE.md §4): the last known set opens at once, the live
   // one follows.
-  await openDeviceBox();
-  await openResources();
-  await openReviews();
+  await Future.wait([openDeviceBox(), openResources(), openReviews()]);
   myUid = user.uid;
   stripNavigate = appRouter.go;
   restoreMyRoles(email: user.email);
@@ -127,10 +130,12 @@ Future<void> startApp(User user) async {
     );
     unawaited(refreshMyRolesIfDue().then((_) => checkProfile()));
   }
-  await SystemChrome.setPreferredOrientations([
+  // A platform-channel round trip; the lock takes effect whenever it lands
+  // and does not need to gate the first frame.
+  unawaited(SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]);
+  ]));
   runApp(MyApp());
 }
 
