@@ -1,4 +1,4 @@
-// Step 10, as registered in test/PREREGISTERED_10_11.md (R1–R12).
+// Step 10, as registered in agent_instructions/deprecated/PREREGISTERED_10_11.md (R1–R12).
 import 'dart:io';
 
 import 'package:cgpa_calculator/admin/dept_reviews.dart';

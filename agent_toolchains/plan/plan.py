@@ -22,7 +22,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-FILES = ['UI.md', 'UI_OPT.md', 'PERF_TEST_PLAN.md']
+FILES = ['agent_instructions/deprecated/UI.md', 'agent_instructions/deprecated/UI_OPT.md',
+         'agent_instructions/PERF_TEST_PLAN.md']
 HEAD = re.compile(r'^(#{1,6}) (.*)$')
 CARD = re.compile(r'^\*\*(T\d+\.\d+)\b')
 FIND = re.compile(r'^- \*\*(N\d+)\b')
@@ -82,7 +83,7 @@ def main(argv):
     docs = load()
     if argv[0] == 'list':
         for f, (_, items) in docs.items():
-            if len(argv) > 1 and f != argv[1]:
+            if len(argv) > 1 and argv[1] not in (f, os.path.basename(f)):
                 continue
             for it in items:
                 pad = '  ' * (min(it['level'], 7) - 1) if it['kind'] == 'h' else '    '
@@ -93,7 +94,7 @@ def main(argv):
         for want in argv[1:]:
             only, _, key = want.rpartition(':')  # UI_OPT.md:1.1 picks a file
             hits = [(f, lines, it) for f, (lines, items) in docs.items() for it in items
-                    if it['id'] == key.lstrip('§') and only in ('', f)]
+                    if it['id'] == key.lstrip('§') and only in ('', f, os.path.basename(f))]
             if len(hits) != 1:
                 where = ', '.join(f"{f}:{it['start'] + 1}" for f, _, it in hits)
                 print(f'ERROR {want}: {len(hits)} matches {where}'.rstrip(), file=sys.stderr)

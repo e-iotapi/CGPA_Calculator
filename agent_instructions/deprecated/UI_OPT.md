@@ -1,3 +1,5 @@
+> **Deprecated (2026-09-29):** the smoothness work it guided shipped with the UI rebuild (`agent_instructions/UI_REBUILD_HANDOFF.md`). `plan.py get` still reads its ids. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # UI_OPT.md — making Pointer smooth on older phones, with the same UI
 
 A step-by-step guide. It is written for an implementing agent that builds it card by card.

@@ -1,3 +1,5 @@
+> **Deprecated (2026-09-29):** numbers for `UI_OPT.md`'s phases. Current measurements are in `agent_instructions/PERF_BASELINE.md`. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # UI_PERF_BASELINE
 
 Numbers from UI_OPT.md §3 O0.4's device check, one table per phase. This

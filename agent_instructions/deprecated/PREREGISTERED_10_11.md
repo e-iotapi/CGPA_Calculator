@@ -1,3 +1,5 @@
+> **Deprecated (2026-09-29):** the test preregistration for ARCHITECTURE.md §9 steps 10 and 11, both built. The tests it names live in `test/`. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # Pre-registered tests: §9 steps 10 and 11
 
 Registered 27 Sep 2026, before any of these tests were written or run. Each line is the

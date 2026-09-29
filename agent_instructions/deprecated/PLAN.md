@@ -1,3 +1,5 @@
+> **Deprecated (2026-09-29):** the first implementation plan, retired on 2026-09-26. `agent_instructions/ARCHITECTURE.md` replaced it as the design of record. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # Pointer — implementation plan
 
 Hand this to Claude Code from the repo root:
