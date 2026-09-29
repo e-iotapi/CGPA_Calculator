@@ -38,6 +38,8 @@ void main() {
     expect(d['rev'], 2);
     expect(d['uid'], 'u1');
     await Hive.box('settingsBox').put('batch', 25);
+    await Future<void>.delayed(Duration.zero); // the watch event
+    expect(Sync.hasUnsynced, isTrue);
     await Sync.push();
     d = (await db.doc('users/u1').get()).data()!;
     expect(d['rev'], 3);

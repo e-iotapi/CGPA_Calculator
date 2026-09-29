@@ -27,6 +27,7 @@ class Sync {
     'offshootBox',
     'marksBox',
   ];
+
   /// The boxes mirrored into users/{uid}. Caches of shared data never
   /// belong here (core/storage/cache_boxes.dart).
   @visibleForTesting
@@ -76,12 +77,15 @@ class Sync {
     _doc = _db.collection('users').doc(uid);
     final at = _meta.get('pulledAt') as int?;
     if (at == null ||
-        DateTime.now().millisecondsSinceEpoch - at >= pullEvery.inMilliseconds) {
+        DateTime.now().millisecondsSinceEpoch - at >=
+            pullEvery.inMilliseconds) {
       await pull();
     }
+    _dirty = snapshot() != _meta.get('last');
     for (final n in _boxes) {
       _subs.add(
         _box(n).watch().listen((_) {
+          _dirty = true;
           _debounce?.cancel();
           _debounce = Timer(debounce, push);
         }),
@@ -100,14 +104,23 @@ class Sync {
 
   static bool _hooked = false;
 
-  /// Local changes not yet pushed. False before sync has started.
+  /// Local changes not yet pushed: set by any write to a synced box,
+  /// cleared once the server holds this snapshot. No encoding per call (the
+  /// offline strip asks on every rebuild). False before sync has started.
   static bool get hasUnsynced {
-    try {
-      return snapshot() != _meta.get('last');
-    } catch (_) {
-      return false;
+    // Encodes only while flagged: a pull's own writes flag it too, and
+    // this clears them.
+    if (_dirty) {
+      try {
+        _dirty = snapshot() != _meta.get('last');
+      } catch (_) {
+        return false;
+      }
     }
+    return _dirty;
   }
+
+  static bool _dirty = false;
 
   static Future<void> stop() async {
     for (final s in _subs) {
@@ -150,17 +163,19 @@ class Sync {
       // check cannot see its changes: read it whole at least once a week.
       final fullAt = _meta.get('fullAt') as int?;
       final now = DateTime.now().millisecondsSinceEpoch;
-      if (fullAt == null || now - fullAt > const Duration(days: 7).inMilliseconds) {
+      if (fullAt == null ||
+          now - fullAt > const Duration(days: 7).inMilliseconds) {
         full = true;
       }
       if (!full && local > 0) {
         final q = await Perf.time(
           'sync.pull',
-          () => _db
-              .collection('users')
-              .where('uid', isEqualTo: _doc.id)
-              .where('rev', isGreaterThan: local)
-              .get(),
+          () =>
+              _db
+                  .collection('users')
+                  .where('uid', isEqualTo: _doc.id)
+                  .where('rev', isGreaterThan: local)
+                  .get(),
         );
         await _meta.put('pulledAt', DateTime.now().millisecondsSinceEpoch);
         if (q.docs.isEmpty) {
@@ -192,6 +207,7 @@ class Sync {
       if (last != null && cur != last) await _meta.put('backup', cur);
       await apply(s.data()!['data'] as String);
       await _meta.putAll({'rev': rev, 'last': snapshot()});
+      _dirty = false;
     } catch (e) {
       debugPrint('pull failed: $e'); // offline: stay local
     }
@@ -200,7 +216,10 @@ class Sync {
   static Future<void> push() async {
     try {
       final cur = snapshot();
-      if (cur == _meta.get('last')) return;
+      if (cur == _meta.get('last')) {
+        _dirty = false;
+        return;
+      }
       final int base = _meta.get('rev', defaultValue: 0);
       // After one transaction push on this device (which keeps the one-time
       // v1 copy), a push is a plain update the rules accept only as rev + 1:
@@ -218,6 +237,7 @@ class Sync {
           );
           Perf.markWrite('sync.push.write');
           await _meta.putAll({'rev': base + 1, 'last': cur});
+          _dirty = false;
         } on FirebaseException catch (e) {
           if (e.code != 'permission-denied' && e.code != 'not-found') rethrow;
           await pull(full: true);
@@ -225,30 +245,32 @@ class Sync {
         return;
       }
       final newRev = await _db.runTransaction<int?>((tx) async {
-            final s = await tx.get(_doc);
-            Perf.mark('sync.push.read');
-            final int serverRev = s.exists ? s.data()!['rev'] : 0;
-            if (serverRev != base) return null; // conflict
-            // The last whole-course snapshot is kept once, so the move to
-            // courses stored by id can be undone (ARCHITECTURE.md §9 step 3).
-            final String? old = s.data()?['data'];
-            final v1 = s.data()?['v1'] ??
-                (old != null && !old.contains('"format":2') ? old : null);
-            tx.set(_doc, {
-              'rev': base + 1,
-              'uid': _doc.id,
-              'data': cur,
-              if (v1 != null) 'v1': v1,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-            Perf.markWrite('sync.push.write');
-            return base + 1;
-          });
+        final s = await tx.get(_doc);
+        Perf.mark('sync.push.read');
+        final int serverRev = s.exists ? s.data()!['rev'] : 0;
+        if (serverRev != base) return null; // conflict
+        // The last whole-course snapshot is kept once, so the move to
+        // courses stored by id can be undone (ARCHITECTURE.md §9 step 3).
+        final String? old = s.data()?['data'];
+        final v1 =
+            s.data()?['v1'] ??
+            (old != null && !old.contains('"format":2') ? old : null);
+        tx.set(_doc, {
+          'rev': base + 1,
+          'uid': _doc.id,
+          'data': cur,
+          if (v1 != null) 'v1': v1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        Perf.markWrite('sync.push.write');
+        return base + 1;
+      });
       if (newRev == null) {
         await pull(full: true);
         return;
       }
       await _meta.putAll({'rev': newRev, 'last': cur, 'v1ok': true});
+      _dirty = false;
     } catch (e) {
       debugPrint('push failed: $e'); // retried on next change/launch
     }

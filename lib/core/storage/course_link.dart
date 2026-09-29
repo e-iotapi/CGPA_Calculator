@@ -112,9 +112,9 @@ Future<void> relinkStoredCourses(Catalog previous, Catalog next) async {
   for (final name in const ['coursesBox', 'offshootBox']) {
     if (!Hive.isBoxOpen(name)) continue;
     final box = Hive.box<Course>(name);
-    for (final e in box.toMap().entries) {
-      final moved = relink(e.value, previous, next);
-      if (moved != null) await box.put(e.key, moved);
-    }
+    await box.putAll({
+      for (final e in box.toMap().entries)
+        if (relink(e.value, previous, next) case final moved?) e.key: moved,
+    });
   }
 }

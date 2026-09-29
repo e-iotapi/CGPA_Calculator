@@ -124,23 +124,21 @@ Future<void> initializeCourses() async {
   final rows = chartRows(batch);
   if (erase == 1) {
     await coursesBox.clear();
-    for (final c in seedCourses(selecteddiscipline, rows)) {
-      await coursesBox.put(c.id, c);
-    }
+    await coursesBox.putAll({
+      for (final c in seedCourses(selecteddiscipline, rows)) c.id: c,
+    });
     setsort();
   } else if (erase == 0) {
     if (degree_selected && needsSeed(selecteddiscipline, coursesBox.values)) {
-      for (final c in seedCourses(selecteddiscipline, rows)) {
-        await coursesBox.put(c.id, c);
-      }
+      await coursesBox.putAll({
+        for (final c in seedCourses(selecteddiscipline, rows)) c.id: c,
+      });
       setsort();
     }
   } else if (erase == 2) {
     final plan = reseedSecondHalf(selecteddiscipline, coursesBox.toMap(), rows);
     await coursesBox.deleteAll(plan.drop);
-    for (final c in plan.add) {
-      await coursesBox.put(c.id, c);
-    }
+    await coursesBox.putAll({for (final c in plan.add) c.id: c});
   }
   await placeDualPracticeSchool(coursesBox, selecteddiscipline);
 }
