@@ -167,7 +167,10 @@ class _AdminHomeState extends State<AdminHome> {
           _Row(
             Icons.add_rounded,
             'Appoint someone',
-            'A president, CR or admin, for a set term',
+            // Only owners can appoint an admin (BUG-26): say so accurately.
+            owner
+                ? 'A president, CR or admin, for a set term'
+                : 'A president or CR, for a set term',
             () => go(Routes.adminGrant),
             mint: true,
           ),

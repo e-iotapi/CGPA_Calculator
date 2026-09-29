@@ -420,6 +420,9 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
                 controller: _title,
                 minLines: 1,
                 maxLines: 2,
+                // Unbounded titles made a course card run to ~6 lines
+                // (BUG-30).
+                maxLength: 80,
                 onChanged: edited,
                 textCapitalization: TextCapitalization.words,
                 style: input,
