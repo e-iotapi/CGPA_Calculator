@@ -90,10 +90,10 @@ async function wipeEmulator(projectId) {
 const SEEDED_COLLECTIONS = [
   'owners', 'grants', 'staff', 'audit', 'staffContacts', 'directory',
   'volunteers', 'people', 'professors', 'resources', 'resourceVersions',
-  'users',
+  'users', 'reviewIndex',
 ];
 const SEEDED_COLLECTION_GROUPS = [
-  'offerings', 'entries', 'votes', 'reports', 'stats',
+  'offerings', 'entries', 'votes', 'reports', 'stats', 'campus',
 ];
 
 /// Staging never gets a full wipe: only documents this script itself wrote
@@ -646,6 +646,38 @@ async function seedReviews(db, byKey, professorIds) {
     );
   }
   await statsBatch.commit();
+  await seedReviewCopies(db);
+}
+
+// The per-campus copies the app reads (reviewIndex, reviews/{c}/campus),
+// derived from the entries so they always agree.
+async function seedReviewCopies(db) {
+  const index = {};
+  const mirrors = {};
+  for (const d of (await db.collectionGroup('entries').get()).docs) {
+    const e = d.data();
+    if (!d.ref.path.startsWith('reviews/') || e.hidden) continue;
+    const c = (index[e.campus] ??= {});
+    const t = (c[e.courseId] ??= { count: 0, starSum: 0, recommendCount: 0 });
+    t.count += 1;
+    t.starSum += e.stars;
+    t.recommendCount += e.recommend ? 1 : 0;
+    const m = (mirrors[`${e.courseId}|${e.campus}`] ??= {});
+    m[d.id] = {
+      stars: e.stars, recommend: e.recommend, text: e.text ?? null, term: e.term,
+      professorId: e.professorId ?? null, helpful: e.helpful ?? 0,
+      createdAt: e.createdAt, updatedAt: e.updatedAt,
+    };
+  }
+  const b = db.batch();
+  for (const [campus, c] of Object.entries(index)) {
+    b.set(db.doc(`reviewIndex/${campus}`), { k: 'seed', c });
+  }
+  for (const [key, r] of Object.entries(mirrors)) {
+    const [courseId, campus] = key.split('|');
+    b.set(db.doc(`reviews/${courseId}/campus/${campus}`), { k: 'seed', r });
+  }
+  await b.commit();
 }
 
 // ---- resources ------------------------------------------------------------

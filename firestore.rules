@@ -655,6 +655,36 @@ service cloud.firestore {
       allow list: if mayUse() && readsModeration(resource.data);
     }
 
+    // The student-visible copy of a campus's reviews of a course, one doc:
+    // an entry mirrors its review after the batch, and a hidden review has
+    // none.
+    match /reviews/{c}/campus/{campus} {
+      allow get: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['k', 'r'])
+        && mirrors(c, campus);
+      allow delete: if false;
+    }
+
+    function mirrors(c, campus) {
+      let k = request.resource.data.k;
+      let was = resource == null ? {} : resource.data.get('r', {});
+      let now = request.resource.data.r;
+      let e = getAfter(reviewPath(c, k)).data;
+      return now.diff(was).affectedKeys().hasOnly([k])
+        && e.campus == campus
+        && (e.hidden
+            ? !(k in now)
+            : now[k].keys().hasOnly(['stars', 'recommend', 'text', 'term',
+                  'professorId', 'helpful', 'createdAt', 'updatedAt'])
+              && now[k].stars == e.stars
+              && now[k].recommend == e.recommend
+              && now[k].get('text', null) == e.get('text', null)
+              && now[k].term == e.term
+              && now[k].professorId == e.professorId
+              && now[k].helpful == e.helpful);
+    }
+
     match /reviews/{c}/entries/{id} {
       allow get: if mayUse()
         && (id == hashOf(c)

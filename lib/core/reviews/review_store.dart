@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
@@ -11,9 +9,6 @@ import 'package:hive/hive.dart';
 const reviewsBoxName = 'reviewsBox';
 
 Future<void> openReviews() => Hive.openBox(reviewsBoxName);
-
-Box? get _cache =>
-    Hive.isBoxOpen(reviewsBoxName) ? Hive.box(reviewsBoxName) : null;
 
 /// Reviews and their counters (ARCHITECTURE.md §10.3). Every write moves the
 /// course counter — and the professor's, when there is one — in the same
@@ -141,7 +136,16 @@ class ReviewStore {
     return all.take(limit).toList();
   }
 
-  /// One page of visible reviews on [campus], newest page after [after].
+  DocumentReference<Map<String, dynamic>> _mirror(
+    String courseId,
+    String campus,
+  ) => db.collection('reviews').doc(courseId).collection('campus').doc(campus);
+
+  /// Every visible review of [courseId] on [campus], from one doc
+  /// (`reviews/{c}/campus/{campus}`), sorted by [order]; [professorIds]
+  /// narrows it. One page holds them all, so `last` is always null.
+  // ponytail: one doc caps near 1,000 reviews per course and campus; shard
+  // by year past that.
   Future<({List<Review> reviews, DocumentSnapshot? last})> page(
     String courseId,
     String campus, {
@@ -152,45 +156,59 @@ class ReviewStore {
     Duration fresh = const Duration(minutes: 10),
     DateTime? now,
   }) async {
-    // The first page of each view is cached (§10.3).
-    final key = [courseId, campus, ...?professorIds, order.name].join('|');
-    final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
-    final raw = after == null ? _cache?.get(key) : null;
-    if (raw is String) {
-      final m = jsonDecode(raw) as Map;
-      if (at - (m['at'] as int) < fresh.inMilliseconds) {
-        return (
-          reviews: [
-            for (final e in (m['rows'] as Map).entries)
-              Review.fromMap(e.key as String, courseId, e.value as Map),
-          ],
-          last: null,
+    if (after != null) return (reviews: const <Review>[], last: null);
+    final all = await cacheFirst<List<Review>>(
+      key: 'rcd|$courseId|$campus',
+      maxAge: fresh,
+      now: now == null ? null : () => now,
+      fetch: () async {
+        final d = await Perf.time(
+          'reviews.page',
+          () => _mirror(courseId, campus).get(),
         );
-      }
-    }
-    Query<Map<String, dynamic>> q = entries(
-      courseId,
-    ).where('campus', isEqualTo: campus).where('hidden', isEqualTo: false);
-    if (professorIds != null) {
-      q = q.where('professorId', whereIn: professorIds.take(10).toList());
-    }
-    q = q.orderBy(order.field, descending: order.descending).limit(limit);
-    if (after != null) q = q.startAfterDocument(after);
-    final r = await q.get();
-    final reviews = [
-      for (final d in r.docs) Review.fromMap(d.id, courseId, d.data()),
-    ];
-    if (after == null) {
-      await _cache?.put(
-        key,
-        jsonEncode({
-          'at': at,
-          'rows': {for (final x in reviews) x.id: x.toMap()},
-        }),
-      );
-    }
-    return (reviews: reviews, last: r.docs.lastOrNull);
+        return [
+          for (final e in ((d.data()?['r'] as Map?) ?? const {}).entries)
+            Review.fromMap('${e.key}', courseId, {
+              ...e.value as Map,
+              'campus': campus,
+            }),
+        ];
+      },
+      encode: (rs) => {for (final r in rs) r.id: r.toMap()},
+      decode:
+          (o) => [
+            for (final e in (o as Map).entries)
+              Review.fromMap('${e.key}', courseId, e.value as Map),
+          ],
+    );
+    int key(Review r) => switch (order) {
+      ReviewOrder.helpful => r.helpful,
+      ReviewOrder.recent => r.createdAt,
+      ReviewOrder.highest || ReviewOrder.lowest => r.stars,
+    };
+    final shown = [
+      for (final r in all)
+        if (professorIds == null || professorIds.contains(r.professorId)) r,
+    ]..sort(
+      (a, b) =>
+          order.descending
+              ? key(b).compareTo(key(a))
+              : key(a).compareTo(key(b)),
+    );
+    return (reviews: shown, last: null);
   }
+
+  /// The student-visible copy of a review in its campus doc, in [b].
+  void _mirrorSet(
+    WriteBatch b,
+    String courseId,
+    String campus,
+    String reviewId,
+    Object entry,
+  ) => b.set(_mirror(courseId, campus), {
+    'k': reviewId,
+    'r': {reviewId: entry},
+  }, SetOptions(merge: true));
 
   // Budget: 1 read per reviewed course, sequentially ("Your reviews" tab, P0).
   Future<Review?> mine(String courseId) async {
@@ -283,6 +301,16 @@ class ReviewStore {
         stars: stars,
         recommend: recommend ? 1 : 0,
       );
+      _mirrorSet(b, courseId, campus, id, {
+        'stars': stars,
+        'recommend': recommend,
+        if (t != null && t.isNotEmpty) 'text': t,
+        'term': term,
+        'professorId': professorId,
+        'helpful': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } else {
       b.update(ref, {
         'stars': stars,
@@ -291,6 +319,12 @@ class ReviewStore {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       if (!before.hidden) {
+        _mirrorSet(b, courseId, before.campus, id, {
+          'stars': stars,
+          'recommend': recommend,
+          'text': t == null || t.isEmpty ? FieldValue.delete() : t,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
         _count(
           b,
           courseId,
@@ -309,13 +343,14 @@ class ReviewStore {
 
   /// Drops [courseId]'s cached pages after a write, so the change shows.
   Future<void> _forget(String courseId) async {
-    await sharedCacheBox?.deleteAll(
-      sharedCacheBox!.keys.where((k) => '$k'.startsWith('rix|')).toList(),
-    );
-    final c = _cache;
+    final c = sharedCacheBox;
     if (c == null) return;
     await c.deleteAll(
-      c.keys.where((k) => '$k'.startsWith('$courseId|')).toList(),
+      c.keys
+          .where(
+            (k) => '$k'.startsWith('rix|') || '$k'.startsWith('rcd|$courseId|'),
+          )
+          .toList(),
     );
   }
 
@@ -341,8 +376,14 @@ class ReviewStore {
             ...extra,
           })
           ..update(ref, {counter: FieldValue.increment(1)});
+    if (counter == 'helpful') {
+      _mirrorSet(b, r.courseId, r.campus, r.id, {
+        'helpful': FieldValue.increment(1),
+      });
+    }
     try {
       await b.commit();
+      await _forget(r.courseId);
       return true;
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') return false;
@@ -400,6 +441,24 @@ class ReviewStore {
       'moderatedAt': FieldValue.serverTimestamp(),
     });
     if (countSign != null) {
+      _mirrorSet(
+        b,
+        r.courseId,
+        r.campus,
+        r.id,
+        countSign < 0
+            ? FieldValue.delete()
+            : {
+              'stars': r.stars,
+              'recommend': r.recommend,
+              if (r.text != null) 'text': r.text,
+              'term': r.term,
+              'professorId': r.professorId,
+              'helpful': r.helpful,
+              'createdAt': Timestamp.fromMillisecondsSinceEpoch(r.createdAt),
+              'updatedAt': Timestamp.fromMillisecondsSinceEpoch(r.updatedAt),
+            },
+      );
       _count(
         b,
         r.courseId,
