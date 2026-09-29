@@ -309,6 +309,12 @@ class _PersonPageState extends State<PersonPage> {
             ),
     };
     final revoke = mayRevoke && _g.active;
+    // "CR" is an acronym, not a sentence-case word (BUG-51): keep it as is,
+    // sentence-case everything else instead of the tag's raw ALL-CAPS form.
+    final roleWord =
+        _g.role == GrantRole.course
+            ? 'CR'
+            : '${_g.role.tag[0]}${_g.role.tag.substring(1).toLowerCase()}';
     return PageFrame(
       header: PageHeader(eyebrow: _g.role.tag, title: _g.name),
       bottom:
@@ -316,12 +322,11 @@ class _PersonPageState extends State<PersonPage> {
               ? BottomAction(
                 caption:
                     'Revoking deactivates the grant; it is kept, with the '
-                    'audit log pointing at it. Their CRs stay in place.',
+                    'audit log pointing at it.'
+                    // Only a president grant leaves CRs behind (BUG-51).
+                    '${_g.role == GrantRole.dept ? ' Their CRs stay in place.' : ''}',
                 child: PrimaryButton(
-                  label:
-                      _busy
-                          ? 'Revoking…'
-                          : 'Revoke ${_g.role.tag.toLowerCase()}',
+                  label: _busy ? 'Revoking…' : 'Revoke $roleWord',
                   onPressed: _busy ? null : _revoke,
                 ),
               )
