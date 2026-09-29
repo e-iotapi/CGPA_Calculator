@@ -13,14 +13,14 @@ LEGACY = ['lib/main.dart', 'lib/home_page.dart', 'lib/script.dart',
 
 # Never committed.
 FORBIDDEN = ['test/fixtures/transcript.csv', 'test/fixtures/performance_sheet.json',
-             '*.pdf', 'PLAN.md', 'idthp', '*.png', '*.jpg', 'test/ui/zz_*', 'build/*']
+             '*.pdf', 'agent_instructions/deprecated/PLAN.md', 'sensitive_data_NO_COMMIT/*', 'idthp', '*.png', '*.jpg', 'test/ui/zz_*', 'build/*']
 
 # Committed although they match FORBIDDEN: the UI sheet the user asked for
 # (ui_check.py atlas), for their own manual pass.
 ALLOWED = ['ui_sheet/ui_sheet.png']
 
 # Never edited by the edit tool without --allow (docs of record).
-PROTECTED = ['PLAN.md']
+PROTECTED = ['agent_instructions/deprecated/PLAN.md']
 
 # The only analyze findings allowed: (file, rule) -> count.
 KNOWN_ANALYZE = {

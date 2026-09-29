@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// The role table rows of ARCHITECTURE.md §4, as [label, owner, admin,
 /// president, cr], skipping the descriptive Who / Account / Scope rows.
 List<List<String>> documentTable() {
-  final lines = File('ARCHITECTURE.md').readAsLinesSync();
+  final lines = File('agent_instructions/ARCHITECTURE.md').readAsLinesSync();
   final start = lines.indexWhere(
     (l) => l.startsWith('| | Owner | Admin | Department president'),
   );

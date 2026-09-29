@@ -1,3 +1,5 @@
+> **Deprecated (2026-09-29):** superseded by `UI.md` and then by the finished UI rebuild (`agent_instructions/UI_REBUILD_HANDOFF.md`). Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # UI handoff: build the boards as drawn
 
 For the agent taking over the UI of **Pointer** (a BITS CGPA calculator, Flutter web). The data

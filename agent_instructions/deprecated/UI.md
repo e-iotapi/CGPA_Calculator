@@ -1,3 +1,5 @@
+> **Deprecated (2026-09-29):** the UI rebuild it specified is finished (`agent_instructions/UI_REBUILD_HANDOFF.md`). Still the record of why each screen looks as it does, and `plan.py get` still reads its ids. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # UI.md — building Pointer's UI from the UI Directions boards
 
 This file is the build spec for every screen in the **UI Directions** artifact

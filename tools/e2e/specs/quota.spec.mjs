@@ -69,7 +69,7 @@ async function busyDay(page, accountKey) {
 }
 
 function updateQuotaMd(rowLabel, counters) {
-  const file = path.join(root, 'QUOTA.md');
+  const file = path.join(root, 'agent_instructions', 'QUOTA.md');
   let text;
   try {
     text = readFileSync(file, 'utf8');

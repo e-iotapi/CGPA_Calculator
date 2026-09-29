@@ -8,7 +8,7 @@ git ignores.
 |---|---|
 | `ui_check/` | Renders every screen, reports UI bugs as text, and diffs against the accepted run, so you open pixels only when a rule below says to. |
 | `code/` | Surgical editing, one-line verify gates, and a commit helper that enforces this repo's rules. |
-| `plan/` | Reads UI.md / UI_OPT.md by number (T7.3, 8.4, N27, O0.2): exact text, never a summary. |
+| `plan/` | Reads PERF_TEST_PLAN.md and the deprecated UI.md / UI_OPT.md (all in `agent_instructions/`) by number (T7.3, 8.4, N27, O0.2): exact text, never a summary. |
 | `progress_report/` | Builds the one-page progress report from `status.json` and the git log. |
 
 Setup, once per container: `pip install pillow numpy`, and put flutter on
