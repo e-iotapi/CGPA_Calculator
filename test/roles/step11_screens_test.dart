@@ -921,14 +921,17 @@ void main() {
     await t.tap(find.text('A3'));
     await t.pumpAndSettle();
     expect(grantButton(t), 'Grant — president, ELEC Goa');
-    // A secretary names itself, and waits for the roles update.
+    // A secretary names itself and is granted as a flagged dept grant.
     await t.tap(find.text('Secretary'));
     await t.pumpAndSettle();
     expect(grantButton(t), 'Grant — secretary, ELEC Goa');
-    expect(
-      t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
-      isNull,
-    );
+    await t.tap(find.byType(PrimaryButton));
+    await t.pumpAndSettle();
+    final g =
+        (await db.collection('grants').doc('dept|goa|ELEC|$pres').get())
+            .data()!;
+    expect(g['secretary'], isTrue);
+    expect(g.containsKey('programme'), isFalse);
     expect(
       grantLabel(GrantRole.course, 'CS F372', 'goa'),
       'Grant — course manager, CS F372 Goa',

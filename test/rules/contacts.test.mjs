@@ -62,6 +62,15 @@ function handOver(ends, { to = STUDENT, extend } = {}) {
 }
 
 describe('succession', () => {
+  test('a secretary never hands over', async () => {
+    const before = days(100);
+    await seed((db) => setDoc(doc(db, 'grants', mine), {
+      role: 'dept', campus: 'goa', scope: 'ELEC', email: PRES, name: name(PRES),
+      active: true, expiresAt: before, secretary: true,
+    }));
+    await assertFails(handOver(days(19.9), { extend: before }));
+  });
+
   test('a president hands over with twenty days of overlap', async () => {
     // expiresBefore must match the grant; seed it exactly.
     const before = days(100);

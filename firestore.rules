@@ -162,13 +162,23 @@ service cloud.firestore {
       return d.role == 'admin'
           ? isOwner() && d.campus == 'all' && d.scope == 'all' && isBitsAddress(d.email)
         : d.role == 'dept'
-          ? (isOwner() || isAdmin() || handsOver(d) || cancelsHandover(d))
+          ? (d.get('secretary', false) == true
+              ? (isOwner() || isAdmin() || presidentNotSecretary(d.campus, d.scope))
+                && d.get('programme', null) == null
+              : (isOwner() || isAdmin() || handsOver(d) || cancelsHandover(d))
+                && d.programme is string)
             && isStudent(d.email) && campusOf(d.email) == d.campus
-            && d.programme is string
         : d.role == 'course'
           ? (isOwner() || isAdmin() || isPresident(d.campus, deptOf(d.scope)))
             && isStudent(d.email) && campusOf(d.email) == d.campus
         : false;
+    }
+
+    // A secretary is a dept grant flagged `secretary`: every president right
+    // but handing over and appointing secretaries.
+    function presidentNotSecretary(c, dept) {
+      return isPresident(c, dept)
+        && get(grantPath('dept', c, dept, me())).data.get('secretary', false) == false;
     }
 
     // Succession (§13.4): a live president names the next one. Their own
@@ -176,7 +186,8 @@ service cloud.firestore {
     // handover while one runs is refused.
     function handsOver(d) {
       let mine = grantPath('dept', d.campus, d.scope, me());
-      return isPresident(d.campus, d.scope)
+      return presidentNotSecretary(d.campus, d.scope)
+        && d.get('secretary', false) == false
         && get(mine).data.get('handedTo', null) == null
         && getAfter(mine).data.get('handedTo', '') == d.email
         && d.get('programme', '') == get(mine).data.get('programme', '');
@@ -185,7 +196,7 @@ service cloud.firestore {
     // The outgoing president cancels while the overlap runs.
     function cancelsHandover(d) {
       let mine = grantPath('dept', d.campus, d.scope, me());
-      return d.active == false && isPresident(d.campus, d.scope)
+      return d.active == false && presidentNotSecretary(d.campus, d.scope)
         && get(mine).data.get('handedTo', '') == d.email
         && getAfter(mine).data.get('handedTo', null) == null;
     }
@@ -228,6 +239,7 @@ service cloud.firestore {
       // restored, beside its revocation, by a cancel.
       allow update: if mayUse()
         && resource.data.role == 'dept' && resource.data.email == me()
+        && resource.data.get('secretary', false) == false
         && isPresident(resource.data.campus, resource.data.scope)
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['expiresAt', 'handedTo', 'expiresBefore', 'auditId'])

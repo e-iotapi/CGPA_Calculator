@@ -70,6 +70,19 @@ describe('grants', () => {
     await assertFails(appoint(as(OWNER), OWNER, { ...pres, campus: 'hyderabad' }, { presidentOf: ['CS'] }));
   });
 
+  test('a president appoints a secretary, who cannot appoint another', async () => {
+    const S3 = 'f20230777@goa.bits-pilani.ac.in';
+    await seed((db) => setDoc(doc(db, 'people', S3), { name: name(S3), campus: 'goa', firstSignIn: 1 }));
+    const sec = { role: 'dept', campus: 'goa', scope: 'ELEC', email: STUDENT, secretary: true };
+    await assertFails(appoint(as(PRES), PRES, { ...sec, programme: 'A3' }, { presidentOf: ['ELEC'] }));
+    await assertFails(appoint(as(PRES), PRES, { ...sec, scope: 'CS' }, { presidentOf: ['CS'] }));
+    await assertSucceeds(appoint(as(PRES), PRES, sec, { presidentOf: ['ELEC'] }));
+    // The secretary appoints CRs like a president, never a secretary.
+    const cr = { role: 'course', campus: 'goa', scope: 'EEE F211', email: S3 };
+    await assertSucceeds(appoint(as(STUDENT), STUDENT, cr, { courses: ['EEE F211'] }));
+    await assertFails(appoint(as(STUDENT), STUDENT, { ...sec, email: S3 }, { presidentOf: ['ELEC'] }));
+  });
+
   test('admins appoint presidents; only owners appoint admins', async () => {
     await assertSucceeds(appoint(as(ADMIN), ADMIN, pres, { presidentOf: ['CS'] }));
     const admin = { role: 'admin', campus: 'all', scope: 'all', email: STUDENT };
