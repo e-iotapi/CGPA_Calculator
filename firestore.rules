@@ -240,7 +240,15 @@ service cloud.firestore {
     }
 
     match /grants/{id} {
-      allow read: if (signedIn() && resource.data.email == me())
+      // A get() on a grant that does not exist yet is how the app checks
+      // whether an appointment is new or a renewal (RoleStore.appoint); with
+      // no document there is nothing to leak, so any mayUse() reader may see
+      // that absence. A list still needs the full check, per document.
+      allow get: if resource == null
+        ? mayUse()
+        : ((signedIn() && resource.data.email == me())
+            || readsRoster(resource.data.campus));
+      allow list: if (signedIn() && resource.data.email == me())
         || readsRoster(resource.data.campus);
       allow create: if mayUse()
         && id == request.resource.data.role + '|' + request.resource.data.campus
@@ -403,7 +411,12 @@ service cloud.firestore {
     }
 
     match /directory/{email} {
-      allow get, list: if mayUse() && resource.data.campus == campusOf(me());
+      // A get() on a directory entry that does not exist yet is how a
+      // handover's _relist checks whether there is one to update; nothing
+      // to leak when there is no document.
+      allow get: if mayUse()
+        && (resource == null || resource.data.campus == campusOf(me()));
+      allow list: if mayUse() && resource.data.campus == campusOf(me());
       allow create, update: if isStudent(me()) && email == me()
         && request.resource.data.keys().hasOnly(
              ['name', 'campus', 'roles', 'email', 'whatsapp', 'phone', 'updatedAt'])
