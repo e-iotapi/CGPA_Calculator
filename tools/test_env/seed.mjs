@@ -117,7 +117,7 @@ async function wipeStaging(db, accounts) {
     await deleteWhereSeeded(db.collection(name));
   }
   for (const name of SEEDED_COLLECTION_GROUPS) {
-    await deleteWhereSeeded(db.collectionGroup(name));
+    await deleteWhereSeeded(db.collectionGroup(name), { group: true });
   }
   for (const id of ['grantTerms', 'public']) {
     await db.doc(`config/${id}`).delete().catch(() => {});
@@ -129,10 +129,14 @@ async function wipeStaging(db, accounts) {
   }
 }
 
-async function deleteWhereSeeded(query) {
-  const snap = await query.where('seed', '==', true).get();
-  if (snap.empty) return;
-  const batches = chunk(snap.docs, 400);
+// A collection-group filter needs its own index, which production would
+// inherit; groups are read whole and filtered here instead.
+// ponytail: fine while staging is only seed data, add the indexes if it grows.
+async function deleteWhereSeeded(query, { group = false } = {}) {
+  const snap = await (group ? query : query.where('seed', '==', true)).get();
+  const seeded = snap.docs.filter((d) => d.get('seed') === true);
+  if (!seeded.length) return;
+  const batches = chunk(seeded, 400);
   for (const docs of batches) {
     const b = query.firestore.batch();
     for (const d of docs) b.delete(d.ref);
