@@ -155,8 +155,16 @@ class _OwnersPageState extends State<OwnersPage> {
             label: 'Add owner',
             onPressed: () {
               final e = _email.text.trim();
-              if (!e.contains('@') || _name.text.trim().isEmpty) {
+              if (e.isEmpty || _name.text.trim().isEmpty) {
                 return _say(context, 'An email and a name, please.');
+              }
+              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(e)) {
+                return _say(context, 'That does not look like an email.');
+              }
+              if (owners.any(
+                (o) => '${o['email']}'.toLowerCase() == e.toLowerCase(),
+              )) {
+                return _say(context, 'Already an owner.');
               }
               run(() async {
                 await roleStore!.addOwner(e, _name.text.trim());
