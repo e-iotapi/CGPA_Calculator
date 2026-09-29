@@ -619,21 +619,38 @@ class RoleStore {
       ],
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    b
-      ..set(ref, next)
-      ..set(
-        db.collection('repIndex').doc(m['campus'] as String? ?? g.campus),
-        {
-          'k': g.email,
-          'p': {g.email: next},
-        },
-        SetOptions(
-          mergeFields: [
-            FieldPath(const ['k']),
-            FieldPath(['p', g.email]),
-          ],
-        ),
-      );
+    b.set(ref, next);
+    await putRepCopy(b, m['campus'] as String? ?? g.campus, g.email, next);
+  }
+
+  /// Puts [entry] as [email]'s whole listing in `repIndex/{campus}`. Not
+  /// `set(merge)`, which keeps fields the entry dropped (the rules want an
+  /// exact copy), nor `mergeFields`, which FlutterFire web splits at the
+  /// dots in an email.
+  Future<void> putRepCopy(
+    WriteBatch b,
+    String campus,
+    String email,
+    Map<String, dynamic> entry,
+  ) async {
+    final ref = db.collection('repIndex').doc(campus);
+    var exists = true;
+    try {
+      exists = (await ref.get()).exists;
+    } on FirebaseException {
+      // Unreadable (another campus): it exists if anyone is listed there.
+    }
+    if (exists) {
+      b.update(ref, {
+        'k': email,
+        FieldPath(['p', email]): entry,
+      });
+    } else {
+      b.set(ref, {
+        'k': email,
+        'p': {email: entry},
+      });
+    }
   }
 
   static String _day(DateTime d) => '${d.day}/${d.month}/${d.year}';

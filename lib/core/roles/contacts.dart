@@ -234,12 +234,8 @@ class ContactStore {
         'updatedAt': FieldValue.serverTimestamp(),
       };
       final campus = campusOfAddress(roles.me) ?? '';
-      b
-        ..set(_directory(roles.me), entry)
-        ..set(_repIndex(campus), {
-          'k': roles.me,
-          'p': {roles.me: entry},
-        }, _replacing(roles.me));
+      b.set(_directory(roles.me), entry);
+      await roles.putRepCopy(b, campus, roles.me, entry);
     }
     await b.commit();
     await sharedCacheBox?.delete('reps|${campusOfAddress(roles.me) ?? ''}');
@@ -259,15 +255,6 @@ class ContactStore {
       rethrow;
     }
   }
-
-  /// Replaces [email]'s whole entry: a deep merge would keep fields the new
-  /// entry dropped (a contact turned off), and the rules want an exact copy.
-  static SetOptions _replacing(String email) => SetOptions(
-    mergeFields: [
-      FieldPath(const ['k']),
-      FieldPath(['p', email]),
-    ],
-  );
 
   DocumentReference<Map<String, dynamic>> _repIndex(String campus) =>
       db.collection('repIndex').doc(campus);

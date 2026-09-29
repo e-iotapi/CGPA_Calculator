@@ -196,6 +196,7 @@ void main() {
       name: 'Meera Iyer',
       roles: MyRoles(email: pres, grants: [presidency()]),
     );
+    await seedGrant(presidency()); // the save re-reads roles
     await t.pumpWidget(pushed(const RepProfilePage()));
     await t.tap(find.text('open'));
     await t.pumpAndSettle();
@@ -222,6 +223,7 @@ void main() {
       name: 'Meera Iyer',
       roles: MyRoles(email: pres, grants: [presidency()]),
     );
+    await seedGrant(presidency()); // the save re-reads roles
     profileDue.value = true;
     final router = GoRouter(
       initialLocation: '/welcome',

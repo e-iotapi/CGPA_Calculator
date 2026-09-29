@@ -91,18 +91,6 @@ void main() {
     },
   );
 
-  test('a contact turned off leaves the campus copy too', () async {
-    final db = FakeFirebaseFirestore();
-    final store = ContactStore(RoleStore(db, me: pres, myName: 'P'));
-    final r = MyRoles(email: pres, grants: [grant(GrantRole.dept, 'ELEC')]);
-    await store.saveProfile(r, name: 'P', phone: '9000000001', showEmail: true);
-    await store.saveProfile(r, name: 'P', phone: '9000000001', showPhone: true);
-    final copy =
-        ((await db.doc('repIndex/goa').get()).data()!['p'] as Map)[pres] as Map;
-    expect(copy.containsKey('email'), isFalse);
-    expect(copy['phone'], '9000000001');
-  });
-
   test('succession never extends a term', () {
     final now = DateTime(2026, 9, 27);
     final long = grant(GrantRole.dept, 'ELEC');

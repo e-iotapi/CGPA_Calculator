@@ -194,6 +194,7 @@ Future<void> refreshMyRoles() async {
               'programme': g.programme,
               'active': g.active,
               'expiresAt': g.expiresAt.millisecondsSinceEpoch,
+              if (g.secretary) 'secretary': true,
             },
         ],
       }),

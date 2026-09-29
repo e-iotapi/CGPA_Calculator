@@ -44,6 +44,7 @@ void main() async {
   // Phone browsers deliver touches out of step with frames, so a drag moves
   // the list unevenly. Resampling lines the touches up with the frames.
   GestureBinding.instance.resamplingEnabled = true;
+  beforeFirebase();
   await Firebase.initializeApp(
     options: appEnv == AppEnv.staging
         ? StagingFirebaseOptions.currentPlatform
