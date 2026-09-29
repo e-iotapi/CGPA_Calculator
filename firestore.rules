@@ -343,7 +343,8 @@ service cloud.firestore {
     function listed(r) {
       let g = getAfter(grantPath(r.role, campusOf(me()), r.scope, me())).data;
       return r.role in ['dept', 'course'] && g.active == true
-        && request.time < g.expiresAt && r.until == g.expiresAt;
+        && request.time < g.expiresAt && r.until == g.expiresAt
+        && r.get('secretary', false) == g.get('secretary', false);
     }
 
     function listedAt(l, i) { return l.size() <= i || listed(l[i]); }
