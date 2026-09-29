@@ -69,6 +69,11 @@ Set<String> nameTokens(String name) {
   };
 }
 
+/// The exact same name, ignoring case and surrounding whitespace (BUG-14):
+/// always one person, so adding it again is blocked rather than warned.
+bool sameName(String a, String b) =>
+    a.trim().toLowerCase() == b.trim().toLowerCase();
+
 /// Two names that are probably one person: same surname and a compatible
 /// first initial. Shown before Add, so nobody types a name twice.
 bool likelySame(String a, String b) {

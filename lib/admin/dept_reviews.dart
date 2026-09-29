@@ -339,6 +339,12 @@ class _ReasonDialogState extends State<_ReasonDialog> {
   final _reason = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _reason.addListener(() => setState(() {}));
+  }
+
+  @override
   void dispose() {
     _reason.dispose();
     super.dispose();
@@ -364,7 +370,11 @@ class _ReasonDialogState extends State<_ReasonDialog> {
         DialogAction('Cancel', onTap: () => Navigator.pop(context)),
         DialogAction(
           'Hide',
-          onTap: () => Navigator.pop(context, _reason.text.trim()),
+          // A reason is required (BUG-28): disabled, not a silent no-op.
+          onTap:
+              _reason.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(context, _reason.text.trim()),
           ink: true,
         ),
       ],

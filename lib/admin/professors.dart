@@ -42,9 +42,16 @@ Future<String?> _nameDialog(
     builder:
         (context) => StatefulBuilder(
           builder: (context, setState) {
+            final exact = [
+              for (final p in others)
+                if (sameName(p.name, c.text)) p,
+            ];
             final similar = [
               for (final p in others)
-                if (c.text.trim().length > 2 && likelySame(p.name, c.text)) p,
+                if (exact.isEmpty &&
+                    c.text.trim().length > 2 &&
+                    likelySame(p.name, c.text))
+                  p,
             ];
             final pal = AppPalette.of(context);
             return AppDialog(
@@ -61,7 +68,16 @@ Future<String?> _nameDialog(
                     decoration: appFieldDecoration(pal, hint: 'Dr. R. Menon'),
                     onChanged: (_) => setState(() {}),
                   ),
-                  if (similar.isNotEmpty) ...[
+                  if (exact.isNotEmpty) ...[
+                    const SizedBox(height: Space.sm),
+                    Text(
+                      '${exact.first.name} is already listed. Use that entry '
+                      'instead of adding it again.',
+                      style: TypeScale.caption.copyWith(
+                        color: pal.noticeTone.text,
+                      ),
+                    ),
+                  ] else if (similar.isNotEmpty) ...[
                     const SizedBox(height: Space.sm),
                     Text(
                       'Already listed: ${similar.map((p) => p.name).join(', ')}. '
@@ -78,7 +94,7 @@ Future<String?> _nameDialog(
                 DialogAction(
                   similar.isEmpty ? 'Save' : 'Add anyway',
                   onTap:
-                      c.text.trim().length < 2
+                      c.text.trim().length < 2 || exact.isNotEmpty
                           ? null
                           : () => Navigator.pop(context, c.text.trim()),
                   ink: true,

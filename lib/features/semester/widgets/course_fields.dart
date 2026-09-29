@@ -28,6 +28,7 @@ class GradeGrid extends StatelessWidget {
       return Semantics(
         button: true,
         selected: on,
+        label: 'Grade $text',
         child: Material(
           color: on ? p.inverse : p.surface,
           borderRadius: BorderRadius.circular(16),

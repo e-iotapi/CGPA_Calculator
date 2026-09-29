@@ -114,6 +114,7 @@ class GradeMenu extends StatelessWidget {
       return Semantics(
         button: true,
         selected: on,
+        label: 'Grade ${text ?? letter}',
         child: Material(
           color: on ? p.inverse : p.surfaceSunken,
           borderRadius: BorderRadius.circular(10),
@@ -169,6 +170,9 @@ class GradeMenu extends StatelessWidget {
         decoration: BoxDecoration(
           color: p.surface,
           borderRadius: BorderRadius.circular(20),
+          // A shadow alone doesn't read on a dark ground (BUG-27); the
+          // existing outline token keeps the popup visible on both themes.
+          border: Border.all(color: p.outline),
           boxShadow: const [
             BoxShadow(
               color: Color(0x2E17170F),
