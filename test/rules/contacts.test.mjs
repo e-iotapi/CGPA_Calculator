@@ -224,6 +224,13 @@ describe('directory', () => {
     await assertFails(setDoc(doc(db, 'repIndex', 'goa'), { k: STUDENT, p: { [PRES]: { name: 'x' } } }, { merge: true }));
   });
 
+  test('the secretary flag must match the grant', async () => {
+    const until = await exactUntil();
+    await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({
+      email: PRES, roles: [{ role: 'dept', scope: 'ELEC', until, secretary: true }],
+    })));
+  });
+
   test('a role not held is refused', async () => {
     const until = await exactUntil();
     await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({

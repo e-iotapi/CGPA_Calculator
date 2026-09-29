@@ -211,6 +211,11 @@ void main() {
     expect((await g(oldId)).expiresAt, until);
   });
 
+  test('my departments: courses taken and my degree programmes', () {
+    expect(myDepartments(['EEE F211', 'CS F111'], ['--']), ['CS', 'ELEC']);
+    expect(myDepartments([], ['A3', 'B-']), ['ELEC']);
+  });
+
   test('volunteer offers: this term, by course', () async {
     final db = FakeFirebaseFirestore();
     const s = 'f20230456@goa.bits-pilani.ac.in';

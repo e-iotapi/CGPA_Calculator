@@ -14,7 +14,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 final phonePattern = RegExp(r'^[+0-9 ()-]{7,20}$');
 
 /// One role as the directory lists it, with the expiry it had when written.
-typedef ListedRole = ({GrantRole role, String scope, DateTime until});
+typedef ListedRole =
+    ({GrantRole role, String scope, DateTime until, bool secretary});
 
 /// `directory/{email}`.
 class DirectoryEntry {
@@ -55,6 +56,7 @@ class DirectoryEntry {
                 role: GrantRole.of(r['role'] as String),
                 scope: r['scope'] as String,
                 until: asDate(r['until']) ?? DateTime(1970),
+                secretary: r['secretary'] == true,
               ),
         ],
         shownEmail: m['email'] as String?,
@@ -68,8 +70,26 @@ class DirectoryEntry {
 List<ListedRole> listedRoles(MyRoles r) => [
   for (final g in r.grants)
     if (g.role != GrantRole.admin)
-      (role: g.role, scope: g.scope, until: g.expiresAt),
+      (
+        role: g.role,
+        scope: g.scope,
+        until: g.expiresAt,
+        secretary: g.secretary,
+      ),
 ];
+
+/// The departments whose officers a student sees: those of the courses
+/// they take, and of their own degree programmes (codes like "A7", "B3").
+List<String> myDepartments(
+  Iterable<String> courses,
+  Iterable<String> degrees,
+) =>
+    {
+        for (final c in courses) deptOf(c),
+        for (final d in degrees)
+          if (departmentOfProgramme(d) case final x?) x,
+      }.toList()
+      ..sort();
 
 /// Whether RepProfile must be served first (fix 8): a privileged person
 /// without staff contacts, or a president or CR whose directory entry lacks
@@ -205,6 +225,7 @@ class ContactStore {
               'role': x.role.key,
               'scope': x.scope,
               'until': Timestamp.fromDate(x.until),
+              if (x.secretary) 'secretary': true,
             },
         ],
         if (showEmail) 'email': roles.me,

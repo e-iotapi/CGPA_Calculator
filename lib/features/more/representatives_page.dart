@@ -96,7 +96,10 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
       );
     }
     final courses = takingNow().toList()..sort();
-    final depts = {for (final c in courses) deptOf(c)}.toList()..sort();
+    final depts = myDepartments(courses, [
+      app.selecteddiscipline.substring(0, 2),
+      app.selecteddiscipline.substring(2),
+    ]);
     final crFor = [
       for (final g in myRoles.value.grants)
         if (g.role == GrantRole.course && g.active) g.scope,
@@ -106,12 +109,16 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
       load: () => _load(courses),
       builder: (context, data, _) {
         final now = DateTime.now();
-        List<(DirectoryEntry, ListedRole)> holders(GrantRole role, String s) =>
-            [
-              for (final e in data.people)
-                for (final r in e.liveAt(now))
-                  if (r.role == role && r.scope == s) (e, r),
-            ]..sort((a, b) => a.$2.until.compareTo(b.$2.until));
+        List<(DirectoryEntry, ListedRole)> holders(
+          GrantRole role,
+          String s, {
+          bool secretary = false,
+        }) => [
+          for (final e in data.people)
+            for (final r in e.liveAt(now))
+              if (r.role == role && r.scope == s && r.secretary == secretary)
+                (e, r),
+        ]..sort((a, b) => a.$2.until.compareTo(b.$2.until));
         return PageFrame(
           header: header,
           children: [
@@ -131,8 +138,19 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
                 'semester. Add them to your grades first.',
               ),
             if (depts.isNotEmpty) const SectionLabel('Department'),
-            for (final d in depts)
+            for (final d in depts) ...[
               _President(code: d, list: holders(GrantRole.dept, d), now: now),
+              if (holders(GrantRole.dept, d, secretary: true) case final s
+                  when s.isNotEmpty) ...[
+                const SizedBox(height: Space.xs),
+                _President(
+                  code: d,
+                  list: s,
+                  now: now,
+                  title: 'Department secretary',
+                ),
+              ],
+            ],
             if (courses.isNotEmpty) ...[
               const SectionLabel('Your courses this semester'),
               AppCard(
@@ -205,8 +223,13 @@ List<_Channel> _channels(DirectoryEntry e) => [
 void _open(Uri uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
 
 class _President extends StatelessWidget {
-  const _President({required this.code, required this.list, required this.now});
-  final String code;
+  const _President({
+    required this.code,
+    required this.list,
+    required this.now,
+    this.title = 'Department president',
+  });
+  final String code, title;
   final List<(DirectoryEntry, ListedRole)> list;
   final DateTime now;
 
@@ -254,7 +277,7 @@ class _President extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Department president · ${_shared(e)}',
+                      '$title · ${_shared(e)}',
                       style: TypeScale.caption.copyWith(
                         fontSize: 10.5,
                         color: p.textMuted,
