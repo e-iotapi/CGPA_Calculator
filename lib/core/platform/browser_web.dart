@@ -124,3 +124,12 @@ void onPageHidden(void Function() run) {
   );
   web.window.addEventListener('pagehide', ((web.Event _) => run()).toJS);
 }
+
+void onDomPointerDown(void Function(double x, double y) run) {
+  web.window.addEventListener(
+    'pointerdown',
+    ((web.PointerEvent e) => run(e.clientX.toDouble(), e.clientY.toDouble()))
+        .toJS,
+    web.AddEventListenerOptions(capture: true, passive: true),
+  );
+}
