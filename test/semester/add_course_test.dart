@@ -73,6 +73,9 @@ void main() {
     expect(categoryFor('HSS F222', 'A7--'), Elective.humanity.tag);
     expect(categoryFor('ZZZ F999', 'A7--'), Elective.open.tag);
     expect(categoryOptions('A7--'), isNot(contains(Elective.cdc2.tag)));
+    // A single M.Sc. has its DEL; a dual's comes from the B.E. half.
+    expect(categoryOptions('B3--'), contains(Elective.del1.tag));
+    expect(categoryOptions('B3A7'), isNot(contains(Elective.del1.tag)));
     expect(categoryLabel(Elective.cdc1.tag, 'A7--'), 'CDC (A7)');
   });
 
