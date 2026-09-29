@@ -361,5 +361,7 @@ const _darkTones = {
   'D': GradeTone(Color(0xFF4A3122), Color(0xFFE0A272)),
   'E': GradeTone(Color(0xFF4A3122), Color(0xFFE0A272)),
   'NC': GradeTone(Color(0xFF4A3122), Color(0xFFE0A272)),
-  '': GradeTone(Color(0xFF232320), Color(0xFFADADA2)),
+  // Matches AppPalette.dark.surfaceSunken/textMuted (BUG-27): the old fill
+  // was a hair off surface (0xFF1C1C1A), so GD/W/"–" badges were invisible.
+  '': GradeTone(Color(0xFF262622), Color(0xFFBDBDB2)),
 };
