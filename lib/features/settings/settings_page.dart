@@ -21,7 +21,6 @@ import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Settings. Discipline changes only set [erase]; the home screen applies
 /// them through initializeCourses when this page closes, as before.
@@ -107,13 +106,8 @@ class _SettingsPageState extends State<SettingsPage> {
               onSignOut: _signOut,
               onInstall: kIsWeb ? () => _install(context) : null,
               installed: kIsWeb && isStandalone(),
-              onEmail:
-                  () => launchUrl(Uri.parse('mailto:mishra.siddharth@icloud.com')),
-              onGithub:
-                  () => launchUrl(
-                    Uri.parse('https://github.com/e-iotapi'),
-                    mode: LaunchMode.externalApplication,
-                  ),
+              onEmail: () => openUrl('mailto:mishra.siddharth@icloud.com'),
+              onGithub: () => openUrl('https://github.com/e-iotapi'),
               // Your roles (ARCHITECTURE.md §16.4): owners and live grants.
               workingAs: myRoles.value.owner
                   ? (viewAs.value?.label ?? 'Owner')

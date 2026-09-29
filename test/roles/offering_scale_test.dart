@@ -17,8 +17,7 @@ Offering offering({bool weighted = true, double total = 100}) => Offering(
 
 void main() {
   test('without a stored scale, a weighted course is out of 100', () {
-    expect(outOfStored, isTrue);
-    expect(offeringOutOf(offering()), isNull);
+    expect(offering().outOf, isNull);
     expect(scaleOf(offering()), 100);
   });
 
@@ -26,12 +25,10 @@ void main() {
     expect(scaleOf(offering(weighted: false, total: 50)), 50);
   });
 
-  test('withOutOf sets and clears the stored scale, and it round-trips', () {
-    final o = withOutOf(offering(), 200);
-    expect(offeringOutOf(o), 200);
+  test('a stored scale is used, and it round-trips', () {
+    final o = offering().copyWith(outOf: 200);
     expect(scaleOf(o), 200);
     expect(Offering.fromMap(o.toMap()).outOf, 200);
-    expect(offeringOutOf(withOutOf(o, null)), isNull);
     expect(offering().toMap().containsKey('outOf'), isFalse);
   });
 

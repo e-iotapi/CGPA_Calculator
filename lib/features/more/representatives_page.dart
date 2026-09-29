@@ -14,7 +14,7 @@ import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:cgpa_calculator/core/platform/browser.dart';
 
 typedef _Data = ({List<DirectoryEntry> people, Map<String, Volunteer?> offers});
 
@@ -220,7 +220,7 @@ List<_Channel> _channels(DirectoryEntry e) => [
     ),
 ];
 
-void _open(Uri uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
+void _open(Uri uri) => openUrl('$uri');
 
 class _President extends StatelessWidget {
   const _President({

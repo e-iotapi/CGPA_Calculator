@@ -6,7 +6,6 @@
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
-import 'package:cgpa_calculator/shared/widgets/card_label.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/code_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
@@ -57,15 +56,6 @@ void main() {
         onSignOut: () {},
       ),
       sizes: const [('390', Size(390, 1100)), ('320', Size(320, 640))],
-    );
-  });
-
-  testWidgets('T3.10: CardLabel', (t) async {
-    await shoot(
-      t,
-      'card_label',
-      () => const Scaffold(body: Center(child: CardLabel('Structure'))),
-      sizes: const [('demo', Size(200, 100))],
     );
   });
 

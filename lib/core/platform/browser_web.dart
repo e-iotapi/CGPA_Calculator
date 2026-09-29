@@ -137,3 +137,12 @@ void onDomPointerDown(void Function(double x, double y) run) {
 // IndexedDB runs requests in order, so Firebase's later open waits for this.
 void forgetSavedSignIn() =>
     web.window.indexedDB.deleteDatabase('firebaseLocalStorageDb');
+
+void openUrl(String url) {
+  final app = RegExp(r'^(mailto|tel|sms):').hasMatch(url);
+  web.window.open(
+    url,
+    app ? '_top' : '_blank',
+    app ? '' : 'noopener,noreferrer',
+  );
+}

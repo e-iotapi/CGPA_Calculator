@@ -25,6 +25,10 @@ void onPageHidden(void Function() run) => impl.onPageHidden(run);
 void onDomPointerDown(void Function(double x, double y) run) =>
     impl.onDomPointerDown(run);
 
+/// Opens [url] in a new tab; mail, phone and SMS links in place, where the
+/// browser hands them to the right app.
+void openUrl(String url) => impl.openUrl(url);
+
 /// Deletes Firebase Auth's saved sign-in on this origin.
 void forgetSavedSignIn() => impl.forgetSavedSignIn();
 

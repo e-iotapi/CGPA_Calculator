@@ -18,7 +18,7 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:cgpa_calculator/core/platform/browser.dart';
 
 ResourceStore? get resourceStore => switch (roleStore) {
   final r? => ResourceStore(r, uid: myUid),
@@ -62,10 +62,7 @@ class LinkRow extends StatelessWidget {
     final p = AppPalette.of(context);
     final by = r.addedByName.isEmpty ? '' : ' · added by ${r.addedByName}';
     return InkWell(
-      onTap:
-          onTap ??
-          () =>
-              launchUrl(Uri.parse(r.url), mode: LaunchMode.externalApplication),
+      onTap: onTap ?? () => openUrl(r.url),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 52),
         child: Padding(
@@ -523,11 +520,7 @@ class ResourcesEmpty extends StatelessWidget {
                             'email' => 'By email',
                             _ => 'On WhatsApp',
                           },
-                          onTap:
-                              () => launchUrl(
-                                uri,
-                                mode: LaunchMode.externalApplication,
-                              ),
+                          onTap: () => openUrl('$uri'),
                         ),
                       ],
                     ),

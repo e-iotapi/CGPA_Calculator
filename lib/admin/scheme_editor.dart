@@ -86,7 +86,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
   late final _outOf = TextEditingController(
     text: _n(
       switch (widget.existing) {
-            final e? => offeringOutOf(e),
+            final e? => e.outOf,
             null => null,
           } ??
           100,
@@ -207,20 +207,18 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
     }
     final e = widget.existing;
     return (
-      withOutOf(
-        Offering(
-          courseId: widget.courseId,
-          campus: widget.campus,
-          term: widget.term,
-          weighted: _weighted,
-          totalMarks: _weighted ? 100 : total!,
-          components: comps,
-          courseAverage:
-              avg == null ? null : toStored(avg, scale: _scale, units: _units),
-          professors: e?.professors ?? const [],
-          updatedAt: e?.updatedAt ?? 0,
-        ),
-        _weighted ? outOf : null,
+      Offering(
+        courseId: widget.courseId,
+        campus: widget.campus,
+        term: widget.term,
+        weighted: _weighted,
+        totalMarks: _weighted ? 100 : total!,
+        components: comps,
+        courseAverage:
+            avg == null ? null : toStored(avg, scale: _scale, units: _units),
+        professors: e?.professors ?? const [],
+        updatedAt: e?.updatedAt ?? 0,
+        outOf: _weighted ? outOf : null,
       ),
       null,
     );
@@ -440,14 +438,9 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
             onChanged: (_) => setState(() {}),
           ),
           Text(
-            outOfStored
-                ? 'Students see the course out of this; they no longer set '
-                    'it themselves.'
-                : 'Not saved yet: it lands with the offering update. Until '
-                    'then students set it themselves.',
-            style: TypeScale.caption.copyWith(
-              color: outOfStored ? p.textMuted : p.noticeTone.text,
-            ),
+            'Students see the course out of this; they no longer set it '
+            'themselves.',
+            style: TypeScale.caption.copyWith(color: p.textMuted),
           ),
         ],
         const SizedBox(height: Space.sm),
