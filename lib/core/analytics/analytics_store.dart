@@ -11,6 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hive_ce/hive.dart';
 
+/// The campus keys analytics are reported for.
 const campuses = ['goa', 'hyderabad', 'pilani', 'dubai'];
 
 /// India time, whatever the device's zone.
@@ -33,12 +34,15 @@ bool sampled(String uid, String day) =>
 /// One campus on one day, scaled up from the sample.
 class DayCounts {
   const DayCounts({required this.day, this.dau = 0, this.hours = const {}});
+  /// The IST day, "2026-09-29".
   final String day;
 
   /// Estimated active users, and by IST hour ("00".."23").
   final int dau;
   final Map<String, int> hours;
 
+  /// Reads the counts document [m] for [day], summed over every campus when
+  /// [campus] is `null`.
   static DayCounts of(String day, Map<String, dynamic>? m, String? campus) {
     var dau = 0;
     final hours = <String, int>{};
@@ -69,8 +73,11 @@ class DayCounts {
 typedef PeopleCounts =
     ({int users, int newWeek, int newToday, int week, int month});
 
+/// Sampled usage counters: writes on app open, reads for the owner's page.
 class AnalyticsStore {
   AnalyticsStore(this.db);
+
+  /// The Firestore instance read and written.
   final FirebaseFirestore db;
 
   /// Called once the app has opened. No-op unless [uid] is sampled today,

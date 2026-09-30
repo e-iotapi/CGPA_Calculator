@@ -13,6 +13,7 @@ double? get statsTarget {
   return v is num ? v.toDouble() : null;
 }
 
+/// Stores the target CGPA [v].
 Future<void> setStatsTarget(double v) => _settings.put('stats_target', v);
 
 /// Planned SGPA per future semester.
@@ -29,6 +30,7 @@ Map<String, double> get statsPlan {
   }
 }
 
+/// Stores the planned SGPA per future semester.
 Future<void> setStatsPlan(Map<String, double> plan) =>
     _settings.put('stats_plan', jsonEncode(plan));
 
@@ -43,6 +45,7 @@ Set<String> get statsSkipped {
   }
 }
 
+/// Stores the future semesters left out of the forecast.
 Future<void> setStatsSkipped(Set<String> skipped) =>
     _settings.put('stats_skipped', jsonEncode(skipped.toList()));
 
@@ -57,6 +60,7 @@ DegreeNeeds? get degreeNeeds {
   }
 }
 
+/// Stores the needs [n] read from a performance sheet.
 Future<void> setDegreeNeeds(DegreeNeeds n) =>
     _settings.put('degree_needs', jsonEncode(n.toJson()));
 

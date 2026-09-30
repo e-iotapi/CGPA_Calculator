@@ -42,6 +42,7 @@ final _noQuizzes = RegExp(
   caseSensitive: false,
 );
 
+/// Whether a course titled [title] gets the default quiz components.
 bool takesDefaultComponents(String title) => !_noQuizzes.hasMatch(title);
 
 /// Seeds [defaultComponents] on [courseId] when it takes them and has no
@@ -68,15 +69,19 @@ Future<void> seedDefaultComponents(String courseId, String title) async {
   }
 }
 
+/// Deletes the stored component under [key].
 Future<void> deleteEvaluative(String key) => _box.delete(key);
 
+/// The stored marking configuration of [courseId], or `null`.
 CourseConfig? configFor(String courseId) {
   final v = _box.get('config:$courseId');
   return v is CourseConfig ? v : null;
 }
 
+/// Stores [c] under its course.
 Future<void> saveConfig(CourseConfig c) => _box.put('config:${c.courseId}', c);
 
+/// The running total of [courseId] from its stored components.
 MarksSummary summaryFor(String courseId) => MarksSummary([
   for (final (_, e) in evaluativesFor(courseId)) e,
 ], configFor(courseId));

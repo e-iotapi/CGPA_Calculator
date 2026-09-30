@@ -5,12 +5,15 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
-const framesOn = bool.fromEnvironment('POINTER_FRAMES');
+/// Whether the build collects frame timings.
+const framesOn =bool.fromEnvironment('POINTER_FRAMES');
 
+/// Collects build and raster frame times under a label.
 abstract final class FrameStats {
   static final _build = <int>[], _raster = <int>[];
   static String? _label;
 
+  /// Whether collection has started.
   @visibleForTesting
   static bool get hasListener => _label != null;
 
