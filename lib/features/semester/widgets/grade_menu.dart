@@ -120,7 +120,12 @@ class GradeMenu extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: () => Navigator.pop(context, value),
+            // The selected grade again clears it, as the edit card says.
+            onTap:
+                () => Navigator.pop(
+                  context,
+                  on && value != GradeCode.clr ? GradeCode.clr : value,
+                ),
             child: Container(
               constraints: const BoxConstraints(minHeight: 32),
               alignment: Alignment.center,
