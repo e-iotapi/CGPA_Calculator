@@ -86,6 +86,85 @@ Spike: ~3,000 students × ~15 review pages ≈ 45k reads against 50k/day.
   Firestore, never client numbers.
 - Then broadcast "reviews for <course> now v".
 
+- **Rating summary per course** in `reviewIndex/<campus>`: average stars and count, kept current
+  by the same DO batch. The Worker serves it as one cached response per campus, so the add-course
+  picker shows every course's stars with zero Firestore reads (see `PROPOSED_FEATURES.md` §1).
+
+---
+
+## Stage 5 — Server parts of the proposed features
+
+See `PROPOSED_FEATURES.md` for the features themselves; this section is only what they need
+from Firestore, rules and Cloudflare.
+
+### 5.1 Forced reviews (review gate)
+
+- `config/public.reviewGate = { on, min: 8 }`, set by owners/admins (audited).
+- Per-user counter `reviewCounts/<uid-hash>` = `{ n }`, +1 in the same batch as each review; rules
+  check the review exists at its anonymous id (sha256 of uid + course) and did not before, so the
+  count can't be inflated. It holds a number only, never which courses (anonymity holds).
+- "Electives only" (HEL / DEL / OPEL, not CDC) is enforced in the app: the same course is DEL for
+  one branch and CDC for another, and rules can't read the bundled catalogue efficiently.
+- Imported reviews (`source: imported`) never count.
+- **Gate at the edge:** once `n >= min`, the Worker checks the counter once and issues a signed,
+  short-lived "reviews unlocked" token (HMAC); cached review reads verify only the signature (CPU,
+  no Firestore read). Firestore rules check the counter too, for direct reads when the Worker is
+  down.
+
+### 5.2 Contributor role
+
+- **Apply:** `contributorRequests/<campus>|<dept>|<email>`, the volunteer-offer pattern; the
+  department comes from the student's branch. After applying, the app shows the president's
+  public contact (existing directory entry, already readable).
+- **Approve:** the president grants `contributor|<campus>|<dept>|<email>`; terms, audit, revoke and
+  the staff index work as for every grant. Admins, presidents and CRs are contributors by
+  default: rules treat their grants as contributor rights; no second grant.
+- **Submit → publish:** contributors may only create links with `status: pending` (not in
+  `links`, no version bump, visible only to the contributor and approvers). A
+  `pending/<campus>|<dept>` index doc lists them (one read per queue), mirrored in the same batch.
+  Publishing is one batch: `status: published`, copy into `links`, campus version +1, the
+  contributor's points +4, their leaderboard entry, drop from the pending index, one audit entry.
+  Reject sets `status: rejected` with an optional reason; no points.
+- **Points are awarded in the batch where a link becomes published** (created published by a
+  president/CR/admin, or approved from pending). Rules allow +4 only on that transition and only
+  to `addedBy`. Removing a published link takes the 4 back in the same batch.
+- **Docs:** `contributors/<email> = { username, campus, points }`;
+  `leaderboard/<campus> = { <username>: points }` (one read per view; rules check it mirrors the
+  points doc; contributions are far below ~1 write/s, so no hot-doc problem; served from the
+  Worker cache once Stage 2 exists); `usernames/<campus>|<name>` claims a unique name (length and
+  charset checked; a president can reset an offensive one). The leaderboard shows usernames only,
+  never email or name.
+
+### 5.3 Professors
+
+- Delete is a **soft delete** (`removed: true`, audited, by that department's president):
+  reviews and stats point at professor ids, so a hard delete would orphan them. Merging duplicates
+  already exists.
+
+### 5.4 Calendar (optional)
+
+- If a subscribable campus academic calendar is wanted: Worker `GET /calendar/<campus>.ics`,
+  built from Firestore and edge-cached. A student's own schedule export needs no server.
+
+### 5.5 Data import (owner-run script)
+
+Presidents compile their department's data with a fixed AI prompt into a published JSON schema
+(links, professors, historical reviews) and send the file to the owner, who runs:
+`import.mjs --dept ELEC --campus goa --from <president> file.json`.
+
+- Admin SDK with the production service account; **bypasses rules, so the script validates every
+  row as the rules would** (URL, lengths, known campus/dept/course codes, star range).
+- **Dry run by default** (counts, duplicates, rejected rows with reasons, sent back to the
+  president); `--commit` writes.
+- **Idempotent:** ids derived from content (link: campus + dept + normalised URL; review:
+  course + text); re-runs update, never duplicate; links already in the app are skipped.
+- **Provenance:** `source: imported` on every record; one audit entry per run naming the
+  department and the president who compiled it.
+- Keeps derived data consistent: version markers, `links` copies, review summaries and the
+  campus index rebuilt after each run.
+- One department per run, chunked to stay well inside 20k writes/day; never writes `seed` or
+  other test fields.
+
 ---
 
 ## Budgets (free plans, checked against Cloudflare docs 2026-09-30)
@@ -114,6 +193,8 @@ and whether production uses Pages Functions (they share the Worker request count
 
 ## Open questions
 
+- Contributor details (who publishes, scope, edits, term, credit for imports): see
+  `PROPOSED_FEATURES.md` open questions.
 - Which data carries a copy in the broadcast vs only a version (proposed: links and rep entries
   carry data; reviews and offerings carry a version)?
 - Succession: the Worker and DO live in the Cloudflare account the admins will co-own; add them
