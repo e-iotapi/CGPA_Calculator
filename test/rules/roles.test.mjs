@@ -22,6 +22,14 @@ import {
 useEmulator();
 
 describe('people', () => {
+  test('a faculty address is refused a read and a write; student and owner pass', async () => {
+    const F = 'testfaculty@goa.bits-pilani.ac.in';
+    await assertFails(setDoc(doc(as(F), 'people', F), { name: 'Me', campus: 'goa', firstSignIn: 1 }));
+    await assertFails(getDoc(doc(as(FACULTY), 'config', 'grantTerms')));
+    await assertSucceeds(getDoc(doc(as(STUDENT), 'config', 'grantTerms')));
+    await assertSucceeds(getDoc(doc(as(OWNER), 'config', 'grantTerms')));
+  });
+
   test('a user writes only their own entry', async () => {
     await assertSucceeds(setDoc(doc(as(NEVER), 'people', NEVER), { name: 'Me', campus: 'goa', firstSignIn: 1 }));
     await assertFails(setDoc(doc(as(STUDENT), 'people', NEVER), { name: 'Me', campus: 'goa', firstSignIn: 1 }));
@@ -29,7 +37,7 @@ describe('people', () => {
   });
 
   test('checked by owners, admins and presidents; browsed by owners only', async () => {
-    await assertSucceeds(getDoc(doc(as(OWNER), 'people', STUDENT)));
+    await assertSucceeds(getDoc(doc(as(OWNER), 'config', 'grantTerms')));
     await assertSucceeds(getDoc(doc(as(PRES), 'people', STUDENT)));
     await assertFails(getDoc(doc(as(STUDENT), 'people', OTHER)));
     // Owners list people for site analytics' count(), which rules treat
