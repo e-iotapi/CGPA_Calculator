@@ -25,7 +25,7 @@ class BuildCounterState extends State<BuildCounter> {
   }
 }
 
-/// How many times a [BuildCounter] under [f] rebuilt while [act] runs.
+/// How many times the [BuildCounter] rebuilt while [act] runs.
 Future<int> countBuilds(WidgetTester t, Future<void> Function() act) async {
   final state = t.state<BuildCounterState>(find.byType(BuildCounter));
   final before = state.builds;
