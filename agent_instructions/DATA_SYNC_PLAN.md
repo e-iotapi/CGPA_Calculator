@@ -134,8 +134,9 @@ from Firestore, rules and Cloudflare.
   `status: rejected` with a reason (removed from `links`); no points. Contributors can send
   several links as **one batched request**; approvers see one entry with clickable links.
 - **The 15-day window without a timer (no Cloud Functions):** readers hide a `links` entry with
-  `approved: false` once `publishedAt` is older than 15 days; the contributor still sees it. The
-  pending index keeps it for approvers. Once the Durable Object exists (Stage 3), it can also
+  `approved: false` once `publishedAt` is older than 15 days, **for everyone, the contributor
+  included**; it earns nothing. Rules refuse approving it after the window
+  (`resource.data.publishedAt + 15d > request.time`), and the pending index drops it. Once the Durable Object exists (Stage 3), it can also
   drop such entries from `links` daily with its service account.
 - **Contributors can edit their own published links but cannot delete them.**
 - **Points are awarded in the batch where a link becomes approved** (created approved by an
@@ -228,8 +229,6 @@ and whether production uses Pages Functions (they share the Worker request count
 
 ## Open questions
 
-- What happens to a link unapproved after 15 days (assumed: hidden from students, no points):
-  see `PROPOSED_FEATURES.md` open question 17.
 - Which data carries a copy in the broadcast vs only a version (proposed: links and rep entries
   carry data; reviews and offerings carry a version)?
 - Succession: the Worker and DO live in the Cloudflare account the admins will co-own; add them

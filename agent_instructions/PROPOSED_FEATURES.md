@@ -151,5 +151,5 @@ Server: `DATA_SYNC_PLAN.md` §5.6.
 15. **Grade and marks on reviews:** answered — marks optional and grade may be "Not disclosed",
     so a reviewer in a small class can stay unidentifiable.
 16. **Import points:** answered — each president and secretary gets +4 per imported record.
-17. **Unapproved after 15 days** (assumed, confirm): the link stops showing to students and
-    earns nothing; the contributor can still see it and ask again.
+17. **Unapproved after 15 days:** answered — the link is hidden from everyone, the contributor
+    included, and earns nothing.
