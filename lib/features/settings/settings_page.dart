@@ -98,7 +98,6 @@ class _SettingsPageState extends State<SettingsPage> {
               onTheme: _setTheme,
               onRenameProfile: (i) => _renameProfile(context, i),
               onExport: () => _exportCsv(context),
-              onImportBackup: () => _importFromFile(context),
               onImportOld: () => _importFromOldSite(context),
               onImportErp: kIsWeb ? () => _importFromErp(context) : null,
               onReport: () => _submitReport(context),
@@ -264,53 +263,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _toast(context, 'Downloaded ${exportGradesCsv()}');
     } catch (e) {
       _toast(context, 'Export failed: $e');
-    }
-  }
-
-  Future<void> _importFromFile(BuildContext context) async {
-    String? text;
-    try {
-      text = await pickTextFile('.json,application/json');
-    } catch (e) {
-      if (context.mounted) _toast(context, 'Could not read the file: $e');
-      return;
-    }
-    if (text == null || !context.mounted) return; // cancelled
-
-    Map<String, int> counts;
-    try {
-      counts = Sync.validate(text);
-    } catch (e) {
-      _toast(context, "That file isn't a grade backup.");
-      return;
-    }
-    final summary = [
-      if (counts['coursesBox'] != null) '${counts['coursesBox']} courses',
-      if (counts['settingsBox'] != null) '${counts['settingsBox']} settings',
-      if ((counts['offshootBox'] ?? 0) > 0)
-        '${counts['offshootBox']} offshoot courses',
-      if ((counts['marksBox'] ?? 0) > 0) '${counts['marksBox']} marks entries',
-    ].join(', ');
-    if (!await _confirm(
-      context,
-      'Replace your grades?',
-      'This file contains $summary.\n\nImporting replaces everything '
-          'currently saved to your account. This cannot be undone.',
-      'Import',
-    )) {
-      return;
-    }
-    try {
-      await Sync.apply(text);
-      await Sync.push();
-      reloadPage();
-    } catch (e) {
-      if (context.mounted) {
-        _toast(
-          context,
-          "Import failed. Check it's the right file and try again.",
-        );
-      }
     }
   }
 

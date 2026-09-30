@@ -49,7 +49,6 @@ void main() {
         onTheme: (_) {},
         onRenameProfile: (_) {},
         onExport: () {},
-        onImportBackup: () {},
         onImportOld: () {},
         onReport: () {},
         onReset: () {},
