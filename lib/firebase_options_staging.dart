@@ -15,7 +15,7 @@ class StagingFirebaseOptions {
   }
 
   /// The staging web app's options.
-  static const FirebaseOptions web =FirebaseOptions(
+  static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyD5aVnFDmzOQKjnuumyArZxFornqqrKHww',
     appId: '1:8768962364:web:339acd421cd0b1d990a839',
     messagingSenderId: '8768962364',
