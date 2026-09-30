@@ -26,6 +26,7 @@ Future<bool> confirmDialog(
   return ok == true;
 }
 
+/// A titled dialog with a body and a confirm and cancel button.
 class ConfirmDialog extends StatelessWidget {
   const ConfirmDialog({
     super.key,

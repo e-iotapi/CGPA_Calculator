@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:flutter/material.dart';
 
+/// The colouring of a [CodeBadge].
 enum CodeTone { neutral, first, second, selected, empty }
 
 /// A course/degree code chip (§3.14): "A7", "B3", the empty dashed slot.
