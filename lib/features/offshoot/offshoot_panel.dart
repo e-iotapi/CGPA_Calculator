@@ -155,8 +155,8 @@ class OffshootPanel extends StatelessWidget {
   /// Why [r] is not counted, or null if it is.
   String? _reason(OffshootRow r) {
     if (score.isCounted(r)) return null;
-    if (r.excluded) return 'Unticked · not counted';
     if (r.grade == null) return 'Not in your course list';
+    if (r.excluded) return 'Unticked · not counted';
     if (!r.scorable) return 'No letter grade yet';
     return score.dropped.length == 1 && score.scorableCount == 6
         ? 'Not counted · lowest of the six'
@@ -266,7 +266,8 @@ class _CourseTile extends StatelessWidget {
     final content = Row(
       children: [
         // A dropped course is not counted: an empty box, not a faded tick.
-        _Check(ticked: ticked && counted),
+        // A course you have not taken shows its tick too: it counts once graded.
+        _Check(ticked: ticked && (counted || g == null)),
         const SizedBox(width: Space.md),
         Expanded(
           child: Column(
@@ -319,6 +320,7 @@ class _CourseTile extends StatelessWidget {
             '${row.course.title}, '
             '${g == null ? 'not taken' : 'grade $letter'}, '
             '${counted ? 'counted' : 'not counted'}',
+        onTap: onTap,
         excludeSemantics: true,
         child:
             counted

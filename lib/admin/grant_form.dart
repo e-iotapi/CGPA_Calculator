@@ -192,6 +192,13 @@ class _AdminGrantState extends State<AdminGrant> {
       return 'Refused: this is not a student address. Presidents and CRs '
           'are students.';
     }
+    final code = _course.text.trim().toUpperCase();
+    if (_role == GrantRole.course &&
+        code.isNotEmpty &&
+        catalogLoaded &&
+        !catalog.master.any((m) => m.id.toUpperCase() == code)) {
+      return '$code is not in the catalogue.';
+    }
     if (_role == GrantRole.course && !_roles.owner && !_roles.admin) {
       final course = _course.text.trim();
       final ok = _roles.presidencies.any(
@@ -408,36 +415,28 @@ class _AdminGrantState extends State<AdminGrant> {
                   style: muted,
                 ),
               ),
-              const SizedBox(height: Space.sm),
-              // The board's red-brown box: what this form refuses, or why
-              // this address is refused.
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: p.behind.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border:
-                      refusal == null
-                          ? null
-                          : Border.all(color: p.behind.withValues(alpha: 0.6)),
-                ),
-                child: Text(
-                  refusal ??
-                      (role == GrantRole.admin
-                          ? 'Refused on this form: accounts outside BITS. '
-                              'Admins hold a BITS address.'
-                          : 'Refused on this form: faculty addresses, alumni '
-                              'addresses and non-BITS accounts. Presidents and '
-                              'CRs are students.'),
-                  style: TypeScale.caption.copyWith(
-                    fontSize: 11,
-                    height: 1.45,
-                    color: p.behind,
-                    fontWeight: FontWeight.w600,
+              if (refusal != null) ...[
+                const SizedBox(height: Space.sm),
+                // this address is refused.
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: p.behind.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: p.behind.withValues(alpha: 0.6)),
+                  ),
+                  child: Text(
+                    refusal,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 11,
+                      height: 1.45,
+                      color: p.behind,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

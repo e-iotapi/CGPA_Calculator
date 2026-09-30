@@ -128,7 +128,14 @@ Future<void> startApp(User user) async {
       email: email,
       name: user.displayName ?? '',
     );
-    unawaited(refreshMyRolesIfDue().then((_) => checkProfile()));
+    final rolesDone = refreshMyRolesIfDue().then((_) => checkProfile());
+    // A deep link on a first sign-in has no cached roles yet, and its guard
+    // (/maintain, /admin) would send it Home: wait for them (BUG-51).
+    if (Uri.base.path.length > 1 && !myRoles.value.privileged) {
+      await rolesDone.catchError((Object _) {});
+    } else {
+      unawaited(rolesDone);
+    }
   }
   // A platform-channel round trip; the lock takes effect whenever it lands
   // and does not need to gate the first frame.
