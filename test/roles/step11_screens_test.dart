@@ -1000,10 +1000,16 @@ void main() {
     expect(find.textContaining('Refused'), findsNothing);
     await t.tap(find.text('CR'));
     await t.pumpAndSettle();
-    await t.enterText(
-      find.widgetWithText(TextField, 'EEE F211').first,
-      'XYZ F999',
+    final field = find.widgetWithText(TextField, 'EEE F211').first;
+    // A code still being typed is not refused, nor granted.
+    await t.enterText(field, 'EEE');
+    await t.pumpAndSettle();
+    expect(find.textContaining('not in the catalogue'), findsNothing);
+    expect(
+      t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNull,
     );
+    await t.enterText(field, 'XYZ F999');
     await t.pumpAndSettle();
     expect(find.text('XYZ F999 is not in the catalogue.'), findsOneWidget);
     expect(

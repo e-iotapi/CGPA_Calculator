@@ -194,10 +194,11 @@ class _AdminGrantState extends State<AdminGrant> {
           'are students.';
     }
     final code = _course.text.trim().toUpperCase();
+    // Only once no course starts with it: "C" is a code still being typed.
     if (_role == GrantRole.course &&
         code.isNotEmpty &&
         catalogLoaded &&
-        !catalog.master.any((m) => m.id.toUpperCase() == code)) {
+        !catalog.master.any((m) => _bare(m.id).startsWith(_bare(code)))) {
       return '$code is not in the catalogue.';
     }
     if (_role == GrantRole.course && !_roles.owner && !_roles.admin) {
@@ -224,15 +225,21 @@ class _AdminGrantState extends State<AdminGrant> {
 
   /// Catalogue codes starting with what is typed, until one is exact.
   List<String> get _suggestions {
-    final q = _course.text.trim().toUpperCase().replaceAll(' ', '');
-    if (q.length < 2) return const [];
-    final ids = catalog.master.map((m) => m.id);
-    if (ids.any((id) => id.replaceAll(' ', '') == q)) return const [];
-    return ids
-        .where((id) => id.replaceAll(' ', '').startsWith(q))
-        .take(6)
-        .toList();
+    final q = _bare(_course.text);
+    if (q.length < 2 || _exactCourse) return const [];
+    // A course listed under several programmes appears once.
+    return {
+      for (final m in catalog.master)
+        if (_bare(m.id).startsWith(q)) m.id,
+    }.take(6).toList();
   }
+
+  /// Whether the typed code is a catalogue course, spacing aside.
+  bool get _exactCourse =>
+      catalog.master.any((m) => _bare(m.id) == _bare(_course.text));
+
+  static String _bare(String code) =>
+      code.trim().toUpperCase().replaceAll(' ', '');
 
   /// A secretary ends with the appointing president's own term.
   DateTime? get _secretaryEnds {
@@ -256,6 +263,7 @@ class _AdminGrantState extends State<AdminGrant> {
       _refusal == null &&
       _campus != null &&
       _scope != null &&
+      (_role != GrantRole.course || !catalogLoaded || _exactCourse) &&
       (_role != GrantRole.dept || _programme != null);
 
   Future<void> _grant() async {
@@ -511,20 +519,30 @@ class _AdminGrantState extends State<AdminGrant> {
                     labelAbove: true,
                     onChanged: (_) => setState(() {}),
                   ),
-                  if (_suggestions.isNotEmpty) ...[
-                    const SizedBox(height: Space.sm),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final id in _suggestions)
-                          PillButton(
-                            label: id,
-                            onPressed: () => setState(() => _course.text = id),
-                          ),
-                      ],
+                  // Always there, so the pills come and go inside it: a
+                  // sibling appearing beside the field changed its
+                  // semantics parent, and Flutter web then emptied the
+                  // field mid-typing.
+                  Semantics(
+                    container: true,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: _suggestions.isEmpty ? 0 : Space.sm,
+                      ),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final id in _suggestions)
+                            PillButton(
+                              label: id,
+                              onPressed:
+                                  () => setState(() => _course.text = id),
+                            ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                   const Note(
                     'A CR\'s scope is the course, never a section. A CR of '
                     'three courses holds three grants.',
