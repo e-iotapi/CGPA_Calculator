@@ -79,6 +79,14 @@ Presidents compile their department's links, professors and historical reviews w
 prompt into a JSON file and hand it to the owner, who imports it with an owner-run script. No
 screen. Details: `DATA_SYNC_PLAN.md` §5.5.
 
+**First batch in hand:** `tools/course_reviews_out/` (gitignored): 614 reviews (mostly HSS/GS
+electives, 2023-24 to 2025-26), 88 courses with 50 handout links, 1 project review. Field-by-field
+variations are in `tools/course_reviews_out/FIELDS.md` for the owner's keep/reject decision.
+They have **no star ratings or yes/no "would take"**. Decided: never import `user_id` or `pr_no`;
+handouts become course resources. **Later:** estimate stars and "would take" from the text with an
+LLM, stored and labelled as estimates, low-confidence left unrated, owner spot-checks first.
+
+
 ## 10.Course Reviews Page Changes
 The Stats on top (The Star Rating and Would Take): These should Change, based on the filter applied, for e.g. A Professor filter should only show these stats for the professor.
 Filters: 
