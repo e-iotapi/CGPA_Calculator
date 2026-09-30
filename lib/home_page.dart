@@ -44,19 +44,19 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  // Same discipline filter the GPA tallies use (core/grading/cgpa.dart), so
+  // the visible list and SGPA/CGPA never disagree on which courses count
+  // (BUG-40: a catalogue open elective with discipline "--" used to match
+  // this getter's own hand-rolled check only when "--" was the *second*
+  // half of selecteddiscipline, while cgpa.dart's inDiscipline checked both
+  // halves unconditionally — so a "--" course was hidden from the list but
+  // still counted in SGPA/CGPA whenever "--" was the first half).
   List<Course> get items =>
       Hive.box<Course>('coursesBox').values
           .where(
             (course) =>
                 course.sem == currentsem &&
-                (course.discipline ==
-                        ((selecteddiscipline.substring(0, 2) != "--")
-                            ? selecteddiscipline.substring(0, 2)
-                            : selecteddiscipline.substring(2, 4)) ||
-                    course.discipline ==
-                        ((selecteddiscipline.substring(0, 2) != "--")
-                            ? selecteddiscipline.substring(2, 4)
-                            : "ccccc")),
+                inDiscipline(course, selecteddiscipline),
           )
           .toList();
 

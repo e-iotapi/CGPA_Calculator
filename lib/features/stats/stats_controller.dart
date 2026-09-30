@@ -129,7 +129,14 @@ class StatsData {
     for (final p in planned)
       if (p.included) p,
   ];
-  double get delta => finish - cgpa;
+
+  /// From the same two rounded figures the footer shows ("YOU FINISH AT
+  /// x.x5 CGPA"), not the raw ones (BUG-52) — otherwise a real 0.01 rise
+  /// between the *displayed* numbers can round to "0.00 up" when the
+  /// unrounded gap happens to sit under 0.005.
+  double get delta =>
+      double.parse(finish.toStringAsFixed(2)) -
+      double.parse(cgpa.toStringAsFixed(2));
 
   List<CgpaPoint> get forecast => [
     if (actual.isNotEmpty) actual.last,
@@ -151,8 +158,12 @@ class StatsData {
     return total == 0 ? 0 : audit.totalCredits / total;
   }
 
+  /// A new user (no CGPA yet, [cgpa] 0) gets a plain, reachable-looking
+  /// default rather than a "0.50" derived from a CGPA that doesn't exist
+  /// (BUG-07) — one that also sits inside the target step buttons' 4–10
+  /// range, so Raise/Lower work immediately.
   static double defaultTarget(double cgpa) =>
-      math.min(10, (cgpa * 2).floor() / 2 + 0.5);
+      cgpa <= 0 ? 7.5 : math.min(10, (cgpa * 2).floor() / 2 + 0.5);
 
   /// Nearest 0.05, clamped to the slider's range.
   static double _snap(double v) => ((v * 20).round() / 20).clamp(4.0, 10.0);
@@ -170,10 +181,17 @@ class StatsData {
     final avg = best.fold(0.0, (s, t) => s + t.sgpa) / best.length;
     final worst = sorted.last;
     final n = best.length == 3 ? 'three semesters' : 'semesters';
+    final reachable = avg >= req;
     final base =
         'Your best $n averaged ${avg.toStringAsFixed(2)}, so this is '
-        '${avg >= req ? 'reachable' : 'a stretch'}';
-    return worst.sgpa < req
+        '${reachable ? 'reachable' : 'a stretch'}';
+    // The "but not with a repeat of X" caveat only makes sense once the
+    // verdict above is "reachable" — warning that the *worst* semester
+    // specifically falls short (BUG-23). Appending it to "a stretch" is
+    // self-contradicting: the sentence already said even the best average
+    // doesn't clear the bar, so singling out the worst one adds nothing and
+    // reads as if some other repeat *would* work.
+    return reachable && worst.sgpa < req
         ? '$base — but not with a repeat of ${worst.sem}.'
         : '$base.';
   }
