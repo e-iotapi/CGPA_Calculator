@@ -173,6 +173,31 @@ async function ensureAuthUsers(auth, accounts, password) {
 
 // ---- users/{uid}: the Sync snapshot from build_snapshots_test.dart ------
 
+// A snapshot file is baked for one specific batch (e.g. student_full is
+// batch 24); an account that reuses it (president, cr) has its own real
+// batch in its BITS address. Left unpatched, the synced settingsBox.batch
+// overwrites what the address says, and Settings/the current-semester math
+// go by the wrong year (BUG-15). Patch the one field to match the address.
+export function patchedBatch(email, json) {
+  const m = /^[fhp](\d{4})\d*@/i.exec(email);
+  if (!m) return json;
+  const batch = Number(m[1]) % 100;
+  const data = JSON.parse(json);
+  const settings = data.settingsBox;
+  if (!Array.isArray(settings)) return json;
+  const entry = settings.find(([k]) => k === 'batch');
+  if (entry) entry[1] = batch;
+  else settings.push(['batch', batch]);
+  // Same for campus (BUG-10): student_hyd reuses a Goa-baked snapshot.
+  const campus = /@([a-z]+)\.bits-pilani\.ac\.in$/i.exec(email)?.[1].toLowerCase();
+  if (campus) {
+    const c = settings.find(([k]) => k === 'campus');
+    if (c) c[1] = campus;
+    else settings.push(['campus', campus]);
+  }
+  return JSON.stringify(data);
+}
+
 async function seedUserDocs(db, accounts) {
   for (const a of accounts) {
     // first_login (and no dataset at all): no users/{uid} doc, so the app
@@ -189,7 +214,7 @@ async function seedUserDocs(db, accounts) {
     await db.doc(`users/${a.uid}`).set(
       s({
         rev: 1,
-        data: readFileSync(file, 'utf8'),
+        data: patchedBatch(a.email, readFileSync(file, 'utf8')),
         updatedAt: FieldValue.serverTimestamp(),
       }),
     );

@@ -3,6 +3,7 @@
 /// presses Publish, which writes the next `catalog/v{n}` and moves the marker.
 library;
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -98,6 +99,24 @@ Catalog applyEdits(Catalog live, Iterable<CourseEdit> edits) {
   );
 }
 
+final _codeShape = RegExp(r'^[A-Z]{2,6} [A-Z0-9]{3,6}$');
+
+/// Why a brand new course's draft can't be saved, or null when it is fine
+/// (BUG-48: negative credits and a made-up department went straight
+/// through). An existing course's code, department and credit range are
+/// already real, so only a new id is checked.
+String? newCourseError(String code, double credits, Catalog live) {
+  if (!_codeShape.hasMatch(code)) return 'Course codes look like "CS F211".';
+  final dept = code.split(' ').first;
+  if (!live.master.any((c) => c.id.split(' ').first == dept)) {
+    return '"$dept" is not a department Pointer knows.';
+  }
+  if (credits < 0.5 || credits > 25) {
+    return 'Credits must be between 0.5 and 25.';
+  }
+  return null;
+}
+
 typedef CreditChange = ({String id, String title, double from, double to});
 typedef CourseLine = ({String id, String title, String what});
 
@@ -107,16 +126,21 @@ class CatalogDiff {
   const CatalogDiff({
     required this.credits,
     required this.retired,
+    required this.added,
     required this.cosmetic,
   });
 
   final List<CreditChange> credits;
   final List<CourseLine> retired;
 
-  /// Titles, default tags, new courses and restored ones.
+  /// Brand new course ids (BUG-48/52: not a cosmetic change).
+  final List<CourseLine> added;
+
+  /// Titles, default tags and restored ones.
   final List<CourseLine> cosmetic;
 
-  int get count => credits.length + retired.length + cosmetic.length;
+  int get count =>
+      credits.length + retired.length + added.length + cosmetic.length;
   bool get isEmpty => count == 0;
 }
 
@@ -130,11 +154,12 @@ CatalogDiff diffCatalog(Catalog live, Catalog next) {
     for (final c in [...next.chartOld, ...next.chartNew]) c.id: c.elective,
   };
   final credits = <CreditChange>[];
+  final added = <CourseLine>[];
   final cosmetic = <CourseLine>[];
   for (final m in b.values) {
     final old = a[m.id];
     if (old == null) {
-      cosmetic.add((id: m.id, title: m.title, what: 'New course'));
+      added.add((id: m.id, title: m.title, what: 'New course'));
       continue;
     }
     if (old.credits != m.credits) {
@@ -167,8 +192,14 @@ CatalogDiff diffCatalog(Catalog live, Catalog next) {
     cosmetic.add((id: id, title: b[id]?.title ?? id, what: 'Back on offer'));
   }
   credits.sort((x, y) => x.id.compareTo(y.id));
+  added.sort((x, y) => x.id.compareTo(y.id));
   cosmetic.sort((x, y) => x.id.compareTo(y.id));
-  return CatalogDiff(credits: credits, retired: retired, cosmetic: cosmetic);
+  return CatalogDiff(
+    credits: credits,
+    retired: retired,
+    added: added,
+    cosmetic: cosmetic,
+  );
 }
 
 /// `courses/{id}` drafts and the live bundle, for the owner's Publish page.
@@ -217,12 +248,14 @@ class CatalogStore {
       path: 'catalog/marker',
       summary:
           'Published catalogue v${next.version}: ${diff.credits.length} credit, '
-          '${diff.retired.length} retired, ${diff.cosmetic.length} other',
+          '${diff.retired.length} retired, ${diff.added.length} new, '
+          '${diff.cosmetic.length} other',
       campus: 'all',
       after: {
         'version': next.version,
         'credits': [for (final c in diff.credits) c.id],
         'retired': [for (final c in diff.retired) c.id],
+        'added': [for (final c in diff.added) c.id],
       },
     );
     b.set(_db.collection('catalog').doc('v${next.version}'), {
@@ -243,5 +276,10 @@ class CatalogStore {
       b.update(_db.collection('courses').doc(e.id), {'draft': false});
     }
     await b.commit();
+    // The head cache (heads.dart) is stale-while-revalidate for up to 6h:
+    // on this device, the very next catalogue read — this owner's own
+    // "did it publish" check included — would otherwise still see the old
+    // version until that window passes (BUG-48).
+    await forget('head|');
   }
 }

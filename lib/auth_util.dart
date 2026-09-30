@@ -44,6 +44,14 @@ final _address = RegExp(
   caseSensitive: false,
 );
 
+/// The domain alone, for an address whose local part is not a student id
+/// (a faculty account like testfaculty@goa...) — the campus is still known
+/// even though there is no batch or level to read (BUG-33).
+final _domain = RegExp(
+  r'@([a-z]+)\.bits-pilani\.ac\.in$',
+  caseSensitive: false,
+);
+
 /// A batch year Pointer can hold: stored as two digits, so this century,
 /// and no later than next year's intake.
 bool yearInRange(int year) => year >= 2000 && year <= DateTime.now().year + 1;
@@ -52,18 +60,29 @@ bool yearInRange(int year) => year >= 2000 && year <= DateTime.now().year + 1;
 /// back null, to be asked for; it never fails sign-in and never guesses a
 /// campus.
 BitsAddress parseBitsAddress(String? email) {
-  final m = _address.firstMatch(email?.trim() ?? '');
-  if (m == null) return (level: null, year: null, campus: null);
-  final year = int.tryParse(m.group(2) ?? '');
+  final trimmed = email?.trim() ?? '';
+  final m = _address.firstMatch(trimmed);
+  if (m != null) {
+    final year = int.tryParse(m.group(2) ?? '');
+    return (
+      level: switch (m.group(1)?.toLowerCase()) {
+        'f' => DegreeLevel.first,
+        'h' => DegreeLevel.higher,
+        'p' => DegreeLevel.phd,
+        _ => null,
+      },
+      year: year != null && yearInRange(year) ? year : null,
+      campus: Campus.named(m.group(3)!.toLowerCase()),
+    );
+  }
+  // Not shaped like a student id (a faculty address, say) — still read the
+  // campus off the domain, so onboarding never claims it cannot tell the
+  // campus for a BITS address that plainly names one.
+  final d = _domain.firstMatch(trimmed);
   return (
-    level: switch (m.group(1)?.toLowerCase()) {
-      'f' => DegreeLevel.first,
-      'h' => DegreeLevel.higher,
-      'p' => DegreeLevel.phd,
-      _ => null,
-    },
-    year: year != null && yearInRange(year) ? year : null,
-    campus: Campus.named(m.group(3)!.toLowerCase()),
+    level: null,
+    year: null,
+    campus: d == null ? null : Campus.named(d.group(1)!.toLowerCase()),
   );
 }
 

@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
@@ -66,6 +67,23 @@ class _PublishPageState extends State<PublishPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// A confirm step before every publish (BUG-48: it used to run at once).
+  Future<void> _confirmAndPublish(
+    Catalog next,
+    CatalogDiff diff,
+    List<CourseEdit> drafts,
+  ) async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Publish v${next.version}?',
+      body:
+          '${diff.count} change${diff.count == 1 ? '' : 's'} go live for '
+          'everyone on their next open.',
+      action: 'Publish',
+    );
+    if (ok && mounted) await _publish(next, diff, drafts);
   }
 
   Future<void> _draft() async {
@@ -126,7 +144,7 @@ class _PublishPageState extends State<PublishPage> {
               onPressed:
                   _busy || diff.isEmpty || (n > 0 && !_read)
                       ? null
-                      : () => _publish(next, diff, drafts),
+                      : () => _confirmAndPublish(next, diff, drafts),
             ),
           ),
           children: [
@@ -177,6 +195,23 @@ class _PublishPageState extends State<PublishPage> {
                         '${c.id} · ${c.title}',
                         'Hidden from Add a course. Grades already held keep '
                             'counting, marked Retired.',
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Space.sm),
+            ],
+            if (diff.added.isNotEmpty) ...[
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('NEW COURSES · ${diff.added.length}', style: label),
+                    const SizedBox(height: Space.sm),
+                    for (final c in diff.added)
+                      line(
+                        '${c.id} · ${c.title}',
+                        'Joins Add a course and the catalogue Pointer knows.',
                       ),
                   ],
                 ),
@@ -366,6 +401,10 @@ class _DraftSheetState extends State<_DraftSheet> {
     if (_code.isEmpty) return setState(() => _error = 'Type a course code.');
     if (m == null && (title.isEmpty || credits == null)) {
       return setState(() => _error = 'A new course needs a title and credits.');
+    }
+    if (m == null) {
+      final err = newCourseError(_code, credits!, catalog);
+      if (err != null) return setState(() => _error = err);
     }
     final e = CourseEdit(
       id: _code,
