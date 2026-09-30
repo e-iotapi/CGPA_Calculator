@@ -9,7 +9,7 @@ name (for example "ARCHITECTURE.md §7"); they all live here.
 |---|---|
 | `ARCHITECTURE.md` | The design of record: data, roles, routes, rules. `test/core/capabilities_test.dart` reads its §4 table. |
 | `PERF_TEST_PLAN.md` | The backend build-out plan (speed, quota, roles, degree fixes, analytics). Read items with `agent_toolchains/plan/plan.py get`. |
-| `DATA_SYNC_PLAN.md` | Planned, not started: loading audit, routes as paths (`/priv/<role>`), path-keyed cache, Cloudflare Worker and Durable Object sync, reviews on the edge cache, responsiveness rules. |
+| `DATA_SYNC_PLAN.md` | Planned, not started: server structure for sync — per-path version markers, Cloudflare Worker and Durable Object, reviews on the edge cache. |
 | `UI_REBUILD_HANDOFF.md` | What the finished UI waits on from the backend, and the §6 checklist. |
 | `MANUAL_QA.md` | The checklist for a real old phone on staging. |
 | `PERF_BASELINE.md` | Measured load times against the budgets. |
