@@ -15,8 +15,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 final phonePattern = RegExp(r'^[+0-9 ()-]{7,20}$');
 
 /// One role as the directory lists it, with the expiry it had when written.
+/// `programme` is a president's branch, when their department has several.
 typedef ListedRole =
-    ({GrantRole role, String scope, DateTime until, bool secretary});
+    ({
+      GrantRole role,
+      String scope,
+      String? programme,
+      DateTime until,
+      bool secretary,
+    });
 
 /// `directory/{email}`.
 class DirectoryEntry {
@@ -62,6 +69,7 @@ class DirectoryEntry {
               (
                 role: GrantRole.of(r['role'] as String),
                 scope: r['scope'] as String,
+                programme: r['programme'] as String?,
                 until: asDate(r['until']) ?? DateTime(1970),
                 secretary: r['secretary'] == true,
               ),
@@ -80,6 +88,7 @@ List<ListedRole> listedRoles(MyRoles r) => [
       (
         role: g.role,
         scope: g.scope,
+        programme: g.programme,
         until: g.expiresAt,
         secretary: g.secretary,
       ),
@@ -120,6 +129,7 @@ bool needsProfile(
           (d) =>
               d.role == w.role &&
               d.scope == w.scope &&
+              d.programme == w.programme &&
               d.until.millisecondsSinceEpoch == w.until.millisecondsSinceEpoch,
         ),
   );
@@ -247,6 +257,7 @@ class ContactStore {
             {
               'role': x.role.key,
               'scope': x.scope,
+              if (x.programme != null) 'programme': x.programme,
               'until': Timestamp.fromDate(x.until),
               if (x.secretary) 'secretary': true,
             },

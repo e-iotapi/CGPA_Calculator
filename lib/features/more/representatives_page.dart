@@ -101,10 +101,11 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
       );
     }
     final courses = takingNow().toList()..sort();
-    final depts = myDepartments(courses, [
+    final degrees = [
       app.selecteddiscipline.substring(0, 2),
       app.selecteddiscipline.substring(2),
-    ]);
+    ];
+    final depts = myDepartments(courses, degrees);
     final crFor = [
       for (final g in myRoles.value.grants)
         if (g.role == GrantRole.course && g.active) g.scope,
@@ -124,6 +125,34 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
               if (r.role == role && r.scope == s && r.secretary == secretary)
                 (e, r),
         ]..sort((a, b) => a.$2.until.compareTo(b.$2.until));
+        // Presidents go by branch code: a student's own branch of a
+        // department, else every branch of it that has one listed.
+        List<(DirectoryEntry, ListedRole)> pres(
+          String branch, {
+          bool secretary = false,
+        }) => [
+          for (final d in depts)
+            for (final h in holders(GrantRole.dept, d, secretary: secretary))
+              if (branchCode(d, h.$2.programme) == branch) h,
+        ];
+        final branches = <String>[], missing = <String>[];
+        for (final d in depts) {
+          final all = departments[d]?.programmes ?? [d];
+          final own = all.where(degrees.contains);
+          final listed = {
+            for (final h in holders(GrantRole.dept, d))
+              branchCode(d, h.$2.programme),
+          };
+          // One appointed before branches were recorded goes by [d].
+          branches.addAll(
+            listed.where((b) => own.isEmpty || own.contains(b) || b == d),
+          );
+          missing.addAll(
+            own.isEmpty
+                ? (listed.isEmpty ? all : const [])
+                : own.where((b) => !listed.contains(b)),
+          );
+        }
         return PageFrame(
           header: header,
           children: [
@@ -143,20 +172,22 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
                 'semester. Add them to your grades first.',
               ),
             if (depts.isNotEmpty) const SectionLabel('Department'),
-            for (final d in depts) ...[
-              _President(code: d, list: holders(GrantRole.dept, d), now: now),
-              if (holders(GrantRole.dept, d, secretary: true) case final s
-                  when s.isNotEmpty) ...[
-                const SizedBox(height: Space.xs),
-                _President(
-                  code: d,
-                  list: s,
-                  now: now,
-                  title: 'Department secretary',
-                ),
+            for (final b in branches)
+              if (pres(b) case final list when list.isNotEmpty) ...[
+                _President(code: b, list: list, now: now),
+                if (pres(b, secretary: true) case final s
+                    when s.isNotEmpty) ...[
+                  const SizedBox(height: Space.xs),
+                  _President(
+                    code: b,
+                    list: s,
+                    now: now,
+                    title: 'Department secretary',
+                  ),
+                ],
               ],
-            ],
-            if (depts.any((d) => holders(GrantRole.dept, d).isEmpty)) ...[
+            if (missing.isNotEmpty) ...[
+              Note('No president listed for ${missing.join(', ')} yet.'),
               const SizedBox(height: Space.sm),
               publicContactBlock(context),
             ],
@@ -169,8 +200,7 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
                     for (final (i, c) in courses.indexed) ...[
                       if (i > 0) Divider(height: 1, color: p.divider),
                       _CourseRow(
-                        title:
-                            '$c · ${courseTitle(c)}',
+                        title: '$c · ${courseTitle(c)}',
                         cr: holders(GrantRole.course, c).firstOrNull?.$1,
                         offer: data.offers[c],
                         noCr: data.offers.containsKey(c),
@@ -245,7 +275,6 @@ class _President extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    if (list.isEmpty) return Note('No president listed for $code yet.');
     // Sorted by end: the first is in office; a later one is taking over.
     final (e, r) = list.first;
     final next = list.length > 1 ? list[1].$1 : null;

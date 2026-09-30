@@ -247,15 +247,16 @@ class _SuccessionState extends State<Succession> {
             children: [
               Note(
                 myRoles.value.owner || myRoles.value.admin
-                    ? 'Nobody is president of ${widget.dept} on '
+                    ? 'Nobody is president of ${branchCode(widget.dept)} on '
                         '${campusName(widget.campus)} yet, so there is '
                         'nothing to hand over. Appoint one from People.'
-                    : 'Only a president of ${widget.dept} can hand it over.',
+                    : 'Only a president of ${branchCode(widget.dept)} can '
+                        'hand it over.',
               ),
             ],
           );
         }
-        final scope = mine.programme ?? widget.dept;
+        final scope = mine.scopeLabel;
         if (mine.handedTo case final to?) {
           return PageFrame(
             header: _header(widget.campus, scope, 'Hand over'),
@@ -343,7 +344,7 @@ class _SuccessionState extends State<Succession> {
           children: [
             if (_previewing(mine)) _previewNote(mine),
             Text(
-              'Name the next president of ${widget.dept} on '
+              'Name the next president of ${mine.scopeLabel} on '
               '${campusName(widget.campus)}. They start today; you keep '
               'access while you show them round.',
               style: TypeScale.body.copyWith(height: 1.45),
@@ -604,7 +605,7 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
                   ],
                   const SizedBox(height: Space.sm),
                   Text(
-                    '${mine?.programme ?? widget.dept} '
+                    '${branchCode(widget.dept, mine?.programme)} '
                     '${departmentName(widget.dept)} · $campus'
                     '${crs == null ? '' : ' · $crs CR${crs == 1 ? ' moves' : 's move'} too'}',
                     style: TypeScale.caption.copyWith(
@@ -635,7 +636,8 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
                   _Step(
                     1,
                     'Now.',
-                    '${_id(widget.to)} is president of ${widget.dept} on '
+                    '${_id(widget.to)} is president of '
+                        '${branchCode(widget.dept, mine?.programme)} on '
                         '$campus.',
                   ),
                   _Step(

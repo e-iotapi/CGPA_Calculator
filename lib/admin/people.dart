@@ -72,12 +72,7 @@ class GrantTile extends StatelessWidget {
                           campusName(g.campus),
                           icon: Icons.place_outlined,
                         ),
-                        ScopeChip(
-                          g.role == GrantRole.dept && g.programme != null
-                              ? '${g.scope} · for ${g.programme}'
-                              : g.scope,
-                          muted: true,
-                        ),
+                        ScopeChip(g.scopeLabel, muted: true),
                       ],
                     ],
                   ),

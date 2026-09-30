@@ -209,8 +209,11 @@ describe('directory', () => {
 
   test('a president lists a live role with one way to reach them', async () => {
     const until = await exactUntil();
-    const roles = [{ role: 'dept', scope: 'ELEC', until }];
+    const roles = [{ role: 'dept', scope: 'ELEC', programme: 'A3', until }];
     await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({ roles })));
+    // A president lists only the branch they were appointed for.
+    const wrong = [{ ...roles[0], programme: 'A8' }];
+    await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({ roles: wrong, email: PRES })));
     await assertSucceeds(setDoc(doc(as(PRES), 'directory', PRES), entry({ roles, email: PRES })));
     await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({ roles, email: STUDENT })));
     await assertSucceeds(getDocs(query(collection(as(STUDENT), 'directory'), where('campus', '==', 'goa'))));
@@ -219,7 +222,7 @@ describe('directory', () => {
 
   test('the campus index holds my own entry, exactly', async () => {
     const until = await exactUntil();
-    const e = entry({ roles: [{ role: 'dept', scope: 'ELEC', until }], email: PRES });
+    const e = entry({ roles: [{ role: 'dept', scope: 'ELEC', programme: 'A3', until }], email: PRES });
     const save = (copy, who = PRES) => {
       const db = as(who);
       const b = writeBatch(db);

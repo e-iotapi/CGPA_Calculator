@@ -19,12 +19,12 @@ String homeFor(Grant? g) => switch (g?.role) {
   GrantRole.course => Routes.crCourse(g!.campus, g.scope),
 };
 
-/// "Student", "President · ELEC", "CR · CS F301".
+/// "Student", "President · A3", "CR · CS F301".
 String roleLabel(Grant? g) => switch (g?.role) {
   null => 'Student',
   GrantRole.admin => 'Admin',
-  GrantRole.dept => 'President · ${g!.scope}',
-  GrantRole.course => 'CR · ${g!.scope}',
+  GrantRole.dept => 'President · ${g!.scopeLabel}',
+  GrantRole.course => 'CR · ${g!.scopeLabel}',
 };
 
 /// Board `RoleSwitch`: a president or CR picks the role Pointer works in
@@ -226,8 +226,14 @@ class RoleStrip extends StatelessWidget {
                               );
                             },
                             style: TextButton.styleFrom(
-                              foregroundColor: p.accent,
+                              // The accent vanished on the inverse strip in
+                              // both themes.
+                              foregroundColor: p.onInverse,
                               minimumSize: const Size(0, 40),
+                              textStyle: TypeScale.caption.copyWith(
+                                fontWeight: FontWeight.w800,
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
                             child: Text(
                               view != null ? 'Back to Owner' : 'Student',
