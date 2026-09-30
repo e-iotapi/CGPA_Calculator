@@ -67,23 +67,10 @@ class _MyHomePageState extends State<MyHomePage> {
   /// course list on Expected.
   static const double _copyButtonRoom = 72;
 
-  /// The app theme with the current palette, one per palette name, so a
-  /// build re-injects it without copying ThemeData. Cleared on a theme switch.
-  final _themed = <String, ThemeData>{};
-
-  void _themeChanged() => _themed.clear();
-
   @override
   void initState() {
     super.initState();
     setnavcolor();
-    themeVersion.addListener(_themeChanged);
-  }
-
-  @override
-  void dispose() {
-    themeVersion.removeListener(_themeChanged);
-    super.dispose();
   }
 
   /// Saves what [c] changed. Build saves nothing (UI_OPT O3.1).
@@ -114,95 +101,91 @@ class _MyHomePageState extends State<MyHomePage> {
     sgpa = sgcalc(currentsem);
     cgpa = cgcalc();
     creditTotals();
-    // The current palette is re-injected on every build: settings change the
-    // `thm` global and setState here, but MyApp above never rebuilds.
-    return Theme(
-      data: _themed[thm.name] ??= Theme.of(
-        context,
-      ).copyWith(extensions: [thm]),
-      child: PopScope(
-        canPop: false,
-        child: ResponsiveScaffold(
-          selectedIndex: selectedprofile - 1,
-          onSelected: (index) {
-            // More is a hub above the profiles, not a fifth profile.
-            if (index == 4) {
-              openRoute(context, Routes.more, () => const MorePage());
-              return;
+    // No Theme of its own: the app theme already carries the palette and is
+    // rebuilt on every switch. A copy cached here stopped listening once the
+    // Working-as strip moved the page, and the theme stopped switching.
+    return PopScope(
+      canPop: false,
+      child: ResponsiveScaffold(
+        selectedIndex: selectedprofile - 1,
+        onSelected: (index) {
+          // More is a hub above the profiles, not a fifth profile.
+          if (index == 4) {
+            openRoute(context, Routes.more, () => const MorePage());
+            return;
+          }
+          setState(() {
+            if (index + 1 > selectedprofile) {
+              _isrightswipe = true;
+            } else {
+              _isrightswipe = false;
             }
-            setState(() {
-              if (index + 1 > selectedprofile) {
-                _isrightswipe = true;
-              } else {
-                _isrightswipe = false;
-              }
-              selectedprofile = index + 1;
-            });
-            _persist(HomeChange.profile);
+            selectedprofile = index + 1;
+          });
+          _persist(HomeChange.profile);
+        },
+        destinations: [
+          NavDestination(icon: Icons.home_outlined, label: profile1n),
+          NavDestination(icon: Icons.bar_chart_rounded, label: profile2n),
+          const NavDestination(
+            icon: Icons.open_in_full_rounded,
+            label: 'Compare',
+          ),
+          const NavDestination(
+            icon: Icons.workspace_premium_outlined,
+            label: 'Offshoot',
+          ),
+          const NavDestination(icon: Icons.more_horiz_rounded, label: 'More'),
+        ],
+        body: LayoutBuilder(
+          builder: (context, c) {
+            // The legacy screens below size and centre themselves off
+            // MediaQuery's width, assuming they fill the window. Beside the
+            // rail they do not, so they are shown the body's width instead.
+            // Height is left alone until the MediaQuery × n sizing goes.
+            // Size only: a keyboard opening in a sheet re-runs _Resized
+            // below, not this builder (UI_OPT O3.2).
+            var wid = c.maxWidth;
+            final hei = MediaQuery.sizeOf(context).height;
+            if (kIsWeb && hei < wid) {
+              // Landscape browser: keep the phone layout readable.
+              wid = wid.clamp(0, 600).toDouble();
+            }
+            return _Resized(
+              size: Size(c.maxWidth, hei),
+              // Expected keeps the copy button up; the list scrolls clear
+              // of it.
+              extraBottom: selectedprofile == 2 ? _copyButtonRoom : 0,
+              child: _semesterView(sitems, wid, hei),
+            );
           },
-          destinations: [
-            NavDestination(icon: Icons.home_outlined, label: profile1n),
-            NavDestination(icon: Icons.bar_chart_rounded, label: profile2n),
-            const NavDestination(
-              icon: Icons.open_in_full_rounded,
-              label: 'Compare',
-            ),
-            const NavDestination(
-              icon: Icons.workspace_premium_outlined,
-              label: 'Offshoot',
-            ),
-            const NavDestination(icon: Icons.more_horiz_rounded, label: 'More'),
-          ],
-          body: LayoutBuilder(
-            builder: (context, c) {
-              // The legacy screens below size and centre themselves off
-              // MediaQuery's width, assuming they fill the window. Beside the
-              // rail they do not, so they are shown the body's width instead.
-              // Height is left alone until the MediaQuery × n sizing goes.
-              // Size only: a keyboard opening in a sheet re-runs _Resized
-              // below, not this builder (UI_OPT O3.2).
-              var wid = c.maxWidth;
-              final hei = MediaQuery.sizeOf(context).height;
-              if (kIsWeb && hei < wid) {
-                // Landscape browser: keep the phone layout readable.
-                wid = wid.clamp(0, 600).toDouble();
-              }
-              return _Resized(
-                size: Size(c.maxWidth, hei),
-                // Expected keeps the copy button up; the list scrolls clear
-                // of it.
-                extraBottom: selectedprofile == 2 ? _copyButtonRoom : 0,
-                child: _semesterView(sitems, wid, hei),
-              );
-            },
-          ),
-          floatingActionButton: AnimatedSwitcher(
-            duration: Duration(milliseconds: 100),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) {
-              final tween = Tween<Offset>(
-                begin: const Offset(0, 0.3),
-                end: Offset.zero,
-              ).chain(CurveTween(curve: Curves.easeOut));
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
-            child:
-                selectedprofile == 2
-                    ? CopyProfileButton(
-                      key: const ValueKey("Button"),
-                      from: profile1n,
-                      to: profile2n,
-                      onCopy: () async {
-                        await copyGrades();
-                        if (mounted) setState(() {});
-                      },
-                    )
-                    : SizedBox.shrink(),
-          ),
+        ),
+        floatingActionButton: AnimatedSwitcher(
+          duration: Duration(milliseconds: 100),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) {
+            final tween = Tween<Offset>(
+              begin: const Offset(0, 0.3),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeOut));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          child:
+              selectedprofile == 2
+                  ? CopyProfileButton(
+                    key: const ValueKey("Button"),
+                    from: profile1n,
+                    to: profile2n,
+                    onCopy: () async {
+                      await copyGrades();
+                      if (mounted) setState(() {});
+                    },
+                  )
+                  : SizedBox.shrink(),
         ),
       ),
     );
@@ -230,8 +213,8 @@ class _MyHomePageState extends State<MyHomePage> {
           (c) => AppDialog(
             title: 'Start ${names[profile - 1]} from…',
             body:
-              'It has no grades yet. Copy another profile\'s grades, in every '
-              'semester, as a starting point?',
+                'It has no grades yet. Copy another profile\'s grades, in every '
+                'semester, as a starting point?',
             actions: [
               DialogAction('Start empty', onTap: () => Navigator.pop(c)),
               for (var id = 1; id <= profileCount; id++)
@@ -321,6 +304,7 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           }
         }
+
         await openRoute(
           context,
           Routes.course(c.id),
@@ -401,22 +385,23 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _openSettings() async {
     erase = 0;
-    await openRoute(context, Routes.settings, () => const SettingsPage())
-        .then((value) async {
-          selected_theme = selected_theme;
-          thm = AppPalette.byName(selected_theme);
-          profile1n = profile1n;
-          profile2n = profile2n;
-          currentsem = currentsem;
-          batch = batch;
-          selecteddiscipline = selecteddiscipline;
-          await setdis();
-          await initializeCourses();
-          setnavcolor();
-          setState(() {
-            thm = AppPalette.byName(selected_theme);
-          });
-        });
+    await openRoute(context, Routes.settings, () => const SettingsPage()).then((
+      value,
+    ) async {
+      selected_theme = selected_theme;
+      thm = AppPalette.byName(selected_theme);
+      profile1n = profile1n;
+      profile2n = profile2n;
+      currentsem = currentsem;
+      batch = batch;
+      selecteddiscipline = selecteddiscipline;
+      await setdis();
+      await initializeCourses();
+      setnavcolor();
+      setState(() {
+        thm = AppPalette.byName(selected_theme);
+      });
+    });
   }
 
   Future<void> _exportSemester(List<Course> sitems) async {
