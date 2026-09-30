@@ -12,6 +12,7 @@
 /calculator/representatives /calculator/index.html 200
 /calculator/reviews/* /calculator/index.html 200
 /calculator/roles /calculator/index.html 200
+/calculator/campus /calculator/index.html 200
 /calculator/welcome /calculator/index.html 200
 /calculator/setup/* /calculator/index.html 200
 /calculator/admin /calculator/index.html 200
