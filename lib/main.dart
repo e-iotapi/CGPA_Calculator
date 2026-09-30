@@ -45,7 +45,9 @@ void main() async {
   // the list unevenly. Resampling lines the touches up with the frames.
   GestureBinding.instance.resamplingEnabled = true;
   beforeFirebase();
-  await Firebase.initializeApp(
+  // Each step before the first frame is timed (perf and test builds only):
+  // `window.pointerPerf.timings()` shows which one holds the app back.
+  await Perf.time('startup.firebaseInit', () => Firebase.initializeApp(
     options: appEnv == AppEnv.staging
         ? StagingFirebaseOptions.currentPlatform
         // The emulators hold one project's data per id: the seed's.
@@ -53,12 +55,12 @@ void main() async {
         ? DefaultFirebaseOptions.currentPlatform
             .copyWith(projectId: 'demo-pointer')
         : DefaultFirebaseOptions.currentPlatform,
-  );
+  ));
   configureEnv();
-  await Hive.initFlutter();
+  await Perf.time('startup.hiveInit', Hive.initFlutter);
   Hive.registerAdapter(CourseAdapter());
   registerMarksAdapters();
-  await Sync.openBoxes();
+  await Perf.time('startup.openBoxes', Sync.openBoxes);
   String? message;
   if (signsInByRedirect()) {
     // Back from Google on a fresh load: the result, or why it failed.
@@ -68,9 +70,14 @@ void main() async {
       message = 'Sign-in failed: ${e.message ?? e.code}';
     }
   }
-  if (isTestEnv) await testSignIn();
-  final user = await FirebaseAuth.instance.authStateChanges().first;
-  final allowed = user == null ? false : await mayUseApp(user);
+  if (isTestEnv) await Perf.time('startup.testSignIn', testSignIn);
+  final user = await Perf.time(
+    'startup.authState',
+    () => FirebaseAuth.instance.authStateChanges().first,
+  );
+  final allowed = user == null
+      ? false
+      : await Perf.time('startup.mayUseApp', () => mayUseApp(user));
   if (user == null || allowed != true) {
     // A session that predates the restriction, or a non-BITS account that
     // is not an owner. Unknown (offline) keeps the session for next time.
@@ -111,7 +118,10 @@ Future<void> startApp(User user) async {
   unawaited(refreshCurrentOfferings());
   // Roles (ARCHITECTURE.md §4): the last known set opens at once, the live
   // one follows.
-  await Future.wait([openDeviceBox(), openResources(), openReviews()]);
+  await Perf.time(
+    'startup.openLocalBoxes',
+    () => Future.wait([openDeviceBox(), openResources(), openReviews()]),
+  );
   myUid = user.uid;
   stripNavigate = appRouter.go;
   restoreMyRoles(email: user.email);

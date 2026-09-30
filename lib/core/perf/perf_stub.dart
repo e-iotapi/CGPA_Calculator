@@ -4,4 +4,5 @@ void publishPerf({
   required int Function(String name) reads,
   required int Function(String name) writes,
   required Map<String, int> Function() summary,
+  required Map<String, List<int>> Function() timings,
 }) {}

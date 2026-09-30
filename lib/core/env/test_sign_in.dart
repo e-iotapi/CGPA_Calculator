@@ -12,8 +12,11 @@ import 'package:flutter/rendering.dart';
 /// builds only.
 Future<User?> testSignIn() async {
   // The E2E tests (T6) find widgets by role/text, which needs a semantics
-  // tree; production never turns this on.
-  SemanticsBinding.instance.ensureSemantics();
+  // tree; production never turns this on. It costs frame time, so a
+  // performance run can leave it off with `?semantics=0`.
+  if (Uri.base.queryParameters['semantics'] != '0') {
+    SemanticsBinding.instance.ensureSemantics();
+  }
   final key = Uri.base.queryParameters['as'] ??
       const String.fromEnvironment('POINTER_TEST_AS');
   final auth = FirebaseAuth.instance;
