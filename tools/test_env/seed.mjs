@@ -15,6 +15,9 @@ import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+/** The account's name, else its key as words: "student_hyd" -> "Student Hyd". */
+const personName = (a) =>
+  a.name ?? a.key.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 const PROD_PROJECT_ID = 'cgpa-calculator-fb90c';
 
 function parseArgs(argv) {
@@ -163,7 +166,7 @@ async function ensureAuthUsers(auth, accounts, password) {
         await auth.createUser({
           email: a.email,
           password,
-          displayName: a.name ?? a.key,
+          displayName: personName(a),
           emailVerified: true,
         })
       ).uid;
@@ -366,7 +369,7 @@ async function seedOneGrant(db, account, r) {
   });
   batch.set(db.doc(`grants/${id}`), s({
     ...g,
-    name: account.name ?? account.key,
+    name: personName(account),
     active,
     expiresAt,
     grantedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
@@ -375,7 +378,7 @@ async function seedOneGrant(db, account, r) {
   }));
   batch.set(db.doc(`staff/${account.email}`), s({
     email: account.email,
-    name: account.name ?? account.key,
+    name: personName(account),
     campus: r.campus,
     owner: false,
     admin: r.role === 'admin' ? active : false,
@@ -407,13 +410,13 @@ async function seedContacts(db, byKey) {
     const profile = a.profile ?? {};
     const batch = db.batch();
     batch.set(db.doc(`staffContacts/${a.email}`), s({
-      name: a.name ?? a.key,
+      name: personName(a),
       phone: profile.phone ?? '',
       email: a.email,
       updatedAt: FieldValue.serverTimestamp(),
     }));
     batch.set(db.doc(`directory/${a.email}`), s({
-      name: a.name ?? a.key,
+      name: personName(a),
       campus: a.roles[0].campus,
       roles: a.roles.map((r) => ({
         role: r.role === 'dept' ? 'dept' : 'course',
@@ -473,7 +476,7 @@ async function seedPeople(db, accounts) {
   for (const a of accounts) {
     const campus = a.email.split('@')[1]?.split('.')[0] ?? 'goa';
     batch.set(db.doc(`people/${a.email}`), s({
-      name: a.name ?? a.key,
+      name: personName(a),
       campus,
       firstSignIn: Date.now(),
     }));
