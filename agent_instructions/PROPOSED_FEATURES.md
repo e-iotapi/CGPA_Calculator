@@ -121,6 +121,20 @@ MGTS include CDCs of many programmes.
 
 Server: `DATA_SYNC_PLAN.md` §5.6.
 
+## 14. Guided tour for students
+
+On a student's **first sign-in** (after setup), a short guided tour walks through each feature
+where it lives: Actual / Expected / Compare / Offshoot / Minor, adding courses and grades,
+Calendar, Stats, Resources, Reviews, Representatives, More and Settings.
+
+- **Students only:** privileged roles (contributors, CRs, presidents, secretaries, admins,
+  owners) never see it on their privileged screens.
+- Each step highlights the real control with a one-line explanation; **Skip** and **Next** on
+  every step; skipping ends the tour.
+- Shown once per account: "tour seen" is saved in the user's own data (synced), so a second
+  device doesn't repeat it. A "Replay the tour" option in Settings.
+- No server work beyond that one preference field.
+
 ---
 
 ## Open questions
