@@ -25,11 +25,19 @@ class AuditEntry {
     this.at,
   });
 
+  /// Who acted, in what role, and a one-line description of the change.
   final String actorEmail, actorName, actorRole, summary, path, campus;
+
+  /// The course the change concerns, if any.
   final String? course;
+
+  /// The changed document's data before and after the write.
   final Object? before, after;
+
+  /// When the entry was written.
   final DateTime? at;
 
+  /// Reads an audit document's data.
   static AuditEntry fromMap(Map<String, dynamic> m) {
     final a = m['actor'] as Map? ?? const {};
     return AuditEntry(
@@ -50,8 +58,10 @@ class AuditEntry {
 /// `config/grantTerms`, in days (§4).
 typedef GrantTerms = ({int crDays, int presidentDays, int adminDays});
 
+/// The terms used until `config/grantTerms` exists.
 const defaultTerms = (crDays: 183, presidentDays: 365, adminDays: 730);
 
+/// The grant length in days for role [r] under terms [t].
 int termDays(GrantTerms t, GrantRole r) => switch (r) {
   GrantRole.admin => t.adminDays,
   GrantRole.dept => t.presidentDays,
@@ -62,11 +72,17 @@ int termDays(GrantTerms t, GrantRole r) => switch (r) {
 typedef PublicContact =
     ({String name, String method, String target, bool enabled});
 
+/// Reads and writes grants, owners, terms and the audit log as [me].
+///
+/// Every write goes in a batch with its audit entry.
 class RoleStore {
   RoleStore(this.db, {required String me, required this.myName, this.actingAs})
     : me = me.toLowerCase();
 
+  /// The Firestore instance written to.
   final FirebaseFirestore db;
+
+  /// The acting person's lower-cased address and display name.
   final String me, myName;
 
   /// The role the audit entry names ("owner", "president"…), and, under Open
@@ -122,6 +138,7 @@ class RoleStore {
 
   // Budget: 2 reads per refresh (P0) — every 6h or on demand (P3.4), not
   // per app open.
+  /// Loads the roles [me] holds, dropping expired grants.
   Future<MyRoles> loadMine({DateTime? now}) async {
     var owner = false;
     try {
@@ -180,6 +197,10 @@ class RoleStore {
     return ref.id;
   }
 
+  /// Reads the newest [limit] audit entries, optionally for one [campus],
+  /// [actor] or [course].
+  ///
+  /// Costs up to [limit] reads.
   Future<List<AuditEntry>> audit({
     String? campus,
     String? actor,
@@ -196,6 +217,7 @@ class RoleStore {
 
   // ---- Grants --------------------------------------------------------------
 
+  /// Reads the grant terms, or [defaultTerms] when unset.
   Future<GrantTerms> terms() async {
     final d = await db.collection('config').doc('grantTerms').get();
     final m = d.data();
@@ -207,6 +229,7 @@ class RoleStore {
     );
   }
 
+  /// Writes the grant terms [t] with an audit entry.
   Future<void> saveTerms(GrantTerms t) async {
     final b = db.batch();
     final before = await terms();
@@ -667,11 +690,13 @@ class RoleStore {
 
   // ---- Owners --------------------------------------------------------------
 
+  /// Reads every `owners/` document.
   Future<List<Map<String, dynamic>>> owners() async {
     final r = await db.collection('owners').get();
     return [for (final d in r.docs) d.data()];
   }
 
+  /// Adds [email] as an owner, with an audit entry.
   Future<void> addOwner(String email, String name) async {
     final address = email.trim().toLowerCase();
     final b = db.batch();
@@ -782,6 +807,7 @@ class RoleStore {
     return m == null ? null : Grant.fromMap(m);
   }
 
+  /// Writes the public contact [c] to `config/public` with an audit entry.
   Future<void> savePublicContact(PublicContact c) async {
     final b = db.batch();
     final id = logInto(
