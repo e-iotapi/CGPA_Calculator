@@ -32,8 +32,12 @@ Server: `DATA_SYNC_PLAN.md` §5.1.
    Message: "Contribute to the Community Now, Become a Contributor"
 3. **Approve:** the admins, department's president and secretary approves; the student gets privileged access to
    contribute resources, department-wide and per course.
-4. **Submit → publish:** a contributor's link is pending until an approver publishes it; a
-   rejection should carry a reason, They can batch their approval requests and the requests display batched to the approvers with clickable links.
+4. **Publish, then approve within 15 days:** a contributor's link goes live immediately, but an
+   approver (admin, president or secretary) must approve it within **15 days**. The contributor
+   sees each link's state (awaiting approval, approved, rejected). **Points count only after
+   approval.** This rule is shown to contributors upfront, when they apply. A rejection carries a
+   reason. They can batch links into one approval request; approvers see it as one entry with
+   clickable links. Not approved within 15 days: the link stops showing (see open questions).
 5. **Leaderboard:** contributors pick a **username** when they become one. **+4 points** per
    contribution, awarded **only when it is published**; removing a published link does not take them back.
    Ranked **campus-wide**, shown with rank numbers in the **More** tab. Usernames only, never
@@ -65,8 +69,9 @@ data (synced like other preferences), Ships by default with the offshoot tab.
 
 ## 8. Calendar integration
 
-Get the student's schedule into their calendar ( Automatically added to Google Calendar).
-Optional: a subscribable campus academic calendar served by the Worker (server §5.4).
+A subscribable campus academic calendar feed served by the Worker (server §5.4); students add it
+to Google Calendar (or any calendar) once. No automatic Google Calendar writes: that needs a
+Google "sensitive" OAuth scope and app verification.
 
 ## 9. Initial data import (not an app feature)
 
@@ -140,3 +145,11 @@ Server: `DATA_SYNC_PLAN.md` §5.6.
     Answer: An Academic Calendar Feed as well.
 12. **Apply prompt:** how often may the "become a contributor" prompt appear?
     Answer: Each session, (Session: Every time they open the App.)
+13. **Contributors publishing:** answered — they publish directly; approval within 15 days;
+    points after approval.
+14. **Calendar:** answered — campus feed only, no automatic Google Calendar writes.
+15. **Grade and marks on reviews:** answered — marks optional and grade may be "Not disclosed",
+    so a reviewer in a small class can stay unidentifiable.
+16. **Import points:** answered — each president and secretary gets +4 per imported record.
+17. **Unapproved after 15 days** (assumed, confirm): the link stops showing to students and
+    earns nothing; the contributor can still see it and ask again.

@@ -124,19 +124,23 @@ from Firestore, rules and Cloudflare.
   (campus-wide), **no expiry, until revoked**; audit, revoke and the staff index work as for every
   grant. Admins, presidents and CRs are contributors by
   default: rules treat their grants as contributor rights; no second grant.
-- **Submit → publish:** contributors may only create links with `status: pending` (not in
-  `links`, no version bump, visible only to the contributor and approvers). A
-  `pending/<campus>|<dept>` index doc lists them (one read per queue), mirrored in the same batch.
-  Publishing is one batch: `status: published`, copy into `links`, campus version +1, the
-  contributor's points +4, their leaderboard entry, drop from the pending index, one audit entry.
-  Reject sets `status: rejected` with a reason; no points. Contributors can send several links as
-  **one batched request**; approvers see it as one entry with clickable links. **Open:** the
-  owner's answers say both "pending until an approver publishes" and "contributors can submit and
-  publish"; settle which before building.
+- **Publish, then approve within 15 days:** a contributor's link is created **live**:
+  `status: published, approved: false, publishedAt: request.time`, copied into `links` with
+  `approved` and `publishedAt`, campus version +1, and listed in a `pending/<campus>|<dept>` index
+  doc (one read per approval queue), all in one batch. Rules let contributors create only
+  `approved: false`. **Approving** is one batch by an admin, president or secretary:
+  `approved: true`, the `links` copy updated, version +1, the contributor's points +4, their
+  leaderboard entry, drop from the pending index, one audit entry. **Rejecting** sets
+  `status: rejected` with a reason (removed from `links`); no points. Contributors can send
+  several links as **one batched request**; approvers see one entry with clickable links.
+- **The 15-day window without a timer (no Cloud Functions):** readers hide a `links` entry with
+  `approved: false` once `publishedAt` is older than 15 days; the contributor still sees it. The
+  pending index keeps it for approvers. Once the Durable Object exists (Stage 3), it can also
+  drop such entries from `links` daily with its service account.
 - **Contributors can edit their own published links but cannot delete them.**
-- **Points are awarded in the batch where a link becomes published** (created published by a
-  president/CR/admin, or approved from pending). Rules allow +4 only on that transition and only
-  to `addedBy`. **Removing a published link does not take the points back** (owner's call).
+- **Points are awarded in the batch where a link becomes approved** (created approved by an
+  admin/president/secretary/CR, or approved within the window). Rules allow +4 only on the
+  `approved: false → true` transition (or an approved create) and only to `addedBy`. **Removing a published link does not take the points back** (owner's call).
 - **Docs:** `contributors/<email> = { username, campus, points }`;
   `leaderboard/<campus> = { <username>: points }` (one read per view; rules check it mirrors the
   points doc; contributions are far below ~1 write/s, so no hot-doc problem; served from the
@@ -144,7 +148,8 @@ from Firestore, rules and Cloudflare.
   charset checked; a president can reset an offensive one). The leaderboard shows usernames only,
   never email or name. All contributors are visible to every branch on the campus; admins,
   presidents and secretaries are tagged with their branch codes.
-- **Imports credit points** to the department's president and secretaries (split to settle).
+- **Imports credit points:** each of the department's presidents and secretaries gets +4 per
+  imported record (the import script writes it, with the audit entry).
 
 ### 5.3 Professors
 
@@ -156,10 +161,8 @@ from Firestore, rules and Cloudflare.
 
 - **Campus academic calendar feed (wanted):** Worker `GET /calendar/<campus>.ics`, built from
   Firestore and edge-cached; students subscribe once.
-- **Auto-adding a student's schedule to Google Calendar** needs the Calendar API with an OAuth
-  scope (`calendar.events`) granted in the browser; no server, but it is a Google "sensitive"
-  scope: an unverified app is capped at 100 users and shows a warning, so Google's OAuth app
-  verification is required before launch.
+- No automatic Google Calendar writes (a "sensitive" OAuth scope needing Google app
+  verification); the feed covers it.
 
 ### 5.5 Data import (owner-run script)
 
@@ -225,8 +228,8 @@ and whether production uses Pages Functions (they share the Worker request count
 
 ## Open questions
 
-- Contributor details (who publishes, scope, edits, term, credit for imports): see
-  `PROPOSED_FEATURES.md` open questions.
+- What happens to a link unapproved after 15 days (assumed: hidden from students, no points):
+  see `PROPOSED_FEATURES.md` open question 17.
 - Which data carries a copy in the broadcast vs only a version (proposed: links and rep entries
   carry data; reviews and offerings carry a version)?
 - Succession: the Worker and DO live in the Cloudflare account the admins will co-own; add them
