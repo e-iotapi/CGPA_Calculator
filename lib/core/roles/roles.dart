@@ -116,6 +116,8 @@ class Grant {
   /// A president's handover in progress (§13.4): the successor's address,
   /// and the expiry this grant had before, which a cancel restores.
   final String? handedTo;
+
+  /// The expiry to restore if the handover is cancelled.
   final DateTime? expiresBefore;
 
   /// The document id, see [grantId].

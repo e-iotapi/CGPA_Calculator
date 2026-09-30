@@ -10,6 +10,7 @@ String normalizeCourseId(String id) {
   return id.substring(0, i + 1) + id.substring(i + 1).replaceAll('l', '1');
 }
 
+/// Whether [a] and [b] are the same code after [normalizeCourseId].
 bool sameCourseId(String a, String b) =>
     normalizeCourseId(a) == normalizeCourseId(b);
 
@@ -40,5 +41,6 @@ String displayTitle(String id, String title) =>
 /// stops offering it, and every row that shows it says so.
 final Set<String> retiredCourses = {};
 
+/// Whether course [id] is in [retiredCourses].
 bool isRetired(String id) =>
     retiredCourses.any((r) => sameCourseId(r, id.trim()));

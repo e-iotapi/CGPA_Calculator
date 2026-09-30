@@ -7,8 +7,10 @@ import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_ce/hive.dart';
 
+/// The Hive box caching the person's own reviews.
 const reviewsBoxName = 'reviewsBox';
 
+/// Opens the [reviewsBoxName] box.
 Future<void> openReviews() => Hive.openBox(reviewsBoxName);
 
 /// Reviews and their counters (ARCHITECTURE.md §10.3). Every write moves the
@@ -18,12 +20,16 @@ Future<void> openReviews() => Hive.openBox(reviewsBoxName);
 class ReviewStore {
   ReviewStore(this.db, {required this.uid, this.roles});
 
+  /// The Firestore instance read and written.
   final FirebaseFirestore db;
+
+  /// The signed-in uid that salts [hashedId], or `null` when signed out.
   final String? uid;
 
   /// For moderation: the moderator's name goes on the audit entry.
   final RoleStore? roles;
 
+  /// The review entries collection of [courseId].
   CollectionReference<Map<String, dynamic>> entries(String courseId) =>
       db.collection('reviews').doc(courseId).collection('entries');
 
@@ -71,6 +77,8 @@ class ReviewStore {
     );
   }
 
+  /// The signed-in person's review id for [courseId], or `null` when signed
+  /// out.
   String? myReviewId(String courseId) =>
       uid == null ? null : hashedId(uid!, courseId);
 
@@ -212,6 +220,7 @@ class ReviewStore {
   }, SetOptions(merge: true));
 
   // Budget: 1 read per reviewed course, sequentially ("Your reviews" tab, P0).
+  /// Reads the signed-in person's review of [courseId], or `null` if none.
   Future<Review?> mine(String courseId) async {
     final id = myReviewId(courseId);
     if (id == null) return null;

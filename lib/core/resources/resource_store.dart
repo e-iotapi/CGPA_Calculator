@@ -7,8 +7,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hive_ce/hive.dart';
 
+/// The Hive box caching department resource lists.
 const resourcesBoxName = 'resourcesBox';
 
+/// Opens the [resourcesBoxName] box.
 Future<void> openResources() => Hive.openBox(resourcesBoxName);
 
 Box? get _cache =>
@@ -25,7 +27,11 @@ String reportId(String uid, String resourceId) =>
 /// batch, with its audit entry.
 class ResourceStore {
   ResourceStore(this.roles, {this.uid});
+
+  /// The store whose identity and audit log the writes use.
   final RoleStore roles;
+
+  /// The signed-in uid that salts [reportId], or `null` when signed out.
   final String? uid;
 
   FirebaseFirestore get _db => roles.db;

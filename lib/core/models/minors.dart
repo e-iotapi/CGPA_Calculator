@@ -7,11 +7,17 @@ typedef MinorSlot = List<String>;
 /// A group of electives. [min] is how many of them the minor needs.
 class MinorPool {
   const MinorPool(this.courses, {this.name, this.min = 0});
+  /// The pool's heading, if it has one.
   final String? name;
+
+  /// How many slots of the pool the minor needs.
   final int min;
+
+  /// The pool's slots.
   final List<MinorSlot> courses;
 }
 
+/// One minor programme and its course requirements.
 class Minor {
   const Minor({
     required this.name,
@@ -29,10 +35,13 @@ class Minor {
 
   /// At least this many courses and units in all.
   final int courses;
+  /// At least this many units in all.
   final int units;
 
   /// Every core course is required.
   final List<MinorSlot> core;
+
+  /// The elective pools.
   final List<MinorPool> pools;
 
   /// At least this many electives across [pools].
@@ -44,12 +53,15 @@ class Minor {
   /// Disciplines that may not take this minor.
   final Set<String> notFor;
 
+  /// Every elective slot across [pools].
   Iterable<MinorSlot> get electiveSlots => pools.expand((p) => p.courses);
 }
 
 /// A minor counts at most this many courses, and units, that are also
 /// mandatory for the student's own degree.
 const minorOverlapCourses = 2;
+
+/// The unit cap matching [minorOverlapCourses].
 const minorOverlapUnits = 6;
 
 /// The lowest GPA over a minor's courses that earns the certificate.
@@ -79,6 +91,7 @@ const _ds = [
   'MATH F471',
 ];
 
+/// Every minor the app knows.
 final minors = <Minor>[
   Minor(
     name: 'Aeronautics',
@@ -619,5 +632,6 @@ final minors = <Minor>[
   ),
 ];
 
+/// The minor called [name], or `null`.
 Minor? minorNamed(String? name) =>
     minors.where((m) => m.name == name).firstOrNull;
