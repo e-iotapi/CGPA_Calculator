@@ -139,7 +139,7 @@ async function wipeStaging(db, accounts) {
 // ponytail: fine while staging is only seed data, add the indexes if it grows.
 async function deleteWhereSeeded(query, { group = false } = {}) {
   const snap = await (group ? query : query.where('seed', '==', true)).get();
-  const seeded = snap.docs.filter((d) => d.get('seed') === true);
+  const seeded = snap.docs.filter((d) => d.get('seed') === true || d.get('touchedBy') === 'seed');
   if (!seeded.length) return;
   const batches = chunk(seeded, 400);
   for (const docs of batches) {
@@ -695,7 +695,9 @@ async function seedReviews(db, byKey, professorIds) {
   for (const t of totals.values()) {
     statsBatch.set(
       db.doc(`courses/${t.courseId}/stats/${statsId(t.campus, t.professorId)}`),
-      s({
+      // No `seed` marker: the stats rule allows only its own keys, so a
+      // marked doc refuses every student review (BUG-03). touchedBy marks it.
+      {
         count: t.count,
         starSum: t.starSum,
         recommendCount: t.recommendCount,
@@ -704,7 +706,7 @@ async function seedReviews(db, byKey, professorIds) {
         scope: t.scope,
         professorId: t.professorId,
         touchedBy: 'seed',
-      }),
+      },
     );
   }
   await statsBatch.commit();
