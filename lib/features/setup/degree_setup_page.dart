@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/setup/programme_pick_page.dart'
     hide CodeBadge;
 import 'package:cgpa_calculator/script.dart' as app;
+import 'package:cgpa_calculator/sync.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart'
     show PrimaryButton;
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
@@ -168,6 +169,10 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     await app.setdis();
     await app.initializeCourses();
     app.erase = 0;
+    // Push now rather than trust the debounced watcher: Skip finishes in
+    // one tap, and a reload straight after can tear the page down before an
+    // unload-time push completes, losing the whole setup (BUG-43).
+    await Sync.push();
     if (!mounted) return;
     setState(() => _busy = false);
     await Navigator.of(context).push(
@@ -418,8 +423,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                         child: Column(
                           children: [
                             _ProgrammeRow(
-                              heading:
-                                  _dual ? 'DUAL DEGREE' : 'YOUR PROGRAMME',
+                              heading: _dual ? 'DUAL DEGREE' : 'YOUR PROGRAMME',
                               code: _first,
                               first: true,
                               onTap: () => _pick(first: true),

@@ -68,6 +68,13 @@ void main() {
       ));
       expect(parseBitsAddress(null).campus, isNull);
     });
+
+    test('a non-student BITS address still gives up its campus (BUG-33)', () {
+      final a = parseBitsAddress('testfaculty@goa.bits-pilani.ac.in');
+      expect(a.campus, Campus.goa);
+      expect(a.level, isNull);
+      expect(a.year, isNull);
+    });
   });
 
   test('programmes are filtered by campus', () {
@@ -113,15 +120,15 @@ void main() {
 
       await t.tap(find.text('Dual degree'));
       await t.pumpAndSettle();
-      await t.tap(find.bySemanticsLabel(RegExp('^FIRST DEGREE')));
+      await t.tap(find.bySemanticsLabel(RegExp('^DUAL DEGREE')));
       await t.pumpAndSettle();
       // The pick page: Goa's M.Sc. programmes, by name.
-      expect(find.text('FIRST DEGREE · GOA'), findsOneWidget);
+      expect(find.text('DUAL DEGREE · GOA'), findsOneWidget);
       expect(find.text('B.E. Computer Science'), findsNothing);
       await t.tap(find.text('M.Sc. Economics'));
       await t.pumpAndSettle();
 
-      await t.tap(find.bySemanticsLabel(RegExp('^SECOND DEGREE')));
+      await t.tap(find.bySemanticsLabel(RegExp('^DISCIPLINE')));
       await t.pumpAndSettle();
       expect(find.text('B.Pharm.'), findsNothing);
       await t.enterText(find.byType(TextField), 'computer sc');
@@ -262,12 +269,12 @@ void main() {
       );
       await t.tap(find.text('Dual degree'));
       await t.pumpAndSettle();
-      await t.tap(find.bySemanticsLabel(RegExp('^FIRST DEGREE')));
+      await t.tap(find.bySemanticsLabel(RegExp('^DUAL DEGREE')));
       await t.pumpAndSettle();
       await t.tap(find.text('M.Sc. Economics'));
       await t.pumpAndSettle();
 
-      await t.tap(find.bySemanticsLabel(RegExp('^SECOND DEGREE')));
+      await t.tap(find.bySemanticsLabel(RegExp('^DISCIPLINE')));
       await t.pumpAndSettle();
       expect(find.text('B3'), findsNothing);
       expect(find.text('A7'), findsOneWidget);
