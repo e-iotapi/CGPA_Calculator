@@ -38,6 +38,13 @@ import 'package:hive_ce/hive.dart';
   );
 }
 
+/// Whether [code]'s own core has no chart rows for [year] — a programme
+/// with no catalogue yet for this batch (BUG-08).
+bool _hasNoChart(String code, int year) {
+  final msc = programmeFor(code)?.isMsc ?? false;
+  return seedSummary(msc ? '$code--' : '--$code', year).courses == 0;
+}
+
 /// First run, step 1 of 2: campus and batch from the sign-in address, then
 /// the one question the address cannot answer: what the student reads.
 /// Campus and batch are final once set: shared by owner setup.
@@ -111,7 +118,10 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     ];
     final where = _campus?.label.toUpperCase();
     final heading = [
-      !_dual ? 'YOUR PROGRAMME' : (first ? 'FIRST DEGREE' : 'SECOND DEGREE'),
+      // Matches Settings' own "Discipline"/"Dual degree" terms (BUG-08: the
+      // old "FIRST"/"SECOND DEGREE" headings read as if whichever was
+      // picked first is stored first, when the M.Sc. half always is).
+      !_dual ? 'YOUR PROGRAMME' : (first ? 'DUAL DEGREE' : 'DISCIPLINE'),
       if (where != null) where,
     ].join(' · ');
     final elsewhere = [
@@ -132,7 +142,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                       p.isMsc ? '${p.code}--' : '--${p.code}',
                       year,
                     ).semesters;
-                return n == 0 ? '' : '$n sem';
+                return n == 0 ? 'No catalogue yet' : '$n sem';
               },
               note:
                   _campus == null || elsewhere.isEmpty
@@ -197,7 +207,16 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     );
 
     final d = _discipline, y = _yearValue;
-    final ready = d != null && y != null && _campus != null;
+    final picked = d != null && y != null && _campus != null;
+    // A picked programme with nothing charted for this batch: setting up
+    // would silently add nothing for it (BUG-08), so say so instead.
+    final noChart = [
+      if (picked) ...[
+        if (_first != null && _hasNoChart(_first!, y)) _first!,
+        if (_second != null && _hasNoChart(_second!, y)) _second!,
+      ],
+    ];
+    final ready = picked && noChart.isEmpty;
     final adds = ready ? seedSummary(d, y) : null;
     final setupName = [
       if (d != null) ...[d.substring(0, 2), d.substring(2)],
@@ -400,7 +419,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                           children: [
                             _ProgrammeRow(
                               heading:
-                                  _dual ? 'FIRST DEGREE' : 'YOUR PROGRAMME',
+                                  _dual ? 'DUAL DEGREE' : 'YOUR PROGRAMME',
                               code: _first,
                               first: true,
                               onTap: () => _pick(first: true),
@@ -413,7 +432,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                                 color: p.divider,
                               ),
                               _ProgrammeRow(
-                                heading: 'SECOND DEGREE',
+                                heading: 'DISCIPLINE',
                                 code: _second,
                                 first: false,
                                 onTap: () => _pick(first: false),
@@ -423,6 +442,19 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                         ),
                       ),
                     ),
+                    if (noChart.isNotEmpty) ...[
+                      const SizedBox(height: Space.md),
+                      Notice(
+                        warning: true,
+                        text: TextSpan(
+                          text:
+                              '${noChart.join(' and ')} has no course list '
+                              'for the ${_yearValue ?? 0} batch yet, so '
+                              'nothing would be added for it. Add your '
+                              'courses by hand for now.',
+                        ),
+                      ),
+                    ],
                     if (adds != null && adds.courses > 0) ...[
                       const SizedBox(height: Space.md),
                       card(color: p.hero, [
