@@ -11,13 +11,15 @@
 // engine (canvaskit.wasm, 2.2 MB): no error, no progress, the splash
 // forever. On WebKit (every iOS browser, and Safari) the engine is
 // downloaded here instead: a download that goes 15 s without a byte is
-// abandoned and retried, up to 3 more times. It is compiled once complete.
+// abandoned and retried until one completes. A retry of the same URL got
+// no bytes either (behind the dead request), so each retry asks for a new
+// URL, uncached, at high priority. It is compiled once complete.
 {
   const ua = navigator.userAgent;
   if (/AppleWebKit/.test(ua) && !/Chrome|Chromium|Android/.test(ua)) {
     const fetch0 = window.fetch.bind(window);
     const stallMs = 15000;
-    const once = async (url) => {
+    const once = async (url, init) => {
       const abort = new AbortController();
       let timer;
       const arm = () => {
@@ -26,7 +28,7 @@
       };
       arm();
       try {
-        const res = await fetch0(url, { signal: abort.signal });
+        const res = await fetch0(url, { ...init, signal: abort.signal });
         if (!res.ok || !res.body) return res;
         const reader = res.body.getReader();
         const parts = [];
@@ -51,9 +53,13 @@
       return (async () => {
         for (let retry = 0; ; retry++) {
           try {
-            return await once(url);
+            return retry === 0
+              ? await once(url)
+              : await once(`${url}${url.includes('?') ? '&' : '?'}retry=${retry}`, {
+                  cache: 'no-store',
+                  priority: 'high',
+                });
           } catch (e) {
-            if (retry >= 3) throw e;
             console.warn(`Engine download stalled; retry ${retry + 1}`);
           }
         }
