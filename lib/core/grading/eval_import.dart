@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:cgpa_calculator/core/models/offering.dart';
 
+/// The `schema` value an eval-scheme JSON file must carry.
 const evalSchema = 'pointer.eval.v1';
 
 /// Shipped beside the upload button. Verbatim from §13.2 — do not paraphrase:
@@ -33,6 +34,8 @@ Rules you must follow:
 /// The file failed a check; nothing is imported. [message] names the row.
 class EvalImportError implements Exception {
   const EvalImportError(this.message);
+
+  /// What is wrong, naming the row.
   final String message;
   @override
   String toString() => message;
@@ -50,31 +53,42 @@ class ImportedScheme {
     this.outOf,
   });
 
+  /// The course the scheme is for.
   final String courseId;
 
   /// The course's "Graded out of" (`"gradedOutOf"` in the file), or null.
   final double? outOf;
+  /// Whether component weights are percentages.
   final bool weighted;
+
+  /// The total marks when the course is not weighted.
   final double totalMarks;
 
   /// Ids are blank until [schemeFor] matches them against the offering.
   final List<OfferedComponent> components;
+
+  /// Remarks from the handout reader, shown before import.
   final String? notes;
 
   /// As typed in the handout. Professors are picked from the department list
   /// (§10.1), so these are shown, never stored.
   final List<String> professorNames;
 
+  /// The sum of the component weights.
   double get assigned => components.fold(0.0, (s, c) => s + c.weight);
 }
 
+/// A parsed eval-scheme file: one campus and term, and its courses.
 class EvalFile {
   const EvalFile({
     required this.campus,
     required this.term,
     required this.courses,
   });
+  /// The campus key and term the file applies to.
   final String campus, term;
+
+  /// The schemes in the file.
   final List<ImportedScheme> courses;
 }
 
@@ -345,6 +359,7 @@ String schemeKey(Offering? o) =>
           ],
         });
 
+/// What importing [next] does to the [existing] offering.
 ImportEffect effectOf(Offering next, Offering? existing) =>
     existing == null || !existing.hasScheme
         ? ImportEffect.create

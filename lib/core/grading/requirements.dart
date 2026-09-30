@@ -14,9 +14,16 @@ class Requirement {
     this.delCourses,
     this.delCredits,
   );
+  /// The number of CDC courses required.
   final int cdcCourses;
+
+  /// The CDC credits required.
   final int cdcCredits;
+
+  /// The number of disciplinary electives required.
   final int delCourses;
+
+  /// The disciplinary-elective credits required.
   final int delCredits;
 }
 
@@ -37,14 +44,18 @@ class DegreeNeeds {
 
   /// The discipline these are for, e.g. "B3A7"; ignored under another.
   final String degree;
+  /// The needs for core, humanity, disciplinary and open electives, when the
+  /// sheet states them.
   final Need? cdc, hel, del, el;
 
+  /// Serialises the needs, leaving out those not stated.
   Map<String, Object> toJson() => {
     'degree': degree,
     for (final (k, n) in [('CDC', cdc), ('HEL', hel), ('DEL', del), ('EL', el)])
       if (n != null) k: [n.courses, n.units],
   };
 
+  /// Reads needs from [toJson] form, or `null` without a `degree`.
   static DegreeNeeds? fromJson(Map<String, dynamic> m) {
     if (m['degree'] is! String) return null;
     Need? need(String k) => switch (m[k]) {
@@ -260,9 +271,17 @@ class AuditCategory {
 
   /// "CDC (A7)", "Humanity Electives"…
   final String label;
+
+  /// The number of courses counted.
   final int courses;
+
+  /// The credits counted.
   final double credits;
+
+  /// The courses required, if a requirement is shown.
   final int? requiredCourses;
+
+  /// The credits required, if a requirement is shown.
   final int? requiredCredits;
 
   /// The courses counted here, to list when the card is opened.
@@ -272,14 +291,17 @@ class AuditCategory {
   /// count here as open electives.
   final List<Course> spilled;
 
+  /// Whether the required credits and courses are met.
   bool get complete =>
       requiredCredits != null &&
       requiredCredits! > 0 &&
       credits >= requiredCredits! &&
       courses >= (requiredCourses ?? 0);
+  /// Whether no course counts here yet.
   bool get notStarted => courses == 0;
 }
 
+/// The degree audit: total credits and one [AuditCategory] card each.
 class DegreeAudit {
   const DegreeAudit(
     this.totalCredits,
@@ -292,6 +314,8 @@ class DegreeAudit {
   /// Credits shown on the home screen's CGPA card, plus Ongoing ones: done
   /// for the degree, though not yet in the CGPA.
   final double totalCredits;
+
+  /// The audit cards.
   final List<AuditCategory> categories;
 
   /// With a sheet's needs: what every card still lacks, added up.
