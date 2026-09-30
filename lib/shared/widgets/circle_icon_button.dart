@@ -27,6 +27,7 @@ class CircleIconButton extends StatelessWidget {
     // ("Close Close"). excludeFromSemantics + one explicit Semantics node
     // keeps a single, correctly labelled node (BUG-29).
     return Semantics(
+      container: true, // its own node, never merged into a header's title
       button: true,
       label: tooltip,
       enabled: onPressed != null,
