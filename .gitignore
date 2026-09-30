@@ -75,3 +75,6 @@ tools/e2e/out/
 
 # Performance recordings (Safari/Chrome exports), local only
 tools/perf_out/
+
+# QA notes and trackers (Tester); never committed.
+bug_*.md
