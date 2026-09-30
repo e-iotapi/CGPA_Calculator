@@ -222,12 +222,13 @@ async function seedUserDocs(db, accounts) {
     // takes the genuine new-user path (Sync.pull sees nothing and pushes).
     if (!a.dataset || a.dataset === 'first_login') continue;
     const file = path.join(root, 'tools', 'test_env', 'out', `${a.dataset}.json`);
+    // Fail, don't skip: without its snapshot the account opens on setup and
+    // the app pushes that empty state over the seed (QA-09).
     if (!existsSync(file)) {
-      console.warn(
-        `Skipping users/${a.uid} (${a.key}): ${file} is missing. ` +
+      throw new Error(
+        `users/${a.uid} (${a.key}): ${file} is missing. ` +
         'Run POINTER_SEED=1 flutter test tools/test_env/build_snapshots_test.dart first.',
       );
-      continue;
     }
     await db.doc(`users/${a.uid}`).set(
       s({
