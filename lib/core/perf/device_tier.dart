@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:hive_ce/hive.dart';
 
+/// How capable the device is.
 enum DeviceTier { low, normal }
 
 /// Measured once per device: a low tier gets cheaper snapshots and clip

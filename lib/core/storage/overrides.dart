@@ -11,6 +11,7 @@ library;
 import 'package:hive_ce/hive.dart';
 
 const _key = 'overrides';
+/// The reserved granule key recording when the official version was seen.
 const seenKey = '_seen';
 
 Box get _settings => Hive.box('settingsBox');
@@ -37,16 +38,18 @@ Future<void> _write(Map<String, Map<String, int>> all) => _settings.put(_key, {
 Map<String, int> detachedFor(String courseId) =>
     {...?_all()[courseId]}..remove(seenKey);
 
+/// Whether the student has seen [courseId]'s official scheme.
 bool seenOfficial(String courseId) =>
     _all()[courseId]?.containsKey(seenKey) ?? false;
 
+/// Records that [courseId]'s official scheme was seen at version [at].
 Future<void> markSeen(String courseId, int at) async {
   final all = _all();
   (all[courseId] ??= {})[seenKey] = at;
   await _write(all);
 }
 
-/// Makes [granules] the student's, detached from the version at [basedOn].
+/// Makes [granules] the student's, detached from the version at `basedOn`.
 Future<void> detach(String courseId, Map<String, int> granules) async {
   if (granules.isEmpty) return;
   final all = _all();

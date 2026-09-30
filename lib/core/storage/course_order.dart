@@ -18,6 +18,7 @@ List<String> courseOrderFor(String sem) {
   return ids is List ? [for (final id in ids) '$id'] : const [];
 }
 
+/// Stores the display order of semester [sem]'s course [ids].
 Future<void> setCourseOrder(String sem, List<String> ids) {
   final all = _settings.get(_key);
   return _settings.put(_key, {
