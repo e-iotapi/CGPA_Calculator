@@ -1,7 +1,10 @@
 /// Grades are stored on a course as ints: the grade point for letter grades,
 /// and a negative code for everything that carries no points.
 abstract final class GradeCode {
+  /// Not cleared.
   static const nc = -1;
+
+  /// Blank: no grade entered yet.
   static const clr = -2;
 
   /// Graded-and-passed with no points. Counted in credits shown, never in
@@ -10,7 +13,10 @@ abstract final class GradeCode {
 
   /// Rendered as a dash.
   static const dash = -5;
+  /// Registered for the course again (RC).
   static const rc = -6;
+
+  /// Withdrawn.
   static const w = -7;
 
   /// In progress: counts toward the degree, never toward the CGPA. Distinct

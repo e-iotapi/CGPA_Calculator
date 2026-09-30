@@ -29,6 +29,7 @@ List<Course> outstandingCourses(Iterable<Course> all, String discipline) {
 bool _pending(Course c) =>
     c.grade1 == GradeCode.clr || c.grade1 == GradeCode.ongoing;
 
+/// The credits of [outstandingCourses] for [discipline].
 double remainingCredits(Iterable<Course> all, String discipline) =>
     outstandingCourses(all, discipline).fold(0.0, (s, c) => s + c.credits);
 
