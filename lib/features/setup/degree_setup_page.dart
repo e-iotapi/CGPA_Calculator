@@ -57,6 +57,7 @@ Future<void> saveCampusAndBatch(Campus campus, int year) async {
   await box.put('batch', app.batch);
 }
 
+/// The one-time setup: campus, batch and degree, then the starting courses.
 class DegreeSetupPage extends StatefulWidget {
   const DegreeSetupPage({super.key, required this.email, required this.onDone});
 

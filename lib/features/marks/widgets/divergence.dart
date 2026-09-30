@@ -172,6 +172,7 @@ class DivergedCard extends StatelessWidget {
   /// What changed, in words.
   final String body;
 
+  /// [l] joined as English prose: "a", "a and b", "a, b and c".
   static String list(List<String> l) =>
       l.length == 1
           ? l.single

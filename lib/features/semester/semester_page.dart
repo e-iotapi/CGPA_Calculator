@@ -60,11 +60,11 @@ class SemesterView extends StatefulWidget {
   final void Function(Course course, int index) onCourseTap;
   final void Function(Course course, int grade) onGradePicked;
 
-  /// A grade set from a Compare column, for profile id [profile].
+  /// A grade set from a Compare column, for profile id `profile`.
   final void Function(Course course, int profile, int grade)?
   onCompareGradePicked;
 
-  /// Compare's [slot] (0 left, 1 right) now shows profile id [profile].
+  /// Compare's `slot` (0 left, 1 right) now shows profile id `profile`.
   final void Function(int slot, int profile)? onCompareChanged;
 
   /// The user held a pull-down at the top of the list.

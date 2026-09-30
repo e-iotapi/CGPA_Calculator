@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 
+/// The signed-in user's review store, or `null` before sign-in.
 ReviewStore? get reviewStore => switch (roleStore) {
   final r? => ReviewStore(r.db, uid: myUid, roles: r),
   null => null,
@@ -30,10 +31,13 @@ const _myReviewsKey = 'myReviews';
 Box? get _settings =>
     Hive.isBoxOpen('settingsBox') ? Hive.box('settingsBox') : null;
 
+/// The courses this device has reviewed, remembered locally so the UI can
+/// say "Edit your review" without a Firestore read.
 List<String> myReviewedCourses() => [
   for (final c in _settings?.get(_myReviewsKey) as List? ?? const []) '$c',
 ];
 
+/// Adds [courseId] to [myReviewedCourses].
 Future<void> rememberReview(String courseId) async {
   final s = _settings;
   if (s == null) return;

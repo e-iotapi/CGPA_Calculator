@@ -21,6 +21,7 @@ class CgpaChart extends StatelessWidget {
   final List<CgpaPoint> forecast;
   final double target;
 
+  /// The forecast line's colour, between the accent and the hero tone.
   static Color forecastColor(AppPalette p) =>
       Color.lerp(p.accent, p.hero, 0.45)!;
 

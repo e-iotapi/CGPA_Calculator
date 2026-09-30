@@ -14,6 +14,7 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+/// The signed-in user's contact store, or `null` before sign-in.
 ContactStore? get contactStore => switch (roleStore) {
   final r? => ContactStore(r),
   null => null,
