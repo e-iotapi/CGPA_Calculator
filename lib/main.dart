@@ -168,6 +168,8 @@ String refusal(User user, bool? allowed) {
           'BITS Pilani campus account.';
 }
 
+/// The app shown to signed-out people: the sign-in screen, with an optional
+/// [message] such as why an address was refused.
 class SignInApp extends StatefulWidget {
   const SignInApp({super.key, this.message});
 
@@ -301,6 +303,7 @@ class _SignInAppState extends State<SignInApp>
   }
 }
 
+/// The signed-in app: theme, router and the global overlays.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

@@ -1,29 +1,39 @@
 import 'package:hive_ce/hive.dart';
 part 'course.g.dart';
 
+/// A course on the student's list, stored in Hive. Field numbers are
+/// permanent.
 @HiveType(typeId: 0)
 class Course extends HiveObject {
+  /// The course title.
   @HiveField(0)
   final String title;
 
+  /// The course code.
   @HiveField(1)
   final String id;
 
+  /// The course credits.
   @HiveField(2)
   final double credits;
 
+  /// The grade code under the Actual profile; see `GradeCode`.
   @HiveField(3)
   final int grade1;
 
+  /// The grade code under the Expected profile.
   @HiveField(4)
   final int grade2;
 
+  /// The discipline code the course was added under, e.g. "B3A7".
   @HiveField(5)
   final String discipline;
 
+  /// The semester label, e.g. "1 - 1".
   @HiveField(6)
   final String sem;
 
+  /// The requirement category tag; see `Elective.tag`.
   @HiveField(7, defaultValue: "CDC")
   final String elective;
 
@@ -81,6 +91,7 @@ class Course extends HiveObject {
 
 
 
+/// Disciplinary electives by programme code.
 var del = {
  "--" : [],
  "A1" : ["BIO G671", "BIOT F245", "BIOT F344", "BITS F415", "BITS F416", "BITS F417", "BITS F418", "BITS F429", "CHE F315", "CHE F411", "CHE F412", "CHE F413", "CHE F414", "CHE F415", "CHE F416", "CHE F417", "CHE F418", "CHE F419", "CHE F421", "CHE F422", "CHE F423", "CHE F424", "CHE F433", "CHE F471", "CHE F497", "CHE F498", "CHE G511", "CHE G512", "CHE G513", "CHE G522", "CHE G523", "CHE G524", "CHE G526", "CHE G527", "CHE G528", "CHE G529", "CHE G532", "CHE G533", "CHE G551", "CHE G552", "CHE G554", "CHE G556", "CHE G557", "CHE G558", "CHE G568", "CHE G613", "CHE G614", "CHE G616", "CHE G617", "CHE G618", "CHE G619", "CHE G620", "CHE G622", "CHE G641", "CHEM F325", "ME F323", "MST G521"],
@@ -103,5 +114,7 @@ var del = {
  "B5" : ["BIO F215", "BITS F316", "BITS F317", "BITS F386", "BITS F416", "BITS F417", "BITS F446", "EEE F426", "MATH F424", "MATH F456", "PHY F215", "PHY F315", "PHY F316", "PHY F317", "PHY F346", "PHY F378", "PHY F379", "PHY F412", "PHY F413", "PHY F414", "PHY F415", "PHY F416", "PHY F417", "PHY F418", "PHY F419", "PHY F420", "PHY F421", "PHY F422", "PHY F423", "PHY F424", "PHY F425", "PHY F426", "PHY F427", "PHY F428", "PHY F431", "PHY F432", "PHY F433", "PHY F434"],
  "B7" : ["SNS F211","SNS F212","SNS F213","SNS F241","SNS F242","SNS F243","SNS F311","SNS F312","SNS F313","SNS F341","SNS F342","SNS F343"],
 };
+/// Humanity electives outside the HSS and GS prefixes.
 var huel = ["BITS F214","BITS F226","BITS F385","BITS F399","BITS F419"];
+/// Courses that count in no requirement category.
 var nonelist =["ECON F211", "MGTS F211", "BITS F225","MATH F101","BITS F112",'BITS F111','BIO F101','BITS F103','BITS K101','BITS F101','MATH F102','MATH F113','BITS F102','CHEM F101','CS F111','PHA F214','PHA F216','MATH F114',"MATH F101", "BITS F112", "BITS F111", "BIO F101", "BITS F103", "BITS K101", "BITS F101", "MATH F102", "MATH F113", "PHY F101", "EEE F111", "CS F111", "BITS F102", "CHEM F101", "PHA F214", "PHA F216", "PHY F102", "BITS F113", "MATH F114"];
