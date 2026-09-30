@@ -149,6 +149,10 @@ bool signsInByRedirect() =>
 /// Why [user] was turned away; [allowed] is what mayUseApp said.
 String refusal(User user, bool? allowed) {
   final rejected = user.email ?? 'that account';
+  if (allowed == false && isBitsEmail(rejected)) {
+    return "Pointer is for BITS students. Faculty and staff accounts can't "
+        'use it.';
+  }
   return allowed == null
       ? 'Could not check $rejected. Check your connection and try again.'
       : 'Sign in with your BITS email. $rejected is not a '
