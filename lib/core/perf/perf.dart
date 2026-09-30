@@ -30,6 +30,9 @@ abstract final class Perf {
       reads: reads,
       writes: writes,
       summary: () => {'reads': totalReads, 'writes': totalWrites},
+      timings: () => {
+        for (final e in _millis.entries) e.key: List.unmodifiable(e.value),
+      },
     );
   }
 

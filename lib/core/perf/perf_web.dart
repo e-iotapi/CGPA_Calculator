@@ -3,6 +3,7 @@
 /// core/platform/browser_web.dart.
 library;
 
+import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
@@ -11,6 +12,7 @@ void publishPerf({
   required int Function(String name) reads,
   required int Function(String name) writes,
   required Map<String, int> Function() summary,
+  required Map<String, List<int>> Function() timings,
 }) {
   final obj = JSObject();
   obj.setProperty(
@@ -31,5 +33,7 @@ void publishPerf({
       return o;
     }).toJS,
   );
+  // Every timing recorded so far, as JSON: {"startup.syncInit": [812], …}.
+  obj.setProperty('timings'.toJS, (() => jsonEncode(timings()).toJS).toJS);
   globalContext.setProperty('pointerPerf'.toJS, obj);
 }
