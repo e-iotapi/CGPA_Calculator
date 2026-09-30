@@ -24,6 +24,9 @@ function parseArgs(argv) {
   const out = { project: 'demo-pointer' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--project') out.project = argv[++i];
+    // Only reset the test accounts' passwords, no wipe: CI runs this on
+    // every deploy, so the build's baked-in password always signs in.
+    if (argv[i] === '--passwords-only') out.passwordsOnly = true;
   }
   // An alias from .firebaserc ("staging") resolves to its project id.
   const aliases = loadJson(path.join(root, '.firebaserc')).projects ?? {};
@@ -69,6 +72,12 @@ async function main() {
   const { accounts } = accountsConfig;
   const password = usingEmulator ? accountsConfig.password : process.env.STAGING_PASSWORD;
   const byKey = Object.fromEntries(accounts.map((a) => [a.key, a]));
+
+  if (args.passwordsOnly) {
+    await ensureAuthUsers(auth, accounts, password);
+    console.log(`Passwords reset for ${accounts.length} test accounts.`);
+    process.exit(0);
+  }
 
   if (usingEmulator) {
     await wipeEmulator(args.project);
