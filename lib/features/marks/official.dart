@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/script.dart' as app;
 
@@ -29,7 +30,7 @@ Offering? offeringFor(Course c) {
 /// — before any head names it — when the copy is older than [maxAge].
 Future<Offering?> refreshOfferingFor(
   Course c, {
-  Duration maxAge = const Duration(hours: 24),
+  Duration maxAge = offeringMaxAge,
 }) async {
   final term = termFor(c), source = offeringSource;
   if (term == null || source == null) return offeringFor(c);

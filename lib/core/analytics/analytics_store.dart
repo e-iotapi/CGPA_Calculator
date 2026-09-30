@@ -1,16 +1,16 @@
 /// Site analytics on the Spark plan (PERF_TEST_PLAN.md §D): a stable 1 in
-/// [sampleEvery] of users, re-drawn each day, pings `analytics/{IST day}`
+/// [analyticsSampleEvery] of users, re-drawn each day, pings `analytics/{IST day}`
 /// once a day and once an hour; owners read the day docs and free
 /// `count()` aggregates over `people`. No third party, no Functions.
 library;
 
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hive_ce/hive.dart';
 
-const sampleEvery = 20;
 const campuses = ['goa', 'hyderabad', 'pilani', 'dubai'];
 
 /// India time, whatever the device's zone.
@@ -27,7 +27,7 @@ bool sampled(String uid, String day) =>
           sha256.convert(utf8.encode(uid + day)).toString().substring(0, 8),
           radix: 16,
         ) %
-        sampleEvery ==
+        analyticsSampleEvery ==
     0;
 
 /// One campus on one day, scaled up from the sample.
@@ -50,7 +50,7 @@ class DayCounts {
         hours['${e.key}'] = (hours['${e.key}'] ?? 0) + (e.value as num).toInt();
       }
     }
-    final k = ((m?['sample'] as num?) ?? sampleEvery).toInt();
+    final k = ((m?['sample'] as num?) ?? analyticsSampleEvery).toInt();
     return DayCounts(
       day: day,
       dau: dau * k,
@@ -88,7 +88,7 @@ class AnalyticsStore {
     final firstToday = device?.get('anaDay') != day;
     if (!firstToday && device?.get('anaHour') == hour) return;
     await db.collection('analytics').doc(day).set({
-      'sample': sampleEvery,
+      'sample': analyticsSampleEvery,
       campus: {
         if (firstToday) 'dau': FieldValue.increment(1),
         'h': {hour: FieldValue.increment(1)},

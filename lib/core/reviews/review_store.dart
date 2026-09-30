@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_ce/hive.dart';
 
@@ -49,7 +50,7 @@ class ReviewStore {
     if (fresh) return fetch();
     return cacheFirst(
       key: 'rix|$campus',
-      maxAge: const Duration(hours: 12),
+      maxAge: reviewIndexMaxAge,
       fetch: fetch,
       encode:
           (m) => {
@@ -153,7 +154,7 @@ class ReviewStore {
     ReviewOrder order = ReviewOrder.helpful,
     DocumentSnapshot? after,
     int limit = 10,
-    Duration fresh = const Duration(minutes: 10),
+    Duration fresh = reviewPageMaxAge,
     DateTime? now,
   }) async {
     if (after != null) return (reviews: const <Review>[], last: null);

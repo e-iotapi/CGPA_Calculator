@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// A phone or WhatsApp number as typed: digits, spaces, +, - and brackets.
@@ -285,7 +286,7 @@ class ContactStore {
             ? await fetch()
             : await cacheFirst<Map<String, dynamic>>(
               key: 'reps|$campus',
-              maxAge: const Duration(hours: 6),
+              maxAge: repsMaxAge,
               fetch: fetch,
               encode: (m) => m,
               decode: (o) => Map<String, dynamic>.from(o as Map),
@@ -316,7 +317,7 @@ class ContactStore {
     try {
       return await cacheFirst<Volunteer?>(
         key: 'offer|$campus|$courseId|${roles.me}',
-        maxAge: const Duration(hours: 24),
+        maxAge: offerMaxAge,
         fetch: () async {
           final m =
               (await Perf.time(

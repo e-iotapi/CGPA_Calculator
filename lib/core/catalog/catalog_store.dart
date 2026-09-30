@@ -12,6 +12,7 @@ import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -73,7 +74,7 @@ class HeadCatalogSource implements CatalogSource {
     }
     return cacheFirst<({int version, int schema})?>(
       key: 'catalog|marker',
-      maxAge: const Duration(days: 1),
+      maxAge: catalogMaxAge,
       fetch: _live.marker,
       encode: (m) => m == null ? null : [m.version, m.schema],
       decode:

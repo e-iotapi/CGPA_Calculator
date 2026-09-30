@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:cgpa_calculator/core/storage/course_link.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -36,12 +37,6 @@ class Sync {
   static late Box _meta; // uid, rev, last (last synced snapshot), backup
   static late DocumentReference<Map<String, dynamic>> _doc;
   static Timer? _debounce;
-
-  /// How long after the last change a push waits; a hidden page pushes now.
-  static const debounce = Duration(seconds: 30);
-
-  /// The pull check runs at most this often on a device that has synced.
-  static const pullEvery = Duration(hours: 24);
 
   /// Tests point Sync at a fake Firestore.
   @visibleForTesting
@@ -78,7 +73,7 @@ class Sync {
     final at = _meta.get('pulledAt') as int?;
     if (at == null ||
         DateTime.now().millisecondsSinceEpoch - at >=
-            pullEvery.inMilliseconds) {
+            syncPullEvery.inMilliseconds) {
       await pull();
     }
     _dirty = snapshot() != _meta.get('last');
@@ -87,7 +82,7 @@ class Sync {
         _box(n).watch().listen((_) {
           _dirty = true;
           _debounce?.cancel();
-          _debounce = Timer(debounce, push);
+          _debounce = Timer(syncPushDebounce, push);
         }),
       );
     }
@@ -164,7 +159,7 @@ class Sync {
       final fullAt = _meta.get('fullAt') as int?;
       final now = DateTime.now().millisecondsSinceEpoch;
       if (fullAt == null ||
-          now - fullAt > const Duration(days: 7).inMilliseconds) {
+          now - fullAt > syncFullReadEvery.inMilliseconds) {
         full = true;
       }
       if (!full && local > 0) {
