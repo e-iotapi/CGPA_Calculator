@@ -78,6 +78,9 @@ void main() async {
     } on FirebaseAuthException catch (e) {
       debugPrint('[Pointer test] ?as= sign-in refused: ${e.code}');
       message = 'Test sign-in refused (${e.code}). Re-run the staging seed.';
+      // A refusal can leave a half-signed-in user behind (user-token-
+      // expired, TM-11); drop it so the sign-in screen shows the message.
+      await FirebaseAuth.instance.signOut();
     }
   }
   final user = await Perf.time(

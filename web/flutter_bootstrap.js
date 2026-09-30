@@ -17,6 +17,28 @@
 {
   const ua = navigator.userAgent;
   if (/AppleWebKit/.test(ua) && !/Chrome|Chromium|Android/.test(ua)) {
+    // TM-10 diagnostics: one console line per engine stage, so an iPhone
+    // load that stops can be placed (download, compile or instantiate).
+    const say = (m) => console.warn(`[engine] ${m} @${Math.round(performance.now())}`);
+    const compile0 = WebAssembly.compileStreaming.bind(WebAssembly);
+    WebAssembly.compileStreaming = (src) => {
+      say('compile waits for download');
+      return Promise.resolve(src)
+        .then((res) => (say('compile starts'), compile0(res)))
+        .then(
+          (m) => (say('compiled'), m),
+          (e) => (say(`compile failed: ${e}`), Promise.reject(e)),
+        );
+    };
+    const instantiate0 = WebAssembly.instantiate.bind(WebAssembly);
+    WebAssembly.instantiate = (m, imports) => {
+      say('instantiate starts');
+      return instantiate0(m, imports).then(
+        (r) => (say('instantiated'), r),
+        (e) => (say(`instantiate failed: ${e}`), Promise.reject(e)),
+      );
+    };
+    addEventListener('flutter-first-frame', () => say('first frame'));
     const fetch0 = window.fetch.bind(window);
     const stallMs = 15000;
     const once = async (url, init) => {
@@ -38,6 +60,7 @@
           if (done) break;
           parts.push(value);
         }
+        say(`downloaded ${url.split('/').pop()}`);
         return new Response(new Blob(parts), {
           headers: { 'Content-Type': 'application/wasm' },
         });
