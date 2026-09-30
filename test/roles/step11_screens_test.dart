@@ -68,6 +68,13 @@ Grant presidency({DateTime? until}) => Grant(
   expiresAt: until ?? far,
 );
 
+/// The chart semester of today's term for batch 24 (the taking-now filter
+/// only lists courses charted for the running term).
+String _semNow() {
+  final t = currentTerm(DateTime.now()).split('-');
+  return '${int.parse(t[0]) - 2024 + 1} - ${t[2] == '1' ? 1 : 2}';
+}
+
 void main() {
   late Directory dir;
   late FakeFirebaseFirestore db;
@@ -134,7 +141,7 @@ void main() {
           for (final id in ids)
             Course(
               title: id,
-              sem: '2 - 1',
+              sem: _semNow(),
               id: id,
               grade1: -8,
               grade2: -2,
