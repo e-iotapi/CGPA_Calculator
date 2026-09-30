@@ -67,7 +67,7 @@ class HeadCatalogSource implements CatalogSource {
 
   @override
   Future<({int version, int schema})?> marker() async {
-    final head = await headFor(campus, db: _db);
+    final head = await headFor(campus, db: _db, awaitStale: true);
     if (head?.catalog case final v?) {
       return (version: v, schema: head!.catalogSchema ?? 1);
     }
