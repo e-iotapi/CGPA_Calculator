@@ -124,6 +124,9 @@ async function wipeStaging(db, accounts) {
   for (const name of SEEDED_COLLECTION_GROUPS) {
     await deleteWhereSeeded(db.collectionGroup(name), { group: true });
   }
+  const people = db.batch();
+  for (const a of accounts) people.delete(db.doc(`people/${a.email}`));
+  await people.commit();
   for (const id of ['grantTerms', 'public']) {
     await db.doc(`config/${id}`).delete().catch(() => {});
   }
@@ -477,11 +480,13 @@ async function seedPeople(db, accounts) {
   const batch = db.batch();
   for (const a of accounts) {
     const campus = a.email.split('@')[1]?.split('.')[0] ?? 'goa';
-    batch.set(db.doc(`people/${a.email}`), s({
+    // No `seed` flag: the rules fix people's keys, so it blocked the
+    // account's own profile writes. The wipe finds these by address.
+    batch.set(db.doc(`people/${a.email}`), {
       name: personName(a),
       campus,
       firstSignIn: Date.now(),
-    }));
+    });
   }
   await batch.commit();
 }

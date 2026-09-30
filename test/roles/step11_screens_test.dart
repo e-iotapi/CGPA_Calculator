@@ -1018,6 +1018,37 @@ void main() {
     );
   });
 
+  testWidgets('a course refusal shows under the course field', (t) async {
+    signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    const cr = 'f20240001@goa.bits-pilani.ac.in';
+    await db.collection('people').doc(cr).set({
+      'name': 'Asha',
+      'campus': 'goa',
+    });
+    await t.pumpWidget(
+      app(
+        const AdminGrant(
+          prefill: (role: GrantRole.course, email: cr, scope: 'EEE F311'),
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+    VoidCallback? grant() =>
+        t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed;
+    expect(grant(), isNotNull);
+    // An ELEC president can not appoint a CS CR; it says so by the field.
+    final field = find.widgetWithText(TextField, 'EEE F311');
+    await t.enterText(field, 'CS F111');
+    await t.pumpAndSettle();
+    expect(grant(), isNull);
+    final refusal = find.textContaining('your own department');
+    expect(refusal, findsOneWidget);
+    expect(
+      t.getTopLeft(refusal).dy,
+      greaterThan(t.getTopLeft(find.byType(TextField).last).dy),
+    );
+  });
+
   testWidgets('a lapsed grant reads Expired, a revoked one Revoked', (t) async {
     signIn(
       'owner@example.com',

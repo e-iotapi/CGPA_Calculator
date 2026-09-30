@@ -183,7 +183,10 @@ class _AdminGrantState extends State<AdminGrant> {
   }
 
   /// Why this cannot be granted, in words; null when it can.
-  String? get _refusal {
+  String? get _refusal => _addressRefusal ?? _courseRefusal;
+
+  /// Why this address cannot hold the role; shown under the address.
+  String? get _addressRefusal {
     final a = _address;
     if (a.isEmpty || _role == null) return null;
     if (_role == GrantRole.admin) {
@@ -193,6 +196,13 @@ class _AdminGrantState extends State<AdminGrant> {
       return 'Refused: this is not a student address. Presidents and CRs '
           'are students.';
     }
+    return null;
+  }
+
+  /// Why this course cannot be granted; shown under the course field, where
+  /// it was typed, not off screen under the address.
+  String? get _courseRefusal {
+    if (_address.isEmpty || _addressRefusal != null) return null;
     final code = _course.text.trim().toUpperCase();
     // Only once no course starts with it: "C" is a code still being typed.
     if (_role == GrantRole.course &&
@@ -302,11 +312,31 @@ class _AdminGrantState extends State<AdminGrant> {
     }
   }
 
+  /// A refusal, in the red box.
+  Widget _refused(AppPalette p, String text) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: p.behind.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: p.behind.withValues(alpha: 0.6)),
+    ),
+    child: Text(
+      text,
+      style: TypeScale.caption.copyWith(
+        fontSize: 11,
+        height: 1.45,
+        color: p.behind,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final batch = batchOfAddress(_address);
-    final refusal = _refusal;
+    final refusal = _addressRefusal;
     final role = _role;
     final canTerms = _roles.owner || _roles.admin;
     final ends = _early && _earlier != null ? _earlier! : null;
@@ -427,25 +457,7 @@ class _AdminGrantState extends State<AdminGrant> {
               ),
               if (refusal != null) ...[
                 const SizedBox(height: Space.sm),
-                // this address is refused.
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: p.behind.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: p.behind.withValues(alpha: 0.6)),
-                  ),
-                  child: Text(
-                    refusal,
-                    style: TypeScale.caption.copyWith(
-                      fontSize: 11,
-                      height: 1.45,
-                      color: p.behind,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                _refused(p, refusal),
               ],
             ],
           ),
@@ -519,6 +531,10 @@ class _AdminGrantState extends State<AdminGrant> {
                     labelAbove: true,
                     onChanged: (_) => setState(() {}),
                   ),
+                  if (_courseRefusal case final r?) ...[
+                    const SizedBox(height: Space.sm),
+                    _refused(p, r),
+                  ],
                   // Always there, so the pills come and go inside it: a
                   // sibling appearing beside the field changed its
                   // semantics parent, and Flutter web then emptied the
