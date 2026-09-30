@@ -90,6 +90,23 @@ void main() {
       },
     );
 
+    test('awaitStale: a stale cache waits for the one refresh', () async {
+      final calls = <int>[];
+      final t0 = DateTime(2026, 1, 1);
+      await fetchWith(calls, now: t0);
+      final v = await cacheFirst<int>(
+        key: 'k',
+        maxAge: const Duration(hours: 1),
+        box: box,
+        now: () => t0.add(const Duration(hours: 2)),
+        awaitStale: true,
+        fetch: () async => 42,
+        encode: (v) => v,
+        decode: (v) => v as int,
+      );
+      expect(v, 42);
+    });
+
     test('concurrent dedupe: two calls with no cache share one fetch', () async {
       final calls = <int>[];
       final results = await Future.wait([fetchWith(calls), fetchWith(calls)]);
