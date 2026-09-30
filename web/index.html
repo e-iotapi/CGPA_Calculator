@@ -4,8 +4,9 @@
   <base href="$FLUTTER_BASE_HREF">
 
 
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3Q30MVTZ45"></script>
+  <!-- Google tag (gtag.js). The page view is queued now, but the 174 KB
+       script loads only after the app's first frame (or after 30 s), so it
+       no longer competes with the app for a slow connection. -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
@@ -16,7 +17,29 @@
     var gaUrl = new URL(location.href);
     gaUrl.searchParams.delete('as');
     gtag('config', 'G-3Q30MVTZ45', { page_location: gaUrl.toString() });
+
+    (function() {
+      var loaded = false;
+      function loadGtag() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-3Q30MVTZ45';
+        document.head.appendChild(s);
+      }
+      window.addEventListener('flutter-first-frame', loadGtag);
+      setTimeout(loadGtag, 30000);
+    })();
   </script>
+
+  <!-- The Firebase JS SDK that FlutterFire imports once main() starts
+       (firebase_core_web's supportedFirebaseJsSdkVersion; checked by
+       test/env/index_html_test.dart). Preloaded so it downloads during the
+       engine download instead of after it. -->
+  <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js" />
+  <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" />
+  <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-pipelines.js" />
 
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
