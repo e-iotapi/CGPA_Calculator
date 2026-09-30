@@ -10,6 +10,10 @@ _flutter.loader.load({
     serviceWorkerVersion: {{flutter_service_worker_version}},
   },
   config: {
+    // CanvasKit from this site, not www.gstatic.com: the same brotli bytes
+    // over the connection already open, without a DNS and TLS handshake to
+    // a second host on the cold load's critical path (TM-10).
+    canvasKitBaseUrl: 'canvaskit/',
     canvasKitForceMultiSurfaceRasterizer:
       new URLSearchParams(location.search).get('msr') === '1',
   },
