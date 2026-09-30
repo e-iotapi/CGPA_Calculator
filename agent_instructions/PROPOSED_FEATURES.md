@@ -135,6 +135,19 @@ Calendar, Stats, Resources, Reviews, Representatives, More and Settings.
   device doesn't repeat it. A "Replay the tour" option in Settings.
 - No server work beyond that one preference field.
 
+## 15. Last updated
+
+Students see how current a representative's work is, so the branch can hold them to account.
+
+- Counted in **semesters, not days** ("Last updated: Aug 2026", "2 semesters ago"); neutral
+  wording, no shaming.
+- **Only meaningful edits count:** adding, editing or removing resources, course structures and
+  professors; not opening a page or re-saving unchanged data.
+- **Course page:** "Last updated" beside the course's rep.
+- **Representatives page:** "N courses stale" per rep or department.
+- Server: a `lastUpdated` timestamp on the course/department, set in the same batch as each
+  meaningful edit (rules require `request.time`).
+
 ---
 
 ## Open questions
