@@ -24,6 +24,8 @@ final _inFlight = <String, Future<Object?>>{};
 /// Returns the cached value at once when there is one, refreshing it in the
 /// background when older than [maxAge]; fetches (and caches) only when
 /// nothing is cached. Concurrent calls for one key share one fetch.
+/// [awaitStale] waits for that refresh instead (the cached value if it fails):
+/// the same single read, but the caller sees the new value now, not next open.
 Future<T> cacheFirst<T>({
   required String key,
   required Duration maxAge,
@@ -32,6 +34,7 @@ Future<T> cacheFirst<T>({
   required T Function(Object?) decode,
   Box? box,
   DateTime Function()? now,
+  bool awaitStale = false,
 }) async {
   final b = box ?? sharedCacheBox;
   final at = (now ?? DateTime.now)().millisecondsSinceEpoch;
@@ -41,6 +44,13 @@ Future<T> cacheFirst<T>({
       final m = jsonDecode(raw) as Map;
       final value = decode(m['v']);
       if (at - (m['at'] as int) < maxAge.inMilliseconds) return value;
+      if (awaitStale) {
+        try {
+          return await _fetchAndCache(key, fetch, encode, b, at);
+        } on Object {
+          return value;
+        }
+      }
       unawaited(
         _fetchAndCache(key, fetch, encode, b, at).catchError((Object e) {
           debugPrint('[Pointer cache] $key: background refresh failed: $e');

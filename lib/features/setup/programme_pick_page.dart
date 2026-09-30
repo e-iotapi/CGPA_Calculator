@@ -24,7 +24,7 @@ class ProgrammePickPage extends StatefulWidget {
   final List<Programme> options;
   final String? selected;
 
-  /// Beside each row, e.g. "10 sem".
+  /// Beside each row, e.g. "4 sem listed": the semesters the catalogue has courses for.
   final String Function(Programme)? trailing;
 
   /// Under the list: what runs on another campus.

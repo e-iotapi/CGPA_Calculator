@@ -670,6 +670,8 @@ class _SemesterViewState extends State<SemesterView> {
             index: i,
             child: Tooltip(
               message: 'Drag to reorder',
+              // A long-press starts the drag; it must not open the tooltip.
+              triggerMode: TooltipTriggerMode.manual,
               child: SizedBox(
                 width: 22,
                 height: Sizes.minTouch,

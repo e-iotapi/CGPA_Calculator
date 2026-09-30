@@ -61,11 +61,20 @@ DocumentReference<Map<String, dynamic>> headRef(
 
 /// [campus]'s head: cached, refreshed in the background past [headMaxAge].
 /// Null when none is written yet or it cannot be read.
-Future<Head?> headFor(String campus, {FirebaseFirestore? db}) async {
+///
+/// [awaitStale]: wait for the refresh when the cache is old (the catalogue
+/// check does, so a publish lands on the first open past [headMaxAge] rather
+/// than the one after; same single read).
+Future<Head?> headFor(
+  String campus, {
+  FirebaseFirestore? db,
+  bool awaitStale = false,
+}) async {
   try {
     return await cacheFirst<Head?>(
       key: 'head|$campus',
       maxAge: headMaxAge,
+      awaitStale: awaitStale,
       fetch: () async {
         final m =
             (await headRef(db ?? FirebaseFirestore.instance, campus).get())

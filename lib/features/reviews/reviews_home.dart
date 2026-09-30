@@ -22,9 +22,6 @@ import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 
-String _title(String id) =>
-    catalog.master.where((m) => m.id == id).firstOrNull?.title ?? '';
-
 String _line(ReviewStats s) =>
     s.count == 0
         ? 'No reviews yet'
@@ -122,7 +119,7 @@ class _ReviewsHomeState extends State<ReviewsHome> {
             for (final r in mine)
               if (mq.isEmpty ||
                   r.courseId.toLowerCase().contains(mq) ||
-                  _title(r.courseId).toLowerCase().contains(mq) ||
+                  courseTitle(r.courseId).toLowerCase().contains(mq) ||
                   (r.text ?? '').toLowerCase().contains(mq))
                 r,
           ]..sort(
@@ -340,7 +337,7 @@ class _Rows extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '$id · ${_title(id)}',
+                            '$id · ${courseTitle(id)}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TypeScale.body.copyWith(

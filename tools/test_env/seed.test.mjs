@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, collectionGroup, doc, getDoc, getDocs } from 'firebase/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
@@ -98,5 +98,18 @@ describe('review counters equal the seeded entries', () => {
     assert.equal(stats.count, count);
     assert.equal(stats.starSum, starSum);
     assert.equal(stats.recommendCount, recommendCount);
+  });
+});
+
+describe('the seed leaves room for the app\'s own writes', () => {
+  test('stats docs hold only the keys the rules allow, so a student can post a review (BUG-03)', async () => {
+    const allowed = ['count', 'starSum', 'recommendCount', 'campus', 'courseId', 'scope', 'professorId', 'touchedBy'];
+    const db = as('owner');
+    const stats = await getDocs(collectionGroup(db, 'stats'));
+    assert.ok(stats.size > 0);
+    stats.forEach((d) => {
+      const extra = Object.keys(d.data()).filter((k) => !allowed.includes(k));
+      assert.deepEqual(extra, [], d.ref.path);
+    });
   });
 });

@@ -979,6 +979,47 @@ void main() {
     expect(grantButton(t), 'Grant');
   });
 
+  testWidgets('a CR for a course not in the catalogue is refused', (t) async {
+    await appointForm(t, pres);
+    // No red box for a valid address.
+    expect(find.textContaining('Refused'), findsNothing);
+    await t.tap(find.text('CR'));
+    await t.pumpAndSettle();
+    await t.enterText(
+      find.widgetWithText(TextField, 'EEE F211').first,
+      'XYZ F999',
+    );
+    await t.pumpAndSettle();
+    expect(find.text('XYZ F999 is not in the catalogue.'), findsOneWidget);
+    expect(
+      t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNull,
+    );
+  });
+
+  testWidgets('a lapsed grant reads Expired, a revoked one Revoked', (t) async {
+    signIn(
+      'owner@example.com',
+      roles: const MyRoles(email: 'owner@example.com', owner: true),
+    );
+    Grant g(String email, {required bool active}) => Grant(
+      role: GrantRole.dept,
+      email: email,
+      name: email,
+      campus: 'goa',
+      scope: 'CS',
+      active: active,
+      expiresAt: DateTime.now().subtract(const Duration(days: 3)),
+    );
+    await seedGrant(g('lapsed@goa.bits-pilani.ac.in', active: true));
+    await seedGrant(g('revoked@goa.bits-pilani.ac.in', active: false));
+    await t.pumpWidget(app(const AdminPeople()));
+    await t.pumpAndSettle();
+    expect(find.text('EXPIRED'), findsOneWidget);
+    expect(find.text('REVOKED'), findsOneWidget);
+    expect(find.text('0 PEOPLE'), findsOneWidget);
+  });
+
   // ---- T8.7 Grant terms ----------------------------------------------------
 
   Future<void> terms(WidgetTester t, MyRoles roles) async {
