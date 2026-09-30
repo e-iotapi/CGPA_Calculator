@@ -202,7 +202,7 @@ void main() {
     final president = await g(grantId(GrantRole.dept, 'goa', 'ELEC', next));
     final newSec = await g(secId);
     expect(newSec.secretary, isTrue);
-    expect(newSec.programme, isNull);
+    expect(newSec.programme, president.programme);
     expect(newSec.expiresAt, president.expiresAt);
     expect((await g(oldId)).expiresAt, after.expiresAt);
 

@@ -156,7 +156,8 @@ service cloud.firestore {
     // owner can never deactivate themselves, so there is always one.
     match /owners/{email} {
       allow get: if (signedIn() && me() == email) || isOwner();
-      allow list: if isOwner();
+      // The roster names the owners to everyone who may open it.
+      allow list: if readsRoster('all');
       allow create: if isOwner()
         && request.resource.data.email == email
         && request.resource.data.active == true
@@ -193,8 +194,12 @@ service cloud.firestore {
           ? isOwner() && d.campus == 'all' && d.scope == 'all' && isBitsAddress(d.email)
         : d.role == 'dept'
           ? (d.get('secretary', false) == true
-              ? (isOwner() || isAdmin() || presidentNotSecretary(d.campus, d.scope))
-                && d.get('programme', null) == null
+              // A secretary serves one branch: the appointing president's.
+              ? ((isOwner() || isAdmin())
+                  && (d.get('programme', null) == null || d.programme is string)
+                || presidentNotSecretary(d.campus, d.scope)
+                  && d.get('programme', null) == get(grantPath('dept', d.campus,
+                       d.scope, me())).data.get('programme', null))
               : (isOwner() || isAdmin() || handsOver(d) || cancelsHandover(d))
                 && d.programme is string)
             && isStudent(d.email) && campusOf(d.email) == d.campus

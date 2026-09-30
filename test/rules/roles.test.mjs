@@ -85,8 +85,10 @@ describe('grants', () => {
   test('a president appoints a secretary, who cannot appoint another', async () => {
     const S3 = 'f20230777@goa.bits-pilani.ac.in';
     await seed((db) => setDoc(doc(db, 'people', S3), { name: name(S3), campus: 'goa', firstSignIn: 1 }));
-    const sec = { role: 'dept', campus: 'goa', scope: 'ELEC', email: STUDENT, secretary: true };
-    await assertFails(appoint(as(PRES), PRES, { ...sec, programme: 'A3' }, { presidentOf: ['ELEC'] }));
+    const sec = { role: 'dept', campus: 'goa', scope: 'ELEC', programme: 'A3', email: STUDENT, secretary: true };
+    // The secretary serves the president's own branch, A3.
+    await assertFails(appoint(as(PRES), PRES, { ...sec, programme: 'A8' }, { presidentOf: ['ELEC'] }));
+    await assertFails(appoint(as(PRES), PRES, { ...sec, programme: null }, { presidentOf: ['ELEC'] }));
     await assertFails(appoint(as(PRES), PRES, { ...sec, scope: 'CS' }, { presidentOf: ['CS'] }));
     await assertSucceeds(appoint(as(PRES), PRES, sec, { presidentOf: ['ELEC'] }));
     // The secretary appoints CRs like a president, never a secretary.
@@ -219,6 +221,13 @@ describe('owners', () => {
     const data = { email: 'two@gmail.com', name: 'Two', active: true, addedBy: { email: OWNER, name: name(OWNER) }, addedAt: serverTimestamp() };
     await assertSucceeds(addOwner(as(OWNER), OWNER, 'two@gmail.com', data));
     await assertFails(addOwner(as(ADMIN), ADMIN, 'three@gmail.com', { ...data, email: 'three@gmail.com', addedBy: { email: ADMIN } }));
+  });
+
+  test('the roster lists owners for presidents and admins, not students', async () => {
+    for (const who of [OWNER, ADMIN, PRES]) {
+      await assertSucceeds(getDocs(collection(as(who), 'owners')));
+    }
+    await assertFails(getDocs(collection(as(STUDENT), 'owners')));
   });
 
   test('an owner never deactivates themselves', async () => {

@@ -354,6 +354,7 @@ async function seedOneGrant(db, account, r) {
     role: r.role,
     campus: r.campus,
     scope: r.scope,
+    ...(r.programme ? { programme: r.programme } : {}),
     email: account.email,
   };
   const id = grantId(g);
@@ -421,6 +422,7 @@ async function seedContacts(db, byKey) {
       roles: a.roles.map((r) => ({
         role: r.role === 'dept' ? 'dept' : 'course',
         scope: r.scope,
+        ...(r.programme ? { programme: r.programme } : {}),
         until: inDays(r.expiresInDays ?? 180),
       })),
       ...(profile.showEmail ? { email: a.email } : {}),

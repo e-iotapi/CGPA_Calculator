@@ -981,7 +981,7 @@ void main() {
         (await db.collection('grants').doc('dept|goa|ELEC|$pres').get())
             .data()!;
     expect(g['secretary'], isTrue);
-    expect(g.containsKey('programme'), isFalse);
+    expect(g['programme'], 'A3');
     expect(
       grantLabel(GrantRole.course, 'CS F372', 'goa'),
       'Grant — course manager, CS F372 Goa',

@@ -61,7 +61,7 @@ function handOver(ends, { to = STUDENT, extend, secretary } = {}) {
   if (secretary) {
     const sec = `dept|goa|ELEC|${secretary}`;
     b.set(doc(db, 'grants', sec), {
-      role: 'dept', campus: 'goa', scope: 'ELEC', email: secretary, secretary: true,
+      role: 'dept', campus: 'goa', scope: 'ELEC', programme: 'A3', email: secretary, secretary: true,
       name: name(secretary), active: true, expiresAt: days(300),
       grantedBy: { email: PRES, name: name(PRES) }, grantedAt: serverTimestamp(),
       auditId: audit(b, db, `grants/${sec}`),
