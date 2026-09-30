@@ -143,7 +143,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                       p.isMsc ? '${p.code}--' : '--${p.code}',
                       year,
                     ).semesters;
-                return n == 0 ? 'No catalogue yet' : '$n sem';
+                return n == 0 ? 'No catalogue yet' : '$n sem listed';
               },
               note:
                   _campus == null || elsewhere.isEmpty
