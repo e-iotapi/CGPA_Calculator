@@ -362,8 +362,9 @@ class _ThemeRevealState extends State<ThemeReveal>
   }
 }
 
-/// The old screen with a growing circular hole; it fades out at the end so
-/// the last corners do not snap.
+/// The old screen with a growing circular hole. The hole reaches the farthest
+/// corner exactly at the end, so the old screen stays opaque throughout; a
+/// fade here turned the last corner into a grey blob.
 class _HolePainter extends CustomPainter {
   _HolePainter(this.image, this.center, this.flipped, this.t, this.quality);
 
@@ -392,9 +393,7 @@ class _HolePainter extends CustomPainter {
       image,
       Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
       Offset.zero & size,
-      Paint()
-        ..filterQuality = quality
-        ..color = Color.fromRGBO(0, 0, 0, t < 0.75 ? 1 : (1 - t) / 0.25),
+      Paint()..filterQuality = quality,
     );
     canvas.restore();
   }
