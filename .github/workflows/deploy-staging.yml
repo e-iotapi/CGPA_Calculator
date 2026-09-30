@@ -77,6 +77,11 @@ jobs:
         if: steps.secrets.outputs.ok == 'true'
         run: firebase deploy --only firestore:rules,firestore:indexes --project staging --non-interactive
 
+      # The sync snapshots the seed restores (tools/test_env/out/, gitignored).
+      - name: Build seed snapshots
+        if: steps.secrets.outputs.ok == 'true' && steps.reseed.outputs.yes == 'true'
+        run: POINTER_SEED=1 flutter test tools/test_env/build_snapshots_test.dart
+
       - name: Reseed (wipes staging data)
         if: steps.secrets.outputs.ok == 'true' && steps.reseed.outputs.yes == 'true'
         env:
