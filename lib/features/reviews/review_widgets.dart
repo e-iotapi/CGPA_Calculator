@@ -262,7 +262,7 @@ class _Chip extends StatelessWidget {
           text,
           style: TypeScale.label.copyWith(
             fontSize: 9.5,
-            color: ink ? p.onHero : p.textMuted,
+            color: ink ? p.onHero : (p.isDark ? p.text : p.textMuted),
           ),
         ),
       ),

@@ -260,6 +260,9 @@ class ChoicePills<T> extends StatelessWidget {
         selected: on,
         button: true,
         label: n == null ? label(v) : '${label(v)} $n',
+        // One node: the label replaces the text inside, and so the tap moves up.
+        excludeSemantics: true,
+        onTap: () => onSelected(v),
         child: Material(
           color: on ? p.inverse : Colors.transparent,
           shape: StadiumBorder(
@@ -730,6 +733,8 @@ class InkCard extends StatelessWidget {
     final p = AppPalette.of(context);
     return AppCard(
       color: p.navBackground,
+      // Dark mode's ink is the card colour, so outline it to keep it set apart.
+      border: p.isDark ? BorderSide(color: p.hero) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
