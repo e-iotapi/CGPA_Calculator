@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 
@@ -20,7 +21,7 @@ ReviewStore? get reviewStore => switch (roleStore) {
 };
 
 /// The signed-in student's campus, from their address.
-String? get myCampus => campusOfAddress(roleStore?.me ?? '');
+String? get myCampus => viewCampus();
 
 // ---- Your reviews (§16.3 fix 4): course ids in the user's own data --------
 
