@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
+import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/features/semester/widgets/semester_pills.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
@@ -560,6 +561,28 @@ void main() {
       await t.pumpAndSettle();
       expect(order, isNotNull);
     });
+  });
+
+  testWidgets('tapping the selected grade in the menu clears it', (t) async {
+    int? got = 0;
+    await t.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder:
+              (c) => TextButton(
+                onPressed: () async {
+                  got = await showGradeMenu(c, current: 10, title: 'X');
+                },
+                child: const Text('open'),
+              ),
+        ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('A'));
+    await t.pumpAndSettle();
+    expect(got, GradeCode.clr);
   });
 
   group('UI_OPT O3', () {
