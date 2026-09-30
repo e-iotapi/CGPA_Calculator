@@ -254,7 +254,7 @@ class _AdminGrantState extends State<AdminGrant> {
       _refusal == null &&
       _campus != null &&
       _scope != null &&
-      (_role != GrantRole.dept || _secretary || _programme != null);
+      (_role != GrantRole.dept || _programme != null);
 
   Future<void> _grant() async {
     setState(() => _busy = true);
@@ -264,7 +264,7 @@ class _AdminGrantState extends State<AdminGrant> {
         email: _address,
         campus: _campus!,
         scope: _scope!,
-        programme: _role == GrantRole.dept && !_secretary ? _programme : null,
+        programme: _role == GrantRole.dept ? _programme : null,
         secretary: _role == GrantRole.dept && _secretary,
         expiresAt:
             _early && _earlier != null

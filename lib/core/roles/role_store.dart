@@ -366,9 +366,9 @@ class RoleStore {
     );
     final what = switch (role) {
       GrantRole.admin => 'admin',
-      GrantRole.dept when secretary => 'secretary of $scope',
-      GrantRole.dept =>
-        'president of $scope${programme == null ? '' : ' for $programme'}',
+      GrantRole.dept when secretary =>
+        'secretary of ${branchCode(scope, programme)}',
+      GrantRole.dept => 'president of ${branchCode(scope, programme)}',
       GrantRole.course => 'CR for $scope',
     };
     final data = existing.data();
@@ -519,12 +519,13 @@ class RoleStore {
           name: secName!,
           campus: mine.campus,
           scope: mine.scope,
+          programme: mine.programme,
           active: true,
           expiresAt: next.expiresAt,
           secretary: true,
         ),
         await _staff(sec),
-        'Appointed $secName secretary of ${mine.scope}',
+        'Appointed $secName secretary of ${mine.scopeLabel}',
       );
     }
     await b.commit();
