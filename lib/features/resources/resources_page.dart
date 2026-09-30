@@ -10,6 +10,8 @@ import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/core/models/offering.dart' show termOf;
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -31,11 +33,18 @@ List<String> programmesOf(String discipline) => [
     if (discipline.substring(i, i + 2) != '--') discipline.substring(i, i + 2),
 ];
 
-/// Courses the student is taking now.
-Set<String> takingNow() => {
-  for (final c in allCourses())
-    if (c.grade1 == GradeCode.ongoing || c.grade1 == GradeCode.clr) c.id,
-};
+/// Courses the student is taking now: in progress or cleared without a
+/// grade, and charted for this term (not a past or future semester's course
+/// carrying the same status).
+Set<String> takingNow() {
+  final term = currentTerm(DateTime.now());
+  return {
+    for (final c in allCourses())
+      if ((c.grade1 == GradeCode.ongoing || c.grade1 == GradeCode.clr) &&
+          termOf(batch, c.sem) == term)
+        c.id,
+  };
+}
 
 /// One link: title, host and who added it; opens in the browser. [onReport]
 /// adds the Report this link path (§6).

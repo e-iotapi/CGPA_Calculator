@@ -23,7 +23,8 @@ void main() {
     expect(d.credits.single.from, 3);
     expect(d.credits.single.to, 4);
     expect(d.retired.single.id, other.id);
-    expect(d.cosmetic.map((c) => c.what), contains('New course'));
+    expect(d.added.map((c) => c.what), contains('New course'));
+    expect(d.cosmetic.map((c) => c.what), isNot(contains('New course')));
     expect(
       d.cosmetic.where((c) => c.id == other.id).single.what,
       startsWith('Title'),
@@ -41,5 +42,24 @@ void main() {
     final next = applyEdits(live, [CourseEdit(id: id, retired: false)]);
     expect(next.retired, isNot(contains(id)));
     expect(diffCatalog(live, next).cosmetic.single.what, 'Back on offer');
+  });
+
+  group('newCourseError (BUG-48)', () {
+    test('rejects credits outside 0.5–25', () {
+      final live = catalog;
+      expect(newCourseError('CS F999', -3, live), isNotNull);
+      expect(newCourseError('CS F999', 0, live), isNotNull);
+      expect(newCourseError('CS F999', 30, live), isNotNull);
+      expect(newCourseError('CS F999', 3, live), isNull);
+    });
+
+    test('rejects a department no existing course uses', () {
+      expect(newCourseError('QA F101', 3, catalog), isNotNull);
+    });
+
+    test('rejects a code that is not "DEPT CODE" shaped', () {
+      expect(newCourseError('cs f999', 3, catalog), isNotNull);
+      expect(newCourseError('CSF999', 3, catalog), isNotNull);
+    });
   });
 }
