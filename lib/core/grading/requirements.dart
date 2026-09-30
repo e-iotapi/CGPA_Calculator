@@ -148,8 +148,11 @@ Elective firstDegreeCore(String discipline) =>
 Elective? auditCategory(Course c, String discipline) {
   final e = Elective.fromTag(c.elective);
   if (discipline == '----' || pinnedCategories.contains(c.id.trim())) return e;
+  // A dual's common-core row is shared with the B.E. half's own chart, not
+  // exclusive to the M.Sc. half — first-year and PS courses count toward
+  // neither half's core, only toward a single degree's (BUG-31).
   if (e == null && commonCore.contains(c.id.trim())) {
-    return firstDegreeCore(discipline);
+    return isDualDiscipline(discipline) ? null : firstDegreeCore(discipline);
   }
   // Any other BITS course is an open elective, tagged or not.
   if (e == null && c.id.trim().startsWith('BITS ')) return Elective.open;
@@ -204,6 +207,7 @@ final _commonCore = PerCatalog(
 bool isUnassigned(Course c, String discipline) =>
     countsTowardDegree(c) &&
     auditCategory(c, discipline) == null &&
+    !commonCore.contains(c.id.trim()) &&
     RegExp(r'^[A-Z]{2,5}\s+[A-Z]\d{3}').hasMatch(c.id.trim());
 
 /// Passed courses whose [auditCategory] is in [categories]; null stands for
@@ -362,15 +366,26 @@ DegreeAudit degreeAudit(
   final del2Need = dual ? del(a) : sheet?.del ?? del(a);
   final del1Need = dual || noReq ? del(b) : sheet?.del ?? del(b);
   final helNeed = sheet?.hel ?? (courses: 3, units: 8);
-  // HELs and DELs count toward their own requirement until its credits are
-  // met, earliest first; any after that are open electives.
+  // HELs, DELs and (with no sheet) the CDCs count toward their own
+  // requirement until its credits are met, earliest first; any after that
+  // are open electives, not just summed past 100% (BUG-12/31).
   final hel = _fill(_passed(mine, discipline, {Elective.humanity}), helNeed);
   final del2 = _fill(_passed(mine, discipline, {Elective.del2}), del2Need);
   final del1 = _fill(_passed(mine, discipline, {Elective.del1}), del1Need);
+  final cdc1 =
+      core == null
+          ? _fill(_passed(mine, discipline, {Elective.cdc1}), cdc(b))
+          : null;
+  final cdc2 =
+      core == null
+          ? _fill(_passed(mine, discipline, {Elective.cdc2}), cdc(a))
+          : null;
   final spilled = [
     ...hel.spill,
     if (hasA) ...del2.spill,
     if (hasB) ...del1.spill,
+    if (hasB) ...?cdc1?.spill,
+    if (hasA) ...?cdc2?.spill,
   ];
   final cards = [
     if (core != null)
@@ -381,7 +396,8 @@ DegreeAudit degreeAudit(
         counts: {null, Elective.cdc1, Elective.cdc2},
       ),
     if (hasB) ...[
-      if (core == null) card(Elective.cdc1, '$first Core · CDC1', cdc(b)),
+      if (cdc1 != null)
+        card(Elective.cdc1, '$first Core · CDC1', cdc(b), courses: cdc1.keep),
       card(
         Elective.del1,
         dual ? 'Disciplinary Elective 1' : 'Disciplinary Electives',
@@ -390,11 +406,12 @@ DegreeAudit degreeAudit(
       ),
     ],
     if (hasA) ...[
-      if (core == null)
+      if (cdc2 != null)
         card(
           Elective.cdc2,
           dual ? '$second Core · CDC2' : '$second Core',
           cdc(a),
+          courses: cdc2.keep,
         ),
       card(
         Elective.del2,
@@ -431,18 +448,14 @@ DegreeAudit degreeAudit(
       for (final c in mine)
         if (isUnassigned(c, discipline)) c,
     ],
-    creditsLeft:
-        core == null
-            ? null
-            : cards.fold<double>(
-              0,
-              (s, c) =>
-                  s +
-                  ((c.requiredCredits ?? 0) - c.credits).clamp(
-                    0,
-                    double.infinity,
-                  ),
-            ),
+    // Always the sum of what each card still needs, so this agrees with
+    // every card's own "X credits to go" (BUG-12: they used to be two
+    // different numbers whenever there was no imported sheet).
+    creditsLeft: cards.fold<double>(
+      0,
+      (s, c) =>
+          s + ((c.requiredCredits ?? 0) - c.credits).clamp(0, double.infinity),
+    ),
   );
 }
 

@@ -366,7 +366,7 @@ void main() {
         expect(t.takeException(), isNull);
       });
 
-      test('common courses count as the first degree\'s core', () {
+      test('common courses are not the dual\'s first-degree core (BUG-31)', () {
         final dual = StatsData.from(
           all: [
             for (final m in all)
@@ -386,7 +386,8 @@ void main() {
         final b3 = dual.audit.categories.firstWhere(
           (a) => a.label == 'B3 Core · CDC1',
         );
-        expect(b3.members.map((m) => m.id), ['MATH F111', 'BITS F111']);
+        expect(b3.members.map((m) => m.id), isNot(contains('MATH F111')));
+        expect(b3.members.map((m) => m.id), isNot(contains('BITS F111')));
         final a7 = d.audit.categories.firstWhere((a) => a.label == 'A7 Core');
         expect(a7.members.map((m) => m.id), containsAll(['MATH F111']));
       });
