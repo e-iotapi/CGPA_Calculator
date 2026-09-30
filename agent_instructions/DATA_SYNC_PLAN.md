@@ -99,7 +99,10 @@ from Firestore, rules and Cloudflare.
 
 ### 5.1 Forced reviews (review gate)
 
-- `config/public.reviewGate = { on, min: 8 }`, set by owners/admins (audited).
+- `config/public.reviewGate = { on, min: 5 }`, set by owners, admins, presidents and secretaries
+  (audited). A counted review needs stars and "would take"; text is optional.
+- While locked: every review is hidden, including in course search results; resources are not
+  locked.
 - Per-user counter `reviewCounts/<uid-hash>` = `{ n }`, +1 in the same batch as each review; rules
   check the review exists at its anonymous id (sha256 of uid + course) and did not before, so the
   count can't be inflated. It holds a number only, never which courses (anonymity holds).
@@ -114,26 +117,34 @@ from Firestore, rules and Cloudflare.
 ### 5.2 Contributor role
 
 - **Apply:** `contributorRequests/<campus>|<dept>|<email>`, the volunteer-offer pattern; the
-  department comes from the student's branch. After applying, the app shows the president's
+  department comes from the student's branch. Scope once approved: **any department on their
+  campus**. After applying, the app shows the president's
   public contact (existing directory entry, already readable).
-- **Approve:** the president grants `contributor|<campus>|<dept>|<email>`; terms, audit, revoke and
-  the staff index work as for every grant. Admins, presidents and CRs are contributors by
+- **Approve:** admins, the department's president or secretary grant `contributor|<campus>|<email>`
+  (campus-wide), **no expiry, until revoked**; audit, revoke and the staff index work as for every
+  grant. Admins, presidents and CRs are contributors by
   default: rules treat their grants as contributor rights; no second grant.
 - **Submit → publish:** contributors may only create links with `status: pending` (not in
   `links`, no version bump, visible only to the contributor and approvers). A
   `pending/<campus>|<dept>` index doc lists them (one read per queue), mirrored in the same batch.
   Publishing is one batch: `status: published`, copy into `links`, campus version +1, the
   contributor's points +4, their leaderboard entry, drop from the pending index, one audit entry.
-  Reject sets `status: rejected` with an optional reason; no points.
+  Reject sets `status: rejected` with a reason; no points. Contributors can send several links as
+  **one batched request**; approvers see it as one entry with clickable links. **Open:** the
+  owner's answers say both "pending until an approver publishes" and "contributors can submit and
+  publish"; settle which before building.
+- **Contributors can edit their own published links but cannot delete them.**
 - **Points are awarded in the batch where a link becomes published** (created published by a
   president/CR/admin, or approved from pending). Rules allow +4 only on that transition and only
-  to `addedBy`. Removing a published link takes the 4 back in the same batch.
+  to `addedBy`. **Removing a published link does not take the points back** (owner's call).
 - **Docs:** `contributors/<email> = { username, campus, points }`;
   `leaderboard/<campus> = { <username>: points }` (one read per view; rules check it mirrors the
   points doc; contributions are far below ~1 write/s, so no hot-doc problem; served from the
   Worker cache once Stage 2 exists); `usernames/<campus>|<name>` claims a unique name (length and
   charset checked; a president can reset an offensive one). The leaderboard shows usernames only,
-  never email or name.
+  never email or name. All contributors are visible to every branch on the campus; admins,
+  presidents and secretaries are tagged with their branch codes.
+- **Imports credit points** to the department's president and secretaries (split to settle).
 
 ### 5.3 Professors
 
@@ -141,10 +152,14 @@ from Firestore, rules and Cloudflare.
   reviews and stats point at professor ids, so a hard delete would orphan them. Merging duplicates
   already exists.
 
-### 5.4 Calendar (optional)
+### 5.4 Calendar
 
-- If a subscribable campus academic calendar is wanted: Worker `GET /calendar/<campus>.ics`,
-  built from Firestore and edge-cached. A student's own schedule export needs no server.
+- **Campus academic calendar feed (wanted):** Worker `GET /calendar/<campus>.ics`, built from
+  Firestore and edge-cached; students subscribe once.
+- **Auto-adding a student's schedule to Google Calendar** needs the Calendar API with an OAuth
+  scope (`calendar.events`) granted in the browser; no server, but it is a Google "sensitive"
+  scope: an unverified app is capped at 100 users and shows a warning, so Google's OAuth app
+  verification is required before launch.
 
 ### 5.5 Data import (owner-run script)
 
@@ -164,6 +179,23 @@ Presidents compile their department's data with a fixed AI prompt into a publish
   campus index rebuilt after each run.
 - One department per run, chunked to stay well inside 20k writes/day; never writes `seed` or
   other test fields.
+
+### 5.6 GEN department (Elective Contributors)
+
+- `deptOf` (app and rules): a known department's prefix maps to it; **every other prefix maps
+  to `GEN`** (today BITS, HSS, GS, IS, MST, MGTS, AN, MSE; 278 courses). New prefixes can't be
+  orphaned. GEN is in the department table but **never a programme**: it has no branch code and
+  never reaches setup or the discipline picker.
+- An Elective Contributor is a `dept` grant with scope `GEN`, per campus, appointed by owners and
+  admins; every existing department right applies unchanged (resources, reviews moderation,
+  structures, professors, CRs, secretary, handover). Grants already stack, and checks take the
+  union of a person's grants.
+- **Claimed CDCs:** `courseClaims/<campus>|<course> = { dept }`, created by the president or
+  secretary of a department for a GEN-prefix course that is a CDC of one of its programmes
+  (audited). Rules: for a GEN-prefix course, the managing department is the claim's `dept` if the
+  claim exists, else GEN. So GEN cannot touch a claimed CDC's resources, and the claiming
+  department can. Every rule that uses `deptOf(course)` goes through one
+  `managingDept(campus, course)` function (one extra `get` for GEN-prefix courses only).
 
 ---
 

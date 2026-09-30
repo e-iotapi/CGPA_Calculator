@@ -14,31 +14,33 @@ with the ratings in front of them. Data: one rating summary per course per campu
 
 ## 2. Forced reviews
 
-- Owners/admins switch it on (e.g. around timetable release).
-- A student must post **at least 8 reviews** before reviews unlock.
+- Owners/admins/presidents/secretaries switch it on (e.g. around timetable release).
+- A student must post **at least 5 reviews** before reviews unlock.
+- Which reviews count, (Mandatory: Star Ratings and Will I take it, Optional: Written Review).
 - Only electives count: **HEL, DEL, OPEL**; never CDCs.
 - By default the app pre-selects **last semester's electives** from the student's own courses; the
   student can change the selection manually.
 - A forced review can be stars only (see open questions).
-- Imported historical reviews never count toward anyone's 8.
+- Imported historical reviews never count toward anyone's 5.
 
 Server: `DATA_SYNC_PLAN.md` §5.1.
 
 ## 3. Contributor role
 
 1. **Apply:** any student can ask to become a contributor from Settings, and from a prompt when
-   they open a shared resource (shown at most once per session or with "Don't ask again"; owner
-   to confirm). After applying, they see the president's contact to talk about approval.
-2. **Approve:** the department's president approves; the student gets privileged access to
+   they open a resources page. (shown at most once per session or with "Not Now", "Apply Now";). After applying, they see the president's contact to talk about approval.
+   Message: "Contribute to the Community Now, Become a Contributor"
+3. **Approve:** the admins, department's president and secretary approves; the student gets privileged access to
    contribute resources, department-wide and per course.
-3. **Submit → publish:** a contributor's link is pending until an approver publishes it; a
-   rejection can carry a reason.
-4. **Leaderboard:** contributors pick a **username** when they become one. **+4 points** per
-   contribution, awarded **only when it is published**; removing a published link takes them back.
+4. **Submit → publish:** a contributor's link is pending until an approver publishes it; a
+   rejection should carry a reason, They can batch their approval requests and the requests display batched to the approvers with clickable links.
+5. **Leaderboard:** contributors pick a **username** when they become one. **+4 points** per
+   contribution, awarded **only when it is published**; removing a published link does not take them back.
    Ranked **campus-wide**, shown with rank numbers in the **More** tab. Usernames only, never
    names or emails.
-5. **Everyone can be a contributor:** admins, presidents and CRs are contributors by default
-   (their links publish directly and earn points).
+6. **A Contribute Tab inside More, Just like Resources etc.**, Opens the contribute Page.
+7. **Everyone can be a contributor:** admins, presidents and CRs are contributors by default
+   (their links publish directly and earn points). All contributors can be seen by all branches within a campus, Tag (Admins, Presidents and Secretaries by their Branch Codes).
 
 Server: `DATA_SYNC_PLAN.md` §5.2.
 
@@ -50,20 +52,20 @@ course-scoped links; only the screen is missing.
 ## 5. Professors
 
 - **Delete a professor** (soft delete, audited, by the department's president; server §5.3).
-- **Add professor** shows greyed out, with the reason, for people who can't add one.
+- **BUG: Add professor** shows greyed out, Have to click the search button and search, for them to be able to add; Check if duplicates exist and warn for potential matches.
 
 ## 6. Course delete moves to the evaluation screen
 
-Move a course's delete button out of Edit into the evaluation screen, with a confirmation.
+Move a course's delete button out of Edit into the evaluation screen, next to the edit button, with a confirmation.
 
 ## 7. Offshoot tab optional
 
 A Settings option to remove the Offshoot tab; More takes its place. Saved in the user's own
-data (synced like other preferences).
+data (synced like other preferences), Ships by default with the offshoot tab.
 
 ## 8. Calendar integration
 
-Get the student's schedule into their calendar (`.ics` download or "Add to Google Calendar").
+Get the student's schedule into their calendar ( Automatically added to Google Calendar).
 Optional: a subscribable campus academic calendar served by the Worker (server §5.4).
 
 ## 9. Initial data import (not an app feature)
@@ -72,19 +74,69 @@ Presidents compile their department's links, professors and historical reviews w
 prompt into a JSON file and hand it to the owner, who imports it with an owner-run script. No
 screen. Details: `DATA_SYNC_PLAN.md` §5.5.
 
+## 10.Course Reviews Page Changes
+The Stats on top (The Star Rating and Would Take): These should Change, based on the filter applied, for e.g. A Professor filter should only show these stats for the professor.
+Filters: 
+1. Professors (Make it a dropdown of the professor who took the course), Keep the search Option, Empty is a valid option.
+2. Year (Make it a Typeable query, Validate Year), Semester (Make it a dropdown, Options: Sem 1;Sem 2;Summer);
+3. Let them Combine Professors and Year and sorting options to create complex queries.
+4. Sorting Options: Sort by Helpful, Recent, Highest, Lowest.
+5. Show the Grade obtained by the reviewer, and the Marks they obtained
+6. Display the average grade Obtained in the course and the marks along with the reviews, Only show marks field when it is present, otherwise Just Display Grades.
+7. Write a Review, add a grade obtained field (Mandatory, Not Disclosed is a valid field), Add a marks obtained field (Not Mandatory). Both these fields will be autofilled from CGPA Data, but are changeable. 
+
+## 11. Your Reviews Page Changes
+1. Add a filter (All) and make it the default.
+
+## 12. Resources Tab Changes
+1. Give them a new screen to choose which Degree resources to view, Course resources button to view resources by all courses (Filter: This semester remains default, All; No degree barrier; Let them search), Build the UI from the More Tab screen, should look similar, Resuse code where possible.
+3. No Resources page remains the same.
+
+## 13. Elective Contributor role (the GEN department)
+
+278 of the 1,111 catalogue courses have a code prefix no department owns (BITS 111, HSS 85,
+GS 36, IS 21, MST 13, MGTS 6, AN 5, MSE 1), so no president can manage them; BITS, HSS and
+MGTS include CDCs of many programmes.
+
+- A management-only department **GEN ("Electives & General")** owns every prefix no other
+  department owns. **Not a degree programme or branch:** it never appears in setup, the
+  discipline picker, or anywhere a student chooses a programme.
+- **Any future prefix defaults to GEN**, so a new catalogue prefix is never orphaned.
+- An **Elective Contributor** is a department grant with scope GEN, per campus, appointed by
+  owners and admins. They manage GEN courses like a president manages a department: resources,
+  reviews moderation, course structures, professors, CRs for GEN courses, a secretary, handover.
+- **CDCs already managed by a department stay with that department.** A GEN-prefix course that
+  is a CDC of some programme (e.g. BITS F225 Environmental Studies) can be claimed by that
+  programme's department; once claimed, GEN cannot manage its resources, and the claiming
+  department can. Unclaimed GEN-prefix courses stay with GEN.
+- **Roles stack:** any privileged user (admin, president, secretary, CR) can also hold it; their
+  resources, reviews, structures and professors show both scopes. Working-as picks one role at a
+  time.
+- Shown as "Electives" where other roles show a branch code (A3, A7).
+
+Server: `DATA_SYNC_PLAN.md` §5.6.
+
 ---
 
 ## Open questions
 
 1. **Forced reviews:** what exactly stays locked until 8 — viewing reviews at all, or only the
    text (stars visible)? Can a forced review be stars only, text optional?
+   Answer: All reviews, no resources, The reviews also remain disabled for course Searches. 
 2. **Contributors — who publishes:** only the department's president and secretary, or can a CR
    publish course links for their own course?
-3. **Contributors — scope:** submit only to the approving department, or any department on
+   Answer: Contributors can submit and publish 
+4. **Contributors — scope:** submit only to the approving department, or any department on
    their campus?
-4. **Contributors — edits:** can they edit their published links? Does an edit go back to
+   Answer: Any Department on campus.
+5. **Contributors — edits:** can they edit their published links? Does an edit go back to
    pending?
-5. **Contributors — term:** yearly expiry like CRs, or until revoked?
-6. **Imports:** do they credit points to the president who compiled the data?
-7. **Calendar:** the student's own schedule only, or also a campus academic calendar feed?
-8. **Apply prompt:** how often may the "become a contributor" prompt appear?
+   Answer: Yes they can edit their links, but can't delete them.
+6. **Contributors — term:** yearly expiry like CRs, or until revoked?
+   Answer: Until Revoked.
+8. **Imports:** do they credit points to the president who compiled the data?
+   Answer: Yes both to the president and Secretaries.
+10. **Calendar:** the student's own schedule only, or also a campus academic calendar feed?
+    Answer: An Academic Calendar Feed as well.
+12. **Apply prompt:** how often may the "become a contributor" prompt appear?
+    Answer: Each session, (Session: Every time they open the App.)
