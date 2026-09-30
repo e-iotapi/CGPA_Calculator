@@ -538,6 +538,16 @@ class _DeptResourcesState extends State<DeptResources> {
 
   void _reload() => setState(() => _loads++);
 
+  /// Saves a one-tap change to [r]; a refusal is said, not swallowed.
+  Future<void> _change(Resource r, Resource next, String summary) async {
+    try {
+      await _store.update(r, next, summary);
+    } catch (e) {
+      if (mounted) _say(context, problem(e));
+    }
+    if (mounted) _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final course = widget.course;
@@ -625,26 +635,22 @@ class _DeptResourcesState extends State<DeptResources> {
                 r.rolledUp
                     ? TextLink(
                       'Unpin',
-                      onTap: () async {
-                        await _store.update(
-                          r,
-                          r.copyWith(pinnedToDepartment: false),
-                          'Unpinned “${r.title}” from ${widget.dept}',
-                        );
-                        _reload();
-                      },
+                      onTap:
+                          () => _change(
+                            r,
+                            r.copyWith(pinnedToDepartment: false),
+                            'Unpinned “${r.title}” from ${widget.dept}',
+                          ),
                     )
                     : IconButton(
                       tooltip: 'Remove',
                       icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      onPressed: () async {
-                        await _store.update(
-                          r,
-                          r.copyWith(removed: true),
-                          'Removed “${r.title}” from ${widget.dept}',
-                        );
-                        _reload();
-                      },
+                      onPressed:
+                          () => _change(
+                            r,
+                            r.copyWith(removed: true),
+                            'Removed “${r.title}” from ${widget.dept}',
+                          ),
                     ),
           ),
         );

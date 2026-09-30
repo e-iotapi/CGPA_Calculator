@@ -758,6 +758,7 @@ async function seedResources(db, byKey) {
     { title: 'Past papers repo', url: 'https://github.com/example/papers', kind: 'link' },
   ];
   let flaggedRef = null;
+  const mirror = {};
   for (const dept of departments) {
     const batch = db.batch();
     for (const [i, link] of links.entries()) {
@@ -784,11 +785,19 @@ async function seedResources(db, byKey) {
         auditId,
         actingFor: '',
       }));
+      mirror[ref.id] = {
+        title: `${dept} ${link.title}`, url: link.url, host, kind: link.kind,
+        department: dept, scope: 'department', courseIds: [], pinnedToDepartment: true,
+        addedBy: { email: owner.email, name: owner.name }, addedAt: Date.now(),
+      };
       if (dept === departments[0] && i === 0) flaggedRef = ref;
     }
-    batch.set(db.doc(`resourceVersions/goa`), s({ v: FieldValue.increment(1) }), { merge: true });
     await batch.commit();
   }
+  // Shaped as the app writes it: the rules allow only v, k and links, so a
+  // `seed` flag here refused every later link write. Overwritten, never
+  // merged, so a reseed drops the old copies; v moves so caches re-read.
+  await db.doc('resourceVersions/goa').set({ v: Date.now(), k: 'seed', links: mirror });
 
   // One flagged/reported link, for the moderation screens.
   const reporter = 'resource-reporter-0';
