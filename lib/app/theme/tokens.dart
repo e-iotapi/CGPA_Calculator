@@ -39,9 +39,15 @@ abstract final class Sizes {
   static const double navItem = 50;
 }
 
+/// Animation durations.
 abstract final class Motion {
+  /// For taps and small state changes.
   static const fast = Duration(milliseconds: 120);
+
+  /// The default.
   static const base = Duration(milliseconds: 220);
+
+  /// For larger movements.
   static const slow = Duration(milliseconds: 380);
 
   /// The standard curve for anything entering or moving.
@@ -54,6 +60,7 @@ abstract final class Motion {
 /// Type scale. Colourless: callers add colour from the palette with
 /// `copyWith(color: …)`.
 abstract final class TypeScale {
+  /// The bundled font family.
   static const family = 'MontserratFull';
 
   /// Large numbers on stat cards.
