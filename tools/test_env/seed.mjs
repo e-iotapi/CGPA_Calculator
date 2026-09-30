@@ -74,7 +74,7 @@ async function main() {
   const byKey = Object.fromEntries(accounts.map((a) => [a.key, a]));
 
   if (args.passwordsOnly) {
-    await ensureAuthUsers(auth, accounts, password);
+    await ensureAuthUsers(auth, accounts, password, { staging: !usingEmulator });
     console.log(`Passwords reset for ${accounts.length} test accounts.`);
     process.exit(0);
   }
@@ -86,7 +86,7 @@ async function main() {
   }
 
   console.log(`Seeding ${args.project} (${usingEmulator ? 'emulator' : 'staging'})...`);
-  await ensureAuthUsers(auth, accounts, password);
+  await ensureAuthUsers(auth, accounts, password, { staging: !usingEmulator });
   await seedUserDocs(db, accounts);
   await seedOwners(db, byKey);
   await seedConfig(db, byKey);
@@ -169,13 +169,33 @@ function chunk(arr, size) {
 
 // ---- auth ---------------------------------------------------------------
 
-async function ensureAuthUsers(auth, accounts, password) {
+// The staging web API key (public: it ships in every staging build).
+function stagingApiKey() {
+  const src = readFileSync(path.join(root, 'lib', 'firebase_options_staging.dart'), 'utf8');
+  return /apiKey: '([^']+)'/.exec(src)[1];
+}
+
+// True when [password] already signs [email] in on staging.
+async function passwordWorks(email, password) {
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${stagingApiKey()}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: false }) },
+  );
+  return res.ok;
+}
+
+async function ensureAuthUsers(auth, accounts, password, { staging = false } = {}) {
   for (const a of accounts) {
     try {
       a.uid = (await auth.getUserByEmail(a.email)).uid;
-      // Reset every run: the build bakes in this run's password, and an
-      // account left on an older one refuses every ?as= sign-in.
-      await auth.updateUser(a.uid, { password });
+      // The build bakes in this run's password, and an account left on an
+      // older one refuses every ?as= sign-in. But setting a password revokes
+      // the account's sessions (a load mid-sign-in got user-token-expired,
+      // TM-11), so on staging it is set only when it differs.
+      if (!staging || !(await passwordWorks(a.email, password).catch(() => false))) {
+        await auth.updateUser(a.uid, { password });
+      }
     } catch {
       a.uid = (
         await auth.createUser({
