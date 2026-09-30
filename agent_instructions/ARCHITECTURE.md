@@ -116,6 +116,7 @@ user's history must not change meaning.
 Today the catalogue ships inside the bundle, so it cannot fail to load. Fetching it makes
 it a network dependency, and the app is used on campus wifi.
 
+- Every sync and cache timing (push debounce, pull interval, cache max ages, sample rate) lives in `lib/core/timings.dart`, each with its Firestore cost.
 - The catalogue caches in its own Hive box, `catalogBox` (register in all three places,
   §14.4), keyed by version.
 - The app **boots from cache** and checks the version marker in the background. It never

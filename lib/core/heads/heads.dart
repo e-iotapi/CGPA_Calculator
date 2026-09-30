@@ -9,9 +9,8 @@ library;
 
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-const headMaxAge = Duration(hours: 6);
 
 class Head {
   const Head({

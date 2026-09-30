@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
@@ -34,9 +35,7 @@ RoleStore startRoles(
     final at = _device?.get('signInAt');
     final seen = _device?.get('signInAs') == email;
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (!seen ||
-        at is! int ||
-        now - at > const Duration(days: 7).inMilliseconds) {
+    if (!seen || at is! int || now - at > signInRecordEvery.inMilliseconds) {
       unawaited(
         store
             .recordSignIn(name: name, campus: campus, known: seen)
@@ -164,7 +163,7 @@ Future<void> refreshMyRolesIfDue() async {
   if (mine &&
       at is int &&
       DateTime.now().millisecondsSinceEpoch - at <
-          const Duration(days: 7).inMilliseconds) {
+          rolesRefreshEvery.inMilliseconds) {
     return;
   }
   await refreshMyRoles();

@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// One line of `audit/`.
@@ -726,7 +727,7 @@ class RoleStore {
       m = head?.contact?.cast<String, dynamic>();
       m ??= await cacheFirst<Map<String, dynamic>?>(
         key: 'contact|public',
-        maxAge: const Duration(days: 7),
+        maxAge: publicContactMaxAge,
         fetch:
             () async =>
                 (await Perf.time(

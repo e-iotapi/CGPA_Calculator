@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/core/storage/overrides.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
@@ -65,7 +66,7 @@ Future<Offering?> refreshOffering(
   String courseId,
   String campus,
   String term, {
-  Duration maxAge = const Duration(hours: 24),
+  Duration maxAge = offeringMaxAge,
   int? version,
   DateTime? now,
 }) async {
@@ -76,7 +77,7 @@ Future<Offering?> refreshOffering(
   if (cached is Map) {
     final age = at - (cached['at'] as int);
     final same = version != null && cached['ver'] == version;
-    if (same && age < const Duration(days: 7).inMilliseconds ||
+    if (same && age < offeringVersionRecheck.inMilliseconds ||
         version == null && age < maxAge.inMilliseconds) {
       return cachedOffering(courseId, campus, term);
     }
