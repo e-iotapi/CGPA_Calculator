@@ -45,6 +45,7 @@ String? profileGate(String location) {
   return profileDue.value && location != Routes.welcome ? Routes.welcome : null;
 }
 
+/// Every route of the app, for the router in `main.dart`.
 final List<RouteBase> appRoutes = [
   GoRoute(
     path: Routes.home,
@@ -285,9 +286,14 @@ Widget _deferred(Widget Function() page) =>
     DeferredPage(load: _adminLoad ??= admin.loadLibrary(), page: page);
 Future<void>? _adminLoad;
 
+/// Shows [page] once the deferred library behind [load] has loaded.
 class DeferredPage extends StatelessWidget {
   const DeferredPage({super.key, required this.load, required this.page});
+
+  /// Completes when the library is loaded.
   final Future<void> load;
+
+  /// Builds the page; called only after [load] completes.
   final Widget Function() page;
 
   @override
