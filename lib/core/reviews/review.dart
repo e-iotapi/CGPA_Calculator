@@ -13,8 +13,10 @@ import 'package:crypto/crypto.dart';
 String hashedId(String uid, String key) =>
     sha256.convert(utf8.encode(uid + key)).toString();
 
+/// The longest review text, in characters.
 const reviewTextLimit = 600;
 
+/// One review of a course offering, keyed by [hashedId].
 class Review {
   const Review({
     required this.id,
@@ -34,21 +36,35 @@ class Review {
     this.updatedAt = 0,
   });
 
+  /// The pseudonymous review id, and the course, campus key and term it
+  /// concerns.
   final String id, courseId, campus, term;
+
+  /// The rating, 1 to 5.
   final int stars;
+
+  /// Whether the reviewer recommends the course.
   final bool recommend;
 
   /// Null when the offering recorded no professor: it counts toward the
   /// course and no professor (fix 5).
   final String? professorId;
+  /// The written review, if any.
   final String? text;
+
+  /// Whether a moderator hid the review.
   final bool hidden;
+
+  /// The moderator's reason and name, when [hidden].
   final String? reason, hiddenByName;
+
+  /// The helpful-vote and report counters.
   final int helpful, reports;
 
   /// Milliseconds since the epoch.
   final int createdAt, updatedAt;
 
+  /// Whether the review was changed after it was posted.
   bool get edited => updatedAt > createdAt + 1000;
 
   /// After a successful vote: the server write already moved the counter,
@@ -94,6 +110,7 @@ class Review {
           ? at.toInt()
           : (at as dynamic)?.millisecondsSinceEpoch as int? ?? 0;
 
+  /// Reads a review from Firestore or the Hive cache.
   static Review fromMap(String id, String courseId, Map m) => Review(
     id: id,
     courseId: courseId,
@@ -121,18 +138,24 @@ class ReviewStats {
     this.recommendCount = 0,
   });
 
+  /// The number of reviews, the sum of their stars and how many recommend.
   final int count, starSum, recommendCount;
 
+  /// The mean star rating, or `null` with no reviews.
   double? get average => count == 0 ? null : starSum / count;
+
+  /// The rounded percentage recommending, or `null` with no reviews.
   int? get recommendPercent =>
       count == 0 ? null : (100 * recommendCount / count).round();
 
+  /// The combined counters of this and [o].
   ReviewStats operator +(ReviewStats o) => ReviewStats(
     count: count + o.count,
     starSum: starSum + o.starSum,
     recommendCount: recommendCount + o.recommendCount,
   );
 
+  /// Reads a stats document; a missing one reads as zeros.
   static ReviewStats fromMap(Map? m) => ReviewStats(
     count: (m?['count'] as num?)?.toInt() ?? 0,
     starSum: (m?['starSum'] as num?)?.toInt() ?? 0,
@@ -152,6 +175,9 @@ enum ReviewOrder {
   lowest('Lowest', 'stars', false);
 
   const ReviewOrder(this.label, this.field, this.descending);
+  /// The chip label and the Firestore field ordered by.
   final String label, field;
+
+  /// Whether larger values come first.
   final bool descending;
 }
