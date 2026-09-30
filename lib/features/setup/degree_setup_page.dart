@@ -214,14 +214,14 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     final d = _discipline, y = _yearValue;
     final picked = d != null && y != null && _campus != null;
     // A picked programme with nothing charted for this batch: setting up
-    // would silently add nothing for it (BUG-08), so say so instead.
+    // would silently add nothing for it (BUG-08), so warn; setup still runs.
     final noChart = [
       if (picked) ...[
         if (_first != null && _hasNoChart(_first!, y)) _first!,
         if (_second != null && _hasNoChart(_second!, y)) _second!,
       ],
     ];
-    final ready = picked && noChart.isEmpty;
+    final ready = picked;
     final adds = ready ? seedSummary(d, y) : null;
     final setupName = [
       if (d != null) ...[d.substring(0, 2), d.substring(2)],
