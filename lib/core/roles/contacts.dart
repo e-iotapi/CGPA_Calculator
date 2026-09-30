@@ -85,7 +85,10 @@ List<String> myDepartments(
   Iterable<String> degrees,
 ) =>
     {
-        for (final c in courses) deptOf(c),
+        // deptOf("BITS F412") is "BITS", the common-course prefix, not a
+        // department — drop anything that isn't a real one (BUG-34).
+        for (final c in courses)
+          if (departments.containsKey(deptOf(c))) deptOf(c),
         for (final d in degrees)
           if (departmentOfProgramme(d) case final x?) x,
       }.toList()

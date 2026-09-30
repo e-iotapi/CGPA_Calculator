@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/core/models/offering.dart' show termOf;
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -40,7 +41,7 @@ Set<String> takingNow() {
   return {
     for (final c in allCourses())
       if ((c.grade1 == GradeCode.ongoing || c.grade1 == GradeCode.clr) &&
-          termFor(c) == term)
+          termOf(batch, c.sem) == term)
         c.id,
   };
 }

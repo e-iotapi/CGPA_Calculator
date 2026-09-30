@@ -216,6 +216,8 @@ void main() {
     expect(myDepartments([], ['A3', 'B-']), ['ELEC']);
     // A single M.Sc. (D6): "B3--" is just B3, the economics department.
     expect(myDepartments([], ['B3', '--']), ['ECON']);
+    // Common-course prefix is not a department (BUG-34).
+    expect(myDepartments(['BITS F412'], ['--']), isEmpty);
   });
 
   test('volunteer offers: this term, by course', () async {
