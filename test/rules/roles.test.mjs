@@ -150,6 +150,31 @@ describe('grants', () => {
     await assertSucceeds(revoke(as(ADMIN), ADMIN, self, { presidentOf: [] }));
   });
 
+  test('renewing a president from before branches were kept records one', async () => {
+    const id = `dept|goa|CS|${STUDENT}`;
+    await seed((db) => setDoc(doc(db, 'grants', id), {
+      role: 'dept', campus: 'goa', scope: 'CS', email: STUDENT, name: name(STUDENT),
+      active: false, expiresAt: days(-5),
+    }));
+    const renew = (extra) => {
+      const db = as(ADMIN);
+      const b = writeBatch(db);
+      const a = doc(collection(db, 'audit'));
+      b.update(doc(db, 'grants', id), { active: true, expiresAt: days(100), auditId: a.id, ...extra });
+      b.set(doc(db, 'staff', STUDENT), {
+        name: name(STUDENT), email: STUDENT, campus: 'goa', owner: false, admin: false,
+        presidentOf: ['CS'], courses: [], expiresAt: days(100), lastGrant: id,
+      });
+      b.set(a, {
+        actor: { email: ADMIN, name: name(ADMIN), role: 'x' }, action: 'renew',
+        path: `grants/${id}`, campus: 'goa', at: serverTimestamp(),
+      });
+      return b.commit();
+    };
+    await assertFails(renew({}));
+    await assertSucceeds(renew({ programme: 'A7' }));
+  });
+
   // RoleStore.appoint() first get()s the grant doc to tell a fresh
   // appointment from a renewal; that doc does not exist yet for a first
   // appointment. A get() on a not-yet-existing grant must not error

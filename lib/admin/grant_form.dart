@@ -11,6 +11,7 @@ import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
@@ -245,8 +246,9 @@ class _AdminGrantState extends State<AdminGrant> {
         : mine.expiresAt;
   }
 
-  DateTime get _fullTerm =>
-      DateTime.now().add(Duration(days: termDays(_terms, _role!)));
+  DateTime get _fullTerm => DateTime.now()
+      .add(Duration(days: termDays(_terms, _role!)))
+      .subtract(clockSlack);
 
   bool get _ready =>
       !_busy &&
