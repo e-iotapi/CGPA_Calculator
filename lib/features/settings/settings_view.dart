@@ -21,7 +21,6 @@ class SettingsView extends StatelessWidget {
     required this.onTheme,
     required this.onRenameProfile,
     required this.onExport,
-    required this.onImportBackup,
     required this.onImportOld,
     this.onImportErp,
     required this.onReport,
@@ -63,7 +62,6 @@ class SettingsView extends StatelessWidget {
   /// 1 or 2.
   final ValueChanged<int> onRenameProfile;
   final VoidCallback onExport;
-  final VoidCallback onImportBackup;
   final VoidCallback onImportOld;
 
   /// Imports grades from the ERP performance sheet PDF; web only.
@@ -242,13 +240,6 @@ class SettingsView extends StatelessWidget {
                     value: '.csv',
                     chevron: false,
                     onTap: onExport,
-                  ),
-                  _Item(
-                    icon: Icons.upload_rounded,
-                    label: 'Import backup',
-                    value: '.json',
-                    chevron: false,
-                    onTap: onImportBackup,
                   ),
                   if (onImportErp != null)
                     _Item(

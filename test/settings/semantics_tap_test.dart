@@ -28,7 +28,6 @@ void main() {
           onTheme: (_) {},
           onRenameProfile: (i) => taps.add('profile $i'),
           onExport: () => taps.add('export'),
-          onImportBackup: () => taps.add('backup'),
           onImportOld: () => taps.add('old'),
           onReport: () {},
           onReset: () {},
