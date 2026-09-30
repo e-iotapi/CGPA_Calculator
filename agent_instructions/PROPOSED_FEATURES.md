@@ -89,6 +89,10 @@ Filters:
 5. Show the Grade obtained by the reviewer, and the Marks they obtained
 6. Display the average grade Obtained in the course and the marks along with the reviews, Only show marks field when it is present, otherwise Just Display Grades.
 7. Write a Review, add a grade obtained field (Mandatory, Not Disclosed is a valid field), Add a marks obtained field (Not Mandatory). Both these fields will be autofilled from CGPA Data, but are changeable. 
+8. **"Course resources" button** on a course's reviews page: opens that course's resources page
+   directly, with its handout links already there (handouts come from the initial review import,
+   `courses.json` → course resources).
+
 
 ## 11. Your Reviews Page Changes
 1. Add a filter (All) and make it the default.
