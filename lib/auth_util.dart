@@ -11,6 +11,7 @@ final RegExp _bitsEmail = RegExp(
   caseSensitive: false,
 );
 
+/// Whether [email] is a BITS campus address, student or staff.
 bool isBitsEmail(String? email) =>
     email != null && _bitsEmail.hasMatch(email.trim());
 
@@ -39,6 +40,8 @@ Future<bool?> mayUseApp(User user, {FirebaseFirestore? db}) async =>
 /// degree, 2023 batch, at Goa.
 enum DegreeLevel { first, higher, phd }
 
+/// The degree level, batch year and campus a BITS address encodes; each is
+/// `null` when the address does not say.
 typedef BitsAddress = ({DegreeLevel? level, int? year, Campus? campus});
 
 final _address = RegExp(

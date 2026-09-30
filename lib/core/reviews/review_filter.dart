@@ -10,14 +10,20 @@ import 'package:cgpa_calculator/core/reviews/review.dart';
   return m == null ? null : (m[1]!, m[2]!);
 }
 
+/// Display labels by semester code.
 const semesterLabels = {'1': 'Sem 1', '2': 'Sem 2', 'S': 'Summer'};
 
+/// A filter on the loaded reviews: year, semester and free text.
 class ReviewFilter {
   const ReviewFilter({this.year, this.sem, this.query = ''});
 
+  /// The academic year ("2023-24") and semester code to match, if set.
   final String? year, sem;
+
+  /// The text searched for in reviews and professor names.
   final String query;
 
+  /// Whether any criterion is set.
   bool get active => year != null || sem != null || query.trim().isNotEmpty;
 
   /// [names] maps professor ids to names, so a search finds them too.

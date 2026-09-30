@@ -62,12 +62,17 @@ final myRoles = ValueNotifier<MyRoles>(MyRoles.none);
 @immutable
 class ViewAs {
   const ViewAs(this.role, {this.campus, this.scope});
+
+  /// The role to render as.
   final Role role;
+
+  /// The campus key the lens is scoped to.
   final String? campus;
 
   /// A department key for a president, a course id for a CR.
   final String? scope;
 
+  /// The lens as shown in the banner.
   String get label => switch (role) {
     Role.owner => 'Owner',
     Role.admin => 'Admin',
@@ -77,6 +82,7 @@ class ViewAs {
   };
 }
 
+/// The active [ViewAs] lens, or `null` when the app renders as the person.
 final viewAs = ValueNotifier<ViewAs?>(null);
 
 /// The signed-in uid: the salt of every pseudonymous id (reviews, votes,
@@ -94,12 +100,14 @@ final myContactSummary = ValueNotifier<String?>(null);
 Box? get _device =>
     Hive.isBoxOpen(deviceBoxName) ? Hive.box(deviceBoxName) : null;
 
+/// Opens the device-local Hive box that [setWorkingAs] writes to.
 Future<void> openDeviceBox() => Hive.openBox(deviceBoxName);
 
 /// The grant id Pointer opens as (Switch role), or null for Student. A grant
 /// that has lapsed reads as Student.
 final workingAs = ValueNotifier<Grant?>(null);
 
+/// Sets [workingAs] to [g] and remembers it on this device.
 Future<void> setWorkingAs(Grant? g) async {
   workingAs.value = g;
   await _device?.put('workingAs', g?.id);

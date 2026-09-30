@@ -8,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// carries its audit entry.
 class ProfessorStore {
   ProfessorStore(this.db, {this.roles});
+
+  /// The Firestore instance read and written.
   final FirebaseFirestore db;
 
   /// Null for a student, who only reads.
@@ -102,6 +104,9 @@ class ProfessorStore {
     'auditId': auditId,
   };
 
+  /// Creates a professor in [department] on [campus], with an audit entry.
+  ///
+  /// Requires [roles].
   Future<Professor> add(String name, String campus, String department) async {
     final r = roles!;
     final ref = _col.doc();

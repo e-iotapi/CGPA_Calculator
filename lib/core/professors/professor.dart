@@ -3,6 +3,7 @@
 /// pointer (§16.3 fix 7).
 library;
 
+/// One professor on one campus.
 class Professor {
   const Professor({
     required this.id,
@@ -15,6 +16,7 @@ class Professor {
     this.active = true,
   });
 
+  /// The immutable id, the display name, and the campus and department keys.
   final String id, name, campus, department;
 
   /// Spellings a merge absorbed.
@@ -26,9 +28,14 @@ class Professor {
   /// On a survivor: every id merged into it. Reviews are read for
   /// `[id, ...mergedIds]`.
   final List<String> mergedIds;
+
+  /// Whether the professor can still be picked.
   final bool active;
 
+  /// Whether this entry was absorbed into another.
   bool get merged => mergedInto != null;
+
+  /// The id and every merged id.
   List<String> get allIds => [id, ...mergedIds];
 
   /// Whether [query] matches the name or an alias, by word prefix.
@@ -42,6 +49,7 @@ class Professor {
     return q.every(mine.contains);
   }
 
+  /// Reads a professor document's data.
   static Professor fromMap(String id, Map m) => Professor(
     id: id,
     name: m['name'] as String? ?? '',

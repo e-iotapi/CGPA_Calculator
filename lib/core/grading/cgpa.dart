@@ -23,12 +23,16 @@ enum Profile {
   fifth(5);
 
   const Profile(this.id);
+
+  /// The grade column number.
   final int id;
 
+  /// The profile with [id], or `null`.
   static Profile? fromId(int id) =>
       Profile.values.where((p) => p.id == id).firstOrNull;
 }
 
+/// The grade code of [c] under [profile].
 int gradeOf(Course c, Profile profile) => c.gradeFor(profile.id);
 
 /// A discipline code is two two-letter halves ("B3A7"); a course counts when
@@ -37,6 +41,7 @@ bool inDiscipline(Course c, String discipline) =>
     c.discipline == discipline.substring(0, 2) ||
     c.discipline == discipline.substring(2, 4);
 
+/// Grade points and credits over some courses; add tallies with `+`.
 class GpaTally {
   const GpaTally({
     required this.points,
@@ -44,8 +49,10 @@ class GpaTally {
     required this.shownCredits,
   });
 
+  /// The tally of no courses.
   static const empty = GpaTally(points: 0, gradedCredits: 0, shownCredits: 0);
 
+  /// The sum of grade times credits.
   final double points;
 
   /// The denominator.
@@ -64,6 +71,7 @@ class GpaTally {
   /// Two places as text, "0" when nothing is graded.
   String get fixed => gradedCredits != 0 ? gpa.toStringAsFixed(2) : '0';
 
+  /// The combined tally of this and [o].
   GpaTally operator +(GpaTally o) => GpaTally(
     points: points + o.points,
     gradedCredits: gradedCredits + o.gradedCredits,
@@ -71,6 +79,8 @@ class GpaTally {
   );
 }
 
+/// Tallies [courses] under [profile], applying the GD and negative-code
+/// rules above.
 GpaTally tally(Iterable<Course> courses, Profile profile) {
   double s1 = 0, dontCount = 0, points = 0, shown = 0;
   for (final c in courses) {
@@ -89,6 +99,7 @@ GpaTally tally(Iterable<Course> courses, Profile profile) {
   );
 }
 
+/// Tallies the courses of semester [sem] that count for [discipline].
 GpaTally semesterTally(
   Iterable<Course> courses, {
   required String sem,
@@ -99,6 +110,7 @@ GpaTally semesterTally(
   profile,
 );
 
+/// Tallies every course that counts for [discipline].
 GpaTally cumulativeTally(
   Iterable<Course> courses, {
   required String discipline,

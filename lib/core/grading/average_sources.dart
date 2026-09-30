@@ -12,12 +12,15 @@ import 'package:cgpa_calculator/core/models/offering.dart';
 String _m(double v) =>
     v == v.roundToDouble() ? '${v.toInt()}' : v.toStringAsFixed(2);
 
+/// Where a displayed class average came from.
 enum AverageSource {
   yours('Yours'),
   official('Official'),
   fromParts('From parts');
 
   const AverageSource(this.label);
+
+  /// The text shown for the source.
   final String label;
 }
 
@@ -47,12 +50,16 @@ SourcedAverage? _stored(
   );
 }
 
+/// Resolves the course average from the [stored] figure and the published
+/// one in [off]; [detached] lists overrides the user has diverged on.
 SourcedAverage? courseAverageOf(
   double? stored,
   Offering? off,
   Map<String, int> detached,
 ) => _stored(stored, off?.courseAverage, courseAverageGranule, detached);
 
+/// Resolves the average of component [e]: typed or official, else derived
+/// from its parts.
 SourcedAverage? componentAverageOf(
   Evaluative e,
   Offering? off,
@@ -76,6 +83,7 @@ SourcedAverage? componentAverageOf(
   );
 }
 
+/// Resolves the average of part [i] of component [e], typed or official.
 SourcedAverage? partAverageOf(
   Evaluative e,
   int i,

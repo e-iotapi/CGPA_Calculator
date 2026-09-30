@@ -12,9 +12,11 @@ import 'package:cgpa_calculator/core/perf/perf_stub.dart'
     as platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Whether the build counts reads, writes and timings.
 const bool perfEnabled =
     bool.fromEnvironment('POINTER_PERF') || isTestEnv;
 
+/// Counters of Firestore reads and writes and of timings, by operation name.
 abstract final class Perf {
   static final Map<String, int> _reads = {};
   static final Map<String, int> _writes = {};
@@ -72,11 +74,19 @@ abstract final class Perf {
     _ => 0,
   };
 
+  /// The documents read under [name].
   static int reads(String name) => _reads[name] ?? 0;
+
+  /// The documents written under [name].
   static int writes(String name) => _writes[name] ?? 0;
+
+  /// The recorded durations under [name], in milliseconds.
   static List<int> millis(String name) => List.unmodifiable(_millis[name] ?? const []);
 
+  /// The documents read across every name.
   static int get totalReads => _reads.values.fold(0, (a, b) => a + b);
+
+  /// The documents written across every name.
   static int get totalWrites => _writes.values.fold(0, (a, b) => a + b);
 
   /// Clears every counter; the quota spec calls this before each simulated

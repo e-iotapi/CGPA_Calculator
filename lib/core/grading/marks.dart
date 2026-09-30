@@ -125,7 +125,10 @@ class MarksSummary {
   MarksSummary(this.evaluatives, CourseConfig? config)
     : config = config ?? CourseConfig(courseId: '');
 
+  /// The course's components.
   final List<Evaluative> evaluatives;
+
+  /// How the course is marked.
   final CourseConfig config;
 
   /// Σ contributions, in course units (percent when weighted).
@@ -137,8 +140,10 @@ class MarksSummary {
       .where((e) => contribution(e) != null)
       .fold(0.0, (s, e) => s + e.weight);
 
+  /// The sum of every component's weight.
   double get assignedWeight => evaluatives.fold(0.0, (s, e) => s + e.weight);
 
+  /// What the course is marked out of: 100 when weighted.
   double get courseTotal =>
       config.weighted
           ? 100
@@ -147,7 +152,10 @@ class MarksSummary {
   /// Display rescale; marks stay stored as entered.
   double get factor => courseTotal == 0 ? 1 : config.displayOutOf / courseTotal;
 
+  /// [secured] on the displayed scale.
   double get shownSecured => secured * factor;
+
+  /// [gradedWeight] on the displayed scale.
   double get shownGraded => gradedWeight * factor;
 
   /// Share of the course graded, 0–1.

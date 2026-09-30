@@ -6,6 +6,7 @@ library;
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
+/// Exposes the counter getters on `window.pointerPerf`.
 void publishPerf({
   required int Function(String name) reads,
   required int Function(String name) writes,

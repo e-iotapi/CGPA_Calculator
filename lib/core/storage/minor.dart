@@ -13,5 +13,6 @@ Future<void> setChosenMinor(Minor? m) =>
 /// The offshoot tab's last view: the offshoot score, or the minor.
 bool get offshootShowsMinor => _settings.get('offshoot_view') == 'minor';
 
+/// Remembers whether the offshoot tab shows the [minor] view.
 Future<void> setOffshootShowsMinor(bool minor) =>
     _settings.put('offshoot_view', minor ? 'minor' : 'offshoot');

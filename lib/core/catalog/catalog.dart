@@ -17,6 +17,7 @@ const catalogSchema = 1;
 /// The fallback bundle, written by tools/export_catalog.dart.
 const catalogAsset = 'assets/catalog.json';
 
+/// The course catalogue: chart rows, the master course list and retired ids.
 class Catalog {
   Catalog({
     required this.version,
@@ -27,7 +28,10 @@ class Catalog {
     this.schema = catalogSchema,
   });
 
+  /// The bundle's format version.
   final int schema;
+
+  /// The published catalogue version.
   final int version;
 
   /// Chart rows for batches before 2025, and from 2025 on.
@@ -114,6 +118,7 @@ Catalog? _current;
 Catalog get catalog =>
     _current ?? (throw StateError('the catalogue is not loaded'));
 
+/// Whether [useCatalog] has been called.
 bool get catalogLoaded => _current != null;
 
 /// Makes [c] the catalogue in use, and its retired ids the ones every row
@@ -131,5 +136,6 @@ class PerCatalog<T extends Object> {
   final T Function(Catalog) _build;
   final _values = Expando<T>();
 
+  /// The value for catalogue [c], built on first use.
   T of(Catalog c) => _values[c] ??= _build(c);
 }

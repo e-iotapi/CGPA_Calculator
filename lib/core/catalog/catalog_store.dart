@@ -18,6 +18,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_ce/hive.dart';
 
+/// The Hive box holding the cached catalogue bundle.
 const catalogBoxName = 'catalogBox';
 
 /// The published side, behind an interface so tests need no Firestore.
@@ -29,6 +30,8 @@ abstract interface class CatalogSource {
   Future<String> bundle(int version);
 }
 
+/// A [CatalogSource] that reads the published marker and bundle from
+/// Firestore.
 class FirestoreCatalogSource implements CatalogSource {
   FirestoreCatalogSource([FirebaseFirestore? db])
     : _db = db ?? FirebaseFirestore.instance;
@@ -62,6 +65,7 @@ class HeadCatalogSource implements CatalogSource {
   HeadCatalogSource(this.campus, [FirebaseFirestore? db])
     : _db = db,
       _live = FirestoreCatalogSource(db);
+  /// The campus key whose head carries the version.
   final String campus;
   final FirebaseFirestore? _db;
   final FirestoreCatalogSource _live;

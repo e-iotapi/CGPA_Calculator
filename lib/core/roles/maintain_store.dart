@@ -9,6 +9,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// entry; the rules check the grant and tie the two together.
 class MaintainStore {
   MaintainStore(this.roles);
+
+  /// The store whose identity and audit log the writes use.
   final RoleStore roles;
 
   FirebaseFirestore get _db => roles.db;
@@ -23,9 +25,11 @@ class MaintainStore {
       .collection('offerings')
       .doc(offeringId(campus, term));
 
+  /// The document path of the offering of [courseId] on [campus] in [term].
   static String pathOf(String courseId, String campus, String term) =>
       'courses/$courseId/offerings/${offeringId(campus, term)}';
 
+  /// Reads one offering, or `null` if it does not exist.
   Future<Offering?> offering(
     String courseId,
     String campus,

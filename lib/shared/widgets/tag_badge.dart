@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:flutter/material.dart';
 
+/// The colouring of a tag badge.
 enum TagTone { official, yours, updated, fromParts, dropped, confirm }
 
 /// A source or state tag (`.tier`, `.src`, §3.9): "OFFICIAL", "YOURS",

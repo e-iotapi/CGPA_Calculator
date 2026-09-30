@@ -28,8 +28,13 @@ class MinorSlotStatus {
     this.overlap = false,
   });
 
+  /// The slot, as alternatives of which one counts.
   final MinorSlot slot;
+
+  /// The course filling the slot, if any.
   final Course? course;
+
+  /// How far the slot is filled.
   final MinorState state;
 
   /// Also mandatory for the student's own degree.
@@ -38,6 +43,7 @@ class MinorSlotStatus {
   /// The id shown: the course taken, else the slot's first.
   String get id => course?.id ?? slot.first;
 
+  /// The title of the course taken, else of the slot's first course.
   String get title =>
       course?.title ??
       catalog.master
@@ -46,6 +52,8 @@ class MinorSlotStatus {
           ?.title ??
       '';
 
+  /// The credits of the course taken, else of the slot's first course, else
+  /// 3.
   double get units =>
       course?.credits ??
       catalog.master
@@ -55,6 +63,7 @@ class MinorSlotStatus {
       3;
 }
 
+/// A student's progress towards one [Minor].
 class MinorProgress {
   const MinorProgress({
     required this.minor,
@@ -67,7 +76,10 @@ class MinorProgress {
     required this.gpa,
   });
 
+  /// The minor being tracked.
   final Minor minor;
+
+  /// The status of each core slot.
   final List<MinorSlotStatus> core;
 
   /// Per pool, in [Minor.pools] order.
@@ -75,22 +87,30 @@ class MinorProgress {
 
   /// Passed courses and units that count, after the overlap and project caps.
   final int courses;
+
+  /// The units of the counted courses.
   final double units;
 
   /// Passed courses left out: past the overlap cap, or a second project.
   final int overlapDropped;
+
+  /// Projects left out because only one may count.
   final int projectsDropped;
 
   /// GPA over the counted courses with a letter grade; null before any.
   final double? gpa;
 
+  /// The number of core slots passed.
   int get coreDone => core.where((s) => s.state == MinorState.done).length;
+  /// The number of slots passed in pool index [pool].
   int doneIn(int pool) =>
       pools[pool].where((s) => s.state == MinorState.done).length;
+  /// The number of elective slots passed across all pools.
   int get electivesDone => [
     for (var i = 0; i < pools.length; i++) doneIn(i),
   ].fold(0, (a, b) => a + b);
 
+  /// Whether every requirement of the minor is met.
   bool get complete =>
       coreDone == core.length &&
       electivesDone >= minor.electives &&

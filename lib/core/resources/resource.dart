@@ -35,6 +35,7 @@ String kindOf(String host) => switch (host) {
   _ => 'link',
 };
 
+/// A named link, on a department's list or on a course's.
 class Resource {
   const Resource({
     required this.id,
@@ -51,6 +52,8 @@ class Resource {
     this.removed = false,
   });
 
+  /// The document id, the title and address shown, and the campus key and
+  /// department key it belongs to.
   final String id, title, url, campus, department;
 
   /// 'department' or 'course'.
@@ -62,21 +65,33 @@ class Resource {
 
   /// A course link also listed under its department (rollup, §6).
   final bool pinnedToDepartment;
+  /// Who added the link.
   final String addedByName, addedByEmail;
 
   /// Milliseconds since the epoch.
   final int addedAt;
+
+  /// Whether the link was taken down.
   final bool removed;
 
+  /// The host shown under the link.
   String get host => hostOf(url) ?? Uri.tryParse(url)?.host ?? url;
+
+  /// The link's [kindOf] its [host].
   String get kind => kindOf(host);
+
+  /// Whether the link was added on a course rather than a department.
   bool get isCourse => scope == 'course';
 
   /// A course link rolled up into the department's list.
   bool get rolledUp => isCourse && pinnedToDepartment;
+  /// Whether the link shows on its department's list.
   bool get onDepartment => !isCourse || pinnedToDepartment;
+
+  /// The course a course link was added for, or `null` for a department link.
   String? get fromCourse => isCourse ? courseIds.firstOrNull : null;
 
+  /// Copies this link with the given fields changed.
   Resource copyWith({
     String? title,
     String? url,
@@ -115,6 +130,7 @@ class Resource {
     'removed': removed,
   };
 
+  /// Reads a link from Firestore or the Hive cache; [id] overrides `m['id']`.
   static Resource fromMap(Map m, [String? id]) {
     final by = m['addedBy'] as Map? ?? const {};
     final at = m['addedAt'];
@@ -148,6 +164,8 @@ enum ReportReason {
   other('Something else');
 
   const ReportReason(this.label);
+
+  /// The text shown for the reason.
   final String label;
 }
 
@@ -163,10 +181,19 @@ class ResourceFlag {
     this.open = true,
   });
 
+  /// The reported link, and its campus key and department key.
   final String resourceId, campus, department;
+
+  /// The courses the link is listed on.
   final List<String> courseIds;
+
+  /// The number of open reports.
   final int count;
+
+  /// Report counts by [ReportReason] name.
   final Map<String, int> reasons;
+
+  /// Whether the reports still await a decision.
   final bool open;
 
   /// The most common reason, for the row's line.
@@ -178,6 +205,7 @@ class ResourceFlag {
     );
   }
 
+  /// Reads the flag document of link [id].
   static ResourceFlag fromMap(String id, Map m) => ResourceFlag(
     resourceId: id,
     campus: m['campus'] as String? ?? '',
@@ -199,6 +227,7 @@ List<Resource> departmentList(Iterable<Resource> all) =>
       return k != 0 ? k : b.addedAt - a.addedAt;
     });
 
+/// The links of course [courseId] in [all], newest first.
 List<Resource> courseList(Iterable<Resource> all, String courseId) =>
     all.where((r) => !r.removed && r.courseIds.contains(courseId)).toList()
       ..sort((a, b) => b.addedAt - a.addedAt);
