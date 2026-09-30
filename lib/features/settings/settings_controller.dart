@@ -54,6 +54,7 @@ List<(String, String)> disciplineOptions({
   ];
 }
 
+/// The picker's label for discipline code [half], or [half] itself if unknown.
 String disciplineLabel(String half, {required bool dual}) =>
     disciplineOptions(
       dual: dual,

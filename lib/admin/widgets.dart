@@ -105,6 +105,7 @@ class TierTag extends StatelessWidget {
   /// Dark ground: owners and admins, and CRs on the boards.
   final bool strong;
 
+  /// The tag for a grant of role [r]; department presidents get the light one.
   static TierTag of(GrantRole r) => TierTag(r.tag, strong: r != GrantRole.dept);
 
   @override

@@ -11,7 +11,7 @@ import 'package:cgpa_calculator/course.dart';
 typedef CgpaPoint = ({String sem, double cgpa});
 
 /// One future semester the user can plan. One left out of the forecast
-/// ([included] false) keeps its SGPA but moves nothing.
+/// (`included` false) keeps its SGPA but moves nothing.
 typedef PlannedSemester =
     ({
       String sem,
@@ -121,7 +121,10 @@ class StatsData {
   /// The degree's total credits, as the student set it.
   final int? totalSet;
 
+  /// The CGPA today, over graded courses.
   double get cgpa => done.gpa;
+
+  /// The CGPA after the last planned semester, or [cgpa] with none planned.
   double get finish => planned.isEmpty ? cgpa : planned.last.cgpaAfter;
 
   /// The chart's dashed line: only the semesters in the forecast.
@@ -138,6 +141,7 @@ class StatsData {
       double.parse(finish.toStringAsFixed(2)) -
       double.parse(cgpa.toStringAsFixed(2));
 
+  /// The dashed forecast line: today's point, then each included plan.
   List<CgpaPoint> get forecast => [
     if (actual.isNotEmpty) actual.last,
     for (final p in _forecasted) (sem: p.sem, cgpa: p.cgpaAfter),

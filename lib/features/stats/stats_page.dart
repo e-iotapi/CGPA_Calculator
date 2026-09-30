@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// The three tabs of Stats.
 enum StatsView { progression, degree, minor }
 
 /// Stats: where the CGPA is heading, and how much of the degree is done.

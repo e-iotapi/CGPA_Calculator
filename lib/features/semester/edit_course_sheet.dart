@@ -63,6 +63,7 @@ Future<void> applyCourseEdit(Course course, CourseEdit edit) async {
   }
 }
 
+/// The sheet that edits or removes one course in a semester.
 class EditCourseSheet extends StatefulWidget {
   const EditCourseSheet({
     super.key,

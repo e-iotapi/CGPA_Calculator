@@ -48,6 +48,7 @@ List<Mastercourselist> deptCourses(String dept) =>
         .toList()
       ..sort((a, b) => a.id.compareTo(b.id));
 
+/// The catalogue title of course [id], or an empty string when it isn't listed.
 String courseTitle(String id) =>
     catalog.master.where((m) => m.id == id).firstOrNull?.title ?? '';
 

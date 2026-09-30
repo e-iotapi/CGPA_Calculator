@@ -22,6 +22,7 @@ class CalendarEntry {
 
 DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
+/// One calendar entry per dated part of each of [evals].
 List<CalendarEntry> calendarEntries(Iterable<Evaluative> evals) => [
   for (final e in evals)
     for (final p in e.parts)

@@ -34,4 +34,5 @@ class NameDuplicates implements DuplicateSource {
   ];
 }
 
+/// The source Merge duplicates reads; tests swap it.
 DuplicateSource duplicateSource = const NameDuplicates();

@@ -3,7 +3,7 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 
 /// One row of every department list: a department, or one branch of a
 /// department that has several (ELEC's A3, A8, AA, AC), since each has its
-/// own presidents. [programme] is null for a one-branch department.
+/// own presidents. `programme` is `null` for a one-branch department.
 typedef Branch = ({String dept, String? programme});
 
 /// Every branch, in [order] (department keys; all of [departments] by
@@ -47,6 +47,7 @@ abstract interface class DepartmentSource {
   Future<List<String>> at(String campus);
 }
 
+/// Every known department, whatever the campus.
 class AllDepartments implements DepartmentSource {
   const AllDepartments();
 
@@ -62,6 +63,7 @@ class CampusDepartments implements DepartmentSource {
   Future<List<String>> at(String campus) async => departmentsAt(campus);
 }
 
+/// The source every department list reads; tests swap it.
 DepartmentSource departmentSource = const CampusDepartments();
 
 /// The branches on [campus] (every department when it is not known yet,

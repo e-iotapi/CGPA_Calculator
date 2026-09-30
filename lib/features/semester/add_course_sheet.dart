@@ -45,6 +45,7 @@ Future<Course?> showAddCourseSheet(
   );
 }
 
+/// The sheet that adds a course to a semester, from the catalogue or by hand.
 class AddCourseSheet extends StatefulWidget {
   const AddCourseSheet({
     super.key,

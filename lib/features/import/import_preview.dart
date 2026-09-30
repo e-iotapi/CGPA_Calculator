@@ -24,6 +24,7 @@ Future<bool> showImportPreview(
   return ok ?? false;
 }
 
+/// The list of what an [ImportPlan] will change, shown before it is applied.
 class ImportPreview extends StatelessWidget {
   const ImportPreview({
     super.key,

@@ -545,6 +545,7 @@ class _Stepped extends StatelessWidget {
           );
 }
 
+/// The owners' page for the public contact shown on empty pages to students.
 class PublicContactPage extends StatefulWidget {
   const PublicContactPage({super.key});
 
@@ -1016,6 +1017,7 @@ String _day(DateTime? at) {
   return shortDay(at, year: at.year != now.year);
 }
 
+/// One audit-log entry as a row: who did what, and when.
 class AuditTile extends StatelessWidget {
   const AuditTile(this.e, {super.key});
   final AuditEntry e;

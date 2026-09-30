@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 
+/// The signed-in user's resource store, or `null` before sign-in.
 ResourceStore? get resourceStore => switch (roleStore) {
   final r? => ResourceStore(r, uid: myUid),
   null => null,
