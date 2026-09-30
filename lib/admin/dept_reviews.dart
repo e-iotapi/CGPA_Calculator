@@ -297,7 +297,7 @@ class _ModCard extends StatelessWidget {
             r.hidden
                 ? 'Hidden by ${r.hiddenByName ?? 'a moderator'}: '
                     '${r.reason ?? ''}'
-                : 'Anonymous to students · attributable to you',
+                : 'Reviews are completely anonymous',
             style: TypeScale.caption.copyWith(
               color: r.hidden ? p.behind : p.textMuted,
             ),
