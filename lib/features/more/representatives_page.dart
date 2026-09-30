@@ -156,6 +156,10 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
                 ),
               ],
             ],
+            if (depts.any((d) => holders(GrantRole.dept, d).isEmpty)) ...[
+              const SizedBox(height: Space.sm),
+              publicContactBlock(context),
+            ],
             if (courses.isNotEmpty) ...[
               const SectionLabel('Your courses this semester'),
               AppCard(

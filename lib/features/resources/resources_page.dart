@@ -393,6 +393,86 @@ class _ReasonButton extends StatelessWidget {
   }
 }
 
+/// The "Are you the department president?" block: the owners' public contact,
+/// nothing while it is switched off. Shared by every empty state that points
+/// students at the people who can fix it.
+Widget publicContactBlock(BuildContext context) {
+  final p = AppPalette.of(context);
+  final caption = TypeScale.caption.copyWith(height: 1.45, color: p.textMuted);
+  return FutureBuilder<PublicContact?>(
+    future: roleStore?.publicContact().catchError((_) => null),
+    builder: (context, s) {
+      final c = s.data;
+      if (c == null || !c.enabled || c.target.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      final uri = switch (c.method) {
+        'phone' => Uri.parse('tel:${c.target}'),
+        'email' => Uri.parse('mailto:${c.target}'),
+        _ => Uri.parse(
+          'https://wa.me/${c.target.replaceAll(RegExp(r'[^0-9]'), '')}',
+        ),
+      };
+      final tone = p.noticeTone;
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+              decoration: BoxDecoration(
+                color: tone.fill,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ARE YOU THE DEPARTMENT PRESIDENT?',
+                    style: TypeScale.label.copyWith(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: tone.text,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'You can post resources for your whole department '
+                    'once you have access. Get in touch and it takes a '
+                    'minute to set up.',
+                    style: TypeScale.body.copyWith(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: tone.text,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ContactRow(
+                    name: c.name,
+                    how: switch (c.method) {
+                      'phone' => 'By phone',
+                      'email' => 'By email',
+                      _ => 'On WhatsApp',
+                    },
+                    onTap: () => openUrl('$uri'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This block shows only while the owners keep a public '
+              'contact switched on.',
+              style: caption,
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 /// Board `ResourcesEmpty` (§10.5): who can fix an empty department, with the
 /// public contact when it is switched on.
 class ResourcesEmpty extends StatelessWidget {
@@ -402,10 +482,6 @@ class ResourcesEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final caption = TypeScale.caption.copyWith(
-      height: 1.45,
-      color: p.textMuted,
-    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -479,81 +555,7 @@ class ResourcesEmpty extends StatelessWidget {
             ],
           ),
         ),
-        FutureBuilder<PublicContact?>(
-          future: roleStore?.publicContact().catchError((_) => null),
-          builder: (context, s) {
-            final c = s.data;
-            if (c == null || !c.enabled || c.target.isEmpty) {
-              return const SizedBox.shrink();
-            }
-            final uri = switch (c.method) {
-              'phone' => Uri.parse('tel:${c.target}'),
-              'email' => Uri.parse('mailto:${c.target}'),
-              _ => Uri.parse(
-                'https://wa.me/${c.target.replaceAll(RegExp(r'[^0-9]'), '')}',
-              ),
-            };
-            final tone = p.noticeTone;
-            return Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 15,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tone.fill,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ARE YOU THE DEPARTMENT PRESIDENT?',
-                          style: TypeScale.label.copyWith(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: tone.text,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'You can post resources for your whole department '
-                          'once you have access. Get in touch and it takes a '
-                          'minute to set up.',
-                          style: TypeScale.body.copyWith(
-                            fontSize: 12,
-                            height: 1.45,
-                            color: tone.text,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _ContactRow(
-                          name: c.name,
-                          how: switch (c.method) {
-                            'phone' => 'By phone',
-                            'email' => 'By email',
-                            _ => 'On WhatsApp',
-                          },
-                          onTap: () => openUrl('$uri'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'This block shows only while the owners keep a public '
-                    'contact switched on.',
-                    style: caption,
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+        publicContactBlock(context),
       ],
     );
   }

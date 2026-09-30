@@ -353,6 +353,21 @@ void main() {
     expect(find.textContaining('HANDOVER'), findsNothing);
   });
 
+  testWidgets('no president listed shows the public contact', (t) async {
+    signIn(student, name: 'Rohan');
+    await courses(t, ['EEE F211']);
+    await db.collection('config').doc('public').set({
+      'contactName': 'Owner',
+      'contactMethod': 'whatsapp',
+      'contactTarget': '9000000001',
+      'contactEnabled': true,
+    });
+    await t.pumpWidget(app(const RepresentativesPage()));
+    await t.pumpAndSettle();
+    expect(find.textContaining('No president listed'), findsOneWidget);
+    expect(find.text('Message Owner'), findsOneWidget);
+  });
+
   testWidgets('no CR shows Volunteer', (t) async {
     signIn(student, name: 'Rohan');
     await courses(t, ['CS F211']);
