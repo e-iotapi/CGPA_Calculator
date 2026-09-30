@@ -68,10 +68,11 @@
   }
 }
 
+// No service worker settings: Flutter's service worker is now a stub that
+// unregisters itself and reloads the page, and the loader awaits it (up to
+// 4 s) before fetching anything. Browsers still update old registrations
+// to that stub on their own, which cleans up the old app's worker.
 _flutter.loader.load({
-  serviceWorkerSettings: {
-    serviceWorkerVersion: {{flutter_service_worker_version}},
-  },
   config: {
     // CanvasKit from this site, not www.gstatic.com: the same brotli bytes
     // over the connection already open, without a DNS and TLS handshake to
