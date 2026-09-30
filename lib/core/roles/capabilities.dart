@@ -4,6 +4,7 @@
 /// this copy and the document disagree.
 library;
 
+/// A rung of the role table, strongest first.
 enum Role { owner, admin, president, cr, student }
 
 /// One row of the table. The cells are the document's text, verbatim.
@@ -53,12 +54,22 @@ enum Capability {
 
   const Capability(this.label, this.owner, this.admin, this.president, this.cr);
 
+  /// The row's name in the table.
   final String label;
+
+  /// The owner column's text.
   final String owner;
+
+  /// The admin column's text.
   final String admin;
+
+  /// The president column's text.
   final String president;
+
+  /// The CR column's text.
   final String cr;
 
+  /// The table text for [role] on this row.
   String cell(Role role) => switch (role) {
     Role.owner => owner,
     Role.admin => admin,

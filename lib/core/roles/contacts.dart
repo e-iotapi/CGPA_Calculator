@@ -30,8 +30,13 @@ class DirectoryEntry {
     this.phone,
   });
 
+  /// The person's address, name and campus key.
   final String email, name, campus;
+
+  /// The roles listed for the person.
   final List<ListedRole> roles;
+
+  /// The contact channels the person chose to show students.
   final String? shownEmail, whatsapp, phone;
 
   /// Roles still live at [now]; a lapsed one is never listed.
@@ -45,6 +50,7 @@ class DirectoryEntry {
     if (phone != null) 'Phone',
   ].join(', ');
 
+  /// Reads the directory document of [email].
   static DirectoryEntry fromMap(String email, Map<String, dynamic> m) =>
       DirectoryEntry(
         email: email,
@@ -131,12 +137,20 @@ class Volunteer {
     this.createdAt,
   });
 
+  /// The volunteer's address and name, and the offer's campus, course and
+  /// term.
   final String email, name, campus, courseId, term;
+
+  /// Whether the offer still stands.
   final bool open;
+
+  /// When the offer was made.
   final DateTime? createdAt;
 
+  /// The document id, see [volunteerId].
   String get id => volunteerId(campus, courseId, email);
 
+  /// Reads a volunteer document's data.
   static Volunteer fromMap(Map<String, dynamic> m) => Volunteer(
     email: m['email'] as String,
     name: m['name'] as String? ?? '',
@@ -159,14 +173,18 @@ class Volunteer {
   };
 }
 
+/// The volunteer document id: `campus|courseId|email`.
 String volunteerId(String campus, String courseId, String email) =>
     '$campus|$courseId|$email';
 
-/// Reads and writes contact details and volunteer offers as [roles.me].
+/// Reads and writes contact details and volunteer offers as [RoleStore.me].
 class ContactStore {
   ContactStore(this.roles);
 
+  /// The store whose identity the reads and writes use.
   final RoleStore roles;
+
+  /// The Firestore instance of [roles].
   FirebaseFirestore get db => roles.db;
 
   DocumentReference<Map<String, dynamic>> _staffContact(String email) =>
@@ -185,6 +203,7 @@ class ContactStore {
         );
   }
 
+  /// Reads the signed-in person's directory entry, or `null` if none.
   Future<DirectoryEntry?> myDirectory() async {
     final m = (await _directory(roles.me).get()).data();
     return m == null ? null : DirectoryEntry.fromMap(roles.me, m);
@@ -313,6 +332,8 @@ class ContactStore {
   // Budget: 1 read per course with no CR, per representatives_page.dart
   // visit, until P2b's helper (P0). 24 h cache (P2): `volunteer`/`withdraw`
   // invalidate their own campus.
+  /// Reads the signed-in person's volunteer offer for [courseId] on
+  /// [campus], or `null` if none.
   Future<Volunteer?> myOffer(String campus, String courseId) async {
     try {
       return await cacheFirst<Volunteer?>(
