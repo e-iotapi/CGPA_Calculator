@@ -10,12 +10,13 @@ service cloud.firestore {
         && request.auth.token.email is string;
     }
 
-    // Only verified BITS Pilani campus accounts. The app checks this too, but
-    // a client-side check is bypassable — this is the real enforcement.
+    // Only verified BITS Pilani student accounts (faculty and alumni are
+    // refused, as in the app's mayUseApp). A client-side check is bypassable —
+    // this is the real enforcement.
     function isBits() {
       return signedIn()
         && request.auth.token.email.matches(
-             '(?i)^[^@]+@(goa|pilani|dubai|hyderabad)[.]bits-pilani[.]ac[.]in$');
+             '(?i)^[fhp][0-9]{4}[0-9]+@(goa|hyderabad|pilani|dubai)[.]bits-pilani[.]ac[.]in$');
     }
 
     function me() { return request.auth.token.email.lower(); }
