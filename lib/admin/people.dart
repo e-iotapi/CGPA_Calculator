@@ -36,11 +36,13 @@ class GrantTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final left = g.expiresAt.difference(DateTime.now()).inDays;
+    final now = DateTime.now();
+    final left = g.expiresAt.difference(now).inDays;
     final soon = expiresSoon(g);
+    final live = g.liveAt(now);
     final right = TypeScale.label.copyWith(
       color:
-          !g.active
+          !live
               ? p.behind
               : soon
               ? p.noticeTone.text
@@ -87,8 +89,8 @@ class GrantTile extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 5),
                     child: Text(
-                      !g.active
-                          ? 'REVOKED'
+                      !live
+                          ? (g.active ? 'EXPIRED' : 'REVOKED')
                           : soon
                           ? 'EXPIRES IN $left DAY${left == 1 ? '' : 'S'}'
                           : shortDay(g.expiresAt, year: true),
@@ -110,7 +112,7 @@ class GrantTile extends StatelessWidget {
                         [
                           if (g.grantedByName.isNotEmpty)
                             'Appointed by ${g.grantedByName}',
-                          g.active
+                          live
                               ? 'until ${shortDay(g.expiresAt, year: true)}'
                               : 'ended',
                         ].join(' · '),
@@ -122,10 +124,13 @@ class GrantTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (showPhone && g.active) ...[
+                if (showPhone && live) ...[
                   const SizedBox(width: 8),
-                  Icon(Icons.call_outlined, size: 12, color: p.textMuted),
-                  const SizedBox(width: 4),
+                  // No icon for a number that is not there.
+                  if (phone != null) ...[
+                    Icon(Icons.call_outlined, size: 12, color: p.textMuted),
+                    const SizedBox(width: 4),
+                  ],
                   SelectableText(
                     phone ?? 'No phone yet',
                     style: TypeScale.caption.copyWith(
@@ -192,7 +197,12 @@ class _AdminPeopleState extends State<AdminPeople> {
     },
     builder: (context, grants, reload) {
       final shown = grants.where(_shows).toList();
-      final people = {for (final g in grants) g.email}.length;
+      final now = DateTime.now();
+      final people =
+          {
+            for (final g in grants)
+              if (g.liveAt(now)) g.email,
+          }.length;
       return PageFrame(
         header: PageHeader(eyebrow: '$people PEOPLE', title: 'Maintainers'),
         bottom: BottomAction(
@@ -207,7 +217,14 @@ class _AdminPeopleState extends State<AdminPeople> {
         ),
         children: [
           ChoicePills<String>(
-            values: const ['All', 'Goa', 'Hyderabad', 'Pilani', 'Expiring'],
+            values: const [
+              'All',
+              'Goa',
+              'Hyderabad',
+              'Pilani',
+              'Dubai',
+              'Expiring',
+            ],
             selected: _filter,
             label: (v) => v == 'Hyderabad' ? 'Hyd' : v,
             equal: true,
