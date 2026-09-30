@@ -20,6 +20,7 @@ import 'package:cgpa_calculator/home_page.dart';
 import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/not_found_page.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -113,6 +114,11 @@ final List<RouteBase> appRoutes = [
               course: _course(s)!,
               onEditCourse: s.extra as VoidCallback?,
             ),
+      ),
+      GoRoute(
+        path: 'campus',
+        redirect: (_, _) => myRoles.value.owner ? null : Routes.home,
+        builder: (_, _) => const CampusPickPage(),
       ),
       GoRoute(
         path: 'roles',

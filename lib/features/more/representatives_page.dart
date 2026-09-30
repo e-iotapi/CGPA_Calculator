@@ -13,6 +13,7 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 
@@ -31,7 +32,7 @@ class RepresentativesPage extends StatefulWidget {
 class _RepresentativesPageState extends State<RepresentativesPage> {
   int _loads = 0;
 
-  String? get _campus => campusOfAddress(roleStore?.me ?? '');
+  String? get _campus => viewCampus();
 
   Future<_Data> _load(List<String> courses) async {
     final store = contactStore!;
@@ -90,8 +91,13 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
     if (contactStore == null || campus == null) {
       return PageFrame(
         header: header,
-        children: const [
-          Note('Sign in with your BITS account to see your representatives.'),
+        children: [
+          if (campus == null && roleStore != null)
+            campusPrompt(context)
+          else
+            const Note(
+              'Sign in with your BITS account to see your representatives.',
+            ),
         ],
       );
     }

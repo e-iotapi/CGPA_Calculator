@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 
 typedef _Meta =
@@ -160,11 +161,14 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
     final p = AppPalette.of(context);
     final title =
         catalog.master.where((m) => m.id == widget.courseId).firstOrNull?.title;
-    if (roleStore == null) {
+    if (roleStore == null || myCampus == null) {
       return PageFrame(
         header: PageHeader(eyebrow: widget.courseId, title: 'Reviews'),
-        children: const [
-          Note('Sign in with your BITS account to read reviews.'),
+        children: [
+          if (roleStore != null)
+            campusPrompt(context)
+          else
+            const Note('Sign in with your BITS account to read reviews.'),
         ],
       );
     }

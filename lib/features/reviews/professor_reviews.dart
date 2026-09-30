@@ -13,6 +13,7 @@ import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 
 typedef _Taught = ({String courseId, List<String> terms, ReviewStats stats});
@@ -51,8 +52,11 @@ class ProfessorReviewsPage extends StatelessWidget {
     if (roleStore == null || myCampus == null) {
       return PageFrame(
         header: const PageHeader(eyebrow: 'PROFESSOR', title: 'Reviews'),
-        children: const [
-          Note('Sign in with your BITS account to read reviews.'),
+        children: [
+          if (roleStore != null)
+            campusPrompt(context)
+          else
+            const Note('Sign in with your BITS account to read reviews.'),
         ],
       );
     }

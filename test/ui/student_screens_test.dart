@@ -23,6 +23,7 @@ import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/features/setup/degree_setup_page.dart';
 import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
@@ -62,6 +63,7 @@ void main() {
       ),
       844,
     ),
+    ('s_campus', () => const CampusPickPage(), 700),
     ('s_import', () => ErpImportPage(onDone: () {}, installable: true), 870),
     ('s_marks', () => MarksPage(course: taking()), 1060),
     ('s_course_setup', () => CourseSetupPage(course: taking()), 970),

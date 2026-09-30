@@ -19,6 +19,7 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/shared/widgets/segmented.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 
 String _title(String id) =>
@@ -93,8 +94,11 @@ class _ReviewsHomeState extends State<ReviewsHome> {
     if (store == null || campus == null) {
       return PageFrame(
         header: header,
-        children: const [
-          Note('Sign in with your BITS account to read reviews.'),
+        children: [
+          if (campus == null && store != null)
+            campusPrompt(context)
+          else
+            const Note('Sign in with your BITS account to read reviews.'),
         ],
       );
     }

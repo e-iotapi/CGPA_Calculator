@@ -19,6 +19,7 @@ abstract final class Routes {
       '/reviews/professor/${Uri.encodeComponent(id)}';
   static String course(String id) => '/course/${Uri.encodeComponent(id)}';
   static const roles = '/roles';
+  static const previewCampus = '/campus';
   static const welcome = '/welcome';
   static const ownerSetup = '/setup/owner';
 

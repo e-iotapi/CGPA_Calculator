@@ -18,6 +18,7 @@ import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
@@ -639,7 +640,7 @@ class _ResourcesPageState extends State<ResourcesPage> {
 
   Future<List<_Degree>> _load() async {
     final store = resourceStore;
-    final campus = campusOfAddress(roleStore?.me ?? '');
+    final campus = viewCampus();
     if (store == null || campus == null) return const [];
     final codes = programmesOf(selecteddiscipline);
     return [
@@ -652,7 +653,7 @@ class _ResourcesPageState extends State<ResourcesPage> {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final campus = campusOfAddress(roleStore?.me ?? '');
+    final campus = viewCampus();
     final dual = programmesOf(selecteddiscipline).length > 1;
     final now = takingNow();
     return Loaded<List<_Degree>>(
@@ -688,7 +689,9 @@ class _ResourcesPageState extends State<ResourcesPage> {
                   ),
           children: [
             if (roleStore == null)
-              const Note('Sign in with your BITS account to see resources.'),
+              const Note('Sign in with your BITS account to see resources.')
+            else if (campus == null)
+              campusPrompt(context),
             for (final (i, d) in degrees.indexed) ...[
               if (i > 0) const SizedBox(height: 11),
               Row(
