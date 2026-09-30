@@ -123,7 +123,7 @@ final term = currentTerm(DateTime.now());
 
 // ---- Firestore --------------------------------------------------------------
 
-/// Fills [db] with everything the shared screens read.
+/// Fills `db` with everything the shared screens read.
 /// "Now" for the analytics seed and its render entry.
 final analyticsNow = DateTime.utc(2026, 9, 29, 12);
 
@@ -639,7 +639,7 @@ Future<void> seedMarks() async {
   await saveConfig(cfg);
 }
 
-/// The fake Firestore every render reads, filled once by [seedAll].
+/// The fake Firestore every render reads, filled once by `seedAll`.
 late FakeFirebaseFirestore sharedDb;
 
 DateTime _midnight() {
