@@ -45,4 +45,13 @@ void main() {
     );
     expect(html, contains("addEventListener('flutter-first-frame', loadGtag)"));
   });
+
+  // web/flutter_bootstrap.js replaces Flutter's default loader call; it must
+  // still register the service worker the default one did.
+  test('the bootstrap template keeps the service worker', () {
+    final js = File('web/flutter_bootstrap.js').readAsStringSync();
+    expect(js, contains('{{flutter_js}}'));
+    expect(js, contains('{{flutter_build_config}}'));
+    expect(js, contains('serviceWorkerVersion: {{flutter_service_worker_version}}'));
+  });
 }
