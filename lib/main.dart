@@ -131,7 +131,9 @@ Future<void> startApp(User user) async {
     final rolesDone = refreshMyRolesIfDue().then((_) => checkProfile());
     // A deep link on a first sign-in has no cached roles yet, and its guard
     // (/maintain, /admin) would send it Home: wait for them (BUG-51).
-    if (Uri.base.path.length > 1 && !myRoles.value.privileged) {
+    // Match the guarded routes, not "any path": prod serves the app at /calculator/.
+    final guarded = RegExp(r'/(maintain|admin)(/|$)').hasMatch(Uri.base.path);
+    if (guarded && !myRoles.value.privileged) {
       await rolesDone.catchError((Object _) {});
     } else {
       unawaited(rolesDone);
