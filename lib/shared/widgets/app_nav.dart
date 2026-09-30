@@ -3,9 +3,14 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/shared/widgets/pointer_mark.dart';
 import 'package:flutter/material.dart';
 
+/// One entry of [AppNav].
 class NavDestination {
   const NavDestination({required this.icon, required this.label});
+
+  /// The entry's icon.
   final IconData icon;
+
+  /// The entry's label, also its tooltip and screen-reader name.
   final String label;
 }
 
@@ -44,12 +49,15 @@ class AppNav extends StatelessWidget {
 
   /// The pill centres at this width rather than stretching across tablets.
   static const double pillMaxWidth = 420;
+
+  /// The rail's width.
   static const double railWidth = 96;
 
   /// Below this window width the pill's icons shrink from 50px to the 44px
   /// minimum, so the selected label still fits on a 320px phone.
   static const double narrowWidth = 360;
 
+  /// The pill's icon-button size at the window width of [context].
   static double itemSize(BuildContext context) =>
       MediaQuery.sizeOf(context).width < narrowWidth
           ? Sizes.minTouch

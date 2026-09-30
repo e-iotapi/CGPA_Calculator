@@ -8,13 +8,16 @@ import 'package:flutter/foundation.dart';
 class Debouncer {
   Debouncer({this.delay = const Duration(milliseconds: 150)});
 
+  /// How long calls must pause before the last one runs.
   final Duration delay;
   Timer? _timer;
 
+  /// Schedules [f] after [delay], dropping any call still waiting.
   void call(VoidCallback f) {
     _timer?.cancel();
     _timer = Timer(delay, f);
   }
 
+  /// Cancels the pending call.
   void dispose() => _timer?.cancel();
 }

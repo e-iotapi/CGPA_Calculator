@@ -13,6 +13,7 @@ void downloadBytes(List<int> bytes, String filename, String mime) =>
 /// user cancelled.
 Future<String?> pickTextFile(String accept) => impl.pickTextFile(accept);
 
+/// Reloads the page.
 void reloadPage() => impl.reloadPage();
 
 /// Runs [run] when the page is hidden or closed (tab switch, app switch,
@@ -38,13 +39,16 @@ String userAgent() => impl.userAgent();
 /// Running as the installed app rather than in a browser tab.
 bool isStandalone() => impl.isStandalone();
 
+/// The kind of device that installs the app to its home screen.
 enum InstallDevice { ios, android, desktop }
 
+/// The browser the person installs from.
 enum InstallBrowser { safari, chrome, edge, firefox, samsung, opera, other }
 
 /// Which home-screen steps apply: the device, and the browser on it.
 typedef InstallTarget = ({InstallDevice device, InstallBrowser browser});
 
+/// The device and browser this page runs in.
 InstallTarget installTarget() =>
     parseInstallTarget(impl.userAgent(), touch: impl.hasTouch());
 

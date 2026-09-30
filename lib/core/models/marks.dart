@@ -19,6 +19,8 @@ class EvalPart {
 
   /// Null until graded; never counted while null.
   double? marks;
+
+  /// The marks the part is out of.
   double outOf;
 
   /// ISO-8601 date string ("2026-09-26"), never a DateTime (§2.3).
@@ -30,6 +32,7 @@ class EvalPart {
   /// The same part, unmarked: structure and out-of, never the marks.
   EvalPart blank() => EvalPart(name: name, outOf: outOf);
 
+  /// Serialises the part with short keys for Hive.
   Map<String, dynamic> toJson() => {
     'n': name,
     'm': marks,
@@ -38,6 +41,7 @@ class EvalPart {
     if (average != null) 'a': average,
   };
 
+  /// Reads a part from its [toJson] form.
   static EvalPart fromJson(Map m) => EvalPart(
     name: m['n'] as String? ?? '',
     marks: (m['m'] as num?)?.toDouble(),
@@ -60,7 +64,10 @@ class Evaluative {
     this.seeded = false,
   });
 
+  /// The course the component belongs to.
   String courseId;
+
+  /// The component's display name.
   String name;
 
   /// Percent of the course, or raw marks in total-marks mode.
@@ -84,6 +91,7 @@ class Evaluative {
   /// weight 0). One nobody has edited counts as no scheme at all.
   bool seeded;
 
+  /// Serialises the component with short keys for Hive.
   Map<String, dynamic> toJson() => {
     't': 'eval',
     'c': courseId,
@@ -96,6 +104,7 @@ class Evaluative {
     if (seeded) 'sd': true,
   };
 
+  /// Reads a component from its [toJson] form.
   static Evaluative fromJson(Map m) => Evaluative(
     courseId: m['c'] as String,
     name: m['n'] as String,
@@ -118,6 +127,7 @@ class CourseConfig {
     this.classAverage,
   });
 
+  /// The course the configuration belongs to.
   String courseId;
 
   /// True: each component has a % weight. False: one big total of marks.
@@ -133,6 +143,7 @@ class CourseConfig {
   /// scale. Null = no comparison anywhere.
   double? classAverage;
 
+  /// Serialises the configuration with short keys for Hive.
   Map<String, dynamic> toJson() => {
     't': 'config',
     'c': courseId,
@@ -142,6 +153,7 @@ class CourseConfig {
     'a': classAverage,
   };
 
+  /// Reads a configuration from its [toJson] form.
   static CourseConfig fromJson(Map m) => CourseConfig(
     courseId: m['c'] as String,
     weighted: m['w'] as bool? ?? true,
@@ -155,6 +167,7 @@ class CourseConfig {
 Object marksFromJson(Map m) =>
     m['t'] == 'config' ? CourseConfig.fromJson(m) : Evaluative.fromJson(m);
 
+/// Hive adapter for [Evaluative].
 class EvaluativeAdapter extends TypeAdapter<Evaluative> {
   @override
   final int typeId = 1;
@@ -198,6 +211,7 @@ class EvaluativeAdapter extends TypeAdapter<Evaluative> {
   }
 }
 
+/// Hive adapter for [EvalPart].
 class EvalPartAdapter extends TypeAdapter<EvalPart> {
   @override
   final int typeId = 2;
@@ -218,6 +232,7 @@ class EvalPartAdapter extends TypeAdapter<EvalPart> {
   }
 }
 
+/// Hive adapter for [CourseConfig].
 class CourseConfigAdapter extends TypeAdapter<CourseConfig> {
   @override
   final int typeId = 3;
@@ -240,6 +255,7 @@ class CourseConfigAdapter extends TypeAdapter<CourseConfig> {
   }
 }
 
+/// Registers the three marks adapters with Hive, once at startup.
 void registerMarksAdapters() {
   if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(EvaluativeAdapter());
   if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(EvalPartAdapter());

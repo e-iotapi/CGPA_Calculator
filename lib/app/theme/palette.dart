@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 @immutable
 class GradeTone {
   const GradeTone(this.fill, this.text);
+  /// The chip's background.
   final Color fill;
+
+  /// The chip's label colour.
   final Color text;
 }
 
@@ -41,6 +44,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.behind,
   });
 
+  /// The theme's name, `light` or `dark`.
   final String name;
 
   /// Page ground.
@@ -55,8 +59,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// Wells set into a surface, e.g. the credits badge on a course row.
   final Color surfaceSunken;
 
+  /// Primary text.
   final Color text;
+
+  /// Secondary text.
   final Color textMuted;
+
+  /// Separator lines between rows.
   final Color divider;
 
   /// Strong border, usually drawn at low alpha.
@@ -67,28 +76,42 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Highlight for text and icons that need to stand out.
   final Color accent;
+
+  /// Default icon colour.
   final Color icon;
 
   /// The high-contrast fill of a selected pill, and its label.
   final Color inverse;
+
+  /// Text and icons on [inverse].
   final Color onInverse;
 
   /// The one accent-filled card per screen (SGPA, offshoot total).
   final Color hero;
+
+  /// Text and icons on [hero].
   final Color onHero;
+
+  /// Secondary text on [hero].
   final Color onHeroMuted;
 
+  /// The bottom navigation bar's background.
   final Color navBackground;
+
+  /// The bottom navigation bar's icon colour.
   final Color navIcon;
 
   /// Class-average delta. Green/orange rather than green/red so colour-blind
   /// readers can separate them — and the arrow and word carry it regardless.
   final Color ahead;
+  /// Class-average delta when below the average; see [ahead].
   final Color behind;
 
+  /// Whether the palette is dark.
   bool get isDark =>
       ThemeData.estimateBrightnessForColor(background) == Brightness.dark;
 
+  /// The chip colours for [grade], or the blank grade's when unknown.
   GradeTone gradeTone(String grade) {
     final tones = isDark ? _darkTones : _lightTones;
     return tones[grade] ?? tones['']!;
@@ -227,6 +250,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     );
   }
 
+  /// The palette of the theme at [context], or [light] without one.
   static AppPalette of(BuildContext context) =>
       Theme.of(context).extension<AppPalette>() ?? light;
 
@@ -262,7 +286,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   AppPalette lerp(AppPalette? other, double t) =>
       other == null || t < 0.5 ? this : other;
 
-  // Legacy name still read by the remaining legacy screens.
+  /// Legacy name of [name], still read by the remaining legacy screens.
   String get theme => name;
 
   /// The redesign's light mode.

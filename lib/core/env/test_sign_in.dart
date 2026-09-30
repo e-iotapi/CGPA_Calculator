@@ -8,6 +8,8 @@ import 'package:cgpa_calculator/core/env/test_accounts.g.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/rendering.dart';
 
+/// Signs in the test account chosen for the E2E run, for non-production
+/// builds only.
 Future<User?> testSignIn() async {
   // The E2E tests (T6) find widgets by role/text, which needs a semantics
   // tree; production never turns this on.

@@ -28,6 +28,7 @@ const _notOneCourse = {
 String _titleKey(String title) =>
     title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
+/// An undirected graph of course codes that are the same or equivalent.
 class CourseGraph {
   /// [edges] as pairs of codes; any spelling of a code will do.
   CourseGraph(Iterable<(String, String)> edges) {
@@ -82,6 +83,7 @@ class CourseGraph {
   Set<String> neighbours(String id) =>
       _adjacent[normalizeCourseId(id.trim())] ?? const {};
 
+  /// Whether [a] and [b] are linked in the graph.
   bool same(String a, String b) =>
       linked(a).contains(normalizeCourseId(b.trim()));
 

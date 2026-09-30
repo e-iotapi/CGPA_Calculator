@@ -47,6 +47,7 @@ class Sync {
   static Box _box(String n) =>
       n == 'settingsBox' || n == 'marksBox' ? Hive.box(n) : Hive.box<Course>(n);
 
+  /// Opens the sync metadata box and every synced box.
   static Future<void> openBoxes() async {
     _meta = await Hive.openBox('syncMeta');
     await Hive.openBox('settingsBox');
@@ -55,6 +56,7 @@ class Sync {
     await Hive.openBox('marksBox');
   }
 
+  /// Empties every synced box and the sync metadata, for sign-out.
   static Future<void> clearLocal() async {
     for (final n in _boxes) {
       await _box(n).clear();
@@ -117,6 +119,7 @@ class Sync {
 
   static bool _dirty = false;
 
+  /// Cancels the listeners and any pending push.
   static Future<void> stop() async {
     for (final s in _subs) {
       await s.cancel();
@@ -125,6 +128,7 @@ class Sync {
     _debounce?.cancel();
   }
 
+  /// The synced boxes as one JSON string, compared with the last pushed one.
   static String snapshot() => jsonEncode({
     // 2: catalogue courses stored by id (course_link.dart).
     'format': 2,
@@ -208,6 +212,8 @@ class Sync {
     }
   }
 
+  /// Writes the snapshot to Firestore unless it is unchanged since the last
+  /// push.
   static Future<void> push() async {
     try {
       final cur = snapshot();

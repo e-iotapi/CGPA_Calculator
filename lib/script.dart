@@ -18,6 +18,7 @@ import 'package:hive_ce/hive.dart';
 
 export 'package:cgpa_calculator/core/grading/grade_scale.dart';
 
+/// Downloads [bytes] as the PNG [filename].
 void saveImageWeb(Uint8List bytes, String filename) =>
     downloadBytes(bytes, filename, 'image/png');
 
@@ -110,6 +111,7 @@ void _loadSettings(Box settingsBox) {
   }
 }
 
+/// Opens the settings and course boxes and loads the saved settings.
 Future<void> basicStartup() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await Hive.openBox<Course>('coursesBox');
@@ -120,6 +122,7 @@ Future<void> basicStartup() async {
 /// Copies every Actual grade onto the Expected profile, across all semesters.
 Future<void> copyGrades() => copyProfile(1, 2);
 
+/// Fills the course box for the chosen discipline, replacing the old plan.
 Future<void> initializeCourses() async {
   var settingsBox = await Hive.openBox('settingsBox');
   final coursesBox = await Hive.openBox<Course>('coursesBox');
@@ -146,6 +149,7 @@ Future<void> initializeCourses() async {
   await placeDualPracticeSchool(coursesBox, selecteddiscipline);
 }
 
+/// Saves the batch, discipline and campus.
 Future<void> setdis() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('batch', batch);
@@ -154,6 +158,7 @@ Future<void> setdis() async {
   await settingsBox.put('degree_selected', true);
 }
 
+/// Sorts [sitems] in place by sort order [cs].
 void sort(List<Course> sitems, String cs) {
   if (cs == customSortKey) {
     final ordered = orderCourses(sitems, courseOrderFor(currentsem));
@@ -183,22 +188,26 @@ void sort(List<Course> sitems, String cs) {
   }
 }
 
+/// Saves [currentsort].
 Future<void> setsort() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('currentsort', currentsort);
 }
 
 
+/// Saves [selected_theme].
 Future<void> settheme() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('selected_theme', selected_theme);
 }
 
+/// Saves [currentsem].
 Future<void> setsem() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('currentsem', currentsem);
 }
 
+/// Saves the profile names and the compared pair.
 Future<void> setprof() async {
   var settingsBox = await Hive.openBox('settingsBox');
   await settingsBox.put('profile1n', profile1n);
@@ -210,6 +219,7 @@ Future<void> setprof() async {
 }
 
 
+/// Writes [course] to the course box under its id.
 Future<void> addOrUpdateCourse(Course course) async {
   try {
     var box = Hive.box<Course>('coursesBox');
@@ -218,6 +228,7 @@ Future<void> addOrUpdateCourse(Course course) async {
   } catch (e) {}
 }
 
+/// Clears the grades of [sem]'s courses under profile id [profile].
 Future<void> clearSemesterGrades(String sem, int profile) async {
   try {
     var box = Hive.box<Course>('coursesBox');
@@ -282,27 +293,49 @@ void creditTotals() {
   ccred2 = _cumTally(Profile.expected).shownCredits;
 }
 
+/// The palette of [selected_theme].
 var thm = AppPalette.byName(selected_theme);
+
+/// The current semester's GPA under the selected profile.
 double sgpa = 0.00;
+
+/// The cumulative GPA under the selected profile.
 double cgpa = 0.00;
+
+/// The two-digit batch year.
 int batch = 24;
+
+/// The discipline code, two two-letter halves ("B3A7"); "----" until chosen.
 String selecteddiscipline = "----"; //store
 
 /// Halves of [selecteddiscipline] as the first-run discipline dialog edits
 /// them.
 String selectdual = selecteddiscipline.substring(0, 2);
+
+/// The second half of the discipline code.
 String selecengg = selecteddiscipline.substring(2, 4);
+
+/// The id of the profile whose grades the screens show.
 int selectedprofile = 1;
+
+/// The semester label the home screen shows.
 String currentsem = "1 - 1"; // store
+
+/// Credits shown for the current semester under profiles 1 and 2.
 double scred1 = 0;
 double scred2 = 0;
+
+/// Credits shown cumulatively under profiles 1 and 2.
 double ccred1 = 0;
 double ccred2 = 0;
+
+/// The names of profiles 1 and 2.
 String profile1n = "Actual";
 String profile2n = "Expected";
 
 /// Actual and Expected, plus three profiles that only Compare shows.
 const profileCount = 5;
+/// The names of profiles 3 to 5.
 final moreProfileNames = ['Profile 3', 'Profile 4', 'Profile 5'];
 
 /// The two profiles Compare shows side by side, by id.
@@ -311,14 +344,25 @@ final moreProfileNames = ['Profile 3', 'Profile 4', 'Profile 5'];
 /// Every profile's name, profile 1 first.
 List<String> get profileNames => [profile1n, profile2n, ...moreProfileNames];
 
+/// The chosen course sort order.
 String currentsort = "Sort by Credits(Asc)"; //store
+
+/// The chosen theme's name.
 String selected_theme = "White";
+
+/// Whether a discipline has been chosen.
 bool degree_selected = false;
 
 /// Read from the sign-in address at setup, or chosen; null until known.
 Campus? campus;
+
+/// Legacy counter of grade erasures.
 int erase = 0;
+
+/// The grades a grade picker offers.
 final List<String> grades = pickerGrades;
+
+/// The base semester labels.
 final List<String> sems = baseSemesters;
 /// Switches light or dark under the circle reveal and saves it. [then]
 /// runs with the change, while the old screen still covers it.
@@ -346,6 +390,7 @@ const notOfferedHere = {'A9', 'AB'};
 List<String> get offeredDegrees =>
     degreelist.where((d) => !notOfferedHere.contains(d)).toList();
 
+/// Every discipline half a student may pick.
 final List<String> degreelist = [
   "B1",
   "B2",
@@ -368,6 +413,8 @@ final List<String> degreelist = [
   "AJ",
 ];
 
+/// Renders the semester summary card to a PNG and downloads it, returning
+/// a confirmation message.
 Future<String> saveDataAsImage(
     List<Map<String, dynamic>> data, {
       required String semester,

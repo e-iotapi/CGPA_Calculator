@@ -2,6 +2,7 @@
 /// (`DISCIPLINES_GOA_HYD.md`).
 library;
 
+/// A BITS campus.
 enum Campus {
   goa('Goa'),
   hyderabad('Hyderabad'),
@@ -9,12 +10,15 @@ enum Campus {
   dubai('Dubai');
 
   const Campus(this.label);
+  /// The display name.
   final String label;
 
+  /// The campus whose `name` is [name], or `null`.
   static Campus? named(String? name) =>
       values.where((c) => c.name == name).firstOrNull;
 }
 
+/// A degree programme, identified by its discipline code.
 class Programme {
   const Programme(this.code, this.name, {this.campuses, this.gap});
 
@@ -37,6 +41,7 @@ class Programme {
 const _goa = {Campus.goa}, _hyd = {Campus.hyderabad};
 const _both = {Campus.goa, Campus.hyderabad};
 
+/// Every programme the app knows.
 const programmes = [
   Programme('A1', 'B.E. Chemical', campuses: _both),
   Programme('A2', 'B.E. Civil', campuses: _hyd),
@@ -64,6 +69,7 @@ const programmes = [
   Programme('B7', 'M.Sc. Semiconductor and Nanoscience', campuses: _both),
 ];
 
+/// The programme with [code], or `null`.
 Programme? programmeFor(String code) =>
     programmes.where((p) => p.code == code).firstOrNull;
 

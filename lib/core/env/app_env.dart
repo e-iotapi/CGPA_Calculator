@@ -8,10 +8,13 @@ import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+/// The backend a build talks to.
 enum AppEnv { prod, staging, emulator }
 
 const _envName = String.fromEnvironment('POINTER_ENV', defaultValue: 'prod');
 
+/// The environment chosen with `--dart-define=POINTER_ENV`; production by
+/// default.
 const appEnv =
     _envName == 'staging'
         ? AppEnv.staging
@@ -25,6 +28,7 @@ const emulatorHost = String.fromEnvironment(
   defaultValue: 'localhost',
 );
 
+/// Whether the build is anything but production.
 const bool isTestEnv = appEnv != AppEnv.prod;
 
 /// Call before `Firebase.initializeApp`. On the web that call also starts

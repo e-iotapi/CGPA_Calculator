@@ -4,4 +4,5 @@ import 'package:cgpa_calculator/core/platform/online_stub.dart'
 
 /// Whether the browser reports a connection, and changes to it.
 bool get isOnline => impl.isOnline;
+/// Emits whenever [isOnline] changes.
 Stream<bool> get onlineChanges => impl.onlineChanges;

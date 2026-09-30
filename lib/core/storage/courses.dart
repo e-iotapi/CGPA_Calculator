@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:hive_ce/hive.dart';
 
+/// The Hive box holding the student's courses.
 const coursesBoxName = 'coursesBox';
 
 /// Writes [course] back over the stored course with the same id and semester,
@@ -41,6 +42,7 @@ void loadPinnedCategories(Box settings) {
   };
 }
 
+/// Pins category [id] to the top of the audit and persists the set.
 Future<void> pinCategory(String id) async {
   pinnedCategories = {...pinnedCategories, id.trim()};
   if (!Hive.isBoxOpen('settingsBox')) return;

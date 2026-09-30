@@ -8,11 +8,15 @@ library;
 /// Matched by course code, not title — three of the six are commonly written
 /// with slightly different names than the ones stored in the course list.
 class OffshootCourse {
+  /// The course code.
   final String id;
+
+  /// The course title.
   final String title;
   const OffshootCourse(this.id, this.title);
 }
 
+/// The six courses the offshoot is computed from.
 const List<OffshootCourse> offshootCourses = [
   OffshootCourse('ECON F212', 'Fundamentals of Finance and Accounts'),
   OffshootCourse('ECON F315', 'Financial Management'),
@@ -28,9 +32,14 @@ const offshootDenominators = [50, 60];
 
 /// One course's line in the calculation.
 class OffshootRow {
+  /// The course of the row.
   final OffshootCourse course;
-  final int? grade; // null = not in the user's course list
-  final bool excluded; // user unticked it
+
+  /// The grade code; null = not in the user's course list.
+  final int? grade;
+
+  /// Whether the user unticked the row.
+  final bool excluded;
   const OffshootRow(this.course, this.grade, this.excluded);
 
   /// Only positive grades score. NC/CLR/GD and the withdrawn statuses
@@ -49,6 +58,7 @@ class OffshootScore {
     total = best.take(takeCount).fold(0, (sum, r) => sum + r.grade!);
   }
 
+  /// The six rows.
   final List<OffshootRow> rows;
 
   /// 50 or 60.
@@ -56,6 +66,7 @@ class OffshootScore {
 
   /// Ids of the rows that contributed, best first.
   late final List<String> counted;
+  /// The sum of the counted grades.
   late final int total;
 
   /// Rows that could score: ticked and with a letter grade.
@@ -64,6 +75,7 @@ class OffshootScore {
   /// How many courses count toward the total: 5 for /50, 6 for /60.
   int get takeCount => outOf ~/ 10;
 
+  /// Whether row [r] contributes to [total].
   bool isCounted(OffshootRow r) => counted.contains(r.course.id);
 
   /// Graded and ticked, but outside the best [takeCount].

@@ -9,8 +9,10 @@ enum Elective {
   open('Open Elective');
 
   const Elective(this.tag);
+  /// The stored string, also used in the master course list.
   final String tag;
 
+  /// The category whose [tag] is [tag], or `null`.
   static Elective? fromTag(String tag) =>
       values.where((e) => e.tag == tag).firstOrNull;
 }

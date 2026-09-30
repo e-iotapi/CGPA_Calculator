@@ -1,5 +1,5 @@
 /// What goes into the course box when a discipline is chosen or changed.
-/// Pure: [initializeCourses] applies the plan.
+/// Pure: `initializeCourses` applies the plan.
 library;
 
 import 'package:cgpa_calculator/core/catalog/catalog.dart';

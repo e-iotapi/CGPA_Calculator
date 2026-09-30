@@ -12,6 +12,8 @@ import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// A campus's `heads/{campus}` document: small version counters that let
+/// the app skip reads when nothing changed.
 class Head {
   const Head({
     this.catalog,
@@ -30,9 +32,11 @@ class Head {
   /// `'<courseId>|<term>'` → a counter each scheme save moves.
   final Map<String, int> offerings;
 
+  /// The counter of [courseId]'s scheme in [term], or `null`.
   int? offering(String courseId, String term) =>
       offerings[offeringKey(courseId, term)];
 
+  /// Reads a head from its document data.
   static Head fromMap(Map m) => Head(
     catalog: (m['catalog'] as num?)?.toInt(),
     catalogSchema: (m['catalogSchema'] as num?)?.toInt(),
@@ -43,6 +47,7 @@ class Head {
     },
   );
 
+  /// Serialises the head for the cache.
   Map<String, Object?> toMap() => {
     'catalog': catalog,
     'catalogSchema': catalogSchema,
@@ -51,8 +56,10 @@ class Head {
   };
 }
 
+/// The [Head.offerings] key for [courseId] in [term].
 String offeringKey(String courseId, String term) => '$courseId|$term';
 
+/// The head document of [campus].
 DocumentReference<Map<String, dynamic>> headRef(
   FirebaseFirestore db,
   String campus,

@@ -24,6 +24,7 @@ final bool _onIos = installTarget().device == InstallDevice.ios;
 /// Where the last touch or click landed, in global coordinates. Pages and the
 /// theme switch grow their circle from here.
 abstract final class TapOrigin {
+  /// The last recorded position, or `null` before any tap.
   static Offset? last;
   static bool _listening = false;
 

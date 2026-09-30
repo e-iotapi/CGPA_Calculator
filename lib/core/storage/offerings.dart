@@ -12,13 +12,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
 
+/// The Hive box caching published offerings.
 const offeringsBoxName = 'offeringsBox';
 
+/// Where published offerings come from, so tests need no Firestore.
 abstract interface class OfferingSource {
   /// The offering, or null when none is published.
   Future<Offering?> get(String courseId, String campus, String term);
 }
 
+/// An [OfferingSource] that reads one offering document from Firestore.
 class FirestoreOfferingSource implements OfferingSource {
   FirestoreOfferingSource([FirebaseFirestore? db])
     : _db = db ?? FirebaseFirestore.instance;
@@ -47,6 +50,7 @@ Box? get _cache =>
 String _cacheKey(String courseId, String campus, String term) =>
     '$courseId|${offeringId(campus, term)}';
 
+/// Opens the [offeringsBoxName] box.
 Future<void> openOfferings() => Hive.openBox(offeringsBoxName);
 
 /// The cached offering, or null when none is cached or none is published.

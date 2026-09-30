@@ -12,8 +12,10 @@ import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
 
+/// Opens the shared cache box that [cacheFirst] reads through.
 Future<void> openSharedCache() => Hive.openBox(sharedCacheBoxName);
 
+/// The shared cache box, or `null` while it is not open.
 Box? get sharedCacheBox =>
     Hive.isBoxOpen(sharedCacheBoxName) ? Hive.box(sharedCacheBoxName) : null;
 

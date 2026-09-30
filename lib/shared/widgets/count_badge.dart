@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:flutter/material.dart';
 
+/// The colouring of a count badge.
 enum CountTone { waiting, on, neutral }
 
 /// A small count or state pill (T3.7): "3 pending", "ON", "12".
