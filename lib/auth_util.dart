@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -29,9 +30,10 @@ Future<bool?> isOwner(User user, {FirebaseFirestore? db}) async {
   }
 }
 
-/// Who may use the app: a BITS campus account, or an owner.
-Future<bool?> mayUseApp(User user) async =>
-    isBitsEmail(user.email) ? true : isOwner(user);
+/// Who may use the app: a BITS student address, or an owner. Faculty and
+/// staff addresses are refused (BUG-33, 43) unless they are owners.
+Future<bool?> mayUseApp(User user, {FirebaseFirestore? db}) async =>
+    isStudentAddress(user.email ?? '') ? true : isOwner(user, db: db);
 
 /// What a BITS address says: f20230802@goa.bits-pilani.ac.in is a first
 /// degree, 2023 batch, at Goa.
@@ -44,14 +46,6 @@ final _address = RegExp(
   caseSensitive: false,
 );
 
-/// The domain alone, for an address whose local part is not a student id
-/// (a faculty account like testfaculty@goa...) — the campus is still known
-/// even though there is no batch or level to read (BUG-33).
-final _domain = RegExp(
-  r'@([a-z]+)\.bits-pilani\.ac\.in$',
-  caseSensitive: false,
-);
-
 /// A batch year Pointer can hold: stored as two digits, so this century,
 /// and no later than next year's intake.
 bool yearInRange(int year) => year >= 2000 && year <= DateTime.now().year + 1;
@@ -60,29 +54,18 @@ bool yearInRange(int year) => year >= 2000 && year <= DateTime.now().year + 1;
 /// back null, to be asked for; it never fails sign-in and never guesses a
 /// campus.
 BitsAddress parseBitsAddress(String? email) {
-  final trimmed = email?.trim() ?? '';
-  final m = _address.firstMatch(trimmed);
-  if (m != null) {
-    final year = int.tryParse(m.group(2) ?? '');
-    return (
-      level: switch (m.group(1)?.toLowerCase()) {
-        'f' => DegreeLevel.first,
-        'h' => DegreeLevel.higher,
-        'p' => DegreeLevel.phd,
-        _ => null,
-      },
-      year: year != null && yearInRange(year) ? year : null,
-      campus: Campus.named(m.group(3)!.toLowerCase()),
-    );
-  }
-  // Not shaped like a student id (a faculty address, say) — still read the
-  // campus off the domain, so onboarding never claims it cannot tell the
-  // campus for a BITS address that plainly names one.
-  final d = _domain.firstMatch(trimmed);
+  final m = _address.firstMatch(email?.trim() ?? '');
+  if (m == null) return (level: null, year: null, campus: null);
+  final year = int.tryParse(m.group(2) ?? '');
   return (
-    level: null,
-    year: null,
-    campus: d == null ? null : Campus.named(d.group(1)!.toLowerCase()),
+    level: switch (m.group(1)?.toLowerCase()) {
+      'f' => DegreeLevel.first,
+      'h' => DegreeLevel.higher,
+      'p' => DegreeLevel.phd,
+      _ => null,
+    },
+    year: year != null && yearInRange(year) ? year : null,
+    campus: Campus.named(m.group(3)!.toLowerCase()),
   );
 }
 

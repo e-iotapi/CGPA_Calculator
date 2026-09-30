@@ -68,13 +68,6 @@ void main() {
       ));
       expect(parseBitsAddress(null).campus, isNull);
     });
-
-    test('a non-student BITS address still gives up its campus (BUG-33)', () {
-      final a = parseBitsAddress('testfaculty@goa.bits-pilani.ac.in');
-      expect(a.campus, Campus.goa);
-      expect(a.level, isNull);
-      expect(a.year, isNull);
-    });
   });
 
   test('programmes are filtered by campus', () {
