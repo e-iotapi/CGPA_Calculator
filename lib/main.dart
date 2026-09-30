@@ -70,7 +70,16 @@ void main() async {
       message = 'Sign-in failed: ${e.message ?? e.code}';
     }
   }
-  if (isTestEnv) await Perf.time('startup.testSignIn', testSignIn);
+  if (isTestEnv) {
+    // A refused test sign-in (a stale password) must not stop the app
+    // before its first frame: say why and fall through to sign-in.
+    try {
+      await Perf.time('startup.testSignIn', testSignIn);
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[Pointer test] ?as= sign-in refused: ${e.code}');
+      message = 'Test sign-in refused (${e.code}). Re-run the staging seed.';
+    }
+  }
   final user = await Perf.time(
     'startup.authState',
     () => FirebaseAuth.instance.authStateChanges().first,

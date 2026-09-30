@@ -164,6 +164,9 @@ async function ensureAuthUsers(auth, accounts, password) {
   for (const a of accounts) {
     try {
       a.uid = (await auth.getUserByEmail(a.email)).uid;
+      // Reset every run: the build bakes in this run's password, and an
+      // account left on an older one refuses every ?as= sign-in.
+      await auth.updateUser(a.uid, { password });
     } catch {
       a.uid = (
         await auth.createUser({
