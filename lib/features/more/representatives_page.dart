@@ -1,7 +1,6 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
-import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/roles/contacts.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -161,7 +160,7 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
                       if (i > 0) Divider(height: 1, color: p.divider),
                       _CourseRow(
                         title:
-                            '$c · ${catalog.master.where((m) => m.id == c).firstOrNull?.title ?? ''}',
+                            '$c · ${courseTitle(c)}',
                         cr: holders(GrantRole.course, c).firstOrNull?.$1,
                         offer: data.offers[c],
                         noCr: data.offers.containsKey(c),
