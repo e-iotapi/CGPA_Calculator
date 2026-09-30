@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/grading/marks.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/roles/maintain_store.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -125,7 +126,10 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
       ),
   ];
   bool _saving = false;
-  String? _error;
+
+  /// Set only by a failed save (network/permission); field problems are
+  /// live, via [_liveError].
+  String? _saveError;
 
   @override
   void dispose() {
@@ -153,7 +157,14 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
   double get _assigned =>
       _components.fold(0.0, (s, c) => s + (_num(c.weight) ?? 0));
 
-  /// The offering as typed, or the first problem with it.
+  /// A component's parts' out-ofs, summed — the maximum its average (and
+  /// each part's) can't exceed.
+  double _partsOutOf(_Component c) =>
+      c.parts.fold(0.0, (s, p) => s + (_num(p.outOf) ?? 0));
+
+  /// The offering as typed, or the first problem with it — the same range
+  /// checks as the student marks editor (BUG-04, BUG-05), so a CR can't
+  /// publish an impossible value to everyone.
   (Offering?, String?) _build() {
     if (_components.isEmpty) return (null, 'Add at least one component.');
     final names = <String>{};
@@ -165,22 +176,35 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
         return (null, 'Two components are called “$name”.');
       }
       final w = _num(c.weight);
-      if (w == null || w < 0) return (null, '$name: the weight is missing.');
+      if (w == null) return (null, '$name: the weight is missing.');
+      final wErr = _weighted ? percentError(w) : positiveError(w);
+      if (wErr != null) return (null, '$name: $wErr');
       if (c.parts.isEmpty) return (null, '$name: add what it is out of.');
       final parts = <OfferedPart>[];
       for (final p in c.parts) {
         final outOf = _num(p.outOf);
-        if (outOf == null || outOf <= 0) {
+        if (outOf == null) {
           return (null, '$name: every part needs “out of”.');
+        }
+        if (positiveError(outOf) case final err?) {
+          return (null, '$name: its out of — $err');
+        }
+        final avg = _num(p.average);
+        if (boundedError(avg, outOf) case final err?) {
+          return (null, '$name: its average — $err');
         }
         parts.add(
           OfferedPart(
             name: c.parts.length == 1 ? '' : p.name.text.trim(),
             outOf: outOf,
             date: p.date,
-            average: c.parts.length == 1 ? null : _num(p.average),
+            average: c.parts.length == 1 ? null : avg,
           ),
         );
+      }
+      final compAvg = _num(c.average);
+      if (boundedError(compAvg, _partsOutOf(c)) case final err?) {
+        return (null, '$name: its class average — $err');
       }
       comps.add(
         OfferedComponent(
@@ -189,13 +213,16 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
           weight: w,
           parts: parts,
           countBest: c.countBest > parts.length ? 0 : c.countBest,
-          average: _num(c.average),
+          average: compAvg,
         ),
       );
     }
     final total = _num(_total);
     if (!_weighted && (total == null || total <= 0)) {
       return (null, 'Say what the course is out of.');
+    }
+    if (totalError(_assigned, _weighted ? 100 : total!) case final err?) {
+      return (null, err);
     }
     final outOf = _num(_outOf);
     if (_weighted && (outOf == null || outOf <= 0)) {
@@ -224,10 +251,16 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
     );
   }
 
+  /// The first problem with the form as currently typed, live — drives the
+  /// error text and keeps Save disabled until it's gone (BUG-04, BUG-05).
+  String? get _liveError => _build().$2;
+
   Future<void> _save() async {
     final (o, error) = _build();
-    setState(() => _error = error);
-    if (o == null) return;
+    if (o == null) {
+      setState(() => _saveError = error);
+      return;
+    }
     setState(() => _saving = true);
     try {
       await MaintainStore(roleStore!).save(
@@ -237,7 +270,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) setState(() => _error = problem(e));
+      if (mounted) setState(() => _saveError = problem(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -274,6 +307,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
                   label: 'Component',
                   hint: 'Quiz 1',
                   dense: true,
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: Space.sm),
@@ -284,6 +318,10 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
                   label: _weighted ? 'Weight %' : 'Marks',
                   number: true,
                   dense: true,
+                  error:
+                      _weighted
+                          ? percentError(_num(c.weight))
+                          : positiveError(_num(c.weight)),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
@@ -322,6 +360,8 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
                       label: 'Out of',
                       number: true,
                       dense: true,
+                      error: positiveError(_num(part.outOf)),
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
                   if (c.parts.length > 1) ...[
@@ -333,6 +373,11 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
                         label: 'Avg',
                         number: true,
                         dense: true,
+                        error: boundedError(
+                          _num(part.average),
+                          _num(part.outOf),
+                        ),
+                        onChanged: (_) => setState(() {}),
                       ),
                     ),
                   ],
@@ -361,6 +406,8 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
               hint: 'Blank until it is out',
               number: true,
               dense: true,
+              error: boundedError(_num(c.average), _partsOutOf(c)),
+              onChanged: (_) => setState(() {}),
             ),
           ),
           Wrap(
@@ -426,6 +473,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
             label: 'Course out of',
             number: true,
             labelAbove: true,
+            error: positiveError(_num(_total)),
             onChanged: (_) => setState(() {}),
           ),
         ] else ...[
@@ -435,6 +483,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
             label: 'Graded out of',
             number: true,
             labelAbove: true,
+            error: positiveError(_num(_outOf)),
             onChanged: (_) => setState(() {}),
           ),
           Text(
@@ -450,6 +499,8 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
           hint: 'Blank until it is out',
           number: true,
           labelAbove: true,
+          error: boundedError(_num(_courseAverage), _scale),
+          onChanged: (_) => setState(() {}),
         ),
         Text(
           'Averages are stored against this term and this component set. An '
@@ -486,17 +537,24 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
               : '${_n(assigned)} of ${_total.text} marks assigned',
           style: TypeScale.caption.copyWith(
             color:
-                _weighted && assigned != 100 ? p.noticeTone.text : p.textMuted,
+                assigned > (_weighted ? 100 : (_num(_total) ?? assigned))
+                    ? p.behind
+                    : _weighted && assigned != 100
+                    ? p.noticeTone.text
+                    : p.textMuted,
           ),
         ),
-        if (_error != null) ...[
+        if (_liveError case final err?) ...[
           const SizedBox(height: Space.sm),
-          Text(_error!, style: TypeScale.caption.copyWith(color: p.behind)),
+          Text(err, style: TypeScale.caption.copyWith(color: p.behind)),
+        ] else if (_saveError != null) ...[
+          const SizedBox(height: Space.sm),
+          Text(_saveError!, style: TypeScale.caption.copyWith(color: p.behind)),
         ],
         const SizedBox(height: Space.lg),
         PrimaryButton(
           label: _saving ? 'Saving…' : 'Save for everyone',
-          onPressed: _saving ? null : _save,
+          onPressed: _saving || _liveError != null ? null : _save,
         ),
         const Note(
           'Students taking this course see this scheme. Anyone who changed a '

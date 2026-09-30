@@ -17,8 +17,8 @@ const specialGrades = [
 
 /// The rule for the four codes above, in one line under them.
 const specialGradesNote =
-    'RC and W drop the credits from your CGPA. GD keeps them but not the '
-    'points.';
+    'RC and W drop the credits. GD keeps them for your degree but not your '
+    'CGPA.';
 
 /// What Ongoing does, where it is offered.
 const ongoingNote =
