@@ -57,7 +57,6 @@ void main() {
                               }),
                           onRenameProfile: (_) {},
                           onExport: noop,
-                          onImportBackup: noop,
                           onImportOld: noop,
                           onReport: noop,
                           onReset: noop,
