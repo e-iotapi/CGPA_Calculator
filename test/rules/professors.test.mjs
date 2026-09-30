@@ -66,6 +66,13 @@ describe('professors', () => {
     await assertFails(getDoc(doc(as(OTHER), 'professors', 'p1')));
   });
 
+  // Review counters can outlive their professor: the Reviews screen reads
+  // each one named and must see "absent", not a refusal.
+  test('a get of a missing professor answers absent', async () => {
+    const d = await assertSucceeds(getDoc(doc(as(STUDENT), 'professors', 'gone')));
+    if (d.exists()) throw new Error('expected no document');
+  });
+
   test('a merge is one audited batch, by pointer', async () => {
     await two();
     await assertFails(merge(as(STUDENT), STUDENT, 'p1', 'p2'));
