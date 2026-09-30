@@ -406,7 +406,7 @@ flowchart LR
     Check["check.yml on every PR:<br/>analyze, tests, rules tests,<br/>prod build guard"]
     E2E["e2e.yml: Playwright<br/>perf and quota specs"]
     Deploy["deploy.yml on master:<br/>checks, then build"]
-    DStaging["deploy-staging.yml"]
+    DStaging["deploy-staging.yml on every push<br/>to pointer-rebuild (reseeds only<br/>when the seed changed)"]
   end
   Deploy --> Prod["Cloudflare Pages<br/>pointer-bits-pilani.pages.dev"]
   Rules["firebase deploy --only firestore:rules<br/>(by hand, when rules change)"] --> ProdFS[("Production Firestore")]
