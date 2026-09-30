@@ -56,6 +56,7 @@ enum GrantRole {
   course('course', 'Course manager', 'CR');
 
   const GrantRole(this.key, this.label, this.tag);
+
   /// The stored key, the display label and the short badge tag.
   final String key, label, tag;
 
@@ -95,12 +96,14 @@ class Grant {
   /// Dept grants only: a secretary holds every president right but handing
   /// over and appointing secretaries.
   final bool secretary;
+
   /// The holder's address and name, the campus key, and the scope (a
   /// department key or a course id).
   final String email, name, campus, scope;
 
   /// Dept grants only: the programme appointed for ("A3").
   final String? programme;
+
   /// Whether the grant has not been revoked.
   final bool active;
 
@@ -139,10 +142,11 @@ class Grant {
   /// Whether the grant is active and unexpired at [now].
   bool liveAt(DateTime now) => active && now.isBefore(expiresAt);
 
-  /// "ELEC · A3", "CS F301", "Every campus".
+  /// "A3", "CS F301", "Every campus": a president goes by their branch
+  /// code, a CR by their course code.
   String get scopeLabel => switch (role) {
     GrantRole.admin => 'Every campus',
-    GrantRole.dept => programme == null ? scope : '$scope · $programme',
+    GrantRole.dept => branchCode(scope, programme),
     GrantRole.course => scope,
   };
 
@@ -345,6 +349,15 @@ List<String> departmentsAt(String campus) {
       if (e.value.programmes.any(here.contains)) e.key,
   ];
 }
+
+/// What a president of [dept] goes by: the branch they were appointed for
+/// ("A3"), else the department's one branch ("A7" for CS), else [dept].
+String branchCode(String dept, [String? programme]) =>
+    programme ??
+    switch (departments[dept]?.programmes) {
+      [final only] => only,
+      _ => dept,
+    };
 
 /// The department a programme belongs to: ELEC for A3.
 String? departmentOfProgramme(String code) =>

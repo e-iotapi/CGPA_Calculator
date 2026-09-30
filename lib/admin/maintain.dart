@@ -73,7 +73,7 @@ String _scopeLabel(String campus, String dept) {
       myRoles.value.presidencies
           .where((g) => g.campus == campus && g.scope == dept)
           .firstOrNull;
-  return g?.scopeLabel ?? dept;
+  return g?.scopeLabel ?? branchCode(dept);
 }
 
 /// A value that is only decoration on [DeptHome]: null when it can't load.

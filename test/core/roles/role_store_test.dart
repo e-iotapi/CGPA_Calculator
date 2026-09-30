@@ -64,7 +64,10 @@ void main() {
       // The appointee sees it; revoking takes it away and is logged too.
       final mine = RoleStore(db, me: email, myName: 'Asha Rao');
       final roles = await mine.loadMine(now: DateTime(2026, 10));
-      expect(roles.presidencies.single.scopeLabel, 'ELEC · A3');
+      expect(roles.presidencies.single.scopeLabel, 'A3');
+      // One-branch departments go by that branch; else the department.
+      expect(branchCode('CS'), 'A7');
+      expect(branchCode('ELEC'), 'ELEC');
       await owner.revoke(roles.grants.single);
       expect((await mine.loadMine(now: DateTime(2026, 10))).grants, isEmpty);
       final log = (await db.collection('audit').get()).docs;
