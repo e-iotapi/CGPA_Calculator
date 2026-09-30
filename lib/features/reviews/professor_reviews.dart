@@ -82,7 +82,8 @@ class ProfessorReviewsPage extends StatelessWidget {
                 stats: all,
                 note:
                     all.count == 0
-                        ? null
+                        ? 'No reviews yet. Reviews of the courses they '
+                            'teach are counted here.'
                         : 'Across ${taught.length} '
                             'course${taught.length == 1 ? '' : 's'}, '
                             '${all.count} review${all.count == 1 ? '' : 's'}.',
