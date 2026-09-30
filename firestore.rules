@@ -661,7 +661,14 @@ service cloud.firestore {
     }
 
     match /professors/{id} {
-      allow read: if mayUse()
+      // A review's counters can name a professor who is gone (a deleted or
+      // reseeded doc). The Reviews screen reads each named professor; a
+      // get() on a missing doc must answer "absent", not fail the screen.
+      // Nothing is leaked by confirming a doc is absent (as for grants).
+      allow get: if mayUse()
+        && (resource == null
+            || resource.data.campus == campusOf(me()) || isOwner() || isAdmin());
+      allow list: if mayUse()
         && (resource.data.campus == campusOf(me()) || isOwner() || isAdmin());
       allow create: if mayUse()
         && professorOk(request.resource.data)
