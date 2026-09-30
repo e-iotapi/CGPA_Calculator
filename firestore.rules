@@ -269,10 +269,12 @@ service cloud.firestore {
         && request.resource.data.grantedAt == request.time
         && staffAgrees(id, request.resource.data)
         && audited('grants/' + id);
-      // Revoke (active false) or renew (a new expiry); who and what are fixed.
+      // Revoke (active false) or renew (a new expiry); who and what are fixed,
+      // save the branch a renewed president is appointed for.
       allow update: if mayUse()
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['active', 'expiresAt', 'name', 'grantedBy', 'grantedAt', 'auditId'])
+             .hasOnly(['active', 'expiresAt', 'name', 'grantedBy', 'grantedAt',
+                       'auditId', 'programme'])
         && mayGrant(request.resource.data)
         && (request.resource.data.active == false || expiryOk(request.resource.data))
         && staffAgrees(id, request.resource.data)

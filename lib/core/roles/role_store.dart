@@ -314,7 +314,10 @@ class RoleStore {
         'grantedAt': FieldValue.serverTimestamp(),
       });
     } else {
-      b.update(ref, data);
+      b.update(ref, {
+        ...data,
+        if (g.programme != null) 'programme': g.programme,
+      });
     }
     _staffInto(b, staff, g);
   }
@@ -410,9 +413,9 @@ class RoleStore {
   static const overlap = Duration(days: 20);
 
   /// The outgoing expiry: never later than the one already held, so a
-  /// handover cannot extend a term. A minute short, for clock drift.
+  /// handover cannot extend a term. [clockSlack] short, for clock drift.
   static DateTime outgoingExpiry(Grant mine, DateTime now) {
-    final end = now.add(overlap - const Duration(minutes: 1));
+    final end = now.add(overlap - clockSlack);
     return end.isBefore(mine.expiresAt) ? end : mine.expiresAt;
   }
 

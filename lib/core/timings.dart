@@ -52,6 +52,12 @@ const rolesRefreshEvery = Duration(days: 7);
 /// The sign-in record is written at most this often per device. 1 write.
 const signInRecordEvery = Duration(days: 7);
 
+// --- Grants (lib/admin/grant_form.dart, lib/core/roles/role_store.dart) ---
+
+/// A full term or a handover ends this much short of the rules' cap, which
+/// counts from Google's clock: a device clock running fast was refused.
+const clockSlack = Duration(hours: 1);
+
 // --- Analytics (lib/core/analytics/analytics_store.dart) ---
 
 /// One in this many users (re-drawn daily) pings analytics: ~1/N writes/day.
