@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/core/models/offering.dart' show termOf;
@@ -45,6 +46,13 @@ Set<String> takingNow() {
         c.id,
   };
 }
+
+/// [id]'s catalogue title, else the title on the student's own course (a
+/// manual add or an old name), else empty.
+String courseTitle(String id) =>
+    catalog.master.where((m) => m.id == id).firstOrNull?.title ??
+    allCourses().where((c) => c.id == id).firstOrNull?.title ??
+    '';
 
 /// One link: title, host and who added it; opens in the browser. [onReport]
 /// adds the Report this link path (§6).

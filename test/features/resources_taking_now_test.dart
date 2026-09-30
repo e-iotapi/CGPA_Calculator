@@ -62,4 +62,12 @@ void main() {
 
     expect(takingNow(), {'EEE F311', 'EEE F313'});
   });
+
+  test('a course outside the catalogue keeps the title you gave it', () async {
+    await Hive.box<Course>(
+      coursesBoxName,
+    ).put('a', _c('ZZZ F999', '1 - 1', -8));
+    expect(courseTitle('ZZZ F999'), 'ZZZ F999');
+    expect(courseTitle('NOPE F000'), '');
+  });
 }
