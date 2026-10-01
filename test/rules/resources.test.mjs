@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
-import { OTHER, OWNER, PRES, STUDENT, as, days, name, seed, useEmulator } from './helpers.mjs';
+import { OTHER, OWNER, PRES, STUDENT, as, bump as mark, days, name, seed, useEmulator } from './helpers.mjs';
 
 useEmulator();
 
@@ -58,6 +58,7 @@ async function put(db, actor, id, data, { update = false, bump = true, auditPath
     actor: { email: actor, name: name(actor), role: 'test' },
     action: 'resource', path: auditPath ?? `resources/${id}`, campus: 'goa', at: serverTimestamp(),
   });
+  mark(b, db, 'goa', 'resources');
   if (bump) {
     const v = (await getDoc(doc(db, 'resourceVersions', 'goa'))).data()?.v ?? 0;
     const copy = link ?? (update ? null : (({ title, url, department, scope, courseIds, pinnedToDepartment }) =>

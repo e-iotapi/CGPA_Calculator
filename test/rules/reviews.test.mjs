@@ -6,7 +6,7 @@ import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
   collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, increment, limit, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'firebase/firestore';
-import { OTHER, PRES, STUDENT, as, env, name, seed, useEmulator } from './helpers.mjs';
+import { OTHER, PRES, STUDENT, as, bump, env, name, seed, useEmulator } from './helpers.mjs';
 
 useEmulator();
 
@@ -33,10 +33,12 @@ function index(b, db, dc, ds, dr, course = C) {
     k: course,
     c: { [course]: { count: increment(dc), starSum: increment(ds), recommendCount: increment(dr) } },
   }, { merge: true });
+  bump(b, db, 'goa', 'reviews');
 }
 
 function mirror(b, db, id, entry) {
   b.set(doc(db, 'reviews', C, 'campus', 'goa'), { k: id, r: { [id]: entry } }, { merge: true });
+  bump(b, db, 'goa', `reviews/${C}`);
 }
 
 function post(db, who, extra = {}, { dc = 1, ds, dr, m = {} } = {}) {

@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore';
 import {
   ADMIN, NEVER, OTHER, OWNER, PRES, STUDENT,
-  appoint, as, days, name, seed, useEmulator,
+  appoint, as, bump, days, name, putBumped, seed, useEmulator,
 } from './helpers.mjs';
 
 useEmulator();
@@ -71,6 +71,7 @@ function handOver(ends, { to = STUDENT, extend, secretary } = {}) {
       presidentOf: ['ELEC'], courses: [], expiresAt: days(300), lastGrant: sec,
     });
   }
+  bump(b, db, 'goa', 'grants');
   return b.commit();
 }
 
@@ -150,6 +151,7 @@ describe('succession', () => {
       email: PRES, campus: 'goa', owner: false, admin: false,
       presidentOf: ['ELEC'], courses: [], expiresAt: days(100), lastGrant: mine,
     });
+    bump(b, db, 'goa', 'grants');
     await assertSucceeds(b.commit());
   });
 
@@ -173,25 +175,29 @@ describe('succession', () => {
 
 describe('staff contacts', () => {
   const c = (email) => ({ name: 'P', phone: '+91 98765 43210', email, updatedAt: serverTimestamp() });
+  const put = (who, data) => {
+    const db = as(who);
+    return putBumped(db, 'goa', 'staff', doc(db, 'staffContacts', who), data);
+  };
 
   test('privileged roles write their own and read each other', async () => {
-    await assertSucceeds(setDoc(doc(as(PRES), 'staffContacts', PRES), c(PRES)));
-    await assertSucceeds(setDoc(doc(as(OWNER), 'staffContacts', OWNER), c(OWNER)));
+    await assertSucceeds(put(PRES, c(PRES)));
+    await assertSucceeds(put(OWNER, c(OWNER)));
     await assertSucceeds(getDoc(doc(as(ADMIN), 'staffContacts', PRES)));
     await assertFails(getDoc(doc(as(STUDENT), 'staffContacts', PRES)));
-    await assertFails(setDoc(doc(as(STUDENT), 'staffContacts', STUDENT), c(STUDENT)));
+    await assertFails(put(STUDENT, c(STUDENT)));
   });
 
   test('the roster lists every phone; students cannot', async () => {
-    await setDoc(doc(as(PRES), 'staffContacts', PRES), c(PRES));
+    await put(PRES, c(PRES));
     await assertSucceeds(getDocs(collection(as(ADMIN), 'staffContacts')));
     await assertSucceeds(getDocs(collection(as(PRES), 'staffContacts')));
     await assertFails(getDocs(collection(as(STUDENT), 'staffContacts')));
   });
 
   test('a phone is required', async () => {
-    await assertFails(setDoc(doc(as(PRES), 'staffContacts', PRES), { ...c(PRES), phone: '' }));
-    await assertFails(setDoc(doc(as(PRES), 'staffContacts', PRES), { ...c(PRES), phone: 'call me' }));
+    await assertFails(put(PRES, { ...c(PRES), phone: '' }));
+    await assertFails(put(PRES, { ...c(PRES), phone: 'call me' }));
   });
 });
 
@@ -200,6 +206,11 @@ describe('directory', () => {
     name: 'P', campus: 'goa', updatedAt: serverTimestamp(),
     roles: [{ role: 'dept', scope: 'ELEC', until: days(100) }], ...extra,
   });
+
+  const dir = (who, data) => {
+    const db = as(who);
+    return putBumped(db, 'goa', 'staff', doc(db, 'directory', who), data);
+  };
 
   async function exactUntil() {
     const until = days(100);
@@ -210,12 +221,12 @@ describe('directory', () => {
   test('a president lists a live role with one way to reach them', async () => {
     const until = await exactUntil();
     const roles = [{ role: 'dept', scope: 'ELEC', programme: 'A3', until }];
-    await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({ roles })));
+    await assertFails(dir(PRES, entry({ roles })));
     // A president lists only the branch they were appointed for.
     const wrong = [{ ...roles[0], programme: 'A8' }];
-    await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({ roles: wrong, email: PRES })));
-    await assertSucceeds(setDoc(doc(as(PRES), 'directory', PRES), entry({ roles, email: PRES })));
-    await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({ roles, email: STUDENT })));
+    await assertFails(dir(PRES, entry({ roles: wrong, email: PRES })));
+    await assertSucceeds(dir(PRES, entry({ roles, email: PRES })));
+    await assertFails(dir(PRES, entry({ roles, email: STUDENT })));
     await assertSucceeds(getDocs(query(collection(as(STUDENT), 'directory'), where('campus', '==', 'goa'))));
     await assertFails(getDocs(query(collection(as(OTHER), 'directory'), where('campus', '==', 'goa'))));
   });
@@ -228,6 +239,8 @@ describe('directory', () => {
       const b = writeBatch(db);
       b.set(doc(db, 'directory', PRES), e);
       b.set(doc(db, 'repIndex', 'goa'), { k: who, p: { [who]: copy } }, { merge: true });
+      bump(b, db, 'goa', 'staff');
+      bump(b, db, 'goa', 'reps');
       return b.commit();
     };
     await assertFails(save({ ...e, name: 'Someone else' }));
@@ -235,24 +248,30 @@ describe('directory', () => {
     await assertSucceeds(getDoc(doc(as(STUDENT), 'repIndex', 'goa')));
     await assertFails(getDoc(doc(as(OTHER), 'repIndex', 'goa')));
     const db = as(STUDENT);
-    await assertFails(setDoc(doc(db, 'repIndex', 'goa'), { k: PRES, p: { [PRES]: { name: 'x' } } }, { merge: true }));
-    await assertFails(setDoc(doc(db, 'repIndex', 'goa'), { k: STUDENT, p: { [PRES]: { name: 'x' } } }, { merge: true }));
+    const forge = (data) => {
+      const b = writeBatch(db);
+      b.set(doc(db, 'repIndex', 'goa'), data, { merge: true });
+      bump(b, db, 'goa', 'reps');
+      return b.commit();
+    };
+    await assertFails(forge({ k: PRES, p: { [PRES]: { name: 'x' } } }));
+    await assertFails(forge({ k: STUDENT, p: { [PRES]: { name: 'x' } } }));
   });
 
   test('the secretary flag must match the grant', async () => {
     const until = await exactUntil();
-    await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({
+    await assertFails(dir(PRES, entry({
       email: PRES, roles: [{ role: 'dept', scope: 'ELEC', until, secretary: true }],
     })));
   });
 
   test('a role not held is refused', async () => {
     const until = await exactUntil();
-    await assertFails(setDoc(doc(as(PRES), 'directory', PRES), entry({
+    await assertFails(dir(PRES, entry({
       email: PRES,
       roles: [{ role: 'dept', scope: 'ELEC', until }, { role: 'dept', scope: 'CS', until }],
     })));
-    await assertFails(setDoc(doc(as(STUDENT), 'directory', STUDENT), entry({ email: STUDENT })));
+    await assertFails(dir(STUDENT, entry({ email: STUDENT })));
   });
 });
 
@@ -262,40 +281,50 @@ describe('volunteers', () => {
     term: '2026-27-1', open: true, createdAt: serverTimestamp(),
   });
   const id = (email = STUDENT, course = 'EEE F211') => `goa|${course}|${email}`;
+  const offered = (who, docId, data) => {
+    const db = as(who);
+    return putBumped(db, 'goa', 'volunteers/ELEC', doc(db, 'volunteers', docId), data);
+  };
+  const closed = (db, docId, data) => {
+    const b = writeBatch(db);
+    b.update(doc(db, 'volunteers', docId), data);
+    bump(b, db, 'goa', 'volunteers/ELEC');
+    return b.commit();
+  };
 
   test('a student offers for themselves, on their campus', async () => {
-    await assertSucceeds(setDoc(doc(as(STUDENT), 'volunteers', id()), offer()));
-    await assertFails(setDoc(doc(as(STUDENT), 'volunteers', id(NEVER)), offer(NEVER)));
-    await assertFails(setDoc(doc(as(STUDENT), 'volunteers', id()), { ...offer(), dept: 'CS' }));
-    await assertFails(setDoc(doc(as(OTHER), 'volunteers', `goa|EEE F211|${OTHER}`), offer(OTHER)));
+    await assertSucceeds(offered(STUDENT, id(), offer()));
+    await assertFails(offered(STUDENT, id(NEVER), offer(NEVER)));
+    await assertFails(offered(STUDENT, id(), { ...offer(), dept: 'CS' }));
+    await assertFails(offered(OTHER, `goa|EEE F211|${OTHER}`, offer(OTHER)));
   });
 
   test('the department president reads and dismisses; others cannot', async () => {
-    await setDoc(doc(as(STUDENT), 'volunteers', id()), offer());
+    await offered(STUDENT, id(), offer());
     const q = (db) => query(collection(db, 'volunteers'),
       where('campus', '==', 'goa'), where('dept', '==', 'ELEC'), where('open', '==', true));
     await assertSucceeds(getDocs(q(as(PRES))));
     await assertSucceeds(getDocs(q(as(ADMIN))));
     await assertFails(getDocs(q(as(NEVER))));
-    await assertFails(updateDoc(doc(as(NEVER), 'volunteers', id()), { open: false }));
-    await assertSucceeds(updateDoc(doc(as(PRES), 'volunteers', id()), {
+    await assertFails(closed(as(NEVER), id(), { open: false }));
+    await assertSucceeds(closed(as(PRES), id(), {
       open: false, closedBy: { email: PRES, name: 'P' },
     }));
   });
 
   test('the student withdraws their own', async () => {
-    await setDoc(doc(as(STUDENT), 'volunteers', id()), offer());
-    await assertSucceeds(updateDoc(doc(as(STUDENT), 'volunteers', id()), { open: false }));
+    await offered(STUDENT, id(), offer());
+    await assertSucceeds(closed(as(STUDENT), id(), { open: false }));
     await assertSucceeds(getDoc(doc(as(STUDENT), 'volunteers', id())));
   });
 
   test('an appointment closes the offers in its batch', async () => {
-    await setDoc(doc(as(STUDENT), 'volunteers', id()), offer());
+    await offered(STUDENT, id(), offer());
     const db = as(PRES);
     await assertSucceeds(appoint(db, PRES,
       { role: 'course', campus: 'goa', scope: 'EEE F211', email: STUDENT },
       { courses: ['EEE F211'] }));
-    await assertSucceeds(updateDoc(doc(db, 'volunteers', id()), {
+    await assertSucceeds(closed(db, id(), {
       open: false, closedBy: { email: PRES, name: 'P' },
     }));
   });

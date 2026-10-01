@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import {
   ADMIN, FACULTY, NEVER, OTHER, OWNER, PRES, STUDENT,
-  appoint, as, days, grantId, name, seed, useEmulator,
+  appoint, as, bump, days, grantId, name, seed, useEmulator,
 } from './helpers.mjs';
 
 useEmulator();
@@ -136,6 +136,7 @@ describe('grants', () => {
       const b = writeBatch(db);
       const a = doc(collection(db, 'audit'));
       b.update(doc(db, 'grants', id), { active: false, auditId: a.id });
+      bump(b, db, g.campus, 'grants');
       b.update(doc(db, 'staff', g.email), { ...staff, lastGrant: id });
       b.set(a, {
         actor: { email: actor, name: name(actor), role: 'x' }, action: 'revoke',
@@ -161,6 +162,7 @@ describe('grants', () => {
       const b = writeBatch(db);
       const a = doc(collection(db, 'audit'));
       b.update(doc(db, 'grants', id), { active: true, expiresAt: days(100), auditId: a.id, ...extra });
+      bump(b, db, 'goa', 'grants');
       b.set(doc(db, 'staff', STUDENT), {
         name: name(STUDENT), email: STUDENT, campus: 'goa', owner: false, admin: false,
         presidentOf: ['CS'], courses: [], expiresAt: days(100), lastGrant: id,
@@ -235,6 +237,7 @@ describe('owners', () => {
     const b = writeBatch(db);
     const a = doc(collection(db, 'audit'));
     b.set(doc(db, 'owners', email), { auditId: a.id, ...data });
+    bump(b, db, 'goa', 'owners');
     b.set(a, {
       actor: { email: actor, name: name(actor), role: 'owner' }, action: 'owner',
       path: `owners/${email}`, campus: 'all', at: serverTimestamp(),
@@ -260,6 +263,7 @@ describe('owners', () => {
       const b = writeBatch(db);
       const a = doc(collection(db, 'audit'));
       b.update(doc(db, 'owners', email), { active: false, auditId: a.id });
+      bump(b, db, 'goa', 'owners');
       b.set(a, {
         actor: { email: actor, name: name(actor), role: 'owner' }, action: 'owner',
         path: `owners/${email}`, campus: 'all', at: serverTimestamp(),
@@ -277,6 +281,7 @@ describe('config', () => {
     const b = writeBatch(db);
     const a = doc(collection(db, 'audit'));
     b.set(doc(db, 'config', id), { ...data, auditId: a.id });
+    if (id === 'grantTerms') bump(b, db, 'goa', 'terms');
     b.set(a, {
       actor: { email: actor, name: name(actor), role: 'x' }, action: 'config',
       path: `config/${id}`, campus: 'all', at: serverTimestamp(),
