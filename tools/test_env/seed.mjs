@@ -361,6 +361,16 @@ async function seedCatalog(db, byKey) {
     schema: next.schema,
     auditId,
   }));
+  // The campus heads carry the published version too, and the app reads it
+  // from there: left at a version the wipe removed, every app asked for a
+  // missing bundle (TM-13). Merged, and no seed flag: the heads' own rules
+  // check their keys.
+  for (const campus of ['goa', 'pilani', 'hyderabad', 'dubai']) {
+    batch.set(db.doc(`heads/${campus}`), {
+      catalog: next.version,
+      catalogSchema: next.schema,
+    }, { merge: true });
+  }
   await batch.commit();
   return next.version;
 }
