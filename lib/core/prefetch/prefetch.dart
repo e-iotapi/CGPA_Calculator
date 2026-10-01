@@ -14,34 +14,41 @@ void resetPrefetch() => _once = null;
 
 /// Runs [levels] in order after [delay], each level's jobs together, each
 /// job's failure dropped; [gap] between jobs of the last level (admin). Waits
-/// while offline (resumes on [onlineChanges]). Runs once per session: a
-/// second call returns the first's future.
+/// while offline (resumes on [onlineChanges]; a closed stream ends the run).
+/// Runs once per session: a second call returns the first's future. An empty
+/// [levels] does nothing and does not use up the session's run.
 Future<void> runPrefetch(
   List<PrefetchLevel> levels, {
   Duration delay = const Duration(seconds: 2),
   Duration gap = const Duration(milliseconds: 400),
   bool Function()? online,
   Stream<bool>? onlineChanges,
-}) =>
-    _once ??= () async {
-      await Future<void>.delayed(delay);
-      if (!(online ?? () => net.isOnline)()) {
-        await (onlineChanges ?? net.onlineChanges).firstWhere((up) => up);
-      }
-      Future<void> run(Future<void> Function() job) async {
-        try {
-          await job();
-        } catch (_) {}
-      }
+}) {
+  if (levels.isEmpty) return Future.value();
+  return _once ??= () async {
+    await Future<void>.delayed(delay);
+    if (!(online ?? () => net.isOnline)()) {
+      final up = await (onlineChanges ?? net.onlineChanges).firstWhere(
+        (up) => up,
+        orElse: () => false,
+      );
+      if (!up) return;
+    }
+    Future<void> run(Future<void> Function() job) async {
+      try {
+        await job();
+      } catch (_) {}
+    }
 
-      for (var i = 0; i < levels.length; i++) {
-        if (i == levels.length - 1 && i > 0) {
-          for (final job in levels[i]) {
-            await run(job);
-            await Future<void>.delayed(gap);
-          }
-        } else {
-          await Future.wait(levels[i].map(run));
+    for (var i = 0; i < levels.length; i++) {
+      if (i == levels.length - 1 && i > 0) {
+        for (final job in levels[i]) {
+          await run(job);
+          await Future<void>.delayed(gap);
         }
+      } else {
+        await Future.wait(levels[i].map(run));
       }
-    }();
+    }
+  }();
+}

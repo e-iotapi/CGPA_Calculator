@@ -82,7 +82,7 @@ List<PrefetchLevel> prefetchLevels() {
       ..add(_job(() => roles.owners()))
       ..add(_job(() => roles.terms()))
       ..add(_job(() => analytics.counts()))
-      ..add(_job(() => analytics.days(14)));
+      ..add(_job(() => analytics.days(30)));
   }
   return [two, three, four];
 }

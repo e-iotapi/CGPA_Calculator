@@ -78,4 +78,41 @@ void main() {
       expect(n, 1);
     });
   });
+
+  test('an empty run does not use up the session', () {
+    fakeAsync((f) {
+      var n = 0;
+      runPrefetch(const [], delay: Duration.zero, online: () => true);
+      f.elapse(const Duration(seconds: 1));
+      runPrefetch(
+        [
+          [() async => n++],
+        ],
+        delay: Duration.zero,
+        online: () => true,
+      );
+      f.elapse(const Duration(seconds: 1));
+      expect(n, 1);
+    });
+  });
+
+  test('a closed online stream ends the run quietly', () {
+    fakeAsync((f) {
+      var n = 0;
+      final net = StreamController<bool>();
+      Object? err;
+      runPrefetch(
+        [
+          [() async => n++],
+        ],
+        delay: Duration.zero,
+        online: () => false,
+        onlineChanges: net.stream,
+      ).catchError((Object e) => err = e);
+      net.close();
+      f.elapse(const Duration(seconds: 1));
+      expect(n, 0);
+      expect(err, isNull);
+    });
+  });
 }
