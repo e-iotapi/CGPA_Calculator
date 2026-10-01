@@ -221,7 +221,8 @@ class Sync {
   static Future<void> pullLive() async {
     await _pushing?.catchError((Object _) {});
     if (hasUnsynced) {
-      _debounce?.cancel();
+      // The debounce stays armed: if this push fails, it (or page-hide)
+      // still retries.
       await push();
     } else {
       await pull();
