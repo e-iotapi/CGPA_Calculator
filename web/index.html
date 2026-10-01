@@ -53,6 +53,60 @@
   <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js" />
   <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" />
   <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-pipelines.js" />
+  <!-- The saved-user check (Firebase Auth re-verifies it with Google) used to
+       start only after main.dart.js loaded, and Home waits for it (TM-5,
+       TM-12). Started here, it runs alongside the engine download. FlutterFire
+       reuses the app and auth: window.firebase_core is set, so it injects no
+       scripts, and the options below equal its own (checked by
+       test/env/index_html_test.dart; a mismatch is a duplicate-app error).
+       Other hosts, or any failure here, leave everything to FlutterFire. -->
+  <script type="module">
+    const STAGING = {
+      apiKey: 'AIzaSyD5aVnFDmzOQKjnuumyArZxFornqqrKHww',
+      appId: '1:8768962364:web:339acd421cd0b1d990a839',
+      messagingSenderId: '8768962364',
+      projectId: 'pointer-staging',
+      authDomain: 'pointer-staging.firebaseapp.com',
+      storageBucket: 'pointer-staging.firebasestorage.app',
+    };
+    const PROD = {
+      apiKey: 'AIzaSyAEcrEp6rYOXXTIduG9r76NhpT0KWOxbH8',
+      appId: '1:58021557107:web:06ac1c3f63c3d290984b06',
+      messagingSenderId: '58021557107',
+      projectId: 'cgpa-calculator-fb90c',
+      authDomain: 'pointer-bits-pilani.pages.dev',
+      storageBucket: 'cgpa-calculator-fb90c.firebasestorage.app',
+      measurementId: 'G-T4151XF1CT',
+    };
+    const h = location.hostname;
+    const options =
+      /^pointer-staging(--[\w-]+)?\.web\.app$/.test(h) || h === 'pointer-staging.firebaseapp.com' ? STAGING
+      : h === 'pointer-bits-pilani.pages.dev' ? PROD
+      : null;
+    if (options) {
+      try {
+        // app first: importing it alongside the others trips a WebKit TDZ bug.
+        const app = await import('https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js');
+        const [auth, firestore] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js'),
+          import('https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-pipelines.js'),
+        ]);
+        const a = app.getApps().length ? app.getApp() : app.initializeApp(options);
+        // Mirrors firebase_auth_web's getAuthInstance; returns the same
+        // instance if FlutterFire got there first.
+        auth.initializeAuth(a, {
+          errorMap: auth.debugErrorMap,
+          persistence: [auth.indexedDBLocalPersistence, auth.browserLocalPersistence, auth.browserSessionPersistence],
+          popupRedirectResolver: auth.browserPopupRedirectResolver,
+        });
+        window.firebase_auth = auth;
+        window.firebase_firestore = firestore;
+        window.firebase_core = app; // last: FlutterFire's cue to skip loading
+      } catch (e) {
+        console.debug('Firebase early start skipped', e);
+      }
+    }
+  </script>
 
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />

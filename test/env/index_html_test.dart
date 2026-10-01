@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cgpa_calculator/firebase_options.dart';
+import 'package:cgpa_calculator/firebase_options_staging.dart';
 
 /// firebase_core_web's `supportedFirebaseJsSdkVersion`, read from its source:
 /// the package is web-only, so a VM test can't import it.
@@ -73,5 +75,25 @@ void main() {
     expect(js, contains('{{flutter_js}}'));
     expect(js, contains('{{flutter_build_config}}'));
     expect(js, isNot(contains('serviceWorkerSettings:')));
+  });
+
+  // index.html starts Firebase itself and FlutterFire reuses that app. If its
+  // options differ from the Dart ones, FlutterFire throws duplicate-app and
+  // the app never starts.
+  test('index.html starts Firebase with the options Dart uses', () {
+    final html = File('web/index.html').readAsStringSync();
+    Map<String, String> block(String name) => {
+      for (final m in RegExp(
+        r"(\w+): '([^']*)'",
+      ).allMatches(RegExp('const $name = \\{([^}]*)\\}').firstMatch(html)!.group(1)!))
+        m.group(1)!: m.group(2)!,
+    };
+    Map<String, Object?> dart(Map<String, dynamic> m) =>
+        {...m}..removeWhere((_, v) => v == null);
+    expect(block('STAGING'), dart(StagingFirebaseOptions.web.asMap));
+    expect(block('PROD'), dart(DefaultFirebaseOptions.web.asMap));
+    final core = html.indexOf('window.firebase_core =');
+    expect(core, greaterThan(html.indexOf('window.firebase_auth =')));
+    expect(core, greaterThan(html.indexOf('window.firebase_firestore =')));
   });
 }
