@@ -18,8 +18,12 @@ export function diffVersions(prev: Versions, next: Versions): Versions {
   return out;
 }
 
-const numbersOnly = (d: Record<string, unknown> | null): Versions =>
-  Object.fromEntries(Object.entries(d ?? {}).filter(([, v]) => typeof v === "number")) as Versions;
+/** The head doc's `v` map (marker path -> version), numbers only; other head fields never leave. */
+const markers = (d: Record<string, unknown> | null): Versions => {
+  const v = d?.v;
+  if (!v || typeof v !== "object") return {};
+  return Object.fromEntries(Object.entries(v).filter(([, n]) => typeof n === "number")) as Versions;
+};
 
 export class CampusHub extends DurableObject<Env> {
   private cache: { head: Versions; at: number } | null = null;
@@ -52,7 +56,7 @@ export class CampusHub extends DurableObject<Env> {
     if (this.cache && now - this.cache.at < HEAD_TTL_MS) head = good = this.cache.head;
     else {
       try {
-        head = good = numbersOnly(await readDoc(`heads/${campus}`, this.env));
+        head = good = markers(await readDoc(`heads/${campus}`, this.env));
         this.cache = { head, at: now };
       } catch {
         head = this.cache?.head ?? {};
@@ -104,7 +108,7 @@ export class CampusHub extends DurableObject<Env> {
     if (!campus) return;
     let next: Versions;
     try {
-      next = numbersOnly(await readDoc(`heads/${campus}`, this.env));
+      next = markers(await readDoc(`heads/${campus}`, this.env));
     } catch {
       if (this.retries++ < MAX_RETRIES) {
         this.armed = true;
