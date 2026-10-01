@@ -47,6 +47,7 @@ class _OwnersPageState extends State<OwnersPage> {
   Widget build(BuildContext context) => Loaded<List<Map<String, dynamic>>>(
     cacheKey: 'config-owners',
     load: () => roleStore!.owners(),
+    peek: () => roleStore!.peekOwners(),
     builder: (context, owners, reload) {
       final p = AppPalette.of(context);
       final me = myRoles.value.email;
@@ -813,6 +814,21 @@ class _AuditLogPageState extends State<AuditLogPage> {
       course: _course,
       actor: _actor,
     );
+    _noteActors(entries);
+    return entries;
+  }
+
+  List<AuditEntry>? _peek(String? campus) {
+    final entries = roleStore!.peekAudit(
+      campus: campus,
+      course: _course,
+      actor: _actor,
+    );
+    if (entries != null) _noteActors(entries);
+    return entries;
+  }
+
+  void _noteActors(List<AuditEntry> entries) {
     // The people to filter by: whoever appears while nobody is picked.
     if (_actor == null) {
       final seen = <String, String>{};
@@ -824,7 +840,6 @@ class _AuditLogPageState extends State<AuditLogPage> {
           (email: key, name: value),
       ];
     }
-    return entries;
   }
 
   Future<void> _pickActor() async {
@@ -979,6 +994,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
           cacheKey: 'config-audit|$campus|$_course|$_actor',
           key: ValueKey('$campus|$_course|$_actor'),
           load: () => _load(campus),
+          peek: () => _peek(campus),
           builder: (context, entries, _) {
             if (entries.isEmpty) return const Note('Nothing logged here yet.');
             // Grouped by day, newest first, as the board draws it.

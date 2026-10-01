@@ -65,6 +65,17 @@ class _RosterPageState extends State<RosterPage> {
           widget.volunteersTab == null ? 0 : await openOffers(tabCampus),
         );
       },
+      peek: () {
+        final store = roleStore!;
+        final all = store.peekRoster(campus: campus);
+        final phones = ContactStore(store).peekStaffPhones();
+        final owners = store.peekOwners();
+        if (all == null || phones == null || owners == null) return null;
+        final offers =
+            widget.volunteersTab == null ? 0 : peekOpenOffers(tabCampus);
+        if (offers == null) return null;
+        return (all, phones, owners, offers);
+      },
       builder: (context, data, reload) {
         final (all, phones, owners, offers) = data;
         final live =

@@ -425,6 +425,41 @@ class _ViewAsCoursePageState extends State<ViewAsCoursePage> {
     cacheKey: 'open-as-courses|$_campus',
     key: ValueKey(_campus),
     load: _load,
+    peek: () {
+      final store = roleStore!;
+      final got = MaintainStore(store).peekCampusOfferings(_campus, _term);
+      final grants = store.peekRoster(campus: _campus);
+      if (got == null || grants == null) return null;
+      final profs = ProfessorStore(store.db);
+      final names = <String, String>{};
+      final now = DateTime.now();
+      final out = <_Offered>[];
+      for (final o in got) {
+        final id = o.courseId;
+        if (id.isEmpty) continue;
+        final ps = <String>[];
+        for (final pid in o.professors) {
+          final p = profs.peekGet(pid);
+          if (p == null) return null;
+          final n = names[pid] ??= p.name;
+          if (n.isNotEmpty) ps.add(n);
+        }
+        out.add((
+          id: id,
+          professors: ps,
+          crs:
+              grants
+                  .where(
+                    (g) =>
+                        g.role == GrantRole.course &&
+                        g.scope == id &&
+                        g.liveAt(now),
+                  )
+                  .length,
+        ));
+      }
+      return out..sort((a, b) => a.id.compareTo(b.id));
+    },
     builder: (context, offered, _) {
       final q = _search.text.trim().toLowerCase();
       final recent = [

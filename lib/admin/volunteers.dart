@@ -35,6 +35,17 @@ Future<int> openOffers(String campus) async {
   return byCourse.values.fold<int>(0, (n, l) => n + l.length);
 }
 
+/// The saved [openOffers]; null when not saved.
+int? peekOpenOffers(String campus) {
+  final dept = defaultDept(campus);
+  final store = roleStore;
+  if (dept == null || store == null) return 0;
+  final byCourse = ContactStore(
+    store,
+  ).peekOffers(campus, dept, term: currentTerm(DateTime.now()));
+  return byCourse?.values.fold<int>(0, (n, l) => n + l.length);
+}
+
 /// Roster › Volunteers (§16.3 fix 16): open CR offers in a department, by
 /// course. Copy a message for the course's WhatsApp group, appoint, or
 /// dismiss.
@@ -141,6 +152,12 @@ class _VolunteersTabState extends State<VolunteersTab> {
           key: ValueKey('$dept|$_loads'),
           load:
               () => _store.offers(
+                widget.campus,
+                dept,
+                term: currentTerm(DateTime.now()),
+              ),
+          peek:
+              () => _store.peekOffers(
                 widget.campus,
                 dept,
                 term: currentTerm(DateTime.now()),

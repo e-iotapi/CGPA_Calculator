@@ -386,10 +386,15 @@ class Loaded<T> extends StatefulWidget {
     required this.load,
     required this.builder,
     this.cacheKey,
+    this.peek,
   });
   final Future<T> Function() load;
   final Widget Function(BuildContext, T, VoidCallback reload) builder;
   final String? cacheKey;
+
+  /// The store's saved copy, read synchronously: drawn in the first frame
+  /// until [load] completes. Null when there is none.
+  final T? Function()? peek;
 
   @override
   State<Loaded<T>> createState() => _LoadedState<T>();
@@ -400,6 +405,16 @@ class _LoadedState<T> extends State<Loaded<T>> {
     final key? => _loadKeyed(key, widget.load),
     null => widget.load(),
   };
+
+  // A peek is only a hint (e.g. no store signed in yet): never let it throw.
+  late final T? _peeked = () {
+    try {
+      return widget.peek?.call();
+    } on Object catch (e) {
+      debugPrint('[Pointer] peek failed: $e');
+      return null;
+    }
+  }();
 
   bool get _cached =>
       widget.cacheKey != null && _loadedCache.containsKey(widget.cacheKey);
@@ -421,11 +436,12 @@ class _LoadedState<T> extends State<Loaded<T>> {
       if (s.hasData && s.connectionState == ConnectionState.done) {
         return widget.builder(context, s.data as T, _reload);
       }
-      if (_cached && (s.hasError || s.connectionState != ConnectionState.done)) {
+      if ((_cached || _peeked != null) &&
+          (s.hasError || s.connectionState != ConnectionState.done)) {
         if (s.hasError) debugPrint('[Pointer] refresh failed: ${s.error}');
         return widget.builder(
           context,
-          _loadedCache[widget.cacheKey] as T,
+          _cached ? _loadedCache[widget.cacheKey] as T : _peeked as T,
           _reload,
         );
       }
