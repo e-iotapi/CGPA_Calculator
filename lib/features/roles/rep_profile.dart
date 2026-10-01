@@ -62,11 +62,26 @@ class _RepProfilePageState extends State<RepProfilePage> {
 
   bool get _listed => listedRoles(myRoles.value).isNotEmpty;
 
+  /// True when the saved copies filled the form in the first frame; the
+  /// load then only refreshes them, so it never overwrites what is typed.
+  late final bool _primed = () {
+    final store = contactStore;
+    if (store == null) return false;
+    final staff = store.peekMyStaffContact();
+    if (staff == null) return false;
+    _fill(staff, store.peekMyDirectory());
+    return true;
+  }();
+
   Future<void> _load() async {
     final store = contactStore;
     if (store == null) return;
     final staff = await store.myStaffContact();
     final dir = await store.myDirectory();
+    if (!_primed) _fill(staff, dir);
+  }
+
+  void _fill(({String name, String phone})? staff, DirectoryEntry? dir) {
     if (staff != null) {
       _name.text = staff.name;
       _phone.text = staff.phone;
@@ -186,6 +201,7 @@ class _RepProfilePageState extends State<RepProfilePage> {
       future: _loaded,
       builder: (context, s) {
         // After the load, so saved details count.
+        final done = _primed || s.connectionState == ConnectionState.done;
         final problem = _problem;
         return PageFrame(
           header: PageHeader(
@@ -206,7 +222,7 @@ class _RepProfilePageState extends State<RepProfilePage> {
             ],
           ),
           bottom:
-              s.connectionState != ConnectionState.done
+              !done
                   ? null
                   : BottomAction(
                     caption: problem,
@@ -221,7 +237,7 @@ class _RepProfilePageState extends State<RepProfilePage> {
                     ),
                   ),
           children: [
-            if (s.connectionState != ConnectionState.done)
+            if (!done)
               const LinearProgressIndicator()
             else ...[
               if (grants.isNotEmpty)

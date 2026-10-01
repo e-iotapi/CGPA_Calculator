@@ -293,6 +293,7 @@ class _TermsPageState extends State<TermsPage> {
   @override
   Widget build(BuildContext context) => Loaded<GrantTerms>(
     load: () => roleStore!.terms(),
+    peek: () => roleStore!.peekTerms(),
     builder: (context, loaded, _) {
       final p = AppPalette.of(context);
       final t = _t ??= loaded;

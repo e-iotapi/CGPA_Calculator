@@ -155,6 +155,30 @@ class DeptHome extends StatelessWidget {
     );
   }
 
+  /// [load] from the saved copies. The offerings must be saved; the counts
+  /// that are live reads (reports) show once [load] lands.
+  static DeptHomeData? peek(String campus, String dept) {
+    final offerings = _store.peekOfferings(
+      deptCourses(dept).map((c) => c.id),
+      campus,
+      maintainedTerm,
+    );
+    if (offerings == null) return null;
+    final links = resourceStore?.peekDepartment(campus, dept);
+    final profs = ProfessorStore(
+      roleStore!.db,
+      roles: roleStore,
+    ).peekDepartment(campus, dept);
+    return (
+      offerings: offerings,
+      links: links == null ? null : departmentList(links).length,
+      flagged: null,
+      reported: null,
+      profs: profs?.length,
+      audit: roleStore!.peekAudit(campus: campus, limit: 200),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -177,6 +201,7 @@ class DeptHome extends StatelessWidget {
     return Loaded<DeptHomeData>(
       cacheKey: cacheKey(campus, dept),
       load: () => load(campus, dept),
+      peek: () => peek(campus, dept),
       builder: (context, d, reload) {
         final missing =
             courses

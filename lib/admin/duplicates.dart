@@ -18,6 +18,13 @@ abstract interface class DuplicateSource {
 
 /// The default: [likelySame] (same surname, compatible first initial) over
 /// every pair on the list, which is what Add a professor warns with.
+List<DuplicatePair> likelyPairs(List<Professor> listed) => [
+  for (var i = 0; i < listed.length; i++)
+    for (var j = i + 1; j < listed.length; j++)
+      if (likelySame(listed[i].name, listed[j].name))
+        (a: listed[i], b: listed[j]),
+];
+
 class NameDuplicates implements DuplicateSource {
   const NameDuplicates();
 
@@ -26,12 +33,7 @@ class NameDuplicates implements DuplicateSource {
     String campus,
     String dept,
     List<Professor> listed,
-  ) async => [
-    for (var i = 0; i < listed.length; i++)
-      for (var j = i + 1; j < listed.length; j++)
-        if (likelySame(listed[i].name, listed[j].name))
-          (a: listed[i], b: listed[j]),
-  ];
+  ) async => likelyPairs(listed);
 }
 
 /// The source Merge duplicates reads; tests swap it.

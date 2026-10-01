@@ -46,6 +46,27 @@ class ProfessorReviewsPage extends StatelessWidget {
     return (p, out);
   }
 
+  /// [_load] from the saved copies; null if any part is not saved.
+  (Professor?, List<_Taught>)? _peek() {
+    final campus = myCampus!;
+    final p = ProfessorStore(roleStore!.db).peekResolved(professorId);
+    if (p == null) return null;
+    final taught = ProfessorStore(roleStore!.db).peekTaught(p, campus);
+    if (taught == null) return null;
+    final out = <_Taught>[];
+    for (final e in taught.entries) {
+      final stats = reviewStore!.peekStats(
+        e.key,
+        campus,
+        professorIds: p.allIds,
+      );
+      if (stats == null) return null;
+      out.add((courseId: e.key, terms: e.value, stats: stats));
+    }
+    out.sort((a, b) => b.terms.first.compareTo(a.terms.first));
+    return (p, out);
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -62,6 +83,7 @@ class ProfessorReviewsPage extends StatelessWidget {
     }
     return Loaded<(Professor?, List<_Taught>)>(
       load: _load,
+      peek: _peek,
       builder: (context, data, _) {
         final (prof, taught) = data;
         final header = PageHeader(

@@ -161,6 +161,14 @@ class ProfessorStore {
   Professor? peekGet(String id) =>
       peekCache<Professor?>('pid|$id', (o) => _decodeOne(id, o));
 
+  /// The saved [get], following a merge to the survivor, read synchronously;
+  /// null when it or the survivor is not saved.
+  Professor? peekResolved(String id) {
+    final p = peekGet(id);
+    final into = p?.mergedInto;
+    return into == null || into == id ? p : peekResolved(into);
+  }
+
   Future<void> _forget(String campus) async {
     await forget('prof|$campus|');
     await forget('pid|');

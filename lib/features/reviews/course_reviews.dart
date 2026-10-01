@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/reviews/review_filter.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
@@ -117,6 +118,70 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
     );
   }
 
+  /// [_meta] and the first page from the saved copies; null if any part is
+  /// not saved.
+  _Meta? _peek() {
+    final store = reviewStore!;
+    final profs = ProfessorStore(roleStore!.db);
+    final by = store.peekByProfessor(widget.courseId, _campus);
+    final course = store.peekStats(widget.courseId, _campus);
+    if (by == null || course == null) return null;
+    final names = <String, String>{};
+    final groups = <String, (Professor, ReviewStats)>{};
+    for (final e in by.entries) {
+      final p = profs.peekResolved(e.key);
+      if (p == null) return null;
+      names[e.key] = p.name;
+      final g = groups[p.id];
+      groups[p.id] = (p, g == null ? e.value : g.$2 + e.value);
+    }
+    final off = cachedOffering(
+      widget.courseId,
+      _campus,
+      currentTerm(DateTime.now()),
+    );
+    String? now;
+    for (final id in off?.professors ?? const <String>[]) {
+      final p = profs.peekResolved(id);
+      if (p != null) {
+        now = p.id;
+        names[id] = p.name;
+        groups.putIfAbsent(p.id, () => (p, const ReviewStats()));
+        break;
+      }
+    }
+    var prof = _prof;
+    if (prof != null && !groups.containsKey(prof)) {
+      final p = profs.peekResolved(prof);
+      if (p == null) return null;
+      names[prof] = p.name;
+      prof = p.id;
+      groups.putIfAbsent(p.id, () => (p, const ReviewStats()));
+    }
+    if (!_picked) prof = now;
+    final g = groups[prof];
+    final page = store.peekPage(
+      widget.courseId,
+      _campus,
+      professorIds: prof == null ? null : g?.$1.allIds,
+      order: _order,
+    );
+    if (page == null) return null;
+    _names.addAll(names);
+    _prof = prof;
+    _last = null;
+    _reviews
+      ..clear()
+      ..addAll(page.reviews);
+    _more = page.reviews.length == 10 && page.last != null;
+    return (
+      course: course,
+      taughtBy: groups.values.toList()..sort((a, b) => b.$2.count - a.$2.count),
+      now: now,
+      mine: store.peekMine(widget.courseId),
+    );
+  }
+
   List<String>? _ids(_Meta m) {
     final g = m.taughtBy.where((x) => x.$1.id == _prof).firstOrNull;
     return g?.$1.allIds;
@@ -174,6 +239,7 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
     }
     return Loaded<_Meta>(
       key: ValueKey(_loads),
+      peek: _peek,
       load: () async {
         final m = await _meta();
         _last = null;

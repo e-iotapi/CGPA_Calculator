@@ -69,11 +69,23 @@ DepartmentSource departmentSource = const CampusDepartments();
 /// The branches on [campus] (every department when it is not known yet,
 /// e.g. before an address is typed), in [departmentSource]'s order.
 /// A branch not run on [campus] (AC on Hyderabad) is left out.
-Future<List<Branch>> campusBranches(String? campus) async {
+Future<List<Branch>> campusBranches(String? campus) async =>
+    _campusBranches(campus, campus == null ? [] : await departmentSource.at(campus));
+
+/// [campusBranches] at once, for a first frame; null when the source is not
+/// the local programme list.
+List<Branch>? campusBranchesNow(String? campus) =>
+    campus == null
+        ? deptBranches()
+        : departmentSource is CampusDepartments
+        ? _campusBranches(campus, departmentsAt(campus))
+        : null;
+
+List<Branch> _campusBranches(String? campus, List<String> keys) {
   if (campus == null) return deptBranches();
   final here = {for (final p in programmesAt(Campus.named(campus))) p.code};
   return [
-    for (final b in deptBranches(await departmentSource.at(campus)))
+    for (final b in deptBranches(keys))
       if (b.programme == null || here.contains(b.programme)) b,
   ];
 }

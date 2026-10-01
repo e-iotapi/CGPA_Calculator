@@ -302,6 +302,10 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
           await roleStore!.roster(campus: _campus),
           await departmentSource.at(_campus),
         ),
+    peek: () {
+      final grants = roleStore!.peekRoster(campus: _campus);
+      return grants == null ? null : (grants, departmentsAt(_campus));
+    },
     builder: (context, data, _) {
       final (grants, depts) = data;
       final now = DateTime.now();

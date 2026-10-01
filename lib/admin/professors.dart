@@ -500,6 +500,17 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
         final dups = await duplicateSource.possible(_campus, dept, profs);
         return (profs, counts, dups);
       },
+      peek: () {
+        final profs = _store.peekDepartment(_campus, dept);
+        if (profs == null || duplicateSource is! NameDuplicates) return null;
+        final counts = <String, (int, int)>{};
+        for (final x in profs) {
+          final t = _store.peekTaught(x, _campus);
+          if (t == null) return null;
+          counts[x.id] = (t.length, t.values.fold(0, (a, l) => a + l.length));
+        }
+        return (profs, counts, likelyPairs(profs));
+      },
       builder: (context, data, _) {
         final (profs, counts, dups) = data;
         final keep = profs.where((x) => x.id == _keep).firstOrNull;
