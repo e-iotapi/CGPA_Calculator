@@ -37,6 +37,19 @@
        (firebase_core_web's supportedFirebaseJsSdkVersion; checked by
        test/env/index_html_test.dart). Preloaded so it downloads during the
        engine download instead of after it. -->
+  <!-- The engine downloads every font before main() runs, but only once it
+       has started; on 3G that tail was ~8 s between the engine being ready
+       and main() (TM-12). Fetched here they start with the page. as="fetch"
+       + crossorigin match the engine's own fetch, so nothing downloads twice.
+       test/env/index_html_test.dart keeps this list equal to the manifest. -->
+  <link rel="preload" as="fetch" crossorigin href="assets/FontManifest.json" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/MaterialIcons-Regular.otf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-Regular.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-Medium.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-SemiBold.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-Bold.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-ExtraBold.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/packages/cupertino_icons/assets/CupertinoIcons.ttf" />
   <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js" />
   <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" />
   <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-pipelines.js" />
