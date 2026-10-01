@@ -57,6 +57,25 @@ class DirectoryEntry {
     if (phone != null) 'Phone',
   ].join(', ');
 
+  /// JSON-safe, for `cacheFirst`: the document shape with expiries as millis.
+  Map<String, dynamic> toMap() => {
+    'name': name,
+    'campus': campus,
+    'roles': [
+      for (final r in roles)
+        {
+          'role': r.role.key,
+          'scope': r.scope,
+          if (r.programme != null) 'programme': r.programme,
+          'until': r.until.millisecondsSinceEpoch,
+          if (r.secretary) 'secretary': true,
+        },
+    ],
+    'email': shownEmail,
+    'whatsapp': whatsapp,
+    'phone': phone,
+  };
+
   /// Reads the directory document of [email].
   static DirectoryEntry fromMap(String email, Map<String, dynamic> m) =>
       DirectoryEntry(
@@ -203,21 +222,55 @@ class ContactStore {
       db.collection('directory').doc(email);
 
   /// The signed-in person's staff contact: name and phone.
-  Future<({String name, String phone})?> myStaffContact() async {
-    final m = (await _staffContact(roles.me).get()).data();
-    return m == null
-        ? null
-        : (
-          name: m['name'] as String? ?? '',
-          phone: m['phone'] as String? ?? '',
-        );
-  }
+  Future<({String name, String phone})?> myStaffContact() =>
+      cacheFirst<({String name, String phone})?>(
+        key: 'staffme|${roles.me}',
+        maxAge: repsMaxAge,
+        fetch: () async {
+          final m = (await _staffContact(roles.me).get()).data();
+          return m == null
+              ? null
+              : (
+                name: m['name'] as String? ?? '',
+                phone: m['phone'] as String? ?? '',
+              );
+        },
+        encode: (c) => c == null ? null : {'name': c.name, 'phone': c.phone},
+        decode: _decodeStaff,
+      );
+
+  static ({String name, String phone})? _decodeStaff(Object? o) =>
+      o == null
+          ? null
+          : (
+            name: (o as Map)['name'] as String,
+            phone: o['phone'] as String,
+          );
+
+  /// The saved [myStaffContact], read synchronously; null when none is saved.
+  ({String name, String phone})? peekMyStaffContact() =>
+      peekCache<({String name, String phone})?>('staffme|${roles.me}', _decodeStaff);
 
   /// Reads the signed-in person's directory entry, or `null` if none.
-  Future<DirectoryEntry?> myDirectory() async {
-    final m = (await _directory(roles.me).get()).data();
-    return m == null ? null : DirectoryEntry.fromMap(roles.me, m);
-  }
+  Future<DirectoryEntry?> myDirectory() => cacheFirst<DirectoryEntry?>(
+    key: 'dirme|${roles.me}',
+    maxAge: repsMaxAge,
+    fetch: () async {
+      final m = (await _directory(roles.me).get()).data();
+      return m == null ? null : DirectoryEntry.fromMap(roles.me, m);
+    },
+    encode: (e) => e?.toMap(),
+    decode: _decodeMine,
+  );
+
+  DirectoryEntry? _decodeMine(Object? o) =>
+      o == null
+          ? null
+          : DirectoryEntry.fromMap(roles.me, Map<String, dynamic>.from(o as Map));
+
+  /// The saved [myDirectory], read synchronously; null when none is saved.
+  DirectoryEntry? peekMyDirectory() =>
+      peekCache<DirectoryEntry?>('dirme|${roles.me}', _decodeMine);
 
   /// Whether RepProfile must come first for [r].
   Future<bool> profileDue(MyRoles r) async {
@@ -273,22 +326,40 @@ class ContactStore {
     }
     await b.commit();
     await sharedCacheBox?.delete('reps|${campusOfAddress(roles.me) ?? ''}');
+    await forget('dirme|');
+    await forget('staffme|');
+    await forget('staffall');
   }
 
   /// Every staff phone number, by address: the roster shows them to other
   /// privileged roles (fix 8). Empty for anyone the rules keep out.
   Future<Map<String, String>> staffPhones() async {
     try {
-      final q = await db.collection('staffContacts').get();
-      return {
-        for (final d in q.docs)
-          if (d.data()['phone'] case final String p) d.id: p,
-      };
+      return await cacheFirst<Map<String, String>>(
+        key: 'staffall',
+        maxAge: repsMaxAge,
+        fetch: () async {
+          final q = await db.collection('staffContacts').get();
+          return {
+            for (final d in q.docs)
+              if (d.data()['phone'] case final String p) d.id: p,
+          };
+        },
+        encode: (m) => m,
+        decode: _decodePhones,
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') return const {};
       rethrow;
     }
   }
+
+  static Map<String, String> _decodePhones(Object? o) => {
+    for (final e in (o as Map).entries) '${e.key}': '${e.value}',
+  };
+
+  /// The saved [staffPhones], read synchronously; null when none is saved.
+  Map<String, String>? peekStaffPhones() => peekCache('staffall', _decodePhones);
 
   DocumentReference<Map<String, dynamic>> _repIndex(String campus) =>
       db.collection('repIndex').doc(campus);
@@ -321,11 +392,19 @@ class ContactStore {
               encode: (m) => m,
               decode: (o) => Map<String, dynamic>.from(o as Map),
             );
-    return [
-      for (final e in m.entries)
-        DirectoryEntry.fromMap(e.key, Map<String, dynamic>.from(e.value)),
-    ];
+    return _entries(m);
   }
+
+  static List<DirectoryEntry> _entries(Map<String, dynamic> m) => [
+    for (final e in m.entries)
+      DirectoryEntry.fromMap(e.key, Map<String, dynamic>.from(e.value)),
+  ];
+
+  /// The saved [directory], read synchronously; null when none is saved.
+  List<DirectoryEntry>? peekDirectory(String campus) => peekCache(
+    'reps|$campus',
+    (o) => _entries(Map<String, dynamic>.from(o as Map)),
+  );
 
   /// Timestamps as millis, so the entry caches as JSON.
   static Object? _jsonSafe(Object? v) => switch (v) {
@@ -367,6 +446,12 @@ class ContactStore {
     }
   }
 
+  /// The saved [myOffer], read synchronously; null when none is saved.
+  Volunteer? peekMyOffer(String campus, String courseId) => peekCache<Volunteer?>(
+    'offer|$campus|$courseId|${roles.me}',
+    (v) => v == null ? null : Volunteer.fromMap((v as Map).cast()),
+  );
+
   /// A student offers to be CR for [courseId] this term.
   Future<void> volunteer(
     String campus,
@@ -385,12 +470,14 @@ class ContactStore {
       'createdAt': FieldValue.serverTimestamp(),
     });
     await forget('offer|$campus|');
+    await forget('vol|');
   }
 
   /// The student takes the offer back.
   Future<void> withdraw(Volunteer v) async {
     await _offer(v.id).update({'open': false});
     await forget('offer|${v.campus}|');
+    await forget('vol|');
   }
 
   /// Open offers in [dept] on [campus] in [term], by course.
@@ -398,29 +485,55 @@ class ContactStore {
     String campus,
     String dept, {
     required String term,
-  }) async {
-    final q =
-        await db
-            .collection('volunteers')
-            .where('campus', isEqualTo: campus)
-            .where('dept', isEqualTo: dept)
-            .where('open', isEqualTo: true)
-            .get();
-    final out = <String, List<Volunteer>>{};
-    for (final d in q.docs) {
-      final v = Volunteer.fromMap(d.data());
-      // Offers close when the term ends.
-      if (v.term == term) (out[v.courseId] ??= []).add(v);
-    }
-    for (final l in out.values) {
-      l.sort((a, b) => a.name.compareTo(b.name));
-    }
-    return out;
-  }
+  }) => cacheFirst<Map<String, List<Volunteer>>>(
+    key: 'vol|$campus|$dept|$term',
+    maxAge: repsMaxAge,
+    fetch: () async {
+      final q =
+          await db
+              .collection('volunteers')
+              .where('campus', isEqualTo: campus)
+              .where('dept', isEqualTo: dept)
+              .where('open', isEqualTo: true)
+              .get();
+      final out = <String, List<Volunteer>>{};
+      for (final d in q.docs) {
+        final v = Volunteer.fromMap(d.data());
+        // Offers close when the term ends.
+        if (v.term == term) (out[v.courseId] ??= []).add(v);
+      }
+      for (final l in out.values) {
+        l.sort((a, b) => a.name.compareTo(b.name));
+      }
+      return out;
+    },
+    encode:
+        (m) => {
+          for (final e in m.entries) e.key: [for (final v in e.value) v.toMap()],
+        },
+    decode: _decodeOffers,
+  );
+
+  static Map<String, List<Volunteer>> _decodeOffers(Object? o) => {
+    for (final e in (o as Map).entries)
+      '${e.key}': [
+        for (final v in e.value as List) Volunteer.fromMap((v as Map).cast()),
+      ],
+  };
+
+  /// The saved [offers], read synchronously; null when none is saved.
+  Map<String, List<Volunteer>>? peekOffers(
+    String campus,
+    String dept, {
+    required String term,
+  }) => peekCache('vol|$campus|$dept|$term', _decodeOffers);
 
   /// A president dismisses one offer.
-  Future<void> dismiss(Volunteer v) => _offer(v.id).update({
-    'open': false,
-    'closedBy': {'email': roles.me, 'name': roles.myName},
-  });
+  Future<void> dismiss(Volunteer v) async {
+    await _offer(v.id).update({
+      'open': false,
+      'closedBy': {'email': roles.me, 'name': roles.myName},
+    });
+    await forget('vol|');
+  }
 }
