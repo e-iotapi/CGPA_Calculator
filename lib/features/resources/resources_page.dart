@@ -668,6 +668,8 @@ class _ResourcesPageState extends State<ResourcesPage> {
     final dual = programmesOf(selecteddiscipline).length > 1;
     final now = takingNow();
     return Loaded<List<_Degree>>(
+      // A reopen shows the last links at once and refreshes behind them.
+      cacheKey: 'resources|$campus|${programmesOf(selecteddiscipline).join(',')}',
       load: _load,
       builder: (context, degrees, reload) {
         final keep = [

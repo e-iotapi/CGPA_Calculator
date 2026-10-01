@@ -108,6 +108,7 @@ class _ReviewsHomeState extends State<ReviewsHome> {
     if (_yours) {
       return Loaded<List<Review>>(
         key: ValueKey('mine$_loads'),
+        cacheKey: 'reviews-mine|${myReviewedCourses().join(',')}',
         load:
             () async => [
               for (final id in myReviewedCourses())
@@ -203,6 +204,8 @@ class _ReviewsHomeState extends State<ReviewsHome> {
       })
     >(
       key: ValueKey('courses$_loads'),
+      // A reopen shows the last numbers at once and refreshes behind them.
+      cacheKey: 'reviews-courses|$campus|${now.join(',')}',
       load:
           () async => (
             now: [for (final id in now) await store.stats(id, campus)],

@@ -112,6 +112,7 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
     ];
     return Loaded<_Data>(
       key: ValueKey(_loads),
+      cacheKey: 'representatives|$_campus|${courses.join(',')}',
       load: () => _load(courses),
       builder: (context, data, _) {
         final now = DateTime.now();
