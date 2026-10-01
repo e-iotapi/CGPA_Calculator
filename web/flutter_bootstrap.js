@@ -97,6 +97,10 @@
 // to that stub on their own, which cleans up the old app's worker.
 _flutter.loader.load({
   config: {
+    // Flutter keeps the WebAssembly build (skwasm) off for WebKit unless the
+    // app opts in. It only matters for a --wasm build (the staging-wasm
+    // preview, TM-14); a JS-only build has no wasm candidate to pick.
+    wasmAllowList: { webkit: true },
     // CanvasKit from this site, not www.gstatic.com: the same brotli bytes
     // over the connection already open, without a DNS and TLS handshake to
     // a second host on the cold load's critical path (TM-10).
