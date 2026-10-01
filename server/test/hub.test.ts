@@ -221,7 +221,19 @@ describe("CampusHub", () => {
     expect(c.sent[0].me).toBe(2);
   });
 
-  it("drops a second pokeMe from the same uid within 2s", async () => {
+  it("limits pokeMe per socket: another device of the same uid is not dropped", async () => {
+    vi.mocked(readDoc).mockResolvedValue({});
+    const { hub, connect } = makeHub();
+    const phone = await connect("u1");
+    const laptop = await connect("u1");
+    await hub.webSocketMessage(phone as any, JSON.stringify({ t: "pokeMe" }));
+    vi.advanceTimersByTime(500);
+    await hub.webSocketMessage(laptop as any, JSON.stringify({ t: "pokeMe" }));
+    await hub.webSocketMessage(phone as any, JSON.stringify({ t: "pokeMe" })); // same socket, too soon
+    expect(phone.sent.slice(1)).toEqual([{ t: "me", v: 1 }, { t: "me", v: 2 }]);
+  });
+
+  it("drops a second pokeMe from the same socket within 2s", async () => {
     vi.mocked(readDoc).mockResolvedValue({});
     const { hub, connect } = makeHub();
     const a = await connect("u1");

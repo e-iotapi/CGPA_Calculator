@@ -31,7 +31,7 @@ export class CampusHub extends DurableObject<Env> {
   private armed = false; // an alarm is pending (in memory; re-checked via getAlarm after hibernation)
   private lastReadAt = 0;
   private retries = 0;
-  private pokeMeAt = new Map<string, number>(); // uid -> last admitted pokeMe
+  private pokeMeAt = new WeakMap<WebSocket, number>(); // socket (device) -> last admitted pokeMe; resets on hibernation
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -89,9 +89,8 @@ export class CampusHub extends DurableObject<Env> {
     } else if (msg.t === "pokeMe") {
       const uid = this.ctx.getTags(ws)[0];
       const now = Date.now();
-      if (now - (this.pokeMeAt.get(uid) ?? -Infinity) < POKE_ME_GAP_MS) return;
-      if (this.pokeMeAt.size > 1000) this.pokeMeAt.clear(); // ponytail: crude bound; resets limits for everyone
-      this.pokeMeAt.set(uid, now);
+      if (now - (this.pokeMeAt.get(ws) ?? -Infinity) < POKE_ME_GAP_MS) return;
+      this.pokeMeAt.set(ws, now);
       this.ctx.storage.sql.exec(
         "INSERT INTO users (uid, v) VALUES (?, 1) ON CONFLICT(uid) DO UPDATE SET v = v + 1",
         uid
