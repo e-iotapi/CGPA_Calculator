@@ -43,6 +43,17 @@ MaintainStore get _store => MaintainStore(roleStore!);
 /// The term maintainers edit: the one running now.
 String get maintainedTerm => currentTerm(DateTime.now());
 
+/// [courseId]'s scheme as Firestore holds it now, for an editor that saves
+/// the whole document: a cached copy could overwrite a newer save. The
+/// cached copy when the read fails (offline).
+Future<Offering?> freshOffering(
+  String courseId,
+  String campus,
+  Offering? cached,
+) => _store
+    .offering(courseId, campus, maintainedTerm, fresh: true)
+    .catchError((Object _) => cached);
+
 /// [dept]'s courses on offer, by code (§4: electronics is one department).
 List<Mastercourselist> deptCourses(String dept) =>
     catalog.master
@@ -534,6 +545,12 @@ class _DeptCoursesState extends State<DeptCourses> {
                     o: offerings[c.id],
                     cr: crs[c.id],
                     onTap: () async {
+                      final existing = await freshOffering(
+                        c.id,
+                        widget.campus,
+                        offerings[c.id],
+                      );
+                      if (!context.mounted) return;
                       final saved = await Navigator.of(context).push<bool>(
                         MaterialPageRoute(
                           builder:
@@ -541,7 +558,7 @@ class _DeptCoursesState extends State<DeptCourses> {
                                 courseId: c.id,
                                 campus: widget.campus,
                                 term: maintainedTerm,
-                                existing: offerings[c.id],
+                                existing: existing,
                               ),
                         ),
                       );
@@ -961,6 +978,8 @@ class CrHome extends StatelessWidget {
       peek: () => _store.peekOffering(courseId, campus, maintainedTerm),
       builder: (context, o, reload) {
         Future<void> edit() async {
+          final existing = await freshOffering(courseId, campus, o);
+          if (!context.mounted) return;
           final saved = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
               builder:
@@ -968,7 +987,7 @@ class CrHome extends StatelessWidget {
                     courseId: courseId,
                     campus: campus,
                     term: maintainedTerm,
-                    existing: o,
+                    existing: existing,
                   ),
             ),
           );
