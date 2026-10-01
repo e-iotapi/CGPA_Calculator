@@ -124,7 +124,8 @@ different data.
 
 `main()` signs the user in, then `startApp()` opens local data and draws the
 first frame. Nothing on the network blocks the first frame except the very
-first sync on a new device.
+first sync on a new device. The page itself starts Firebase's app and Auth
+(the saved-user check) while the engine downloads; `main()` reuses them.
 
 ```mermaid
 sequenceDiagram
@@ -136,8 +137,9 @@ sequenceDiagram
   participant S as Sync
   participant F as Firestore
 
+  B->>A: page starts Firebase app + Auth (saved-user check)
   B->>M: load main.dart.js
-  M->>A: initializeApp, wait for the saved user
+  M->>A: initializeApp (reuses the page's), wait for the saved user
   alt not signed in, or not a BITS student
     M-->>B: sign-in screen (or refusal)
   else signed in
