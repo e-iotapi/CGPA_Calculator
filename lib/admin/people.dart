@@ -163,6 +163,11 @@ bool expiresSoon(Grant g, [DateTime? now]) {
   return g.active && left >= 0 && left <= 7;
 }
 
+List<Grant> _byRole(List<Grant> all) => all..sort((a, b) {
+  final r = a.role.index.compareTo(b.role.index);
+  return r != 0 ? r : a.name.compareTo(b.name);
+});
+
 /// Board `AdminPeople`: every grant, filtered by campus or expiring soon;
 /// tap one for that person's recent edits and the revoke button.
 class AdminPeople extends StatefulWidget {
@@ -184,12 +189,10 @@ class _AdminPeopleState extends State<AdminPeople> {
   @override
   Widget build(BuildContext context) => Loaded<List<Grant>>(
     cacheKey: 'people-roster',
-    load: () async {
-      final all = await roleStore!.roster();
-      return all..sort((a, b) {
-        final r = a.role.index.compareTo(b.role.index);
-        return r != 0 ? r : a.name.compareTo(b.name);
-      });
+    load: () async => _byRole(await roleStore!.roster()),
+    peek: () => switch (roleStore!.peekRoster()) {
+      final all? => _byRole(all),
+      _ => null,
     },
     builder: (context, grants, reload) {
       final shown = grants.where(_shows).toList();
@@ -350,6 +353,7 @@ class _PersonPageState extends State<PersonPage> {
         Loaded<List<AuditEntry>>(
           cacheKey: 'people-recent-edits|${_g.email}',
           load: () => roleStore!.audit(actor: _g.email, limit: 20),
+          peek: () => roleStore!.peekAudit(actor: _g.email, limit: 20),
           builder:
               (context, entries, _) =>
                   entries.isEmpty

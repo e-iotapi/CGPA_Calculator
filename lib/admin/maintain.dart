@@ -385,6 +385,27 @@ class DeptCourses extends StatefulWidget {
     );
   }
 
+  /// [load] from the saved copies; null if any part is not saved.
+  static (Map<String, Offering>, Map<String, String>)? peek(
+    String campus,
+    String dept,
+  ) {
+    final offerings = _store.peekOfferings(
+      deptCourses(dept).map((c) => c.id),
+      campus,
+      maintainedTerm,
+    );
+    final grants = roleStore!.peekRoster(campus: campus);
+    if (offerings == null || grants == null) return null;
+    return (
+      offerings,
+      {
+        for (final g in grants)
+          if (g.active && g.role == GrantRole.course) g.scope: g.email,
+      },
+    );
+  }
+
   @override
   State<DeptCourses> createState() => _DeptCoursesState();
 }
@@ -455,6 +476,7 @@ class _DeptCoursesState extends State<DeptCourses> {
       key: ValueKey(_loads),
       cacheKey: DeptCourses.cacheKey(widget.campus, widget.dept),
       load: () => DeptCourses.load(widget.campus, widget.dept),
+      peek: () => DeptCourses.peek(widget.campus, widget.dept),
       builder: (context, data, reload) {
         final (offerings, crs) = data;
         final q = _search.text.trim().toLowerCase();
@@ -936,6 +958,7 @@ class CrHome extends StatelessWidget {
     return Loaded<Offering?>(
       cacheKey: 'cr-home|$campus|$courseId',
       load: () => _store.offering(courseId, campus, maintainedTerm),
+      peek: () => _store.peekOffering(courseId, campus, maintainedTerm),
       builder: (context, o, reload) {
         Future<void> edit() async {
           final saved = await Navigator.of(context).push<bool>(

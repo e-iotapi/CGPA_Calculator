@@ -114,6 +114,22 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
       key: ValueKey(_loads),
       cacheKey: 'representatives|$_campus|${courses.join(',')}',
       load: () => _load(courses),
+      peek: () {
+        final store = contactStore!;
+        final people = store.peekDirectory(_campus!);
+        if (people == null) return null;
+        final now = DateTime.now();
+        final offers = <String, Volunteer?>{};
+        for (final c in courses) {
+          final hasCr = people.any(
+            (p) => p
+                .liveAt(now)
+                .any((r) => r.role == GrantRole.course && r.scope == c),
+          );
+          if (!hasCr) offers[c] = store.peekMyOffer(_campus!, c);
+        }
+        return (people: people, offers: offers);
+      },
       builder: (context, data, _) {
         final now = DateTime.now();
         List<(DirectoryEntry, ListedRole)> holders(

@@ -139,6 +139,30 @@ Future<_Data> _loadDept(String campus, String dept) async {
   return (profs: profs, teaching: teaching, last: last);
 }
 
+/// [_loadDept] from the saved copies; null if any part is not saved.
+_Data? _peekDept(String campus, String dept) {
+  final profs = _store.peekDepartment(campus, dept);
+  final offerings = MaintainStore(
+    roleStore!,
+  ).peekOfferings(deptCourses(dept).map((c) => c.id), campus, maintainedTerm);
+  if (profs == null || offerings == null) return null;
+  final teaching = <String, List<String>>{};
+  for (final o in offerings.values) {
+    for (final id in o.professors) {
+      (teaching[id] ??= []).add(o.courseId);
+    }
+  }
+  final last = <String, String>{};
+  for (final x in profs) {
+    if (teaching.containsKey(x.id)) continue;
+    final taught = _store.peekTaught(x, campus);
+    if (taught == null) return null;
+    final terms = [for (final l in taught.values) ...l]..sort();
+    if (terms.isNotEmpty) last[x.id] = terms.last;
+  }
+  return (profs: profs, teaching: teaching, last: last);
+}
+
 /// Board `DeptProfessors`: one entry per person, reused every term. Search
 /// comes before Add (§10.1).
 class DeptProfessors extends StatefulWidget {
@@ -174,6 +198,7 @@ class _DeptProfessorsState extends State<DeptProfessors> {
       cacheKey: 'professors|${widget.campus}|${widget.dept}',
       key: ValueKey(_loads),
       load: () => _loadDept(widget.campus, widget.dept),
+      peek: () => _peekDept(widget.campus, widget.dept),
       builder: (context, data, _) {
         final q = _search.text.trim();
         final shown = data.profs.where((x) => x.matches(q)).toList();
@@ -750,6 +775,7 @@ class _TakenByState extends State<TakenBy> {
     return Loaded<List<Professor>>(
       cacheKey: 'professors-taken|${widget.campus}|${deptOf(widget.courseId)}',
       load: () => _store.department(widget.campus, deptOf(widget.courseId)),
+      peek: () => _store.peekDepartment(widget.campus, deptOf(widget.courseId)),
       builder: (context, profs, _) {
         final byId = {for (final x in profs) x.id: x};
         final ids = widget.offering?.professors ?? const <String>[];

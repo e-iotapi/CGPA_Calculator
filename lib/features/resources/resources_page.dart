@@ -671,6 +671,19 @@ class _ResourcesPageState extends State<ResourcesPage> {
       // A reopen shows the last links at once and refreshes behind them.
       cacheKey: 'resources|$campus|${programmesOf(selecteddiscipline).join(',')}',
       load: _load,
+      peek: () {
+        final store = resourceStore, campus = viewCampus();
+        if (store == null || campus == null) return null;
+        final out = <_Degree>[];
+        for (final code in programmesOf(selecteddiscipline)) {
+          final dept = departmentOfProgramme(code);
+          if (dept == null) continue;
+          final links = store.peekDepartment(campus, dept);
+          if (links == null) return null;
+          out.add((code: code, dept: dept, links: links));
+        }
+        return out;
+      },
       builder: (context, degrees, reload) {
         final keep = [
           for (final d in degrees)

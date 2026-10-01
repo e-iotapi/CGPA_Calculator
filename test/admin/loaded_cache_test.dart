@@ -50,4 +50,23 @@ void main() {
     await tester.pump();
     expect(find.text('old'), findsOneWidget);
   });
+
+  testWidgets('a peeked value shows in the first frame', (t) async {
+    final c = Completer<String>();
+    await t.pumpWidget(MaterialApp(home: Loaded<String>(
+      peek: () => 'saved', load: () => c.future,
+      builder: (_, v, _) => Text(v))));
+    expect(find.text('saved'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    c.complete('fresh'); await t.pump();
+    expect(find.text('fresh'), findsOneWidget);
+  });
+
+  testWidgets('a failed load keeps the peeked value', (t) async {
+    await t.pumpWidget(MaterialApp(home: Loaded<String>(
+      peek: () => 'saved', load: () async => throw StateError('offline'),
+      builder: (_, v, _) => Text(v))));
+    await t.pump();
+    expect(find.text('saved'), findsOneWidget);
+  });
 }

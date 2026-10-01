@@ -376,6 +376,11 @@ class _SiteAnalyticsState extends State<SiteAnalytics> {
         ]);
         return (r[0] as PeopleCounts, r[1] as List<DayCounts>);
       },
+      peek: () {
+        final counts = store.peekCounts(campus: _campus);
+        final days = store.peekDays(30, campus: _campus);
+        return counts == null || days == null ? null : (counts, days);
+      },
       builder: (context, data, _) {
         final (people, days) = data;
         final today = days.first;

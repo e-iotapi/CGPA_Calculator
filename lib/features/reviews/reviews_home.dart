@@ -114,6 +114,15 @@ class _ReviewsHomeState extends State<ReviewsHome> {
               for (final id in myReviewedCourses())
                 if (await store.mine(id) case final r?) r,
             ],
+        peek: () {
+          final out = <Review>[];
+          for (final id in myReviewedCourses()) {
+            final r = store.peekMine(id);
+            if (r == null) return null;
+            out.add(r);
+          }
+          return out;
+        },
         builder: (context, mine, _) {
           final mq = _mine.text.trim().toLowerCase();
           final sorted = [
@@ -211,6 +220,16 @@ class _ReviewsHomeState extends State<ReviewsHome> {
             now: [for (final id in now) await store.stats(id, campus)],
             top: await store.mostReviewed(campus),
           ),
+      peek: () {
+        final stats = <ReviewStats>[];
+        for (final id in now) {
+          final s = store.peekStats(id, campus);
+          if (s == null) return null;
+          stats.add(s);
+        }
+        final top = store.peekMostReviewed(campus);
+        return top == null ? null : (now: stats, top: top);
+      },
       builder:
           (context, data, _) => PageFrame(
             header: header,
