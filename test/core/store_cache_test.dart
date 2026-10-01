@@ -280,6 +280,25 @@ void main() {
     expect(ms.peekCampusOfferings('goa', 'T1'), isNull);
   });
 
+  test('a fresh offering read skips the saved copy and saves the result', () async {
+    final ms = MaintainStore(roles);
+    const o = Offering(
+      courseId: 'CS F111',
+      campus: 'goa',
+      term: 'T1',
+      components: [],
+      updatedAt: 1,
+    );
+    await ms.save(o, 'Saved');
+    expect(await ms.offering('CS F111', 'goa', 'T1'), isNotNull);
+    // Changed behind this device's back; the saved copy is still current.
+    await db.doc(MaintainStore.pathOf('CS F111', 'goa', 'T1')).delete();
+    expect(await ms.offering('CS F111', 'goa', 'T1'), isNotNull);
+    expect(await ms.offering('CS F111', 'goa', 'T1', fresh: true), isNull);
+    expect(ms.peekOffering('CS F111', 'goa', 'T1'), isNull);
+    expect(await ms.offering('CS F111', 'goa', 'T1'), isNull);
+  });
+
   test('analytics reads are saved', () async {
     await db.doc('analytics/2026-10-02').set({
       'sample': 20,
