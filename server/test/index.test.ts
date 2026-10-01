@@ -59,6 +59,7 @@ describe("GET /heads/:campus", () => {
     store.clear();
     const bad = await call("/heads/goa", { headers: { Origin: "https://evil.example" } });
     expect(bad.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    expect(bad.headers.get("Vary")).toContain("Origin");
   });
 
   it("does not leak one origin's CORS header to another via the cache", async () => {

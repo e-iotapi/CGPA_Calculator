@@ -12,8 +12,8 @@ function withCors(res: Response, req: Request, env: Env): Response {
   if (origin && (env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).includes(origin)) {
     out.headers.set("Access-Control-Allow-Origin", origin);
     out.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    out.headers.append("Vary", "Origin");
   }
+  out.headers.append("Vary", "Origin");
   return out;
 }
 

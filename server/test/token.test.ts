@@ -11,12 +11,12 @@ function b64url(data: string | ArrayBuffer): string {
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-async function genKey() {
-  return crypto.subtle.generateKey(
+async function genKey(): Promise<CryptoKeyPair> {
+  return (await crypto.subtle.generateKey(
     { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
     true,
     ["sign", "verify"]
-  );
+  )) as CryptoKeyPair;
 }
 
 async function sign(priv: CryptoKey, claims: Record<string, unknown>, kid = "k1"): Promise<string> {

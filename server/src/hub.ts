@@ -5,7 +5,9 @@ type Versions = Record<string, number>;
 
 const HEAD_TTL_MS = 60_000;
 const ALARM_DELAY_MS = 1_500;
-const POKE_GAP_MS = 2_000;
+const MIN_READ_GAP_MS = 5_000;
+const RETRY_MS = 5_000;
+const MAX_RETRIES = 3;
 
 /** Paths in `next` whose version differs from `prev` (new paths count as moved). */
 export function diffVersions(prev: Versions, next: Versions): Versions {
@@ -14,21 +16,15 @@ export function diffVersions(prev: Versions, next: Versions): Versions {
   return out;
 }
 
-/** True (and records `now`) if `key` has not been admitted in the last `gap` ms. */
-export function allow(seen: Map<string, number>, key: string, now: number, gap: number): boolean {
-  const t = seen.get(key);
-  if (t !== undefined && now - t < gap) return false;
-  seen.set(key, now);
-  return true;
-}
-
 const numbersOnly = (d: Record<string, unknown> | null): Versions =>
   Object.fromEntries(Object.entries(d ?? {}).filter(([, v]) => typeof v === "number")) as Versions;
 
 export class CampusHub extends DurableObject<Env> {
   private cache: { head: Versions; at: number } | null = null;
   private last: Versions | null = null; // what clients were last told
-  private pokes = new Map<string, number>();
+  private armed = false; // an alarm is pending (in memory; re-checked via getAlarm after hibernation)
+  private lastReadAt = 0;
+  private retries = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -48,17 +44,18 @@ export class CampusHub extends DurableObject<Env> {
   async sendHello(ws: WebSocket, uid: string, campus: string): Promise<void> {
     await this.ctx.storage.put("campus", campus);
     let head: Versions;
+    let good: Versions | null = null; // a head that really came from Firestore
     const now = Date.now();
-    if (this.cache && now - this.cache.at < HEAD_TTL_MS) head = this.cache.head;
+    if (this.cache && now - this.cache.at < HEAD_TTL_MS) head = good = this.cache.head;
     else {
       try {
-        head = numbersOnly(await readDoc(`heads/${campus}`, this.env));
+        head = good = numbersOnly(await readDoc(`heads/${campus}`, this.env));
+        this.cache = { head, at: now };
       } catch {
         head = this.cache?.head ?? {};
       }
-      this.cache = { head, at: now };
     }
-    this.last ??= (await this.ctx.storage.get<Versions>("last")) ?? head;
+    this.last ??= (await this.ctx.storage.get<Versions>("last")) ?? good;
     ws.send(JSON.stringify({ t: "hello", head, me: this.me(uid) }));
   }
 
@@ -76,9 +73,12 @@ export class CampusHub extends DurableObject<Env> {
       return;
     }
     if (msg.t === "poke" && typeof msg.path === "string" && msg.path.length <= 256) {
+      // ponytail: reads are capped at one per MIN_READ_GAP_MS (~17k/day per campus under abuse); no per-path limit
+      if (this.armed) return;
+      this.armed = true;
+      if ((await this.ctx.storage.getAlarm()) !== null) return;
       const now = Date.now();
-      if (!allow(this.pokes, msg.path, now, POKE_GAP_MS)) return;
-      if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(now + ALARM_DELAY_MS);
+      await this.ctx.storage.setAlarm(Math.max(now + ALARM_DELAY_MS, this.lastReadAt + MIN_READ_GAP_MS));
     } else if (msg.t === "pokeMe") {
       const uid = this.ctx.getTags(ws)[0];
       this.ctx.storage.sql.exec(
@@ -91,14 +91,21 @@ export class CampusHub extends DurableObject<Env> {
   }
 
   async alarm(): Promise<void> {
+    this.armed = false;
+    this.lastReadAt = Date.now();
     const campus = await this.ctx.storage.get<string>("campus");
     if (!campus) return;
     let next: Versions;
     try {
       next = numbersOnly(await readDoc(`heads/${campus}`, this.env));
     } catch {
-      return; // ponytail: no retry; the next poke re-arms the alarm
+      if (this.retries++ < MAX_RETRIES) {
+        this.armed = true;
+        await this.ctx.storage.setAlarm(Date.now() + RETRY_MS);
+      }
+      return;
     }
+    this.retries = 0;
     this.cache = { head: next, at: Date.now() };
     const prev = this.last ?? (await this.ctx.storage.get<Versions>("last")) ?? {};
     const diff = diffVersions(prev, next);

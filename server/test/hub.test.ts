@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { CampusHub, diffVersions, allow } from "../src/hub";
+import { CampusHub, diffVersions } from "../src/hub";
 import { readDoc } from "../src/firestore";
 
 vi.mock("../src/firestore", () => ({ readDoc: vi.fn() }));
@@ -64,14 +64,6 @@ describe("pure helpers", () => {
     expect(diffVersions({ a: 1 }, { a: 1 })).toEqual({});
     expect(diffVersions({}, { a: 1 })).toEqual({ a: 1 });
   });
-
-  it("allow() admits one per key per window", () => {
-    const m = new Map<string, number>();
-    expect(allow(m, "x", 0, 2000)).toBe(true);
-    expect(allow(m, "x", 1999, 2000)).toBe(false);
-    expect(allow(m, "y", 1999, 2000)).toBe(true);
-    expect(allow(m, "x", 2000, 2000)).toBe(true);
-  });
 });
 
 describe("CampusHub", () => {
@@ -108,19 +100,81 @@ describe("CampusHub", () => {
     expect(readDoc).toHaveBeenCalledTimes(1);
   });
 
-  it("rate-limits repeat pokes of one path to 1 per 2s", async () => {
+  it("a poke while an alarm is armed sets no new alarm", async () => {
+    vi.mocked(readDoc).mockResolvedValue({});
+    const { hub, connect, setAlarm } = makeHub();
+    const ws = await connect("u1");
+    const poke = (path: string) => hub.webSocketMessage(ws as any, JSON.stringify({ t: "poke", path }));
+    await poke("p");
+    vi.setSystemTime(1_000_000 + 1000);
+    await poke("p");
+    await poke("q");
+    expect(setAlarm).toHaveBeenCalledTimes(1);
+  });
+
+  it("a poke right after the alarm fired re-arms, no sooner than the read gap", async () => {
     vi.mocked(readDoc).mockResolvedValue({});
     const { hub, connect, setAlarm, clearAlarm } = makeHub();
     const ws = await connect("u1");
     const poke = () => hub.webSocketMessage(ws as any, JSON.stringify({ t: "poke", path: "p" }));
     await poke();
+    vi.setSystemTime(1_000_000 + 1500);
     clearAlarm();
-    vi.setSystemTime(1_000_000 + 1000);
-    await poke();
-    expect(setAlarm).toHaveBeenCalledTimes(1);
-    vi.setSystemTime(1_000_000 + 2000);
+    await hub.alarm();
+    vi.setSystemTime(1_000_000 + 1600);
     await poke();
     expect(setAlarm).toHaveBeenCalledTimes(2);
+    expect(setAlarm).toHaveBeenLastCalledWith(1_000_000 + 1500 + 5000);
+  });
+
+  it("an existing alarm found after hibernation is not re-set", async () => {
+    vi.mocked(readDoc).mockResolvedValue({});
+    const { hub, ctx, connect, setAlarm } = makeHub();
+    const ws = await connect("u1");
+    await ctx.storage.setAlarm(1_000_000 + 900);
+    setAlarm.mockClear();
+    await hub.webSocketMessage(ws as any, JSON.stringify({ t: "poke", path: "p" }));
+    expect(setAlarm).not.toHaveBeenCalled();
+  });
+
+  it("a failed hello read is not cached and does not seed what clients were told", async () => {
+    vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
+    const { hub, connect } = makeHub();
+    const w1 = await connect("u1");
+    expect(w1.sent[0].head).toEqual({});
+    vi.mocked(readDoc).mockResolvedValue({ a: 1 });
+    const w2 = await connect("u2");
+    expect(readDoc).toHaveBeenCalledTimes(2);
+    expect(w2.sent[0].head).toEqual({ a: 1 });
+    await hub.alarm();
+    expect(w2.sent).toHaveLength(1); // last was seeded from the good read, so no diff
+  });
+
+  it("a failed hello read leaves last unseeded so the alarm broadcasts the full head", async () => {
+    vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
+    const { hub, connect } = makeHub();
+    const ws = await connect("u1");
+    vi.mocked(readDoc).mockResolvedValue({ a: 1 });
+    await hub.alarm();
+    expect(ws.sent[1]).toEqual({ t: "head", v: { a: 1 } });
+  });
+
+  it("a failed alarm read retries in 5s, at most 3 times in a row", async () => {
+    vi.mocked(readDoc).mockResolvedValue({ a: 1 });
+    const { hub, connect, setAlarm } = makeHub();
+    await connect("u1");
+    vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
+    for (let i = 0; i < 3; i++) await hub.alarm();
+    expect(setAlarm).toHaveBeenCalledTimes(3);
+    expect(setAlarm).toHaveBeenLastCalledWith(1_000_000 + 5000);
+    await hub.alarm();
+    expect(setAlarm).toHaveBeenCalledTimes(3);
+    // success resets the counter
+    vi.mocked(readDoc).mockResolvedValue({ a: 2 });
+    await hub.alarm();
+    vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
+    await hub.alarm();
+    expect(setAlarm).toHaveBeenCalledTimes(4);
   });
 
   it("alarm broadcasts only the diff, to every socket", async () => {
