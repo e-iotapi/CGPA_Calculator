@@ -7,6 +7,7 @@ library;
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -339,6 +340,8 @@ class ContactStore {
       await roles.putRepCopy(b, campus, roles.me, entry);
     }
     await b.commit();
+    LiveHeads.poke(Paths.staff);
+    if (listed.isNotEmpty) LiveHeads.poke(Paths.reps);
     await sharedCacheBox?.delete('reps|${campusOfAddress(roles.me) ?? ''}');
     await forget('dirme|');
     await forget('staffme|');
@@ -488,6 +491,7 @@ class ContactStore {
     });
     bumpPath(b, db, campus, Paths.volunteers(deptOf(courseId)));
     await b.commit();
+    LiveHeads.poke(Paths.volunteers(deptOf(courseId)));
     await forget('offer|$campus|');
     await forget('vol|');
   }
@@ -498,6 +502,7 @@ class ContactStore {
     b.update(_offer(v.id), {'open': false});
     bumpPath(b, db, v.campus, Paths.volunteers(deptOf(v.courseId)));
     await b.commit();
+    LiveHeads.poke(Paths.volunteers(deptOf(v.courseId)));
     await forget('offer|${v.campus}|');
     await forget('vol|');
   }
@@ -560,6 +565,7 @@ class ContactStore {
     });
     bumpPath(b, db, v.campus, Paths.volunteers(deptOf(v.courseId)));
     await b.commit();
+    LiveHeads.poke(Paths.volunteers(deptOf(v.courseId)));
     await forget('vol|');
   }
 }

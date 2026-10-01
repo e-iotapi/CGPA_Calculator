@@ -1,6 +1,7 @@
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -198,6 +199,7 @@ class ProfessorStore {
     });
     bumpPath(b, db, campus, Paths.professors(department));
     await b.commit();
+    LiveHeads.poke(Paths.professors(department));
     await _forget(campus);
     return _names[ref.id] = Professor(
       id: ref.id,
@@ -231,6 +233,7 @@ class ProfessorStore {
     });
     bumpPath(b, db, p.campus, Paths.professors(p.department));
     await b.commit();
+    LiveHeads.poke(Paths.professors(p.department));
     await _forget(p.campus);
     _names.remove(p.id);
   }
@@ -270,6 +273,8 @@ class ProfessorStore {
       bumpPath(b, db, p.$1, Paths.professors(p.$2));
     }
     await b.commit();
+    LiveHeads.poke(Paths.professors(keep.department));
+    LiveHeads.poke(Paths.professors(absorbed.department));
     await _forget(keep.campus);
     _names
       ..remove(keep.id)

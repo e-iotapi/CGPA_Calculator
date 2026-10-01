@@ -1,6 +1,7 @@
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -458,7 +459,15 @@ class ReviewStore {
       }
     }
     await b.commit();
+    if (before == null || !before.hidden) _poke(courseId, index: true);
     await _forget(courseId, campus);
+  }
+
+  /// After a commit that moved [courseId]'s review marker (and the index's,
+  /// when a counter moved): tells the live server.
+  void _poke(String courseId, {required bool index}) {
+    LiveHeads.poke(Paths.reviewsOf(courseId));
+    if (index) LiveHeads.poke(Paths.reviews);
   }
 
   /// Drops [courseId]'s cached pages after a write, so the change shows.
@@ -506,6 +515,7 @@ class ReviewStore {
     }
     try {
       await b.commit();
+      if (counter == 'helpful') _poke(r.courseId, index: false);
       await _forget(r.courseId, r.campus);
       return true;
     } on FirebaseException catch (e) {
@@ -594,6 +604,7 @@ class ReviewStore {
       );
     }
     await b.commit();
+    if (countSign != null) _poke(r.courseId, index: true);
     await _forget(r.courseId, r.campus);
   }
 

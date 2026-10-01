@@ -6,6 +6,7 @@ library;
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/timings.dart';
@@ -315,6 +316,7 @@ class RoleStore {
     });
     bumpPathOnAllHeads(b, db, Paths.terms);
     await b.commit();
+    LiveHeads.poke(Paths.terms);
     await forget('terms');
     await forget('audit|');
   }
@@ -346,6 +348,7 @@ class RoleStore {
     _bumpGrants(b, g.campus);
     also?.call(b);
     await b.commit();
+    LiveHeads.poke(Paths.grants);
     await forget('roster|');
     await forget('audit|');
   }
@@ -473,6 +476,9 @@ class RoleStore {
         }
       },
     );
+    for (final o in closeOffers) {
+      LiveHeads.poke(Paths.volunteers(deptOf(o.split('|')[1])));
+    }
     return true;
   }
 
@@ -618,6 +624,9 @@ class RoleStore {
       );
     }
     await b.commit();
+    for (final p in [Paths.grants, Paths.staff, Paths.reps]) {
+      LiveHeads.poke(p);
+    }
     await forget('roster|');
     await forget('audit|');
     return true;
@@ -717,6 +726,9 @@ class RoleStore {
       }
     }
     await b.commit();
+    for (final p in [Paths.grants, Paths.staff, Paths.reps]) {
+      LiveHeads.poke(p);
+    }
     await forget('roster|');
     await forget('audit|');
   }
@@ -846,6 +858,7 @@ class RoleStore {
     });
     bumpPathOnAllHeads(b, db, Paths.owners);
     await b.commit();
+    LiveHeads.poke(Paths.owners);
     await forget('owners');
     await forget('audit|');
   }
@@ -870,6 +883,7 @@ class RoleStore {
     });
     bumpPathOnAllHeads(b, db, Paths.owners);
     await b.commit();
+    LiveHeads.poke(Paths.owners);
     await forget('owners');
     await forget('audit|');
   }

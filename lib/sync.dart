@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
@@ -178,7 +179,7 @@ class Sync {
         );
         await _meta.put('pulledAt', DateTime.now().millisecondsSinceEpoch);
         if (q.docs.isEmpty) {
-          if (snapshot() != _meta.get('last')) await push();
+          if (snapshot() != _meta.get('last')) await _push();
           return;
         }
         found = q.docs.first;
@@ -194,12 +195,12 @@ class Sync {
       final cur = snapshot();
       final String? last = _meta.get('last');
       if (!s.exists) {
-        await push(); // new user: seed from local
+        await _push(); // new user: seed from local
         return;
       }
       final int rev = s.data()!['rev'];
       if (rev == _meta.get('rev', defaultValue: 0)) {
-        if (cur != last) await push();
+        if (cur != last) await _push();
         return;
       }
       // server wins; stash anything local that was never pushed
@@ -212,9 +213,30 @@ class Sync {
     }
   }
 
+  /// The pull the live socket asks for when this account moved on another
+  /// device. Never lets a pull race a push: it waits for a push in flight,
+  /// and when local changes are still waiting it pushes them first (the rev
+  /// check then settles any conflict the usual way) instead of pulling over
+  /// them.
+  static Future<void> pullLive() async {
+    await _pushing?.catchError((Object _) {});
+    if (hasUnsynced) {
+      _debounce?.cancel();
+      await push();
+    } else {
+      await pull();
+    }
+  }
+
+  static Future<void>? _pushing;
+
   /// Writes the snapshot to Firestore unless it is unchanged since the last
-  /// push.
-  static Future<void> push() async {
+  /// push. One at a time: a call during a push joins it.
+  static Future<void> push() => _pushing ??= _push().whenComplete(
+    () => _pushing = null,
+  );
+
+  static Future<void> _push() async {
     try {
       final cur = snapshot();
       if (cur == _meta.get('last')) {
@@ -239,6 +261,7 @@ class Sync {
           Perf.markWrite('sync.push.write');
           await _meta.putAll({'rev': base + 1, 'last': cur});
           _dirty = false;
+          LiveHeads.pokeMe();
         } on FirebaseException catch (e) {
           if (e.code != 'permission-denied' && e.code != 'not-found') rethrow;
           await pull(full: true);
@@ -272,6 +295,7 @@ class Sync {
       }
       await _meta.putAll({'rev': newRev, 'last': cur, 'v1ok': true});
       _dirty = false;
+      LiveHeads.pokeMe();
     } catch (e) {
       debugPrint('push failed: $e'); // retried on next change/launch
     }
