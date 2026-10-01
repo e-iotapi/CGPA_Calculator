@@ -40,6 +40,12 @@ describe('the head rule', () => {
       { v: inc('a'), offerings: { x: increment(1) } }, { merge: true }));
   });
 
+  test('a marker key cannot be removed', async () => {
+    await seed(async (db) => { await setDoc(doc(db, 'heads', 'goa'), { v: { a: 2, b: 1 } }); });
+    await assertFails(setDoc(doc(as(STUDENT), 'heads', 'goa'), { v: { a: 2 } }));
+    await assertSucceeds(heads(as(STUDENT), 'goa', inc('a')));
+  });
+
   test('the marker map stays small', async () => {
     const st = as(STUDENT);
     await assertFails(heads(st, 'goa', Object.fromEntries(

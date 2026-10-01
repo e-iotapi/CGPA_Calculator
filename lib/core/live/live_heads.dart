@@ -206,9 +206,8 @@ abstract final class LiveHeads {
       for (final e in v.entries) {
         final n = e.value;
         if (n is! num) continue;
-        // Markers only grow: a late or cached frame never moves one back.
-        final old = marks['${e.key}'];
-        if (old is! num || n > old) {
+        // Equality, not max: a lowered marker costs one re-read, never a freeze.
+        if (marks['${e.key}'] != n.toInt()) {
           marks['${e.key}'] = n.toInt();
           moved = true;
         }
