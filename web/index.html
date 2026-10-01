@@ -33,6 +33,15 @@
     })();
   </script>
 
+  <!-- TM-14 probe: ?dpr=2 makes the engine render at 2x on a 3x screen
+       (44% fewer pixels a frame), to compare iPhone scrolling by feel. -->
+  <script>
+    (function() {
+      var dpr = Number(new URLSearchParams(location.search).get('dpr'));
+      if (dpr > 0) Object.defineProperty(window, 'devicePixelRatio', { get: function() { return dpr; } });
+    })();
+  </script>
+
   <!-- The Firebase JS SDK that FlutterFire imports once main() starts
        (firebase_core_web's supportedFirebaseJsSdkVersion; checked by
        test/env/index_html_test.dart). Preloaded so it downloads during the
