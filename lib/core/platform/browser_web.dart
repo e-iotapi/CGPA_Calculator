@@ -80,11 +80,15 @@ bool isStandalone() {
 bool hasTouch() => web.window.navigator.maxTouchPoints > 0;
 
 /// Logical CPU cores, when the browser exposes it.
-int? hardwareConcurrency() =>
-    (web.window.navigator as JSObject)
-            .getProperty<JSAny?>('hardwareConcurrency'.toJS)
-            ?.dartify()
-        as int?;
+int? hardwareConcurrency() {
+  final v =
+      (web.window.navigator as JSObject)
+          .getProperty<JSAny?>('hardwareConcurrency'.toJS)
+          ?.dartify();
+  // The WebAssembly build gets JS numbers back as doubles: `as int?` threw
+  // there and blanked the app after its first frame.
+  return v is num ? v.toInt() : null;
+}
 
 /// Approximate device RAM in GB (Chrome only; null elsewhere).
 double? deviceMemory() {
