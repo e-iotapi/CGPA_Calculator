@@ -1,3 +1,5 @@
+> **Deprecated (2026-10-02):** the backend work it handed off shipped with the build-out (`deprecated/PERF_TEST_PLAN.md`). Code comments still cite its sections. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # UI rebuild → backend handoff
 
 For the agent building the logic revamp on the other branch. The UI rebuild (branch

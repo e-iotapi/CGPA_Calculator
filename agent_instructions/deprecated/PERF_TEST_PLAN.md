@@ -1,3 +1,5 @@
+> **Deprecated (2026-10-02):** the backend build-out it planned is done (progress tracker: only C3, P7 and D5 deferred). Code still cites its sections by name (e.g. "§A.1"); read them here. Server work continues in `DATA_SYNC_PLAN.md` and `LOADING_SERVER_PLAN.md`. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # Pointer: backend build-out plan (speed, quota, roles, degree fixes, analytics)
 
 > **This file replaces the earlier PERF_TEST_PLAN.md** (commit 5ef00b3). Its Phase T

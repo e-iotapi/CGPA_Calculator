@@ -1,3 +1,5 @@
+> **Deprecated (2026-10-02):** every course this report found missing is now in the catalogue (all 45 codes checked 2026-10-02). Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # Course-requirement gaps — Goa and Hyderabad disciplines
 
 Source: *Different course requirements.pdf* (105 pp.), semester-wise nominal charts for
