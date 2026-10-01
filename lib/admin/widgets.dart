@@ -358,30 +358,81 @@ String problem(Object e) {
   return "Couldn't load this. Try again.";
 }
 
-/// Loads [load] and shows a spinner, the error, or [builder]'s result.
+/// What each keyed [Loaded] screen last showed, for this app session: a
+/// screen opened again shows it at once and refreshes behind it (TM-16).
+final _loadedCache = <String, Object?>{};
+final _loadedInFlight = <String, Future<Object?>>{};
+
+/// Loads [key] once even when a prefetch and the screen ask together.
+Future<T> _loadKeyed<T>(String key, Future<T> Function() load) async =>
+    await (_loadedInFlight[key] ??= load()
+            .then<Object?>((v) => _loadedCache[key] = v)
+            .whenComplete(() {
+              _loadedInFlight.remove(key);
+            }))
+        as T;
+
+/// Loads the screen keyed [key] in the background, so it opens with data.
+/// A failure is dropped: the screen loads (and reports) it on open.
+Future<void> prefetchLoaded<T>(String key, Future<T> Function() load) =>
+    _loadKeyed(key, load).then((_) {}, onError: (Object _) {});
+
+/// Loads [load] and shows a spinner, the error, or [builder]'s result. With
+/// a [cacheKey], a screen opened before shows its last data at once while
+/// [load] refreshes it, and a failed refresh keeps that data.
 class Loaded<T> extends StatefulWidget {
-  const Loaded({super.key, required this.load, required this.builder});
+  const Loaded({
+    super.key,
+    required this.load,
+    required this.builder,
+    this.cacheKey,
+  });
   final Future<T> Function() load;
   final Widget Function(BuildContext, T, VoidCallback reload) builder;
+  final String? cacheKey;
 
   @override
   State<Loaded<T>> createState() => _LoadedState<T>();
 }
 
 class _LoadedState<T> extends State<Loaded<T>> {
-  late Future<T> _f = widget.load();
+  late Future<T> _f = switch (widget.cacheKey) {
+    final key? => _loadKeyed(key, widget.load),
+    null => widget.load(),
+  };
+
+  bool get _cached =>
+      widget.cacheKey != null && _loadedCache.containsKey(widget.cacheKey);
+
+  /// A fresh load (after a change): never shares an earlier one in flight.
+  void _reload() => setState(() {
+    final key = widget.cacheKey;
+    _f =
+        (key == null
+            ? widget.load()
+            : widget.load().then((v) => _loadedCache[key] = v))
+          ..ignore();
+  });
 
   @override
   Widget build(BuildContext context) => FutureBuilder<T>(
     future: _f,
     builder: (context, s) {
+      if (s.hasData && s.connectionState == ConnectionState.done) {
+        return widget.builder(context, s.data as T, _reload);
+      }
+      if (_cached && (s.hasError || s.connectionState != ConnectionState.done)) {
+        if (s.hasError) debugPrint('[Pointer] refresh failed: ${s.error}');
+        return widget.builder(
+          context,
+          _loadedCache[widget.cacheKey] as T,
+          _reload,
+        );
+      }
       if (s.hasError) {
         // A rebuild (and FutureBuilder's own re-subscription) only happens
         // on the next frame, so ignore() keeps a synchronously-rejected
         // reload from being flagged as an unhandled Future error first.
-        void reload() => setState(() {
-          _f = widget.load()..ignore();
-        });
         return Padding(
           padding: const EdgeInsets.all(Space.lg),
           child: Column(
@@ -392,7 +443,7 @@ class _LoadedState<T> extends State<Loaded<T>> {
               SizedBox(
                 height: Sizes.minTouch,
                 child: OutlinedButton(
-                  onPressed: reload,
+                  onPressed: _reload,
                   child: const Text('Try again'),
                 ),
               ),
@@ -406,11 +457,7 @@ class _LoadedState<T> extends State<Loaded<T>> {
           child: Center(child: CircularProgressIndicator()),
         );
       }
-      return widget.builder(context, s.data as T, () {
-        setState(() {
-          _f = widget.load()..ignore();
-        });
-      });
+      return widget.builder(context, s.data as T, _reload);
     },
   );
 }
