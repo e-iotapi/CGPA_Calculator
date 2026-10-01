@@ -36,6 +36,7 @@ void main() {
   late List<(String, List<String>)> dials;
   var failConnect = 0; // fail this many connects first
   var pulls = 0;
+  int? stored; // the persisted last `me`
 
   Future<LiveChannel> connect(String url, List<String> protocols) async {
     dials.add((url, protocols));
@@ -54,6 +55,8 @@ void main() {
     baseUrl: 'https://live.example',
     connect: connect,
     onMe: () async => pulls++,
+    loadMe: () => stored,
+    saveMe: (n) => stored = n,
     retry: (_) => const Duration(milliseconds: 5),
     pokeDelay: const Duration(milliseconds: 40),
   );
@@ -79,6 +82,7 @@ void main() {
     dials = [];
     failConnect = 0;
     pulls = 0;
+    stored = null;
   });
   tearDown(() async {
     LiveHeads.stop();
@@ -200,6 +204,43 @@ void main() {
       c.push({'t': 'me', 'v': 4}); // stale, out of order
       await pumpEventQueue();
       expect(pulls, 1);
+    },
+  );
+
+  test(
+    'a cold launch pulls when hello me is above the saved one, then saves it',
+    () async {
+      stored = 5;
+      start();
+      await pumpEventQueue();
+      chans.single.push({'t': 'hello', 'head': <String, int>{}, 'me': 7});
+      await pumpEventQueue();
+      expect(pulls, 1);
+      expect(stored, 7);
+    },
+  );
+
+  test(
+    'our own pokeMe echo is saved without a pull; a bigger jump pulls',
+    () async {
+      stored = 5;
+      start();
+      await pumpEventQueue();
+      final c = chans.single;
+      c.push({'t': 'hello', 'head': <String, int>{}, 'me': 5});
+      await pumpEventQueue();
+      LiveHeads.pokeMe();
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      c.push({'t': 'me', 'v': 6}); // our own write, echoed
+      await pumpEventQueue();
+      expect(pulls, 0);
+      expect(stored, 6);
+      LiveHeads.pokeMe();
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      c.push({'t': 'me', 'v': 8}); // ours and another device's
+      await pumpEventQueue();
+      expect(pulls, 1);
+      expect(stored, 8);
     },
   );
 

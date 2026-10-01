@@ -178,6 +178,8 @@ Future<void> startApp(User user) async {
           campus,
           () => user.getIdToken(),
           onMe: Sync.pullLive,
+          loadMe: () => Sync.liveMe,
+          saveMe: Sync.setLiveMe,
         );
       }
     });
