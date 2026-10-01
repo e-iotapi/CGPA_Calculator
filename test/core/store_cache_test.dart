@@ -1,6 +1,10 @@
 import 'dart:io';
 
+import 'package:cgpa_calculator/core/analytics/analytics_store.dart';
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/core/professors/professor_store.dart';
+import 'package:cgpa_calculator/core/roles/maintain_store.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
 import 'package:cgpa_calculator/core/reviews/review_store.dart';
@@ -197,5 +201,95 @@ void main() {
     expect(rs.peekMostReviewed('goa')!.single.courseId, 'CS F111');
     expect((await rs.page('CS F111', 'goa')).reviews, hasLength(1));
     expect(rs.peekPage('CS F111', 'goa')!.reviews, hasLength(1));
+  });
+
+  test('a write forgets the saved roster', () async {
+    await db.doc('people/p@goa.bits-pilani.ac.in').set({'name': 'Pat'});
+    expect(await roles.roster(), isEmpty);
+    expect(roles.peekRoster(), isEmpty);
+    expect(roles.peekRoster(campus: 'goa'), isNull);
+    expect(await roles.owners(), isEmpty);
+    expect(roles.peekOwners(), isEmpty);
+    expect((await roles.terms()).crDays, defaultTerms.crDays);
+    expect(roles.peekTerms()!.crDays, defaultTerms.crDays);
+    expect(await roles.audit(campus: 'goa'), isEmpty);
+    expect(roles.peekAudit(campus: 'goa'), isEmpty);
+    expect(roles.peekAudit(campus: 'goa', limit: 5), isNull);
+    final ok = await roles.appoint(
+      role: GrantRole.dept,
+      email: 'p@goa.bits-pilani.ac.in',
+      campus: 'goa',
+      scope: 'CS',
+      expiresAt: DateTime(2099),
+    );
+    expect(ok, isTrue);
+    expect(roles.peekRoster(), isNull);
+    final g = (await roles.roster()).single;
+    expect(roles.peekRoster()!.single.expiresAt, g.expiresAt);
+    expect(roles.peekRoster()!.single.id, g.id);
+    await roles.addOwner('o@goa.bits-pilani.ac.in', 'O');
+    expect(roles.peekOwners(), isNull);
+    expect((await roles.owners()).single['name'], 'O');
+    expect(roles.peekOwners()!.single['name'], 'O');
+    await roles.saveTerms((crDays: 1, presidentDays: 2, adminDays: 3));
+    expect(roles.peekTerms(), isNull);
+  });
+
+  test('professor reads are saved and a write forgets them', () async {
+    await db.doc('professors/p1').set({
+      'name': 'Dr A',
+      'campus': 'goa',
+      'department': 'CS',
+    });
+    final ps = ProfessorStore(db, roles: roles);
+    final rows = await ps.department('goa', 'CS');
+    expect(ps.peekDepartment('goa', 'CS')!.single.name, 'Dr A');
+    expect(ps.peekDepartment('goa', 'EEE'), isNull);
+    expect(await ps.taught(rows.single, 'goa'), isEmpty);
+    expect(ps.peekTaught(rows.single, 'goa'), isEmpty);
+    expect((await ps.get('p1'))!.name, 'Dr A');
+    expect(ps.peekGet('p1')!.name, 'Dr A');
+    await ps.add('Dr B', 'goa', 'CS');
+    expect(ps.peekDepartment('goa', 'CS'), isNull);
+    expect(ps.peekTaught(rows.single, 'goa'), isNull);
+    expect(ps.peekGet('p1'), isNull);
+  });
+
+  test('offerings are saved and a save forgets them', () async {
+    final ms = MaintainStore(roles);
+    const o = Offering(
+      courseId: 'CS F111',
+      campus: 'goa',
+      term: 'T1',
+      components: [],
+      updatedAt: 1,
+    );
+    expect(await ms.offering('CS F111', 'goa', 'T1'), isNull);
+    expect(ms.peekOffering('CS F111', 'goa', 'T1'), isNull);
+    await ms.save(o, 'Saved');
+    final got = await ms.offerings(['CS F111', 'CS F112'], 'goa', 'T1');
+    expect(got.keys, ['CS F111']);
+    expect(ms.peekOfferings(['CS F111'], 'goa', 'T1')!.keys, ['CS F111']);
+    expect(ms.peekOfferings(['CS F111', 'CS F113'], 'goa', 'T1'), isNull);
+    expect((await ms.campusOfferings('goa', 'T1')).single.courseId, 'CS F111');
+    expect(ms.peekCampusOfferings('goa', 'T1')!.single.courseId, 'CS F111');
+    await ms.save(o, 'Again');
+    expect(ms.peekOffering('CS F111', 'goa', 'T1'), isNull);
+    expect(ms.peekCampusOfferings('goa', 'T1'), isNull);
+  });
+
+  test('analytics reads are saved', () async {
+    await db.doc('analytics/2026-10-02').set({
+      'sample': 20,
+      'goa': {'dau': 2},
+    });
+    final a = AnalyticsStore(db);
+    final t = DateTime.utc(2026, 10, 2, 6);
+    expect((await a.days(1, campus: 'goa', now: t)).single.dau, 40);
+    expect(a.peekDays(1, campus: 'goa')!.single.dau, 40);
+    expect(a.peekDays(1), isNull);
+    final c = await a.counts(campus: 'goa', now: t);
+    expect(a.peekCounts(campus: 'goa')!.users, c.users);
+    expect(a.peekCounts(), isNull);
   });
 }
