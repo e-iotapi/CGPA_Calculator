@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -202,6 +203,7 @@ class ResourceStore {
       ref.id,
     );
     await b.commit();
+    LiveHeads.poke(Paths.resources);
     await _dropLocal(r.campus);
     return ref.id;
   }
@@ -245,6 +247,7 @@ class ResourceStore {
     }
     _bump(b, next.campus, next);
     await b.commit();
+    LiveHeads.poke(Paths.resources);
     await _dropLocal(next.campus);
   }
 

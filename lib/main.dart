@@ -25,7 +25,9 @@ import 'package:cgpa_calculator/firebase_options.dart';
 import 'package:cgpa_calculator/firebase_options_staging.dart';
 import 'package:cgpa_calculator/app/prefetch_levels.dart';
 import 'package:cgpa_calculator/app/router.dart';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/prefetch/prefetch.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart' show viewCampus;
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -167,6 +169,18 @@ Future<void> startApp(User user) async {
         }
       })),
     );
+    // The live socket (LOADING_SERVER_PLAN.md D3): moved markers and this
+    // account's version, after the first frame. Off without POINTER_LIVE_URL.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final campus = viewCampus();
+      if (campus != null) {
+        LiveHeads.start(
+          campus,
+          () => user.getIdToken(),
+          onMe: Sync.pullLive,
+        );
+      }
+    });
     // A deep link on a first sign-in has no cached roles yet, and its guard
     // (/maintain, /admin) would send it Home: wait for them (BUG-51).
     // Match the guarded routes, not "any path": prod serves the app at /calculator/.
