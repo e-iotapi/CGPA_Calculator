@@ -223,9 +223,13 @@ class ContactStore {
   DocumentReference<Map<String, dynamic>> _directory(String email) =>
       db.collection('directory').doc(email);
 
-  /// The staff marker of the signed-in person's campus.
-  Future<String?> _staffMarker() =>
-      markerOf(db, campusOfAddress(roles.me), Paths.staff);
+  /// The campus whose head counts the signed-in person's contact: their own
+  /// for a student, goa's otherwise (the staffContacts rule).
+  String get _staffCampus =>
+      isStudentAddress(roles.me) ? campusOfAddress(roles.me)! : 'goa';
+
+  /// The staff marker of the signed-in person's contact.
+  Future<String?> _staffMarker() => markerOf(db, _staffCampus, Paths.staff);
 
   /// The signed-in person's staff contact: name and phone.
   Future<({String name, String phone})?> myStaffContact() async =>
@@ -307,8 +311,8 @@ class ContactStore {
           'email': roles.me,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-    // The rules count a non-BITS owner's contact on goa's head.
-    bumpPath(b, db, campusOfAddress(roles.me) ?? 'goa', Paths.staff);
+    // The rules count anyone but a student's contact on goa's head.
+    bumpPath(b, db, _staffCampus, Paths.staff);
     final listed = listedRoles(r);
     if (listed.isNotEmpty) {
       final wa = whatsapp?.trim();

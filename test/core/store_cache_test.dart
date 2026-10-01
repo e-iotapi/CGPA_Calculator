@@ -374,6 +374,20 @@ void main() {
       expect(await marker('goa', Paths.staff), 1);
     });
 
+    test('a non-student BITS address counts its contact on goa', () async {
+      // The rules: isBits() ? campusOf(me) : 'goa', isBits being the student regex.
+      final fac = RoleStore(db, me: 'rmenon@pilani.bits-pilani.ac.in', myName: 'R');
+      final contacts = ContactStore(fac);
+      await contacts.saveProfile(MyRoles.none, name: 'R', phone: '+911234567');
+      expect(await marker('goa', Paths.staff), 1);
+      expect(await marker('pilani', Paths.staff), isNull);
+      await setMarker('goa', Paths.staff, 5);
+      await headRefresh();
+      await contacts.myStaffContact();
+      final saved = sharedCacheBox!.get('staffme|${fac.me}') as String;
+      expect(jsonDecode(saved)['ver'], '5');
+    });
+
     test('a listed profile also moves reps', () async {
       final r = MyRoles(
         email: _me,
