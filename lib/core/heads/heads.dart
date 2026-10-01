@@ -8,6 +8,7 @@
 library;
 
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/heads/heads_client.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -84,10 +85,14 @@ DocumentReference<Map<String, dynamic>> headRef(
 /// [awaitStale]: wait for the refresh when the cache is old (the catalogue
 /// check does, so a publish lands on the first open past [headMaxAge] rather
 /// than the one after; same single read).
+///
+/// The fetch asks the Worker first when [headsUrl] is set ([worker] swaps it
+/// out for tests), then Firestore if it has nothing or fails.
 Future<Head?> headFor(
   String campus, {
   FirebaseFirestore? db,
   bool awaitStale = false,
+  Future<Map<String, dynamic>?> Function(String campus) worker = workerHead,
 }) async {
   try {
     return await cacheFirst<Head?>(
@@ -95,6 +100,12 @@ Future<Head?> headFor(
       maxAge: headMaxAge,
       awaitStale: awaitStale,
       fetch: () async {
+        try {
+          final w = await worker(campus);
+          if (w != null && w.isNotEmpty) return Head.fromMap(w);
+        } on Object {
+          // fall through to Firestore
+        }
         final m =
             (await headRef(db ?? FirebaseFirestore.instance, campus).get())
                 .data();

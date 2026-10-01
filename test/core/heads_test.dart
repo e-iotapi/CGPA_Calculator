@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/heads/heads_client.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,9 +52,16 @@ void main() {
   });
 
   test('markers: read from v, bumped per campus or on every head', () async {
-    expect(Head.fromMap({'v': {'reps': 3}}).version('reps'), 3);
+    expect(
+      Head.fromMap({
+        'v': {'reps': 3},
+      }).version('reps'),
+      3,
+    );
     expect(Head.fromMap({}).version('reps'), isNull);
-    final h = Head.fromMap({'v': {'reps': 3}});
+    final h = Head.fromMap({
+      'v': {'reps': 3},
+    });
     expect(Head.fromMap(h.toMap()).version('reps'), 3);
 
     final db = FakeFirebaseFirestore();
@@ -71,5 +79,80 @@ void main() {
     expect(goa.version(Paths.owners), 1);
     expect((await headFor('dubai', db: db))!.version(Paths.owners), 1);
     expect((await headFor('dubai', db: db))!.version(Paths.reps), isNull);
+  });
+
+  group('Worker heads', () {
+    test('headFor reads the Worker first', () async {
+      final db = FakeFirebaseFirestore();
+      await db.doc('heads/goa').set({
+        'v': {'reps': 9},
+      });
+      final h = await headFor(
+        'goa',
+        db: db,
+        worker:
+            (c) async => {
+              'v': {'reps': 2},
+            },
+      );
+      expect(h!.version('reps'), 2);
+    });
+
+    test(
+      'a Worker that throws or has no head gives the Firestore head',
+      () async {
+        final db = FakeFirebaseFirestore();
+        await db.doc('heads/goa').set({
+          'v': {'reps': 9},
+        });
+        final h = await headFor(
+          'goa',
+          db: db,
+          worker: (c) async => throw Exception('down'),
+        );
+        expect(h!.version('reps'), 9);
+        await sharedCacheBox!.clear();
+        final h2 = await headFor('goa', db: db, worker: (c) async => {});
+        expect(h2!.version('reps'), 9);
+      },
+    );
+
+    test('workerHead: 200 gives the doc, anything else null', () async {
+      String? asked;
+      Future<({int status, String body})> ok(String u) async {
+        asked = u;
+        return (status: 200, body: '{"v":{"reps":2}}');
+      }
+
+      expect(await workerHead('goa', url: 'https://w.dev/', fetch: ok), {
+        'v': {'reps': 2},
+      });
+      expect(asked, 'https://w.dev/heads/goa');
+      expect(
+        await workerHead(
+          'goa',
+          url: 'https://w.dev',
+          fetch: (u) async => (status: 502, body: ''),
+        ),
+        isNull,
+      );
+      expect(
+        await workerHead(
+          'goa',
+          url: 'https://w.dev',
+          fetch: (u) async => throw Exception('x'),
+        ),
+        isNull,
+      );
+      expect(
+        await workerHead(
+          'goa',
+          url: 'https://w.dev',
+          fetch: (u) async => (status: 200, body: 'nope'),
+        ),
+        isNull,
+      );
+      expect(await workerHead('goa', url: '', fetch: ok), isNull);
+    });
   });
 }
