@@ -4,6 +4,7 @@ export interface Env {
   PROJECT_ID: string;
   FIREBASE_SA: string;
   ALLOWED_ORIGINS?: string;
+  HUB: DurableObjectNamespace;
 }
 
 export type FirestoreValue =

@@ -46,14 +46,14 @@ describe("readDoc", () => {
 
   it("returns null on 404", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 404 })));
-    const result = await readDoc("courses/missing", env);
+    const result = await readDoc("courses/missing", env as any);
     expect(result).toBeNull();
   });
 
   it("decodes the document on success", async () => {
     const body = JSON.stringify({ fields: { title: { stringValue: "X" } } });
     vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status: 200 })));
-    const result = await readDoc("courses/abc", env);
+    const result = await readDoc("courses/abc", env as any);
     expect(result).toEqual({ title: "X" });
   });
 });
