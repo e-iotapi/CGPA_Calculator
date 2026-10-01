@@ -238,6 +238,7 @@ class _SuccessionState extends State<Succession> {
       color: p.textMuted,
     );
     return Loaded<Grant?>(
+      cacheKey: 'succession|${widget.campus}|${widget.dept}',
       key: ValueKey(_loads),
       load: () => _shownGrant(widget.campus, widget.dept),
       builder: (context, mine, _) {

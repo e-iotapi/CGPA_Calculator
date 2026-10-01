@@ -55,6 +55,7 @@ class _RosterPageState extends State<RosterPage> {
     return Loaded<
       (List<Grant>, Map<String, String>, List<Map<String, dynamic>>, int)
     >(
+      cacheKey: 'roster|$campus|$tabCampus|${widget.volunteersTab != null}',
       load: () async {
         final store = roleStore!;
         return (

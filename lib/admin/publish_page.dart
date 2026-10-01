@@ -99,6 +99,7 @@ class _PublishPageState extends State<PublishPage> {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Loaded<List<CourseEdit>>(
+      cacheKey: 'publish-drafts',
       key: ValueKey(_loads),
       load: _store.drafts,
       builder: (context, drafts, reload) {

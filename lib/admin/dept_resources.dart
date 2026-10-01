@@ -552,6 +552,7 @@ class _DeptResourcesState extends State<DeptResources> {
   Widget build(BuildContext context) {
     final course = widget.course;
     return Loaded<_Data>(
+      cacheKey: 'dept-resources|${widget.campus}|${widget.dept}|${widget.course}',
       key: ValueKey(_loads),
       load: _load,
       builder: (context, data, _) {
@@ -860,6 +861,7 @@ class _CourseResourcesState extends State<CourseResources> {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Loaded<_Data>(
+      cacheKey: 'course-resources|${widget.campus}|$_dept|${widget.courseId}',
       key: ValueKey(_loads),
       load: _load,
       builder: (context, data, _) {
