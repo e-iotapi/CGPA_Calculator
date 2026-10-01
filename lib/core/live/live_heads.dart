@@ -30,6 +30,9 @@ abstract final class LiveHeads {
   static bool _started = false, _gaveUp = false;
   static int _failures = 0;
   static int? _lastMe;
+  static int _ownPokes = 0; // pokeMe frames sent whose echo hasn't come back
+  static int? Function()? _loadMe;
+  static void Function(int)? _saveMe;
   static LiveChannel? _ch;
   static Timer? _meTimer;
   static bool _pulling = false, _again = false;
@@ -49,6 +52,8 @@ abstract final class LiveHeads {
     Future<LiveChannel> Function(String url, List<String> protocols) connect =
         connectLive,
     Future<void> Function()? onMe,
+    int? Function()? loadMe,
+    void Function(int)? saveMe,
     Duration Function(int attempt)? retry,
     Duration pokeDelay = const Duration(seconds: 2),
   }) {
@@ -56,6 +61,8 @@ abstract final class LiveHeads {
     _started = true;
     _pokeDelay = pokeDelay;
     _onMe = onMe;
+    _loadMe = loadMe;
+    _saveMe = saveMe;
     final base =
         baseUrl.endsWith('/')
             ? baseUrl.substring(0, baseUrl.length - 1)
@@ -76,7 +83,11 @@ abstract final class LiveHeads {
   static void pokeMe() {
     if (!_started) return;
     _meTimer?.cancel();
-    _meTimer = Timer(_pokeDelay, () => _send({'t': 'pokeMe'}));
+    _meTimer = Timer(_pokeDelay, () {
+      if (_ch == null) return;
+      _ownPokes++;
+      _send({'t': 'pokeMe'});
+    });
   }
 
   /// Closes the socket and ends the loop; [start] can be called again.
@@ -85,6 +96,7 @@ abstract final class LiveHeads {
     _started = _gaveUp = _pulling = _again = false;
     _failures = 0;
     _lastMe = null;
+    _ownPokes = 0;
     _meTimer?.cancel();
     _meTimer = null;
     _ch?.close();
@@ -168,12 +180,12 @@ abstract final class LiveHeads {
     switch (m['t']) {
       case 'hello':
         _merge(campus, m['head']);
-        _me(m['me'], pull: false);
+        _me(m['me'], hello: true);
         return true;
       case 'head':
         _merge(campus, m['v']);
       case 'me':
-        _me(m['v'], pull: true);
+        _me(m['v'], hello: false);
     }
     return false;
   }
@@ -214,13 +226,28 @@ abstract final class LiveHeads {
     }
   }
 
-  static void _me(Object? v, {required bool pull}) {
+  /// [_lastMe] is saved (via [_saveMe]) once this device holds that
+  /// version: at once for the first baseline or our own write's echo, after
+  /// the pull otherwise, so a failed pull is retried at the next hello.
+  static void _me(Object? v, {required bool hello}) {
     if (v is! num) return;
-    final n = v.toInt(), last = _lastMe;
-    if (last != null && n <= last) return;
+    final n = v.toInt(), last = _lastMe ?? _loadMe?.call();
+    final own = !hello && _ownPokes > 0;
+    if (own) _ownPokes--;
+    if (last != null && n <= last) {
+      _lastMe = last;
+      return;
+    }
     _lastMe = n;
-    // The first number only sets the baseline: sign-in has just pulled.
-    if (last != null || pull) unawaited(_pullMe());
+    // No saved number: sign-in has just pulled, so this is the baseline.
+    // Exactly one past the last, right after our own pokeMe: our own write.
+    // ponytail: another device's bump landing in that same step is missed
+    // until the next me or hello; the hub's 2 s pokeMe gap makes it rare.
+    if (last == null || (own && n == last + 1)) {
+      _saveMe?.call(n);
+      return;
+    }
+    unawaited(_pullMe());
   }
 
   static Future<void> _pullMe() async {
@@ -234,7 +261,9 @@ abstract final class LiveHeads {
     try {
       do {
         _again = false;
+        final n = _lastMe;
         await go();
+        if (n != null) _saveMe?.call(n);
       } while (_again);
     } on Object catch (e) {
       debugPrint('live pull: $e');

@@ -156,6 +156,7 @@ class Sync {
   /// synced asks only for a copy with a higher rev, so an unchanged server
   /// sends nothing back (1 read, no 500 KB download); [full] reads it whole.
   static Future<void> pull({bool full = false}) async {
+    _pullFailed = false;
     try {
       final int local = _meta.get('rev', defaultValue: 0);
       DocumentSnapshot<Map<String, dynamic>>? found;
@@ -209,6 +210,7 @@ class Sync {
       await _meta.putAll({'rev': rev, 'last': snapshot()});
       _dirty = false;
     } catch (e) {
+      _pullFailed = true;
       debugPrint('pull failed: $e'); // offline: stay local
     }
   }
@@ -227,7 +229,17 @@ class Sync {
     } else {
       await pull();
     }
+    // Throws when nothing landed, so LiveHeads keeps the old `me` and the
+    // next hello asks again.
+    if (_pullFailed || hasUnsynced) throw StateError('live sync did not land');
   }
+
+  static bool _pullFailed = false;
+
+  /// The last account version the live socket saw, kept beside the rev so a
+  /// cold launch can tell another device moved on while it was closed.
+  static int? get liveMe => _meta.get('liveMe') as int?;
+  static void setLiveMe(int v) => unawaited(_meta.put('liveMe', v));
 
   static Future<void>? _pushing;
 
