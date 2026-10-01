@@ -228,9 +228,15 @@ version from the admin screens.
 ### Heads: one small document per campus
 
 `heads/{campus}` holds version numbers: the catalogue's, the public contact,
-the resource list's, each department's representatives and each course's
-offering (class averages and evaluation scheme). The app reads the head at
-most every 6 hours and fetches only what moved.
+each course's offering (`offerings`, class averages and evaluation scheme)
+and a `v` map with one counter per shared path. The `v` keys are the names in
+`Paths` (`lib/core/heads/paths.dart`): `resources`, `reps`, `reviews`,
+`reviews/<course>`, `professors/<dept>`, `grants`, `volunteers/<dept>`,
+`staff`, and on every campus `owners` and `terms`. Every write moves its
+path's counter in the same batch (`bumpPath`, `bumpPathOnAllHeads`), and the
+rules refuse a write that doesn't (`pathBumped`). A cached copy saved under
+its path's counter stays current until the counter moves, so the app fetches
+only what moved.
 
 ```mermaid
 flowchart LR
@@ -467,6 +473,7 @@ same setup; the first two rows toggled only that change on one build.
 | Missed frames, Settings / Reviews / theme switch (real GPU) | 50 / 32 / 29 % | 23 / 19 / 19 % | CanvasKit draws straight to the screen (`5a58613`) |
 | iPhone 13 scrolling | judder (18–34 screen updates/s) | smooth (owner, by feel) | at most 2× pixel density, 44 % fewer pixels a frame (`a9d7978`) |
 | Reopening Resources, Reviews, Representatives, admin pages | spinner every time | last data at once | per-screen session cache (`a9d7978`, `c78433c`) |
+| Opening Resources, Reviews, Representatives after a relaunch | spinner, then a network read | saved data in the first frame, no spinner (9 of 9 loads) | data kept on the phone, drawn by `peek` (`d468333`–`e4a0897`) |
 
 Tried and ruled out for iPhone scrolling: touch resampling off (`?resample=0`,
 no difference) and the WebAssembly renderer (slightly smoother, not enough on
@@ -479,7 +486,7 @@ About 1.5 s at 4× CPU: ~0.35 s loading the engine and app files from cache,
 ~0.45 s drawing it. The sign-in check overlaps the first two. `window.pointerPerf.timings()`
 prints every startup step in staging and test builds.
 
-### Loading design (being built)
+### Loading design
 
 Goal: no screen waits on the network, including the first open after a
 relaunch. It is the client half of the server plan in
@@ -512,4 +519,34 @@ Level 2 starts 2 s after the first frame so startup stays smooth; each level
 starts when the previous one finishes; anything whose version hasn't moved is
 skipped; prefetch pauses offline and runs once per session; a screen opened
 early jumps the queue.
+
+**Built (`pointer-rebuild`):** the on-phone caches and `peek` (15 of 24
+screens; the rest are drafts and moderation queues), level prefetch, Stage 1
+markers with rules, and the Stage 2 Worker and Stage 3 Durable Object in
+`server/`. The Worker and Durable Object are deployed by the owner; until
+`POINTER_HEADS_URL` and `POINTER_LIVE_URL` are set, the app reads
+`heads/{campus}` from Firestore as before.
+
+**Push (Stage 3):** a writer commits its Firestore batch first, then pokes
+the path. The campus's Durable Object waits ~1.5 s to gather pokes, reads the
+committed head from Firestore (at most one read every 5 s) and sends the `v`
+map to every socket only if it moved. Client-sent data is never broadcast.
+
+```mermaid
+sequenceDiagram
+  participant W as Writer
+  participant F as Firestore
+  participant H as CampusHub (Durable Object)
+  participant S as Other students
+  W->>F: batch: data + head v += 1 (rules check)
+  W->>H: poke {path}
+  H->>F: read heads/{campus} (≤ 1 per 5 s)
+  H-->>S: head {v} (only if it moved)
+  S->>F: re-read only the moved paths
+```
+
+Personal data works the same way without touching Cloudflare's copy of any
+grades: after a sync push the app sends `pokeMe` (~2 s after the last
+write), the Durable Object moves that account's counter and tells only that
+account's other sockets, which pull the user document from Firestore.
 

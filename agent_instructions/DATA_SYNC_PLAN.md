@@ -1,6 +1,8 @@
 # Pointer — server structure for version markers and sync (plan)
 
-Planning document. **No code yet.** Written 2026-09-30 from a design discussion with the
+**Status (2026-10-02): Stages 1–3 built on `pointer-rebuild`** (plan: `LOADING_SERVER_PLAN.md`; design: `ARCHITECTURE.md` §6, §13). Stage 3 differs here: no subscriptions, the hub broadcasts only the `v` map and clients read data from Firestore; pokes coalesce ~1.5 s, one head read per 5 s at most. The Worker and DO await the owner's deploy (`server/README.md`).
+
+Planning document, written 2026-09-30 from a design discussion with the
 owner. Covers the server side only: Firestore version markers, a Cloudflare Worker and a
 Durable Object. `ARCHITECTURE.md` stays the spec for data and rules; where this plan changes
 something there, update `ARCHITECTURE.md` in the same change.
