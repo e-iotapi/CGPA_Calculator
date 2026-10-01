@@ -212,12 +212,34 @@ describe("CampusHub", () => {
     const a2 = await connect("u1");
     const b = await connect("u2");
     await hub.webSocketMessage(a1 as any, JSON.stringify({ t: "pokeMe" }));
+    vi.advanceTimersByTime(2_000);
     await hub.webSocketMessage(a2 as any, JSON.stringify({ t: "pokeMe" }));
     expect(a1.sent.slice(1)).toEqual([{ t: "me", v: 1 }, { t: "me", v: 2 }]);
     expect(a2.sent.slice(1)).toEqual([{ t: "me", v: 1 }, { t: "me", v: 2 }]);
     expect(b.sent).toHaveLength(1);
     const c = await connect("u1");
     expect(c.sent[0].me).toBe(2);
+  });
+
+  it("drops a second pokeMe from the same uid within 2s", async () => {
+    vi.mocked(readDoc).mockResolvedValue({});
+    const { hub, connect } = makeHub();
+    const a = await connect("u1");
+    const b = await connect("u2");
+    await hub.webSocketMessage(a as any, JSON.stringify({ t: "pokeMe" }));
+    vi.advanceTimersByTime(1_999);
+    await hub.webSocketMessage(a as any, JSON.stringify({ t: "pokeMe" }));
+    await hub.webSocketMessage(b as any, JSON.stringify({ t: "pokeMe" }));
+    expect(a.sent.slice(1)).toEqual([{ t: "me", v: 1 }]);
+    expect(b.sent.slice(1)).toEqual([{ t: "me", v: 1 }]);
+  });
+
+  it("ignores frames over 1 KB", async () => {
+    vi.mocked(readDoc).mockResolvedValue({});
+    const { hub, connect } = makeHub();
+    const ws = await connect("u1");
+    await hub.webSocketMessage(ws as any, JSON.stringify({ t: "pokeMe", pad: "x".repeat(1024) }));
+    expect(ws.sent).toHaveLength(1);
   });
 
   it("ignores junk messages", async () => {

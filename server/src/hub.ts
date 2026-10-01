@@ -7,6 +7,8 @@ const HEAD_TTL_MS = 60_000;
 const ALARM_DELAY_MS = 1_500;
 const MIN_READ_GAP_MS = 5_000;
 const RETRY_MS = 5_000;
+const POKE_ME_GAP_MS = 2_000;
+const MAX_FRAME = 1024;
 const MAX_RETRIES = 3;
 
 /** Paths in `next` whose version differs from `prev` (new paths count as moved). */
@@ -25,6 +27,7 @@ export class CampusHub extends DurableObject<Env> {
   private armed = false; // an alarm is pending (in memory; re-checked via getAlarm after hibernation)
   private lastReadAt = 0;
   private retries = 0;
+  private pokeMeAt = new Map<string, number>(); // uid -> last admitted pokeMe
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -65,7 +68,7 @@ export class CampusHub extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
-    if (typeof raw !== "string") return;
+    if (typeof raw !== "string" || raw.length > MAX_FRAME) return;
     let msg: { t?: unknown; path?: unknown };
     try {
       msg = JSON.parse(raw);
@@ -81,6 +84,10 @@ export class CampusHub extends DurableObject<Env> {
       await this.ctx.storage.setAlarm(Math.max(now + ALARM_DELAY_MS, this.lastReadAt + MIN_READ_GAP_MS));
     } else if (msg.t === "pokeMe") {
       const uid = this.ctx.getTags(ws)[0];
+      const now = Date.now();
+      if (now - (this.pokeMeAt.get(uid) ?? -Infinity) < POKE_ME_GAP_MS) return;
+      if (this.pokeMeAt.size > 1000) this.pokeMeAt.clear(); // ponytail: crude bound; resets limits for everyone
+      this.pokeMeAt.set(uid, now);
       this.ctx.storage.sql.exec(
         "INSERT INTO users (uid, v) VALUES (?, 1) ON CONFLICT(uid) DO UPDATE SET v = v + 1",
         uid
