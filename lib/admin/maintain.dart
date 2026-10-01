@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cgpa_calculator/admin/bulk_upload.dart';
 import 'package:cgpa_calculator/admin/dept_resources.dart';
 import 'package:cgpa_calculator/admin/offering_scale.dart';
@@ -85,7 +87,8 @@ Future<T?> _maybe<T>(Future<T>? f) async {
   }
 }
 
-typedef _HomeData =
+/// Everything [DeptHome] shows; null where a read was refused.
+typedef DeptHomeData =
     ({
       Map<String, Offering> offerings,
       int? links,
@@ -100,33 +103,44 @@ class DeptHome extends StatelessWidget {
   const DeptHome({super.key, required this.campus, required this.dept});
   final String campus, dept;
 
-  Future<_HomeData> _load() async {
+  /// The key [DeptHome] is cached under, for [prefetchDeptScreens].
+  static String cacheKey(String campus, String dept) =>
+      'dept-home|$campus|$dept';
+
+  /// Every count on the board, read at once rather than one after another
+  /// (TM-16: six round trips in a row kept the board blank 2-6 s).
+  static Future<DeptHomeData> load(String campus, String dept) async {
     final courses = deptCourses(dept);
-    final links = await _maybe(resourceStore?.department(campus, dept));
-    final rawFlags = await _maybe(resourceStore?.flags(campus, dept));
+    final (links, rawFlags, reported, profs, offerings, audit) = await (
+      _maybe(resourceStore?.department(campus, dept)),
+      _maybe(resourceStore?.flags(campus, dept)),
+      _maybe(
+        reviewStore?.moderation(
+          campus,
+          dept,
+          hidden: false,
+          reportedOnly: true,
+        ),
+      ),
+      _maybe(
+        ProfessorStore(roleStore!.db, roles: roleStore).department(campus, dept),
+      ),
+      _store.offerings(courses.map((c) => c.id), campus, maintainedTerm),
+      _maybe(roleStore!.audit(campus: campus, limit: 200)),
+    ).wait;
     // A report can outlive its link; only count ones still listed (BUG-13).
     final liveIds = {for (final r in links ?? const []) r.id};
     final flags = [
       for (final f in rawFlags ?? const [])
         if (liveIds.contains(f.resourceId)) f,
     ];
-    final reported = await _maybe(
-      reviewStore?.moderation(campus, dept, hidden: false, reportedOnly: true),
-    );
-    final profs = await _maybe(
-      ProfessorStore(roleStore!.db, roles: roleStore).department(campus, dept),
-    );
     return (
-      offerings: await _store.offerings(
-        courses.map((c) => c.id),
-        campus,
-        maintainedTerm,
-      ),
+      offerings: offerings,
       links: links == null ? null : departmentList(links).length,
       flagged: flags.length,
       reported: reported?.length,
       profs: profs?.length,
-      audit: await _maybe(roleStore!.audit(campus: campus, limit: 200)),
+      audit: audit,
     );
   }
 
@@ -149,8 +163,9 @@ class DeptHome extends StatelessWidget {
             ? ''
             : '. You share it, as equals, with the ${others.join(', ')} '
                 'president${others.length == 1 ? '' : 's'}';
-    return Loaded<_HomeData>(
-      load: _load,
+    return Loaded<DeptHomeData>(
+      cacheKey: cacheKey(campus, dept),
+      load: () => load(campus, dept),
       builder: (context, d, reload) {
         final missing =
             courses
@@ -348,6 +363,28 @@ class DeptCourses extends StatefulWidget {
   const DeptCourses({super.key, required this.campus, required this.dept});
   final String campus, dept;
 
+  /// The key the course list is cached under, for [prefetchDeptScreens].
+  static String cacheKey(String campus, String dept) =>
+      'dept-courses|$campus|$dept';
+
+  /// This term's offerings and each course's CR, read together.
+  static Future<(Map<String, Offering>, Map<String, String>)> load(
+    String campus,
+    String dept,
+  ) async {
+    final (offerings, grants) = await (
+      _store.offerings(deptCourses(dept).map((c) => c.id), campus, maintainedTerm),
+      _maybe(roleStore!.roster(campus: campus)),
+    ).wait;
+    return (
+      offerings,
+      {
+        for (final g in grants ?? const <Grant>[])
+          if (g.active && g.role == GrantRole.course) g.scope: g.email,
+      },
+    );
+  }
+
   @override
   State<DeptCourses> createState() => _DeptCoursesState();
 }
@@ -416,21 +453,8 @@ class _DeptCoursesState extends State<DeptCourses> {
     final courses = deptCourses(widget.dept);
     return Loaded<(Map<String, Offering>, Map<String, String>)>(
       key: ValueKey(_loads),
-      load: () async {
-        final offerings = await _store.offerings(
-          courses.map((c) => c.id),
-          widget.campus,
-          maintainedTerm,
-        );
-        final grants = await _maybe(roleStore!.roster(campus: widget.campus));
-        return (
-          offerings,
-          {
-            for (final g in grants ?? const <Grant>[])
-              if (g.active && g.role == GrantRole.course) g.scope: g.email,
-          },
-        );
-      },
+      cacheKey: DeptCourses.cacheKey(widget.campus, widget.dept),
+      load: () => DeptCourses.load(widget.campus, widget.dept),
       builder: (context, data, reload) {
         final (offerings, crs) = data;
         final q = _search.text.trim().toLowerCase();
@@ -1035,6 +1059,25 @@ class CrHome extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// Loads a president's department board and course list in the background,
+/// so they open with data instead of a blank spinner (TM-16).
+void prefetchDeptScreens(Iterable<Grant> presidencies) {
+  for (final g in presidencies) {
+    unawaited(
+      prefetchLoaded(
+        DeptHome.cacheKey(g.campus, g.scope),
+        () => DeptHome.load(g.campus, g.scope),
+      ),
+    );
+    unawaited(
+      prefetchLoaded(
+        DeptCourses.cacheKey(g.campus, g.scope),
+        () => DeptCourses.load(g.campus, g.scope),
+      ),
     );
   }
 }

@@ -286,6 +286,15 @@ Widget _deferred(Widget Function() page) =>
     DeferredPage(load: _adminLoad ??= admin.loadLibrary(), page: page);
 Future<void>? _adminLoad;
 
+/// For a department president: loads the admin code and their board's data
+/// in the background, so the department pages open with data (TM-16).
+Future<void> prefetchPresidentPages() async {
+  final presidencies = myRoles.value.presidencies;
+  if (presidencies.isEmpty) return;
+  await (_adminLoad ??= admin.loadLibrary());
+  admin.prefetchDeptScreens(presidencies);
+}
+
 /// Shows [page] once the deferred library behind [load] has loaded.
 class DeferredPage extends StatelessWidget {
   const DeferredPage({super.key, required this.load, required this.page});

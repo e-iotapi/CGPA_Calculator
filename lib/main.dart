@@ -151,6 +151,11 @@ Future<void> startApp(User user) async {
       name: user.displayName ?? '',
     );
     final rolesDone = refreshMyRolesIfDue().then((_) => checkProfile());
+    unawaited(
+      rolesDone
+          .whenComplete(prefetchPresidentPages)
+          .then((_) {}, onError: (Object _) {}),
+    );
     // A deep link on a first sign-in has no cached roles yet, and its guard
     // (/maintain, /admin) would send it Home: wait for them (BUG-51).
     // Match the guarded routes, not "any path": prod serves the app at /calculator/.
