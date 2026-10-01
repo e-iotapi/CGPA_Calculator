@@ -195,6 +195,16 @@ describe('staff contacts', () => {
     await assertFails(getDocs(collection(as(STUDENT), 'staffContacts')));
   });
 
+  test('a non-student BITS address counts its contact on goa', async () => {
+    // Faculty on pilani: an owner may hold a staff contact; the bump is goa's.
+    const fac = 'rmenon@pilani.bits-pilani.ac.in';
+    await seed((db) => setDoc(doc(db, 'owners', fac), { email: fac, name: name(fac), active: true }));
+    const db = as(fac);
+    const data = { name: 'R', phone: '+91 98765 43210', email: fac, updatedAt: serverTimestamp() };
+    await assertFails(putBumped(db, 'pilani', 'staff', doc(db, 'staffContacts', fac), data));
+    await assertSucceeds(putBumped(db, 'goa', 'staff', doc(db, 'staffContacts', fac), data));
+  });
+
   test('a phone is required', async () => {
     await assertFails(put(PRES, { ...c(PRES), phone: '' }));
     await assertFails(put(PRES, { ...c(PRES), phone: 'call me' }));
