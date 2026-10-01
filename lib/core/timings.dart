@@ -35,6 +35,9 @@ const repsMaxAge = Duration(hours: 6);
 /// A student's own volunteer offer, per course.
 const offerMaxAge = Duration(hours: 24);
 
+/// Admin screens' reads (roster, owners, terms, audit, offerings, analytics).
+const adminMaxAge = Duration(minutes: 10);
+
 /// Public contact doc.
 const publicContactMaxAge = Duration(days: 7);
 

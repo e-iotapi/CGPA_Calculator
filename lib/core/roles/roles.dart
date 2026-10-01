@@ -167,6 +167,23 @@ class Grant {
     expiresBefore: asDate(m['expiresBefore']),
     secretary: m['secretary'] as bool? ?? false,
   );
+
+  /// JSON-safe, for `cacheFirst`: [fromMap] reads it back (dates as millis).
+  Map<String, dynamic> toMap() => {
+    'role': role.key,
+    'email': email,
+    'name': name,
+    'campus': campus,
+    'scope': scope,
+    'programme': programme,
+    'active': active,
+    'expiresAt': expiresAt.millisecondsSinceEpoch,
+    'grantedBy': {'email': grantedByEmail, 'name': grantedByName},
+    'grantedAt': grantedAt?.millisecondsSinceEpoch,
+    'handedTo': handedTo,
+    'expiresBefore': expiresBefore?.millisecondsSinceEpoch,
+    'secretary': secretary,
+  };
 }
 
 /// The grant document id: `role|campus|scope|email`.

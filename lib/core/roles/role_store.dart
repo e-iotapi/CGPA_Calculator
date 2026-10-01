@@ -37,6 +37,26 @@ class AuditEntry {
   /// When the entry was written.
   final DateTime? at;
 
+  /// JSON-safe, for `cacheFirst`: [fromMap] reads it back.
+  Map<String, dynamic> toMap() => {
+    'actor': {'email': actorEmail, 'name': actorName, 'role': actorRole},
+    'summary': summary,
+    'path': path,
+    'campus': campus,
+    'course': course,
+    'before': _safe(before),
+    'after': _safe(after),
+    'at': at?.millisecondsSinceEpoch,
+  };
+
+  /// Timestamps as millis, so the value caches as JSON.
+  static Object? _safe(Object? v) => switch (v) {
+    Timestamp t => t.millisecondsSinceEpoch,
+    Map m => {for (final e in m.entries) '${e.key}': _safe(e.value)},
+    List l => [for (final x in l) _safe(x)],
+    _ => v,
+  };
+
   /// Reads an audit document's data.
   static AuditEntry fromMap(Map<String, dynamic> m) {
     final a = m['actor'] as Map? ?? const {};
@@ -206,28 +226,61 @@ class RoleStore {
     String? actor,
     String? course,
     int limit = 50,
-  }) async {
-    Query<Map<String, dynamic>> q = db.collection('audit');
-    if (campus != null) q = q.where('campus', whereIn: [campus, 'all']);
-    if (actor != null) q = q.where('actor.email', isEqualTo: actor);
-    if (course != null) q = q.where('course', isEqualTo: course);
-    final r = await q.orderBy('at', descending: true).limit(limit).get();
-    return [for (final d in r.docs) AuditEntry.fromMap(d.data())];
-  }
+  }) => cacheFirst<List<AuditEntry>>(
+    key: _auditKey(campus, actor, course, limit),
+    maxAge: adminMaxAge,
+    fetch: () async {
+      Query<Map<String, dynamic>> q = db.collection('audit');
+      if (campus != null) q = q.where('campus', whereIn: [campus, 'all']);
+      if (actor != null) q = q.where('actor.email', isEqualTo: actor);
+      if (course != null) q = q.where('course', isEqualTo: course);
+      final r = await q.orderBy('at', descending: true).limit(limit).get();
+      return [for (final d in r.docs) AuditEntry.fromMap(d.data())];
+    },
+    encode: (l) => [for (final e in l) e.toMap()],
+    decode: _decodeAudit,
+  );
+
+  static String _auditKey(String? campus, String? actor, String? course, int n) =>
+      'audit|${campus ?? '*'}|${actor ?? '*'}|${course ?? '*'}|$n';
+
+  static List<AuditEntry> _decodeAudit(Object? o) => [
+    for (final m in o as List) AuditEntry.fromMap((m as Map).cast()),
+  ];
+
+  /// The saved [audit], read synchronously; null when none is saved.
+  List<AuditEntry>? peekAudit({
+    String? campus,
+    String? actor,
+    String? course,
+    int limit = 50,
+  }) => peekCache(_auditKey(campus, actor, course, limit), _decodeAudit);
 
   // ---- Grants --------------------------------------------------------------
 
   /// Reads the grant terms, or [defaultTerms] when unset.
-  Future<GrantTerms> terms() async {
-    final d = await db.collection('config').doc('grantTerms').get();
-    final m = d.data();
-    if (m == null) return defaultTerms;
+  Future<GrantTerms> terms() => cacheFirst<GrantTerms>(
+    key: 'terms',
+    maxAge: adminMaxAge,
+    fetch: () async {
+      final m = (await db.collection('config').doc('grantTerms').get()).data();
+      return m == null ? defaultTerms : _decodeTerms(m);
+    },
+    encode: _termsMap,
+    decode: _decodeTerms,
+  );
+
+  static GrantTerms _decodeTerms(Object? o) {
+    final m = o as Map;
     return (
       crDays: m['crDays'] as int,
       presidentDays: m['presidentDays'] as int,
       adminDays: m['adminDays'] as int,
     );
   }
+
+  /// The saved [terms], read synchronously; null when none is saved.
+  GrantTerms? peekTerms() => peekCache('terms', _decodeTerms);
 
   /// Writes the grant terms [t] with an audit entry.
   Future<void> saveTerms(GrantTerms t) async {
@@ -248,6 +301,8 @@ class RoleStore {
       'auditId': id,
     });
     await b.commit();
+    await forget('terms');
+    await forget('audit|');
   }
 
   static Map<String, int> _termsMap(GrantTerms t) => {
@@ -276,6 +331,8 @@ class RoleStore {
     _grantInto(b, g, staff, summary, before: before);
     also?.call(b);
     await b.commit();
+    await forget('roster|');
+    await forget('audit|');
   }
 
   void _grantInto(
@@ -532,6 +589,8 @@ class RoleStore {
       );
     }
     await b.commit();
+    await forget('roster|');
+    await forget('audit|');
     return true;
   }
 
@@ -628,6 +687,8 @@ class RoleStore {
       }
     }
     await b.commit();
+    await forget('roster|');
+    await forget('audit|');
   }
 
   /// Keeps the directory's copy of [g]'s expiry in step, so Representatives
@@ -685,20 +746,48 @@ class RoleStore {
 
   /// Every grant the reader may see: all of them for owners and admins,
   /// [campus] plus the every-campus ones for a president.
-  Future<List<Grant>> roster({String? campus}) async {
-    Query<Map<String, dynamic>> q = db.collection('grants');
-    if (campus != null) q = q.where('campus', whereIn: [campus, 'all']);
-    final r = await q.get();
-    return [for (final d in r.docs) Grant.fromMap(d.data())];
-  }
+  Future<List<Grant>> roster({String? campus}) => cacheFirst<List<Grant>>(
+    key: 'roster|${campus ?? '*'}',
+    maxAge: adminMaxAge,
+    fetch: () async {
+      Query<Map<String, dynamic>> q = db.collection('grants');
+      if (campus != null) q = q.where('campus', whereIn: [campus, 'all']);
+      final r = await q.get();
+      return [for (final d in r.docs) Grant.fromMap(d.data())];
+    },
+    encode: (l) => [for (final g in l) g.toMap()],
+    decode: _decodeRoster,
+  );
+
+  static List<Grant> _decodeRoster(Object? o) => [
+    for (final m in o as List) Grant.fromMap((m as Map).cast()),
+  ];
+
+  /// The saved [roster], read synchronously; null when none is saved.
+  List<Grant>? peekRoster({String? campus}) =>
+      peekCache('roster|${campus ?? '*'}', _decodeRoster);
 
   // ---- Owners --------------------------------------------------------------
 
   /// Reads every `owners/` document.
-  Future<List<Map<String, dynamic>>> owners() async {
-    final r = await db.collection('owners').get();
-    return [for (final d in r.docs) d.data()];
-  }
+  Future<List<Map<String, dynamic>>> owners() =>
+      cacheFirst<List<Map<String, dynamic>>>(
+        key: 'owners',
+        maxAge: adminMaxAge,
+        fetch: () async {
+          final r = await db.collection('owners').get();
+          return [for (final d in r.docs) d.data()];
+        },
+        encode: (l) => [for (final m in l) AuditEntry._safe(m)],
+        decode: _decodeOwners,
+      );
+
+  static List<Map<String, dynamic>> _decodeOwners(Object? o) => [
+    for (final m in o as List) Map<String, dynamic>.from(m as Map),
+  ];
+
+  /// The saved [owners], read synchronously; null when none is saved.
+  List<Map<String, dynamic>>? peekOwners() => peekCache('owners', _decodeOwners);
 
   /// Adds [email] as an owner, with an audit entry.
   Future<void> addOwner(String email, String name) async {
@@ -720,6 +809,8 @@ class RoleStore {
       'auditId': id,
     });
     await b.commit();
+    await forget('owners');
+    await forget('audit|');
   }
 
   /// Never for oneself; the rules refuse that too.
@@ -741,6 +832,8 @@ class RoleStore {
       'auditId': id,
     });
     await b.commit();
+    await forget('owners');
+    await forget('audit|');
   }
 
   // ---- Public contact ------------------------------------------------------
@@ -843,5 +936,6 @@ class RoleStore {
     await b.commit();
     await forget('contact|');
     await forget('head|');
+    await forget('audit|');
   }
 }

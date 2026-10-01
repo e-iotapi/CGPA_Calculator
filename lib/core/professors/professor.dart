@@ -60,6 +60,17 @@ class Professor {
     mergedIds: [for (final a in m['mergedIds'] as List? ?? const []) '$a'],
     active: m['active'] as bool? ?? true,
   );
+
+  /// JSON-safe, for `cacheFirst`: [fromMap] reads it back.
+  Map<String, dynamic> toMap() => {
+    'name': name,
+    'campus': campus,
+    'department': department,
+    'aliases': aliases,
+    'mergedInto': mergedInto,
+    'mergedIds': mergedIds,
+    'active': active,
+  };
 }
 
 /// Lowercased words of [name] and each of their prefixes, titles dropped:

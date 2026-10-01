@@ -6,6 +6,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
@@ -62,6 +63,18 @@ class DayCounts {
     );
   }
 
+  /// JSON-safe, for `cacheFirst`.
+  Map<String, dynamic> toMap() => {'day': day, 'dau': dau, 'hours': hours};
+
+  /// Reads [toMap]'s output.
+  static DayCounts fromMap(Map<String, dynamic> m) => DayCounts(
+    day: m['day'] as String,
+    dau: m['dau'] as int,
+    hours: {
+      for (final e in (m['hours'] as Map).entries) '${e.key}': e.value as int,
+    },
+  );
+
   /// The busiest hour, or null on a quiet day.
   MapEntry<String, int>? get peak => hours.entries.fold<MapEntry<String, int>?>(
     null,
@@ -106,25 +119,72 @@ class AnalyticsStore {
   }
 
   /// The last [n] IST days, newest first; [campus] null is every campus.
-  Future<List<DayCounts>> days(int n, {String? campus, DateTime? now}) async {
-    final t = now ?? DateTime.now();
-    final from = istDay(t.subtract(Duration(days: n - 1)));
-    final q =
-        await db
-            .collection('analytics')
-            .where(FieldPath.documentId, isGreaterThanOrEqualTo: from)
-            .get();
-    final by = {for (final d in q.docs) d.id: d.data()};
-    return [
-      for (final day in [
-        for (var i = 0; i < n; i++) istDay(t.subtract(Duration(days: i))),
-      ])
-        DayCounts.of(day, by[day], campus),
-    ];
-  }
+  Future<List<DayCounts>> days(int n, {String? campus, DateTime? now}) =>
+      cacheFirst<List<DayCounts>>(
+        key: 'ana|${campus ?? '*'}|$n',
+        maxAge: adminMaxAge,
+        fetch: () async {
+          final t = now ?? DateTime.now();
+          final from = istDay(t.subtract(Duration(days: n - 1)));
+          final q =
+              await db
+                  .collection('analytics')
+                  .where(FieldPath.documentId, isGreaterThanOrEqualTo: from)
+                  .get();
+          final by = {for (final d in q.docs) d.id: d.data()};
+          return [
+            for (final day in [
+              for (var i = 0; i < n; i++)
+                istDay(t.subtract(Duration(days: i))),
+            ])
+              DayCounts.of(day, by[day], campus),
+          ];
+        },
+        encode: (l) => [for (final d in l) d.toMap()],
+        decode: _decodeDays,
+      );
+
+  static List<DayCounts> _decodeDays(Object? o) => [
+    for (final m in o as List) DayCounts.fromMap((m as Map).cast()),
+  ];
+
+  /// The saved [days], read synchronously; null when none is saved.
+  List<DayCounts>? peekDays(int n, {String? campus}) =>
+      peekCache('ana|${campus ?? '*'}|$n', _decodeDays);
 
   /// Users, new this week and today, active this week and month.
-  Future<PeopleCounts> counts({String? campus, DateTime? now}) async {
+  Future<PeopleCounts> counts({String? campus, DateTime? now}) =>
+      cacheFirst<PeopleCounts>(
+        key: 'cnt|${campus ?? '*'}',
+        maxAge: adminMaxAge,
+        fetch: () => _counts(campus, now),
+        encode:
+            (c) => {
+              'users': c.users,
+              'newWeek': c.newWeek,
+              'newToday': c.newToday,
+              'week': c.week,
+              'month': c.month,
+            },
+        decode: _decodeCounts,
+      );
+
+  static PeopleCounts _decodeCounts(Object? o) {
+    final m = o as Map;
+    return (
+      users: m['users'] as int,
+      newWeek: m['newWeek'] as int,
+      newToday: m['newToday'] as int,
+      week: m['week'] as int,
+      month: m['month'] as int,
+    );
+  }
+
+  /// The saved [counts], read synchronously; null when none is saved.
+  PeopleCounts? peekCounts({String? campus}) =>
+      peekCache('cnt|${campus ?? '*'}', _decodeCounts);
+
+  Future<PeopleCounts> _counts(String? campus, DateTime? now) async {
     final t = (now ?? DateTime.now()).millisecondsSinceEpoch;
     const day = 86400000;
     final startToday =
