@@ -163,12 +163,14 @@ service cloud.firestore {
         && request.resource.data.active == true
         && request.resource.data.addedBy.email == me()
         && request.resource.data.addedAt == request.time
-        && audited('owners/' + email);
+        && audited('owners/' + email)
+        && pathBumped('goa', 'owners');
       allow update: if isOwner()
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['active', 'name', 'auditId'])
         && (email != me() || request.resource.data.active == true)
-        && audited('owners/' + email);
+        && audited('owners/' + email)
+        && pathBumped('goa', 'owners');
       allow delete: if false;
     }
 
@@ -268,7 +270,8 @@ service cloud.firestore {
         && request.resource.data.grantedBy.email == me()
         && request.resource.data.grantedAt == request.time
         && staffAgrees(id, request.resource.data)
-        && audited('grants/' + id);
+        && audited('grants/' + id)
+        && pathBumped(markerCampus(request.resource.data.campus), 'grants');
       // Revoke (active false) or renew (a new expiry); who and what are fixed,
       // save the branch a renewed president is appointed for.
       allow update: if mayUse()
@@ -278,7 +281,8 @@ service cloud.firestore {
         && mayGrant(request.resource.data)
         && (request.resource.data.active == false || expiryOk(request.resource.data))
         && staffAgrees(id, request.resource.data)
-        && audited('grants/' + id);
+        && audited('grants/' + id)
+        && pathBumped(markerCampus(request.resource.data.campus), 'grants');
       // A president's own grant during succession: shortened to at most
       // twenty days — never extended — beside the successor's new grant; or
       // restored, beside its revocation, by a cancel.
@@ -292,7 +296,8 @@ service cloud.firestore {
         && (handingOver(resource.data, request.resource.data)
             || cancellingHandover(resource.data, request.resource.data))
         && staffAgrees(id, request.resource.data)
-        && audited('grants/' + id);
+        && audited('grants/' + id)
+        && pathBumped(markerCampus(request.resource.data.campus), 'grants');
       allow delete: if false;
     }
 
@@ -379,7 +384,8 @@ service cloud.firestore {
         && request.resource.data.email == me()
         && nameOk(request.resource.data.name)
         && phoneOk(request.resource.data.phone)
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.updatedAt == request.time
+        && pathBumped(isBits() ? campusOf(me()) : 'goa', 'staff');
       allow delete: if false;
     }
 
@@ -406,7 +412,8 @@ service cloud.firestore {
       allow create, update: if mayUse()
         && request.resource.data.keys().hasOnly(['k', 'p'])
         && repCopy(request.resource.data.k,
-                   resource == null ? {} : resource.data.get('p', {}));
+                   resource == null ? {} : resource.data.get('p', {}))
+        && pathBumped(campus, 'reps');
       allow delete: if false;
     }
 
@@ -443,7 +450,8 @@ service cloud.firestore {
             || 'phone' in request.resource.data)
         && request.resource.data.get('email', me()) == me()
         && (!('whatsapp' in request.resource.data) || phoneOk(request.resource.data.whatsapp))
-        && (!('phone' in request.resource.data) || phoneOk(request.resource.data.phone));
+        && (!('phone' in request.resource.data) || phoneOk(request.resource.data.phone))
+        && pathBumped(request.resource.data.campus, 'staff');
       allow delete: if signedIn() && email == me();
     }
 
@@ -467,12 +475,14 @@ service cloud.firestore {
         && nameOk(request.resource.data.name)
         && request.resource.data.term is string
         && request.resource.data.open == true
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && pathBumped(request.resource.data.campus, 'volunteers/' + request.resource.data.dept);
       // Withdrawn by them; dismissed, or closed by an appointment, by a reader.
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['open', 'closedBy'])
         && request.resource.data.open == false
-        && ((signedIn() && resource.data.email == me()) || readsOffers(resource.data));
+        && ((signedIn() && resource.data.email == me()) || readsOffers(resource.data))
+        && pathBumped(resource.data.campus, 'volunteers/' + resource.data.dept);
       allow delete: if false;
     }
 
@@ -489,7 +499,8 @@ service cloud.firestore {
         && request.resource.data.presidentDays > 0 && request.resource.data.presidentDays <= 800
         && request.resource.data.adminDays is int
         && request.resource.data.adminDays > 0 && request.resource.data.adminDays <= 1500
-        && audited('config/grantTerms');
+        && audited('config/grantTerms')
+        && pathBumped('goa', 'terms');
     }
 
     // ---- Campus heads (PERF_TEST_PLAN.md §A) -----------------------------
@@ -512,7 +523,8 @@ service cloud.firestore {
       allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
       allow create, update: if mayUse()
         && request.resource.data.keys().hasOnly(['c', 'k'])
-        && indexMoved(campus);
+        && indexMoved(campus)
+        && pathBumped(campus, 'reviews');
       allow delete: if false;
     }
 
@@ -533,6 +545,20 @@ service cloud.firestore {
              == after.recommendCount - before.get('recommendCount', 0);
     }
 
+    function headPath(campus) { return /databases/$(db)/documents/heads/$(campus); }
+
+    // A write to a shared path moves that path's marker by exactly one in the
+    // same batch (DATA_SYNC_PLAN Stage 1).
+    function pathBumped(campus, path) {
+      let was = exists(headPath(campus))
+        ? get(headPath(campus)).data.get('v', {}).get(path, 0) : 0;
+      return getAfter(headPath(campus)).data.get('v', {}).get(path, 0) == was + 1;
+    }
+
+    // Admin grants (campus 'all') count on the goa head, as owners and terms
+    // do; the app moves every campus's head for those.
+    function markerCampus(c) { return c == 'all' ? 'goa' : c; }
+
     match /heads/{campus} {
       allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
       // Offering versions move in the batch that saves a scheme. ponytail:
@@ -549,7 +575,15 @@ service cloud.firestore {
             && request.resource.data.contact.contactEnabled
                  == getAfter(/databases/$(db)/documents/config/public).data.contactEnabled
             && request.resource.data.contact.contactTarget
-                 == getAfter(/databases/$(db)/documents/config/public).data.contactTarget);
+                 == getAfter(/databases/$(db)/documents/config/public).data.contactTarget)
+        // Markers move by writes that bumped them elsewhere (pathBumped, in
+        // the source rule, enforces the exact +1). This only limits who moves
+        // markers and how many at once. ponytail: a stray bump costs readers
+        // one re-read and never shows wrong data (as with offerings).
+        || (mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin())
+            && headDiff().hasOnly(['v']) && request.resource.data.v is map
+            && request.resource.data.v.diff(resource == null ? {} : resource.data.get('v', {}))
+                 .affectedKeys().size() <= 4);
       allow delete: if false;
     }
 
@@ -676,7 +710,8 @@ service cloud.firestore {
         && request.resource.data.mergedIds.size() == 0
         && !('mergedInto' in request.resource.data)
         && stamped()
-        && audited('professors/' + id);
+        && audited('professors/' + id)
+        && pathBumped(request.resource.data.campus, 'professors/' + request.resource.data.department);
       allow update: if mayUse()
         && professorOk(request.resource.data)
         && request.resource.data.campus == resource.data.campus
@@ -684,7 +719,8 @@ service cloud.firestore {
         && !('mergedInto' in resource.data)
         && editsProfessors(resource.data.campus, resource.data.department)
         && stamped()
-        && (audited('professors/' + id) || mergedHere(id));
+        && (audited('professors/' + id) || mergedHere(id))
+        && pathBumped(resource.data.campus, 'professors/' + resource.data.department);
       allow delete: if false;
     }
 
@@ -755,7 +791,8 @@ service cloud.firestore {
       allow get: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
       allow create, update: if mayUse()
         && request.resource.data.keys().hasOnly(['k', 'r'])
-        && mirrors(c, campus);
+        && mirrors(c, campus)
+        && pathBumped(campus, 'reviews/' + c);
       allow delete: if false;
     }
 
@@ -939,7 +976,8 @@ service cloud.firestore {
         && request.resource.data.addedBy.email == me()
         && request.resource.data.addedAt == request.time
         && audited('resources/' + id)
-        && versionBumped(request.resource.data.campus);
+        && versionBumped(request.resource.data.campus)
+        && pathBumped(request.resource.data.campus, 'resources');
       allow update: if mayUse()
         && resourceOk(request.resource.data)
         && request.resource.data.diff(resource.data).unchangedKeys()
@@ -952,7 +990,8 @@ service cloud.firestore {
                     || request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['courseIds', 'actingFor', 'auditId']))))
         && audited('resources/' + id)
-        && versionBumped(resource.data.campus);
+        && versionBumped(resource.data.campus)
+        && pathBumped(resource.data.campus, 'resources');
       allow delete: if false;
     }
 

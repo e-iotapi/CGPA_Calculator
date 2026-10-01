@@ -3,7 +3,7 @@
 import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { collection, collectionGroup, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
-import { ADMIN, OTHER, PRES, STUDENT, as, days, name, seed, useEmulator } from './helpers.mjs';
+import { ADMIN, OTHER, PRES, STUDENT, as, bump, days, name, seed, useEmulator } from './helpers.mjs';
 
 useEmulator();
 
@@ -26,6 +26,7 @@ function add(db, actor, id, fields = {}) {
     name: 'Dr. R. Menon', campus: 'goa', department: 'ELEC', aliases: [], nameTokens: ['r', 'm', 'me'],
     mergedIds: [], active: true, ...stamp(actor, a), ...fields,
   });
+  bump(b, db, 'goa', `professors/${fields.department ?? 'ELEC'}`);
   return b.commit();
 }
 
@@ -44,6 +45,7 @@ function merge(db, actor, keep, gone, { tieAudit = true } = {}) {
   b.update(doc(db, 'professors', keep), {
     mergedIds: [gone], aliases: ['Dr. R. Menon'], ...stamp(actor, tieAudit ? a : 'other'),
   });
+  bump(b, db, 'goa', 'professors/ELEC');
   return b.commit();
 }
 
@@ -83,6 +85,7 @@ describe('professors', () => {
     const b = writeBatch(db);
     const a = audit(b, db, PRES, 'professors/p2');
     b.update(doc(db, 'professors', 'p2'), { name: 'Back', ...stamp(PRES, a) });
+    bump(b, db, 'goa', 'professors/ELEC');
     await assertFails(b.commit());
   });
 });
