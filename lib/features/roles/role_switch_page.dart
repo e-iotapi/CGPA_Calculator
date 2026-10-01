@@ -245,10 +245,16 @@ class RoleStrip extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: MediaQuery.removePadding(
-                    context: context,
-                    removeTop: true,
-                    child: child,
+                  // Its own semantics container: each route's modal barrier
+                  // blocks the semantics of whatever was painted before it
+                  // in the same container, which was this strip (QA-10).
+                  child: Semantics(
+                    container: true,
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      removeTop: true,
+                      child: child,
+                    ),
                   ),
                 ),
               ],
