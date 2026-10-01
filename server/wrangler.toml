@@ -1,0 +1,7 @@
+name = "pointer-heads"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+PROJECT_ID = "cgpa-web"
+ALLOWED_ORIGINS = "https://cgpa-web.netlify.app"
