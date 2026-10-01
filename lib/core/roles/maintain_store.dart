@@ -31,24 +31,30 @@ class MaintainStore {
   static String pathOf(String courseId, String campus, String term) =>
       'courses/$courseId/offerings/${offeringId(campus, term)}';
 
-  /// Reads one offering, or `null` if it does not exist.
+  /// Reads one offering, or `null` if it does not exist. With [fresh], the
+  /// saved copy is skipped: Firestore is read and the result saved.
   Future<Offering?> offering(
     String courseId,
     String campus,
-    String term,
-  ) async => cacheFirst<Offering?>(
-        key: 'mo|$campus|$term|$courseId',
-        maxAge: adminMaxAge,
-        version: (await headFor(campus, db: _db))
-            ?.offering(courseId, term)
-            ?.toString(),
-        fetch: () async {
-          final m = (await _ref(courseId, campus, term).get()).data();
-          return m == null ? null : Offering.fromMap(m);
-        },
-        encode: (o) => o?.toMap(),
-        decode: _decodeOffering,
-      );
+    String term, {
+    bool fresh = false,
+  }) async {
+    final key = 'mo|$campus|$term|$courseId';
+    if (fresh) await sharedCacheBox?.delete(key);
+    return cacheFirst<Offering?>(
+      key: key,
+      maxAge: adminMaxAge,
+      version: (await headFor(campus, db: _db))
+          ?.offering(courseId, term)
+          ?.toString(),
+      fetch: () async {
+        final m = (await _ref(courseId, campus, term).get()).data();
+        return m == null ? null : Offering.fromMap(m);
+      },
+      encode: (o) => o?.toMap(),
+      decode: _decodeOffering,
+    );
+  }
 
   static Offering? _decodeOffering(Object? o) =>
       o == null ? null : Offering.fromMap(o as Map);
