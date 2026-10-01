@@ -579,13 +579,17 @@ service cloud.firestore {
                  == getAfter(/databases/$(db)/documents/config/public).data.contactTarget)
         // Markers move by writes that bumped them elsewhere (pathBumped, in
         // the source rule, enforces the exact +1). This only limits who moves
-        // markers, how many at once and how big the map grows. ponytail: the
-        // rules language cannot iterate a set of changed keys (no toList), so
-        // a value cannot be checked here: a stray string or step is healed by
-        // pathBumped (a non-int counts as 0) and skipped by Head.fromMap.
+        // markers, how many at once, how big the map grows, and that none is
+        // removed. ponytail: decreases and +2 are not checkable in rules (no
+        // Set to List, so no per-key value check); clients compare markers by
+        // equality, so a decrease costs a re-read, never a freeze. A stray
+        // string is healed by pathBumped (a non-int counts as 0) and skipped
+        // by Head.fromMap.
         || (mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin())
             && headDiff().hasOnly(['v']) && request.resource.data.v is map
             && request.resource.data.v.size() <= 3000
+            && request.resource.data.v.diff(resource == null ? {} : resource.data.get('v', {}))
+                 .removedKeys().size() == 0
             && request.resource.data.v.diff(resource == null ? {} : resource.data.get('v', {}))
                  .affectedKeys().size() <= 4);
       allow delete: if false;

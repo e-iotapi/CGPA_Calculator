@@ -94,7 +94,7 @@ void main() {
   group('Worker heads', () {
     tearDown(() => skipWorkerUntil = null);
 
-    test('a fetch never moves a marker back', () async {
+    test('a fetch replaces the saved markers, even with a lower one', () async {
       final db = FakeFirebaseFirestore();
       await sharedCacheBox!.put(
         'head|goa',
@@ -110,7 +110,7 @@ void main() {
         awaitStale: true,
         worker: (c) async => {'v': {'reps': 3, 'staff': 1}},
       );
-      expect(h!.v, {'reps': 5, 'staff': 1});
+      expect(h!.v, {'reps': 3, 'staff': 1});
     });
 
     test('skipWorkerUntil sends the read to Firestore', () async {

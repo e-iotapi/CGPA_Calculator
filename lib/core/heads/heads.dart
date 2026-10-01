@@ -7,8 +7,6 @@
 /// one merge-set to a batch they already commit (no extra read).
 library;
 
-import 'dart:math';
-
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads_client.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
@@ -123,12 +121,7 @@ Future<Head?> headFor(
                   .data();
           if (m != null) fetched = Head.fromMap(m);
         }
-        // Markers only grow: a stale copy never moves one back.
-        final old = peekCache<Head?>(
-          'head|$campus',
-          (v) => v == null ? null : Head.fromMap(v as Map),
-        );
-        return fetched == null || old == null ? fetched : _maxed(fetched, old);
+        return fetched;
       },
       encode: (h) => h?.toMap(),
       decode: (v) => v == null ? null : Head.fromMap(v as Map),
@@ -137,18 +130,6 @@ Future<Head?> headFor(
     return null;
   }
 }
-
-Head _maxed(Head h, Head old) => Head(
-  catalog: h.catalog,
-  catalogSchema: h.catalogSchema,
-  contact: h.contact,
-  offerings: _maxMap(h.offerings, old.offerings),
-  v: _maxMap(h.v, old.v),
-);
-
-Map<String, int> _maxMap(Map<String, int> a, Map<String, int> b) => {
-  for (final e in a.entries) e.key: max(e.value, b[e.key] ?? e.value),
-};
 
 /// In a scheme-saving batch: moves each course's offering version on its
 /// campus's head, so students re-read only what changed.

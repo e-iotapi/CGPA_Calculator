@@ -125,7 +125,7 @@ void main() {
     },
   );
 
-  test('head merges only what grew; a lower number never moves one back',
+  test('head merges what differs; a lower number replaces the saved one',
       () async {
     start();
     await pumpEventQueue();
@@ -145,9 +145,9 @@ void main() {
     c.push({
       't': 'head',
       'v': {'resources': 3, 'reps': 0},
-    }); // an older copy: ignored
+    }); // lower: replaces, so a reader refetches
     await pumpEventQueue();
-    expect(savedV(), {'resources': 5, 'reps': 1});
+    expect(savedV(), {'resources': 3, 'reps': 0});
   });
 
   test('versionsLive drops with the connection', () async {
