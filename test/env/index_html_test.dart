@@ -46,6 +46,25 @@ void main() {
     expect(html, contains("addEventListener('flutter-first-frame', loadGtag)"));
   });
 
+  // The engine waits for every font before main(); index.html starts them
+  // with the page. A font added to pubspec without its preload loads late.
+  test('index.html preloads exactly the bundled fonts', () {
+    final html = File('web/index.html').readAsStringSync();
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final bundled = {
+      for (final m in RegExp(r'asset: (fonts/\S+)').allMatches(pubspec))
+        'assets/${m.group(1)}',
+      'assets/fonts/MaterialIcons-Regular.otf',
+    };
+    final preloaded = {
+      for (final m in RegExp(
+        r'rel="preload" as="fetch" crossorigin href="(assets/fonts/[^"]+)"',
+      ).allMatches(html))
+        m.group(1)!,
+    };
+    expect(preloaded, bundled);
+  });
+
   // web/flutter_bootstrap.js replaces Flutter's default loader call. It
   // skips the service worker: Flutter's is a self-unregistering stub now,
   // and the loader would await it before fetching the engine.

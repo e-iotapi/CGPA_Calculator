@@ -36,6 +36,12 @@ flutter:
     # The fallback catalogue (tools/export_catalog.dart, ARCHITECTURE.md §3).
     - assets/catalog.json
   fonts:
+    # The engine fetches Roboto from fonts.gstatic.com unless a family by that
+    # name is bundled, and waits for it before main(); the app sets Montserrat
+    # everywhere, so the default family is Montserrat too, at no extra bytes.
+    - family: Roboto
+      fonts:
+        - asset: fonts/Montserrat-Regular.ttf
     # Full weight range (TypeScale.family). Licence: fonts/OFL.txt
     - family: MontserratFull
       fonts:
