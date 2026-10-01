@@ -100,9 +100,22 @@ async function main() {
   await seedOfferings(db, byKey, professorIds);
   await seedReviews(db, byKey, professorIds);
   await seedResources(db, byKey);
+  await bumpMarkers(db);
 
   console.log(`Done. Catalogue published at version ${catalogVersion}.`);
   process.exit(0);
+}
+
+// The seed rewrites data behind the heads' markers, so a phone would keep its
+// saved copy as current. One step on every marker makes each re-read once.
+async function bumpMarkers(db) {
+  const batch = db.batch();
+  for (const campus of ['goa', 'pilani', 'hyderabad', 'dubai']) {
+    const head = (await db.doc(`heads/${campus}`).get()).data() ?? {};
+    const step = (m) => Object.fromEntries(Object.keys(m ?? {}).map((k) => [k, FieldValue.increment(1)]));
+    batch.set(db.doc(`heads/${campus}`), { v: step(head.v), offerings: step(head.offerings) }, { merge: true });
+  }
+  await batch.commit();
 }
 
 // ---- wipe -------------------------------------------------------------
