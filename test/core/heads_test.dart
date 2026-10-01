@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
@@ -47,5 +48,28 @@ void main() {
     expect((await headFor('goa', db: db))!.catalog, 3);
     await db.doc('heads/goa').set({'catalog': 4});
     expect((await headFor('goa', db: db))!.catalog, 3);
+  });
+
+  test('markers: read from v, bumped per campus or on every head', () async {
+    expect(Head.fromMap({'v': {'reps': 3}}).version('reps'), 3);
+    expect(Head.fromMap({}).version('reps'), isNull);
+    final h = Head.fromMap({'v': {'reps': 3}});
+    expect(Head.fromMap(h.toMap()).version('reps'), 3);
+
+    final db = FakeFirebaseFirestore();
+    var b = db.batch();
+    bumpPath(b, db, 'goa', Paths.reps);
+    bumpPath(b, db, 'goa', Paths.reviewsOf('CS F372'));
+    bumpPathOnAllHeads(b, db, Paths.owners);
+    await b.commit();
+    b = db.batch();
+    bumpPath(b, db, 'goa', Paths.reps);
+    await b.commit();
+    final goa = (await headFor('goa', db: db))!;
+    expect(goa.version(Paths.reps), 2);
+    expect(goa.version('reviews/CS F372'), 1);
+    expect(goa.version(Paths.owners), 1);
+    expect((await headFor('dubai', db: db))!.version(Paths.owners), 1);
+    expect((await headFor('dubai', db: db))!.version(Paths.reps), isNull);
   });
 }

@@ -20,6 +20,7 @@ class Head {
     this.catalogSchema,
     this.contact,
     this.offerings = const {},
+    this.v = const {},
   });
 
   /// The published catalogue's version and schema, when published since
@@ -31,6 +32,13 @@ class Head {
 
   /// `'<courseId>|<term>'` → a counter each scheme save moves.
   final Map<String, int> offerings;
+
+  /// Marker path (see `Paths`) → a counter each write to that shared data
+  /// moves.
+  final Map<String, int> v;
+
+  /// The marker of [path], or `null`.
+  int? version(String path) => v[path];
 
   /// The counter of [courseId]'s scheme in [term], or `null`.
   int? offering(String courseId, String term) =>
@@ -45,6 +53,10 @@ class Head {
       for (final e in ((m['offerings'] as Map?) ?? const {}).entries)
         '${e.key}': (e.value as num).toInt(),
     },
+    v: {
+      for (final e in ((m['v'] as Map?) ?? const {}).entries)
+        '${e.key}': (e.value as num).toInt(),
+    },
   );
 
   /// Serialises the head for the cache.
@@ -53,6 +65,7 @@ class Head {
     'catalogSchema': catalogSchema,
     'contact': contact,
     'offerings': offerings,
+    'v': v,
   };
 }
 
@@ -108,6 +121,19 @@ void bumpOfferings(
     for (final c in courseIds) offeringKey(c, term): FieldValue.increment(1),
   },
 }, SetOptions(merge: true));
+
+/// In a write batch: moves [path]'s marker on [campus]'s head by one.
+void bumpPath(WriteBatch b, FirebaseFirestore db, String campus, String path) =>
+    b.set(headRef(db, campus), {
+      'v': {path: FieldValue.increment(1)},
+    }, SetOptions(merge: true));
+
+/// The same on every campus head (owners, terms).
+void bumpPathOnAllHeads(WriteBatch b, FirebaseFirestore db, String path) {
+  for (final c in Campus.values) {
+    bumpPath(b, db, c.name, path);
+  }
+}
 
 /// Every campus head, for writes that concern all of them (a catalogue
 /// publish, the public contact).
