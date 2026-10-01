@@ -3,6 +3,7 @@
 import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
+  FieldPath,
   Timestamp,
   collection,
   deleteField,
@@ -102,6 +103,78 @@ describe('succession', () => {
       await setDoc(doc(db, 'people', S3), { name: name(S3), campus: 'goa', firstSignIn: 1 });
     });
     await assertSucceeds(handOver(days(19.9), { extend: before, secretary: S3 }));
+  });
+
+  test('the whole handover batch the app writes passes, within the access limit', async () => {
+    // RoleStore.handOver: successor, audit, my shortened grant, the old and
+    // new secretary, then the directory relist and the repIndex copy, with
+    // the grants, staff and reps markers.
+    const before = days(100);
+    const ends = days(19.9);
+    const OLD = 'f20230666@goa.bits-pilani.ac.in';
+    const SEC = 'f20230777@goa.bits-pilani.ac.in';
+    const entry = {
+      name: name(PRES), campus: 'goa', email: PRES, updatedAt: Timestamp.now(),
+      roles: [{ role: 'dept', scope: 'ELEC', programme: 'A3', until: before }],
+    };
+    await seed(async (db) => {
+      await updateDoc(doc(db, 'grants', mine), { expiresAt: before });
+      for (const e of [OLD, SEC]) {
+        await setDoc(doc(db, 'people', e), { name: name(e), campus: 'goa', firstSignIn: 1 });
+      }
+      await setDoc(doc(db, 'grants', `dept|goa|ELEC|${OLD}`), {
+        role: 'dept', campus: 'goa', scope: 'ELEC', programme: 'A3', email: OLD,
+        secretary: true, name: name(OLD), active: true, expiresAt: before,
+        grantedBy: { email: PRES, name: name(PRES) }, grantedAt: Timestamp.now(),
+      });
+      await setDoc(doc(db, 'staff', OLD), {
+        email: OLD, name: name(OLD), campus: 'goa', owner: false, admin: false,
+        presidentOf: ['ELEC'], courses: [], expiresAt: before, lastGrant: `dept|goa|ELEC|${OLD}`,
+      });
+      await setDoc(doc(db, 'directory', PRES), entry);
+      await setDoc(doc(db, 'repIndex', 'goa'), { k: PRES, p: { [PRES]: entry } });
+    });
+
+    const db = as(PRES);
+    const b = writeBatch(db);
+    const staff = (email, until, lastGrant) => b.set(doc(db, 'staff', email), {
+      email, name: name(email), campus: 'goa', owner: false, admin: false,
+      presidentOf: ['ELEC'], courses: [], expiresAt: until, lastGrant,
+    });
+    const newGrant = (email, extra) => {
+      const id = `dept|goa|ELEC|${email}`;
+      b.set(doc(db, 'grants', id), {
+        role: 'dept', campus: 'goa', scope: 'ELEC', programme: 'A3', email,
+        name: name(email), active: true, expiresAt: days(300),
+        grantedBy: { email: PRES, name: name(PRES) }, grantedAt: serverTimestamp(),
+        auditId: audit(b, db, `grants/${id}`), ...extra,
+      });
+      staff(email, days(300), id);
+    };
+    newGrant(STUDENT);
+    b.update(doc(db, 'grants', mine), {
+      expiresAt: ends, handedTo: STUDENT, expiresBefore: before,
+      auditId: audit(b, db, `grants/${mine}`),
+    });
+    staff(PRES, ends, mine);
+    bump(b, db, 'goa', 'grants');
+    // _relist
+    const next = {
+      ...entry, updatedAt: serverTimestamp(),
+      roles: [{ ...entry.roles[0], until: ends }],
+    };
+    b.set(doc(db, 'directory', PRES), next);
+    bump(b, db, 'goa', 'staff');
+    bump(b, db, 'goa', 'reps');
+    b.update(doc(db, 'repIndex', 'goa'), 'k', PRES, new FieldPath('p', PRES), next);
+    // The outgoing secretary ends with the handover; the new one is named.
+    b.update(doc(db, 'grants', `dept|goa|ELEC|${OLD}`), {
+      active: true, expiresAt: ends, programme: 'A3',
+      auditId: audit(b, db, `grants/dept|goa|ELEC|${OLD}`),
+    });
+    staff(OLD, ends, `dept|goa|ELEC|${OLD}`);
+    newGrant(SEC, { secretary: true });
+    await assertSucceeds(b.commit());
   });
 
   test('the overlap never extends a term, and one runs at a time', async () => {
