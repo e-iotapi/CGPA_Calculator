@@ -88,4 +88,13 @@ void main() {
     await Sync.push(); // fake Firestore has no rules: the update lands
     expect((await db.doc('users/u1').get()).data()!['rev'], 4);
   });
+
+  test('an edit made while a push writes stays unsynced', () async {
+    await Sync.init('u1');
+    await Hive.box('settingsBox').put('batch', 24);
+    final p = Sync.push(); // takes its snapshot now
+    await Hive.box('settingsBox').put('batch', 27);
+    await p;
+    expect(Sync.hasUnsynced, isTrue);
+  });
 }

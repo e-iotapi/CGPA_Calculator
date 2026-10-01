@@ -5,7 +5,7 @@ type Versions = Record<string, number>;
 
 const HEAD_TTL_MS = 60_000;
 const ALARM_DELAY_MS = 1_500;
-const MIN_READ_GAP_MS = 5_000;
+const MIN_READ_GAP_MS = 20_000;
 const RETRY_MS = 5_000;
 const POKE_ME_GAP_MS = 2_000;
 const MAX_FRAME = 1024;
@@ -49,7 +49,7 @@ export class CampusHub extends DurableObject<Env> {
   }
 
   async sendHello(ws: WebSocket, uid: string, campus: string): Promise<void> {
-    await this.ctx.storage.put("campus", campus);
+    if ((await this.ctx.storage.get<string>("campus")) !== campus) await this.ctx.storage.put("campus", campus);
     let head: Versions;
     let good: Versions | null = null; // a head that really came from Firestore
     const now = Date.now();
@@ -59,7 +59,7 @@ export class CampusHub extends DurableObject<Env> {
         head = good = markers(await readDoc(`heads/${campus}`, this.env));
         this.cache = { head, at: now };
       } catch {
-        head = this.cache?.head ?? {};
+        head = {}; // the cache here is older than HEAD_TTL_MS: better nothing than a number that may be behind
       }
     }
     this.last ??= (await this.ctx.storage.get<Versions>("last")) ?? good;
@@ -80,7 +80,7 @@ export class CampusHub extends DurableObject<Env> {
       return;
     }
     if (msg.t === "poke" && typeof msg.path === "string" && msg.path.length <= 256) {
-      // ponytail: reads are capped at one per MIN_READ_GAP_MS (~17k/day per campus under abuse); no per-path limit
+      // ponytail: reads are capped at one per MIN_READ_GAP_MS (~4.3k/day per campus under abuse); no per-path limit
       if (this.armed) return;
       this.armed = true;
       if ((await this.ctx.storage.getAlarm()) !== null) return;

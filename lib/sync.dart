@@ -249,6 +249,15 @@ class Sync {
     () => _pushing = null,
   );
 
+  /// Edits made while a push was writing [pushed] are not in it: keep them
+  /// dirty and push again after the usual wait.
+  static void _rearmIfEdited(String pushed) {
+    if (snapshot() == pushed) return;
+    _dirty = true;
+    _debounce?.cancel();
+    _debounce = Timer(syncPushDebounce, push);
+  }
+
   static Future<void> _push() async {
     try {
       final cur = snapshot();
@@ -275,6 +284,7 @@ class Sync {
           await _meta.putAll({'rev': base + 1, 'last': cur});
           _dirty = false;
           LiveHeads.pokeMe();
+          _rearmIfEdited(cur);
         } on FirebaseException catch (e) {
           if (e.code != 'permission-denied' && e.code != 'not-found') rethrow;
           await pull(full: true);
@@ -309,6 +319,7 @@ class Sync {
       await _meta.putAll({'rev': newRev, 'last': cur, 'v1ok': true});
       _dirty = false;
       LiveHeads.pokeMe();
+      _rearmIfEdited(cur);
     } catch (e) {
       debugPrint('push failed: $e'); // retried on next change/launch
     }

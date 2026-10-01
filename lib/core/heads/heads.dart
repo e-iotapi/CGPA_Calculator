@@ -7,6 +7,8 @@
 /// one merge-set to a batch they already commit (no extra read).
 library;
 
+import 'dart:math';
+
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads_client.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
@@ -52,11 +54,11 @@ class Head {
     contact: (m['contact'] as Map?)?.cast<String, Object?>(),
     offerings: {
       for (final e in ((m['offerings'] as Map?) ?? const {}).entries)
-        '${e.key}': (e.value as num).toInt(),
+        if (e.value is num) '${e.key}': (e.value as num).toInt(),
     },
     v: {
       for (final e in ((m['v'] as Map?) ?? const {}).entries)
-        '${e.key}': (e.value as num).toInt(),
+        if (e.value is num) '${e.key}': (e.value as num).toInt(),
     },
   );
 
@@ -79,6 +81,11 @@ DocumentReference<Map<String, dynamic>> headRef(
   String campus,
 ) => db.collection('heads').doc(campus);
 
+/// While now is before this, [headFor] skips the Worker and reads Firestore:
+/// set by writers that just changed the head, whose own next read must not
+/// meet the Worker's older copy.
+DateTime? skipWorkerUntil;
+
 /// [campus]'s head: cached, refreshed in the background past [headMaxAge].
 /// Null when none is written yet or it cannot be read.
 ///
@@ -100,16 +107,28 @@ Future<Head?> headFor(
       maxAge: headMaxAge,
       awaitStale: awaitStale,
       fetch: () async {
-        try {
-          final w = await worker(campus);
-          if (w != null && w.isNotEmpty) return Head.fromMap(w);
-        } on Object {
-          // fall through to Firestore
+        Head? fetched;
+        final skip = skipWorkerUntil;
+        if (skip == null || !DateTime.now().isBefore(skip)) {
+          try {
+            final w = await worker(campus);
+            if (w != null && w.isNotEmpty) fetched = Head.fromMap(w);
+          } on Object {
+            // fall through to Firestore
+          }
         }
-        final m =
-            (await headRef(db ?? FirebaseFirestore.instance, campus).get())
-                .data();
-        return m == null ? null : Head.fromMap(m);
+        if (fetched == null) {
+          final m =
+              (await headRef(db ?? FirebaseFirestore.instance, campus).get())
+                  .data();
+          if (m != null) fetched = Head.fromMap(m);
+        }
+        // Markers only grow: a stale copy never moves one back.
+        final old = peekCache<Head?>(
+          'head|$campus',
+          (v) => v == null ? null : Head.fromMap(v as Map),
+        );
+        return fetched == null || old == null ? fetched : _maxed(fetched, old);
       },
       encode: (h) => h?.toMap(),
       decode: (v) => v == null ? null : Head.fromMap(v as Map),
@@ -118,6 +137,18 @@ Future<Head?> headFor(
     return null;
   }
 }
+
+Head _maxed(Head h, Head old) => Head(
+  catalog: h.catalog,
+  catalogSchema: h.catalogSchema,
+  contact: h.contact,
+  offerings: _maxMap(h.offerings, old.offerings),
+  v: _maxMap(h.v, old.v),
+);
+
+Map<String, int> _maxMap(Map<String, int> a, Map<String, int> b) => {
+  for (final e in a.entries) e.key: max(e.value, b[e.key] ?? e.value),
+};
 
 /// In a scheme-saving batch: moves each course's offering version on its
 /// campus's head, so students re-read only what changed.

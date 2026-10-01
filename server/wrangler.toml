@@ -13,3 +13,18 @@ class_name = "CampusHub"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["CampusHub"]
+
+[env.staging]
+name = "pointer-heads-staging"
+
+[env.staging.vars]
+PROJECT_ID = "pointer-staging"
+ALLOWED_ORIGINS = "https://pointer-staging.web.app"
+
+[[env.staging.durable_objects.bindings]]
+name = "HUB"
+class_name = "CampusHub"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["CampusHub"]

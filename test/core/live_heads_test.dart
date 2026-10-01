@@ -104,10 +104,9 @@ void main() {
   });
 
   test(
-    'hello saves the head: moved paths reach the cache and the stream',
+    'hello saves the head: moved paths reach the cache, and versions go live',
     () async {
-      final moved = <Set<String>>[];
-      final sub = LiveHeads.moved.listen(moved.add);
+      expect(versionsLive, isFalse);
       start();
       await pumpEventQueue();
       chans.single.push({
@@ -117,19 +116,17 @@ void main() {
       });
       await pumpEventQueue();
       expect(savedV(), {'resources': 6, 'reps': 1});
-      expect(moved.single, {'resources', 'reps'});
+      expect(versionsLive, isTrue);
       // The rest of the head and its age are untouched, so a load now sees the
       // new marker without the head being treated as fresh.
       final m = jsonDecode(sharedCacheBox!.get('head|goa') as String) as Map;
       expect(m['at'], 123);
       expect((m['v'] as Map)['catalog'], 3);
-      await sub.cancel();
     },
   );
 
-  test('head merges only what moved and emits it', () async {
-    final moved = <Set<String>>[];
-    final sub = LiveHeads.moved.listen(moved.add);
+  test('head merges only what grew; a lower number never moves one back',
+      () async {
     start();
     await pumpEventQueue();
     final c = chans.single;
@@ -139,21 +136,29 @@ void main() {
       'me': 1,
     });
     await pumpEventQueue();
-    moved.clear();
     c.push({
       't': 'head',
       'v': {'resources': 5},
     });
     await pumpEventQueue();
     expect(savedV(), {'resources': 5, 'reps': 1});
-    expect(moved.single, {'resources'});
     c.push({
       't': 'head',
-      'v': {'resources': 5},
-    }); // nothing new: no event
+      'v': {'resources': 3, 'reps': 0},
+    }); // an older copy: ignored
     await pumpEventQueue();
-    expect(moved.length, 1);
-    await sub.cancel();
+    expect(savedV(), {'resources': 5, 'reps': 1});
+  });
+
+  test('versionsLive drops with the connection', () async {
+    start();
+    await pumpEventQueue();
+    chans.single.push({'t': 'hello', 'head': <String, int>{}, 'me': 1});
+    await pumpEventQueue();
+    expect(versionsLive, isTrue);
+    chans.single.drop();
+    await pumpEventQueue();
+    expect(versionsLive, isFalse);
   });
 
   test('poke sends only the path, as JSON', () async {
@@ -201,9 +206,10 @@ void main() {
       c.push({'t': 'me', 'v': 6});
       await pumpEventQueue();
       expect(pulls, 1);
-      c.push({'t': 'me', 'v': 4}); // stale, out of order
+      c.push({'t': 'me', 'v': 4}); // the counter went back: a reset
       await pumpEventQueue();
-      expect(pulls, 1);
+      expect(pulls, 2);
+      expect(stored, 4);
     },
   );
 

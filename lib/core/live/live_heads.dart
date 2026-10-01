@@ -21,11 +21,6 @@ const _maxFailures = 3;
 const _maxFrame = 900; // the server drops frames of 1 KB or more
 
 abstract final class LiveHeads {
-  static final _moved = StreamController<Set<String>>.broadcast();
-
-  /// Paths whose marker moved, as they arrive (and are saved).
-  static Stream<Set<String>> get moved => _moved.stream;
-
   static int _gen = 0; // bumped by stop(): a loop from an older run quits
   static bool _started = false, _gaveUp = false;
   static int _failures = 0;
@@ -101,6 +96,7 @@ abstract final class LiveHeads {
     _meTimer = null;
     _ch?.close();
     _ch = null;
+    versionsLive = false;
   }
 
   static Duration _pokeDelay = const Duration(seconds: 2);
@@ -155,6 +151,8 @@ abstract final class LiveHeads {
         } on Object {
           // a drop
         }
+        versionsLive = false;
+        ch.close();
         if (_ch == ch) _ch = null;
       }
       if (gen != _gen) return;
@@ -180,6 +178,7 @@ abstract final class LiveHeads {
     switch (m['t']) {
       case 'hello':
         _merge(campus, m['head']);
+        versionsLive = true;
         _me(m['me'], hello: true);
         return true;
       case 'head':
@@ -203,16 +202,18 @@ abstract final class LiveHeads {
       final entry = jsonDecode(raw) as Map;
       final head = Map<String, Object?>.from(entry['v'] as Map);
       final marks = Map<String, Object?>.from((head['v'] as Map?) ?? const {});
-      final moved = <String>{};
+      var moved = false;
       for (final e in v.entries) {
         final n = e.value;
         if (n is! num) continue;
-        if (marks['${e.key}'] != n.toInt()) {
+        // Markers only grow: a late or cached frame never moves one back.
+        final old = marks['${e.key}'];
+        if (old is! num || n > old) {
           marks['${e.key}'] = n.toInt();
-          moved.add('${e.key}');
+          moved = true;
         }
       }
-      if (moved.isEmpty) return;
+      if (!moved) return;
       head['v'] = marks;
       entry['v'] = head;
       unawaited(
@@ -220,7 +221,6 @@ abstract final class LiveHeads {
             .put('head|$campus', jsonEncode(entry))
             .catchError((Object e) => debugPrint('live head: $e')),
       );
-      _moved.add(moved);
     } on Object catch (e) {
       debugPrint('live merge: $e');
     }
@@ -234,7 +234,15 @@ abstract final class LiveHeads {
     final n = v.toInt(), last = _lastMe ?? _loadMe?.call();
     final own = !hello && _ownPokes > 0;
     if (own) _ownPokes--;
-    if (last != null && n <= last) {
+    if (last != null && n < last) {
+      // The hub's counter went back (wiped, or another campus's hub): start
+      // over from it.
+      _lastMe = n;
+      _saveMe?.call(n);
+      unawaited(_pullMe());
+      return;
+    }
+    if (last != null && n == last) {
       _lastMe = last;
       return;
     }

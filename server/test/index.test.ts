@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import worker from "../src/index";
+import worker, { headMemo } from "../src/index";
 import { readDoc } from "../src/firestore";
 
 vi.mock("../src/firestore", () => ({ readDoc: vi.fn() }));
@@ -12,6 +12,7 @@ const call = (path: string, init?: RequestInit) =>
 
 beforeEach(() => {
   store.clear();
+  headMemo.clear();
   vi.mocked(readDoc).mockReset();
   vi.stubGlobal("caches", {
     default: {
@@ -31,13 +32,25 @@ describe("GET /heads/:campus", () => {
     vi.mocked(readDoc).mockResolvedValue({ goa: 3 });
     const a = await call("/heads/goa");
     expect(a.status).toBe(200);
-    expect(a.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(a.headers.get("Cache-Control")).toBe("max-age=0");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(store.get("https://w.example/heads/goa")!.headers.get("Cache-Control")).toBe("public, max-age=60");
     expect(await a.json()).toEqual({ goa: 3 });
     await new Promise((r) => setTimeout(r, 0));
     const b = await call("/heads/goa");
     expect(await b.json()).toEqual({ goa: 3 });
     expect(readDoc).toHaveBeenCalledTimes(1);
     expect(readDoc).toHaveBeenCalledWith("heads/goa", env);
+  });
+
+  it("with no working edge cache, reads once a minute per campus", async () => {
+    vi.mocked(readDoc).mockResolvedValue({ goa: 3 });
+    vi.stubGlobal("caches", { default: { match: async () => undefined, put: async () => {} } });
+    for (let i = 0; i < 5; i++) expect(await (await call("/heads/goa")).json()).toEqual({ goa: 3 });
+    expect(readDoc).toHaveBeenCalledTimes(1);
+    headMemo.get("goa")!.at -= 61_000;
+    await call("/heads/goa");
+    expect(readDoc).toHaveBeenCalledTimes(2);
   });
 
   it("answers {} for a missing doc", async () => {
