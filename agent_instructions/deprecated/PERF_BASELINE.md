@@ -1,3 +1,5 @@
+> **Deprecated (2026-10-02):** an emulator baseline from 2026-09-29; the measured before/after numbers now live in `docs/ARCHITECTURE.md` §13 and the README. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # Perf baseline
 
 Before/after numbers from `tools/e2e/specs/perf.spec.mjs`, run against the

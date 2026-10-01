@@ -1,3 +1,5 @@
+> **Deprecated (2026-10-02):** staging QA on real phones ended on 2026-10-01 (Tester / Tester Mac); staging is now https://pointer-staging.web.app, not a Pages preview. Kept for history; current plans are listed in `agent_instructions/README.md`.
+
 # Manual QA on a real old phone (staging)
 
 `tools/test_env/staging.sh`'s build is deployed to the staging Pages preview.

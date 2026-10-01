@@ -23,7 +23,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FILES = ['agent_instructions/deprecated/UI.md', 'agent_instructions/deprecated/UI_OPT.md',
-         'agent_instructions/PERF_TEST_PLAN.md']
+         'agent_instructions/deprecated/PERF_TEST_PLAN.md']
 HEAD = re.compile(r'^(#{1,6}) (.*)$')
 CARD = re.compile(r'^\*\*(T\d+\.\d+)\b')
 FIND = re.compile(r'^- \*\*(N\d+)\b')

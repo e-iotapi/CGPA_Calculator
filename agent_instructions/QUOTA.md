@@ -2,7 +2,7 @@
 
 Tracks Pointer's Firestore read/write budget against Spark's free-tier caps,
 for up to 8,000 users at ~40% peak-day activity (~3,200 DAU). See
-PERF_TEST_PLAN.md §0.5 for the full reasoning; this file holds the numbers.
+deprecated/PERF_TEST_PLAN.md §0.5 for the full reasoning; this file holds the numbers.
 
 ## Free-tier caps (Firebase Spark, re-check at
 https://firebase.google.com/pricing at implementation time)

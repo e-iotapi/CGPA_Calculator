@@ -1,6 +1,6 @@
 # Pointer — architecture for shared data, roles and routes
 
-Planning document. No code yet. This covers five changes that are really one
+Design record (built on `pointer-rebuild`). This covers five changes that are really one
 change: named routes, a maintainer/admin surface, a resources section, moving the course
 catalogue out of the app bundle and out of every user's document, and the rule for what
 happens when a user edits data that someone else maintains.
