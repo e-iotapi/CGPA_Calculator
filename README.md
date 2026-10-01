@@ -16,6 +16,7 @@ Built with Flutter (web) and Firebase. Open source under the
 
 - [Features](#features)
 - [How it works](#how-it-works)
+- [Performance](#performance)
 - [Getting started](#getting-started)
 - [Testing](#testing)
 - [Deployment](#deployment)
@@ -80,6 +81,26 @@ flowchart LR
 
 The full picture, with diagrams of startup, sync, the data model and roles, is
 in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+## Performance
+
+Measured on staging (Chrome throttled to 4× CPU unless noted; iPhone results
+from a real iPhone 13). Method and every number:
+[docs/ARCHITECTURE.md §13](docs/ARCHITECTURE.md#13-performance-and-loading).
+
+| What | Before | After | How |
+|---|---|---|---|
+| Repeat visit, first frame (iPhone user agent) | 2.05 s | 1.68 s | the page starts the Firebase sign-in check while the app loads |
+| Repeat visit, first frame (desktop) | 1.80 s | 1.50 s | same |
+| Repeat visit, bytes downloaded | 858 KB | 176 KB | app files are revalidated (304) instead of downloaded again |
+| iPhone scrolling | visible judder | smooth (owner, iPhone 13) | the app draws at most 2× pixel density |
+| Reopening Resources, Reviews, Representatives, admin pages | spinner every time | last data at once, refreshed behind | per-screen cache |
+| iPhone loads stalling ~30 s on the first sync | 3 in 10 | 0 in 10 | Firestore uses long polling on iOS |
+
+**Next:** every data store keeps its data on the phone and is refreshed from
+the campus version markers, and screens are loaded ahead in levels (Home →
+More → sub-pages → Admin), so no screen waits on the network. See
+§13 of the architecture document.
 
 ## Getting started
 

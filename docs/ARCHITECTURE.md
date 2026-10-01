@@ -17,6 +17,7 @@ reasoning, is [`agent_instructions/ARCHITECTURE.md`](../agent_instructions/ARCHI
 - [10. Routes and screens](#10-routes-and-screens)
 - [11. Environments, testing and deployment](#11-environments-testing-and-deployment)
 - [12. Things that will surprise you](#12-things-that-will-surprise-you)
+- [13. Performance and loading](#13-performance-and-loading)
 
 ## 1. The shape of the system
 
@@ -440,3 +441,75 @@ flowchart LR
   personal, and cleared on sign-out.
 - **The web API key is public by design.** Firebase web config is meant to be
   shipped; the rules and API-key restrictions are what protect data.
+- **The app never draws above 2× pixel density.** `web/index.html` caps
+  `window.devicePixelRatio` at 2 before the engine starts; `?dpr=3` lifts the
+  cap for comparison (§13).
+- **The WebAssembly build is stricter about JS numbers.** `dartify()` returns
+  a `double` there, so `as int` on a browser value throws (and a throw after
+  the first frame blanks the app). Read JS numbers as `num`.
+
+## 13. Performance and loading
+
+### Measured
+
+Staging, Chrome throttled to 4× CPU, a phone-sized window, medians of 5–10
+loads, unless the row says otherwise. Each row's before and after used the
+same setup; the first two rows toggled only that change on one build.
+
+| What | Before | After | Change |
+|---|---|---|---|
+| Repeat visit, first frame, iPhone user agent | 2.05 s | 1.68 s | Firebase sign-in check starts with the page (`c7fef0e`) |
+| Repeat visit, first frame, desktop | 1.80 s | 1.50 s | same |
+| Repeat visit, bytes downloaded | 858 KB | 176 KB | app files revalidate to a 304 (`d6c390c`) |
+| Repeat visit, first frame | 7.1 s | 3.2 s | same |
+| Cold load, first frame (4× CPU, 1.6 Mbps) | 21.7 s | 20.0 s | analytics after the first frame, Firebase SDK preloaded (`445008c`) |
+| iPhone loads stalling ~30 s on the first sync | 3 in 10 | 0 in 10 | Firestore long polling on iOS (`9d8ed37`) |
+| Missed frames, Settings / Reviews / theme switch (real GPU) | 50 / 32 / 29 % | 23 / 19 / 19 % | CanvasKit draws straight to the screen (`5a58613`) |
+| iPhone 13 scrolling | judder (18–34 screen updates/s) | smooth (owner, by feel) | at most 2× pixel density, 44 % fewer pixels a frame (`a9d7978`) |
+| Reopening Resources, Reviews, Representatives, admin pages | spinner every time | last data at once | per-screen session cache (`a9d7978`, `c78433c`) |
+
+Tried and ruled out for iPhone scrolling: touch resampling off (`?resample=0`,
+no difference) and the WebAssembly renderer (slightly smoother, not enough on
+its own).
+
+### Where a repeat visit's time goes now
+
+About 1.5 s at 4× CPU: ~0.35 s loading the engine and app files from cache,
+~0.3 s evaluating `main.dart.js`, ~0.65 s building Home's first frame and
+~0.45 s drawing it. The sign-in check overlaps the first two. `window.pointerPerf.timings()`
+prints every startup step in staging and test builds.
+
+### Loading design (being built)
+
+Goal: no screen waits on the network, including the first open after a
+relaunch. It is the client half of the server plan in
+[`agent_instructions/DATA_SYNC_PLAN.md`](../agent_instructions/DATA_SYNC_PLAN.md).
+
+**Every data store keeps its data on the phone.** Each store read
+(resources, reviews, representatives, professors, roles, offerings, admin
+data) goes through `cacheFirst` (`lib/core/cache`), which saves the last value
+in the `sharedCache` box. A screen draws the saved copy in its first frame
+(`peek`) and asks for fresh data behind it; a failed refresh keeps the saved
+copy. Live search and one-time forms are not cached.
+
+**Freshness comes from version markers, not timers.** Every shared path has a
+version number in `heads/{campus}` (DATA_SYNC_PLAN Stage 1), and every write
+bumps it in the same batch. A saved copy is current while its path's version
+hasn't moved, so a check costs no reads beyond the head itself. Later stages
+deliver the head without Firestore reads: a Cloudflare Worker serving it from
+the edge (Stage 2), then a push over one WebSocket per client (Stage 3).
+
+**Screens load ahead, level by level, after the first frame:**
+
+```mermaid
+flowchart LR
+  L1["1 · Home, all tabs<br/>(on the phone already)"] --> L2["2 · More<br/>Reviews, Representatives,<br/>Resources"]
+  L2 --> L3["3 · Sub-pages<br/>your courses' reviews,<br/>professors"]
+  L3 --> L4["4 · Admin<br/>only roles you hold,<br/>one request at a time"]
+```
+
+Level 2 starts 2 s after the first frame so startup stays smooth; each level
+starts when the previous one finishes; anything whose version hasn't moved is
+skipped; prefetch pauses offline and runs once per session; a screen opened
+early jumps the queue.
+
