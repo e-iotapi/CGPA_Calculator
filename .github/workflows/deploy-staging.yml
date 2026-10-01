@@ -105,6 +105,7 @@ jobs:
         run: |
           flutter build web --release \
             --dart-define=POINTER_ENV=staging \
+            --dart-define=POINTER_HEADS_URL=${{ vars.POINTER_HEADS_URL }} \
             --dart-define=POINTER_TEST_PASSWORD="$STAGING_PASSWORD" \
             --build-number="$(date +%s)"
           # Staging serves the app at /, not /calculator/ (prod's path).
