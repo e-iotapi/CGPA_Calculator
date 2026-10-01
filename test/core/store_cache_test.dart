@@ -315,6 +315,9 @@ void main() {
   });
 
   group('markers', () {
+    setUp(() => versionsLive = true); // the socket keeps versions current
+    tearDown(() => versionsLive = false);
+
     Future<Object?> marker(String campus, String path) async =>
         ((await db.doc('heads/$campus').get()).data()?['v'] as Map?)?[path];
 
@@ -452,11 +455,9 @@ void main() {
       expect((await contacts.directory('goa')).single.name, 'A');
       await settle();
       expect((await contacts.directory('goa')).single.name, 'A');
-      // The marker moves: the copy is stale, refreshed behind the read.
+      // The marker moves: the read waits for the new copy.
       await setMarker('goa', Paths.reps, 2);
       await headRefresh();
-      expect((await contacts.directory('goa')).single.name, 'A');
-      await settle();
       expect((await contacts.directory('goa')).single.name, 'B');
       expect(contacts.peekDirectory('goa')!.single.name, 'B');
     });
@@ -517,11 +518,29 @@ void main() {
       await setMarker('goa', Paths.professors('CS'), 2);
       await setMarker('goa', Paths.resources, 2);
       await headRefresh();
-      await ps.department('goa', 'CS');
-      await rs.department('goa', 'CS');
-      await settle();
       expect((await ps.department('goa', 'CS')).single.name, 'Dr Z');
       expect((await rs.department('goa', 'CS')).single.title, 'New');
+    });
+
+    test('with the socket down an old matching copy refreshes behind', () async {
+      versionsLive = false;
+      await db.doc('repIndex/goa').set({
+        'p': {
+          'a@goa.bits-pilani.ac.in': {'name': 'A', 'campus': 'goa', 'roles': []},
+        },
+      });
+      await setMarker('goa', Paths.reps, 1);
+      final contacts = ContactStore(roles);
+      await contacts.directory('goa');
+      await db.doc('repIndex/goa').set({
+        'p': {
+          'a@goa.bits-pilani.ac.in': {'name': 'B', 'campus': 'goa', 'roles': []},
+        },
+      });
+      await age('reps|goa');
+      expect((await contacts.directory('goa')).single.name, 'A');
+      await settle();
+      expect((await contacts.directory('goa')).single.name, 'B');
     });
   });
 }

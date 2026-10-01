@@ -60,14 +60,24 @@ class ResourceStore {
     }
   }
 
-  /// Every live link in [department] on [campus]: the saved list at once,
-  /// with the campus version checked in the background (a change shows on
-  /// the next open); fetched when nothing is saved. Offline, the saved list.
-  Future<List<Resource>> department(String campus, String department) {
+  /// Every live link in [department] on [campus]: the saved list at once
+  /// when the head's marker still matches it (the campus version is then
+  /// re-checked in the background); the loaded list when the marker moved,
+  /// the saved one if that fails; fetched when nothing is saved.
+  Future<List<Resource>> department(String campus, String department) async {
     final hit = peekDepartment(campus, department);
     if (hit == null) return _load(campus, department);
+    final saved = (jsonDecode(_cache!.get('$campus|$department') as String) as Map)['hv'];
+    final marker = (await headFor(campus, db: _db))?.version(Paths.resources);
+    if (marker != null && marker != saved) {
+      try {
+        return await _load(campus, department);
+      } on Object {
+        return hit;
+      }
+    }
     unawaited(_load(campus, department).then<void>((_) {}, onError: (Object _) {}));
-    return Future.value(hit);
+    return hit;
   }
 
   /// A write on [campus] makes this device's saved lists stale at once.

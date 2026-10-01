@@ -1,5 +1,6 @@
 // heads/{campus} (PERF_TEST_PLAN.md §A): scheme saves move a course's
 // version; a publish and the contact land on every campus.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
@@ -81,7 +82,55 @@ void main() {
     expect((await headFor('dubai', db: db))!.version(Paths.reps), isNull);
   });
 
+  test('fromMap skips values that are not numbers', () {
+    final h = Head.fromMap({
+      'v': {'a': 2, 'b': 'x'},
+      'offerings': {'c|T': 1, 'd|T': 'y'},
+    });
+    expect(h.v, {'a': 2});
+    expect(h.offerings, {'c|T': 1});
+  });
+
   group('Worker heads', () {
+    tearDown(() => skipWorkerUntil = null);
+
+    test('a fetch never moves a marker back', () async {
+      final db = FakeFirebaseFirestore();
+      await sharedCacheBox!.put(
+        'head|goa',
+        jsonEncode({
+          'at': 0,
+          'v': const Head(v: {'reps': 5}).toMap(),
+          'ver': null,
+        }),
+      );
+      final h = await headFor(
+        'goa',
+        db: db,
+        awaitStale: true,
+        worker: (c) async => {'v': {'reps': 3, 'staff': 1}},
+      );
+      expect(h!.v, {'reps': 5, 'staff': 1});
+    });
+
+    test('skipWorkerUntil sends the read to Firestore', () async {
+      final db = FakeFirebaseFirestore();
+      await db.doc('heads/goa').set({
+        'v': {'reps': 9},
+      });
+      skipWorkerUntil = DateTime.now().add(const Duration(minutes: 2));
+      final h = await headFor(
+        'goa',
+        db: db,
+        worker: (c) async => {'v': {'reps': 2}},
+      );
+      expect(h!.version('reps'), 9);
+      await forget('head|');
+      skipWorkerUntil = DateTime.now().subtract(const Duration(seconds: 1));
+      expect((await headFor('goa', db: db, worker: (c) async => {'v': {'reps': 2}}))!
+          .version('reps'), 2);
+    });
+
     test('headFor reads the Worker first', () async {
       final db = FakeFirebaseFirestore();
       await db.doc('heads/goa').set({

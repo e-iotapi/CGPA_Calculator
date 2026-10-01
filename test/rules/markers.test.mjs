@@ -40,6 +40,12 @@ describe('the head rule', () => {
       { v: inc('a'), offerings: { x: increment(1) } }, { merge: true }));
   });
 
+  test('the marker map stays small', async () => {
+    const st = as(STUDENT);
+    await assertFails(heads(st, 'goa', Object.fromEntries(
+      Array.from({ length: 3001 }, (_, i) => [`k${i}`, increment(1)]))));
+  });
+
   test('owners and admins reach any campus', async () => {
     await assertSucceeds(heads(as(OWNER), 'dubai', inc('a')));
     await assertSucceeds(heads(as(ADMIN), 'pilani', inc('a')));
@@ -52,7 +58,8 @@ describe('a marker moves by exactly one, on the right path', () => {
     department: 'ELEC', scope: 'department', courseIds: [], pinnedToDepartment: false, removed: false, actingFor: '',
   };
 
-  test('resources', async () => {
+  test('resources (a poisoned marker heals on the next bump)', async () => {
+    await seed(async (db) => { await setDoc(doc(db, 'heads', 'goa'), { v: { resources: 'x' } }); });
     const put = async (by, path = 'resources') => {
       const db = as(PRES);
       const b = writeBatch(db);

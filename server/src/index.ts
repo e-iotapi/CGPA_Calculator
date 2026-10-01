@@ -35,6 +35,9 @@ async function liveSocket(campus: string, req: Request, env: Env): Promise<Respo
   return env.HUB.get(env.HUB.idFromName(campus)).fetch(fwd);
 }
 
+const HEAD_MEMO_MS = 60_000;
+export const headMemo = new Map<string, { body: string; at: number }>();
+
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (req.method === "OPTIONS") return withCors(new Response(null, { status: 204 }), req, env);
@@ -43,10 +46,21 @@ export default {
     const m = req.method === "GET" ? new URL(req.url).pathname.match(/^\/heads\/([^/]+)$/) : null;
     if (!m || !CAMPUSES.has(m[1])) return withCors(new Response("not found", { status: 404 }), req, env);
 
+    // In-isolate memo first, so Firestore reads stay bounded at about one a minute per isolate
+    // and campus even where caches.default is a no-op (workers.dev).
+    const reply = (body: string) =>
+      withCors(new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=0" } }), req, env);
+    const memo = headMemo.get(m[1]);
+    if (memo && Date.now() - memo.at < HEAD_MEMO_MS) return reply(memo.body);
+
     const cache = caches.default;
     const key = new Request(new URL(req.url).origin + `/heads/${m[1]}`);
     const hit = await cache.match(key);
-    if (hit) return withCors(hit, req, env);
+    if (hit) {
+      const body = await hit.text();
+      headMemo.set(m[1], { body, at: Date.now() });
+      return reply(body);
+    }
 
     let doc: Record<string, unknown> | null;
     try {
@@ -54,10 +68,12 @@ export default {
     } catch {
       return withCors(new Response("upstream error", { status: 502 }), req, env);
     }
-    const res = new Response(JSON.stringify(doc ?? {}), {
-      headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60" },
-    });
-    ctx.waitUntil(cache.put(key, res.clone()));
-    return withCors(res, req, env);
+    const body = JSON.stringify(doc ?? {});
+    headMemo.set(m[1], { body, at: Date.now() });
+    // The edge copy lives 60 s; the browser is told max-age=0 so it always asks the edge.
+    ctx.waitUntil(
+      cache.put(key, new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60" } }))
+    );
+    return reply(body);
   },
 };

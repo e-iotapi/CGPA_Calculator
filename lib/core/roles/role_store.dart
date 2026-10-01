@@ -988,6 +988,7 @@ class RoleStore {
     await b.commit();
     await forget('contact|');
     await forget('head|');
+    skipWorkerUntil = DateTime.now().add(const Duration(minutes: 2));
     await forget('audit|');
   }
 }

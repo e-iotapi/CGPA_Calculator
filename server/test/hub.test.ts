@@ -124,7 +124,20 @@ describe("CampusHub", () => {
     vi.setSystemTime(1_000_000 + 1600);
     await poke();
     expect(setAlarm).toHaveBeenCalledTimes(2);
-    expect(setAlarm).toHaveBeenLastCalledWith(1_000_000 + 1500 + 5000);
+    expect(setAlarm).toHaveBeenLastCalledWith(1_000_000 + 1500 + 20_000);
+  });
+
+  it("a failed hello read after the cache went old sends {}, not the old numbers", async () => {
+    vi.mocked(readDoc).mockResolvedValueOnce({ v: { a: 1 } });
+    const { hub, connect, ctx } = makeHub();
+    await connect("u1");
+    expect(ctx.storage.kv.get("campus")).toBe("goa");
+    const put = vi.spyOn(ctx.storage, "put");
+    vi.setSystemTime(1_000_000 + 61_000);
+    vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
+    const w = await connect("u2");
+    expect(w.sent[0].head).toEqual({});
+    expect(put).not.toHaveBeenCalled(); // campus already stored
   });
 
   it("an existing alarm found after hibernation is not re-set", async () => {

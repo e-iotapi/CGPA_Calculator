@@ -158,7 +158,8 @@ void main() {
       expect(peekCache<int>('missing', (v) => v as int, box: box), isNull);
     });
 
-    test('a matching version is fresh at any age', () async {
+    test('a matching version is fresh at any age while versions are live',
+        () async {
       var n = 0;
       Future<int> get(String? ver, DateTime now) => cacheFirst<int>(
         key: 'v', maxAge: const Duration(minutes: 1), box: box,
@@ -166,20 +167,38 @@ void main() {
         fetch: () async => ++n, encode: (v) => v, decode: (v) => v as int,
       );
       final t0 = DateTime(2026, 10, 1);
+      versionsLive = true;
+      addTearDown(() => versionsLive = false);
       expect(await get('3', t0), 1);
       expect(await get('3', t0.add(const Duration(days: 30))), 1);
       expect(n, 1);
+      // Socket down: the same old entry is past maxAge, so it refreshes.
+      versionsLive = false;
+      expect(await get('3', t0.add(const Duration(days: 30))), 1);
+      await Future<void>.delayed(Duration.zero);
+      expect(n, 2);
+      expect(await get('3', t0.add(const Duration(days: 30, seconds: 5))), 2);
     });
 
     test('a moved version refetches', () async {
       var n = 0;
       Future<int> get(String ver) => cacheFirst<int>(
         key: 'v2', maxAge: const Duration(days: 9), box: box, version: ver,
-        awaitStale: true,
         fetch: () async => ++n, encode: (v) => v, decode: (v) => v as int,
       );
       expect(await get('3'), 1);
-      expect(await get('4'), 2);
+      expect(await get('4'), 2); // waited for, not served stale
+    });
+
+    test('a moved version falls back to the saved value when the fetch fails',
+        () async {
+      Future<int> get(String ver, {bool fail = false}) => cacheFirst<int>(
+        key: 'v3', maxAge: const Duration(days: 9), box: box, version: ver,
+        fetch: () async => fail ? throw StateError('down') : 7,
+        encode: (v) => v, decode: (v) => v as int,
+      );
+      expect(await get('1'), 7);
+      expect(await get('2', fail: true), 7);
     });
   });
 }

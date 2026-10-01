@@ -550,8 +550,9 @@ service cloud.firestore {
     // A write to a shared path moves that path's marker by exactly one in the
     // same batch (DATA_SYNC_PLAN Stage 1).
     function pathBumped(campus, path) {
-      let was = exists(headPath(campus))
+      let was0 = exists(headPath(campus))
         ? get(headPath(campus)).data.get('v', {}).get(path, 0) : 0;
+      let was = was0 is int ? was0 : 0;
       return getAfter(headPath(campus)).data.get('v', {}).get(path, 0) == was + 1;
     }
 
@@ -578,10 +579,13 @@ service cloud.firestore {
                  == getAfter(/databases/$(db)/documents/config/public).data.contactTarget)
         // Markers move by writes that bumped them elsewhere (pathBumped, in
         // the source rule, enforces the exact +1). This only limits who moves
-        // markers and how many at once. ponytail: a stray bump costs readers
-        // one re-read and never shows wrong data (as with offerings).
+        // markers, how many at once and how big the map grows. ponytail: the
+        // rules language cannot iterate a set of changed keys (no toList), so
+        // a value cannot be checked here: a stray string or step is healed by
+        // pathBumped (a non-int counts as 0) and skipped by Head.fromMap.
         || (mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin())
             && headDiff().hasOnly(['v']) && request.resource.data.v is map
+            && request.resource.data.v.size() <= 3000
             && request.resource.data.v.diff(resource == null ? {} : resource.data.get('v', {}))
                  .affectedKeys().size() <= 4);
       allow delete: if false;

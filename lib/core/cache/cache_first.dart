@@ -31,6 +31,10 @@ T? peekCache<T>(String key, T Function(Object?) decode, {Box? box}) {
   }
 }
 
+/// True while the live socket is connected, so a saved version that still
+/// matches the head's is current. LiveHeads sets it.
+bool versionsLive = false;
+
 /// Fetches in flight, keyed the same as the cache, so concurrent callers for
 /// one key share one fetch instead of each starting their own.
 final _inFlight = <String, Future<Object?>>{};
@@ -40,8 +44,9 @@ final _inFlight = <String, Future<Object?>>{};
 /// nothing is cached. Concurrent calls for one key share one fetch.
 /// [awaitStale] waits for that refresh instead (the cached value if it fails):
 /// the same single read, but the caller sees the new value now, not next open.
-/// With a [version], the saved value is fresh exactly when it was saved under
-/// that version, whatever its age; [maxAge] is then ignored.
+/// With a [version], a saved value from another version is stale and awaited
+/// like [awaitStale]; one saved under it is fresh while [versionsLive] (the
+/// live socket keeps versions current), otherwise only within [maxAge].
 Future<T> cacheFirst<T>({
   required String key,
   required Duration maxAge,
@@ -60,11 +65,11 @@ Future<T> cacheFirst<T>({
     try {
       final m = jsonDecode(raw) as Map;
       final value = decode(m['v']);
-      final fresh = version != null
-          ? m['ver'] == version
-          : at - (m['at'] as int) < maxAge.inMilliseconds;
+      final young = at - (m['at'] as int) < maxAge.inMilliseconds;
+      final moved = version != null && m['ver'] != version;
+      final fresh = version != null ? !moved && (versionsLive || young) : young;
       if (fresh) return value;
-      if (awaitStale) {
+      if (awaitStale || moved) {
         try {
           return await _fetchAndCache(key, fetch, encode, b, at, version);
         } on Object {
