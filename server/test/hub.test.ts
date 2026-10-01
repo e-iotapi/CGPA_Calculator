@@ -68,7 +68,7 @@ describe("pure helpers", () => {
 
 describe("CampusHub", () => {
   it("hello carries the head and the uid's me", async () => {
-    vi.mocked(readDoc).mockResolvedValue({ "a/b": 4 });
+    vi.mocked(readDoc).mockResolvedValue({ catalog: 9, contact: { name: "x" }, v: { "a/b": 4 } });
     const { connect } = makeHub();
     const ws = await connect("u1");
     expect(ws.sent).toEqual([{ t: "hello", head: { "a/b": 4 }, me: 0 }]);
@@ -76,7 +76,7 @@ describe("CampusHub", () => {
   });
 
   it("caches the head for 60s across hellos", async () => {
-    vi.mocked(readDoc).mockResolvedValue({ p: 1 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { p: 1 } });
     const { connect } = makeHub();
     await connect("u1");
     await connect("u2");
@@ -87,7 +87,7 @@ describe("CampusHub", () => {
   });
 
   it("two pokes inside the window arm one alarm and cause one read", async () => {
-    vi.mocked(readDoc).mockResolvedValue({ p: 1 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { p: 1 } });
     const { hub, connect, setAlarm } = makeHub();
     const ws = await connect("u1");
     vi.mocked(readDoc).mockClear();
@@ -95,7 +95,7 @@ describe("CampusHub", () => {
     await hub.webSocketMessage(ws as any, JSON.stringify({ t: "poke", path: "q" }));
     expect(setAlarm).toHaveBeenCalledTimes(1);
     expect(setAlarm).toHaveBeenCalledWith(1_000_000 + 1500);
-    vi.mocked(readDoc).mockResolvedValue({ p: 2 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { p: 2 } });
     await hub.alarm();
     expect(readDoc).toHaveBeenCalledTimes(1);
   });
@@ -142,7 +142,7 @@ describe("CampusHub", () => {
     const { hub, connect } = makeHub();
     const w1 = await connect("u1");
     expect(w1.sent[0].head).toEqual({});
-    vi.mocked(readDoc).mockResolvedValue({ a: 1 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { a: 1 } });
     const w2 = await connect("u2");
     expect(readDoc).toHaveBeenCalledTimes(2);
     expect(w2.sent[0].head).toEqual({ a: 1 });
@@ -154,13 +154,13 @@ describe("CampusHub", () => {
     vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
     const { hub, connect } = makeHub();
     const ws = await connect("u1");
-    vi.mocked(readDoc).mockResolvedValue({ a: 1 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { a: 1 } });
     await hub.alarm();
     expect(ws.sent[1]).toEqual({ t: "head", v: { a: 1 } });
   });
 
   it("a failed alarm read retries in 5s, at most 3 times in a row", async () => {
-    vi.mocked(readDoc).mockResolvedValue({ a: 1 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { a: 1 } });
     const { hub, connect, setAlarm } = makeHub();
     await connect("u1");
     vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
@@ -170,7 +170,7 @@ describe("CampusHub", () => {
     await hub.alarm();
     expect(setAlarm).toHaveBeenCalledTimes(3);
     // success resets the counter
-    vi.mocked(readDoc).mockResolvedValue({ a: 2 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { a: 2 } });
     await hub.alarm();
     vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
     await hub.alarm();
@@ -178,18 +178,18 @@ describe("CampusHub", () => {
   });
 
   it("alarm broadcasts only the diff, to every socket", async () => {
-    vi.mocked(readDoc).mockResolvedValue({ a: 1, b: 1 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { a: 1, b: 1 } });
     const { hub, connect } = makeHub();
     const w1 = await connect("u1");
     const w2 = await connect("u2");
-    vi.mocked(readDoc).mockResolvedValue({ a: 1, b: 2 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { a: 1, b: 2 } });
     await hub.alarm();
     expect(w1.sent[1]).toEqual({ t: "head", v: { b: 2 } });
     expect(w2.sent[1]).toEqual({ t: "head", v: { b: 2 } });
   });
 
   it("alarm with an unchanged head broadcasts nothing", async () => {
-    vi.mocked(readDoc).mockResolvedValue({ a: 1 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { a: 1 } });
     const { hub, connect } = makeHub();
     const ws = await connect("u1");
     await hub.alarm();
@@ -197,7 +197,7 @@ describe("CampusHub", () => {
   });
 
   it("alarm survives a Firestore error", async () => {
-    vi.mocked(readDoc).mockResolvedValue({ a: 1 });
+    vi.mocked(readDoc).mockResolvedValue({ v: { a: 1 } });
     const { hub, connect } = makeHub();
     const ws = await connect("u1");
     vi.mocked(readDoc).mockRejectedValue(new Error("boom"));
