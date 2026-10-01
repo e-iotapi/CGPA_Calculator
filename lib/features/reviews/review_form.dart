@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
@@ -72,6 +73,36 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
     return (term: term, offering: off, professors: profs);
   }
 
+  /// [_load] from the saved copies; null if any part is not saved.
+  _Took? _peek() {
+    final e = widget.existing;
+    final campus = myCampus;
+    final term = e?.term ?? tookIt(widget.courseId)?.term;
+    if (campus == null || term == null) return null;
+    final off = cachedOffering(widget.courseId, campus, term);
+    if (e == null && off == null) return null;
+    final ids =
+        e == null
+            ? off?.professors ?? const <String>[]
+            : [if (e.professorId != null) e.professorId!];
+    final store = ProfessorStore(roleStore!.db);
+    final profs = <Professor>[];
+    for (final id in ids) {
+      final p = store.peekResolved(id);
+      if (p == null) return null;
+      profs.add(
+        Professor(
+          id: id,
+          name: p.name,
+          campus: p.campus,
+          department: p.department,
+        ),
+      );
+    }
+    _professorId ??= e?.professorId ?? profs.firstOrNull?.id;
+    return (term: term, offering: off, professors: profs);
+  }
+
   Future<void> _save(_Took t) async {
     final store = reviewStore!;
     setState(() => _busy = true);
@@ -106,6 +137,7 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
     final editing = widget.existing != null;
     return Loaded<_Took?>(
       load: _load,
+      peek: _peek,
       builder: (context, t, _) {
         final header = PageHeader(
           eyebrow: '${widget.courseId} · ${(myCampus ?? '').toUpperCase()}',

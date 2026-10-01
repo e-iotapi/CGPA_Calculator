@@ -46,6 +46,20 @@ class _TakenByRowState extends State<TakenByRow> {
     return out;
   }
 
+  /// [_load] from the saved copies; null if any is not saved.
+  List<String>? _peek() {
+    final r = roleStore;
+    if (r == null || widget.professorIds.isEmpty) return null;
+    final store = ProfessorStore(r.db);
+    final out = <String>[];
+    for (final id in widget.professorIds) {
+      final p = store.peekResolved(id);
+      if (p == null) return null;
+      out.add(p.name);
+    }
+    return out;
+  }
+
   @override
   void didUpdateWidget(TakenByRow old) {
     super.didUpdateWidget(old);
@@ -59,6 +73,7 @@ class _TakenByRowState extends State<TakenByRow> {
     final p = AppPalette.of(context);
     return FutureBuilder<List<String>>(
       future: _names,
+      initialData: _peek(),
       builder: (context, s) {
         final names = s.data ?? const [];
         return Padding(

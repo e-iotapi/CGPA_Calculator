@@ -283,8 +283,13 @@ GoRoute _admin(String path, Widget Function() page, bool Function() may) =>
 
 /// Admin screens live in a deferred library (§13): loaded on first visit.
 Widget _deferred(Widget Function() page) =>
-    DeferredPage(load: _adminLoad ??= admin.loadLibrary(), page: page);
+    DeferredPage(
+      load: _adminLoad ??= admin.loadLibrary().then((_) => _adminReady = true),
+      loaded: _adminReady,
+      page: page,
+    );
 Future<void>? _adminLoad;
+bool _adminReady = false;
 
 /// For a department president: loads the admin code and their board's data
 /// in the background, so the department pages open with data (TM-16).
@@ -297,7 +302,16 @@ Future<void> prefetchPresidentPages() async {
 
 /// Shows [page] once the deferred library behind [load] has loaded.
 class DeferredPage extends StatelessWidget {
-  const DeferredPage({super.key, required this.load, required this.page});
+  const DeferredPage({
+    super.key,
+    required this.load,
+    required this.page,
+    this.loaded = false,
+  });
+
+  /// True once [load] has completed: [page] then draws in the first frame
+  /// (a FutureBuilder on a done future still shows one waiting frame).
+  final bool loaded;
 
   /// Completes when the library is loaded.
   final Future<void> load;
@@ -306,16 +320,19 @@ class DeferredPage extends StatelessWidget {
   final Widget Function() page;
 
   @override
-  Widget build(BuildContext context) => FutureBuilder(
-    future: load,
-    builder:
-        (context, s) =>
-            s.connectionState == ConnectionState.done
-                ? page()
-                : const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                ),
-  );
+  Widget build(BuildContext context) =>
+      loaded
+          ? page()
+          : FutureBuilder(
+            future: load,
+            builder:
+                (context, s) =>
+                    s.connectionState == ConnectionState.done
+                        ? page()
+                        : const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        ),
+          );
 }
 
 Course? _course(GoRouterState s) {

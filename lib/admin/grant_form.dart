@@ -700,6 +700,7 @@ class DeptSheet extends StatelessWidget {
               const SizedBox(height: Space.sm),
               FutureBuilder<List<Branch>>(
                 future: campusBranches(campus),
+                initialData: campusBranchesNow(campus),
                 builder: (context, snap) {
                   final rows = [
                     for (final b in snap.data ?? const <Branch>[])
