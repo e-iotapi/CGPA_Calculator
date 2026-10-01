@@ -5,6 +5,8 @@
 library;
 
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -221,11 +223,16 @@ class ContactStore {
   DocumentReference<Map<String, dynamic>> _directory(String email) =>
       db.collection('directory').doc(email);
 
+  /// The staff marker of the signed-in person's campus.
+  Future<String?> _staffMarker() =>
+      markerOf(db, campusOfAddress(roles.me), Paths.staff);
+
   /// The signed-in person's staff contact: name and phone.
-  Future<({String name, String phone})?> myStaffContact() =>
+  Future<({String name, String phone})?> myStaffContact() async =>
       cacheFirst<({String name, String phone})?>(
         key: 'staffme|${roles.me}',
         maxAge: repsMaxAge,
+        version: await _staffMarker(),
         fetch: () async {
           final m = (await _staffContact(roles.me).get()).data();
           return m == null
@@ -252,9 +259,10 @@ class ContactStore {
       peekCache<({String name, String phone})?>('staffme|${roles.me}', _decodeStaff);
 
   /// Reads the signed-in person's directory entry, or `null` if none.
-  Future<DirectoryEntry?> myDirectory() => cacheFirst<DirectoryEntry?>(
+  Future<DirectoryEntry?> myDirectory() async => cacheFirst<DirectoryEntry?>(
     key: 'dirme|${roles.me}',
     maxAge: repsMaxAge,
+    version: await _staffMarker(),
     fetch: () async {
       final m = (await _directory(roles.me).get()).data();
       return m == null ? null : DirectoryEntry.fromMap(roles.me, m);
@@ -299,6 +307,8 @@ class ContactStore {
           'email': roles.me,
           'updatedAt': FieldValue.serverTimestamp(),
         });
+    // The rules count a non-BITS owner's contact on goa's head.
+    bumpPath(b, db, campusOfAddress(roles.me) ?? 'goa', Paths.staff);
     final listed = listedRoles(r);
     if (listed.isNotEmpty) {
       final wa = whatsapp?.trim();
@@ -388,6 +398,7 @@ class ContactStore {
             : await cacheFirst<Map<String, dynamic>>(
               key: 'reps|$campus',
               maxAge: repsMaxAge,
+              version: await markerOf(db, campus, Paths.reps),
               fetch: fetch,
               encode: (m) => m,
               decode: (o) => Map<String, dynamic>.from(o as Map),
@@ -429,6 +440,7 @@ class ContactStore {
       return await cacheFirst<Volunteer?>(
         key: 'offer|$campus|$courseId|${roles.me}',
         maxAge: offerMaxAge,
+        version: await markerOf(db, campus, Paths.volunteers(deptOf(courseId))),
         fetch: () async {
           final m =
               (await Perf.time(
@@ -459,7 +471,8 @@ class ContactStore {
     required String name,
     required String term,
   }) async {
-    await _offer(volunteerId(campus, courseId, roles.me)).set({
+    final b = db.batch();
+    b.set(_offer(volunteerId(campus, courseId, roles.me)), {
       'name': name,
       'email': roles.me,
       'campus': campus,
@@ -469,13 +482,18 @@ class ContactStore {
       'open': true,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    bumpPath(b, db, campus, Paths.volunteers(deptOf(courseId)));
+    await b.commit();
     await forget('offer|$campus|');
     await forget('vol|');
   }
 
   /// The student takes the offer back.
   Future<void> withdraw(Volunteer v) async {
-    await _offer(v.id).update({'open': false});
+    final b = db.batch();
+    b.update(_offer(v.id), {'open': false});
+    bumpPath(b, db, v.campus, Paths.volunteers(deptOf(v.courseId)));
+    await b.commit();
     await forget('offer|${v.campus}|');
     await forget('vol|');
   }
@@ -485,9 +503,10 @@ class ContactStore {
     String campus,
     String dept, {
     required String term,
-  }) => cacheFirst<Map<String, List<Volunteer>>>(
+  }) async => cacheFirst<Map<String, List<Volunteer>>>(
     key: 'vol|$campus|$dept|$term',
     maxAge: repsMaxAge,
+    version: await markerOf(db, campus, Paths.volunteers(dept)),
     fetch: () async {
       final q =
           await db
@@ -530,10 +549,13 @@ class ContactStore {
 
   /// A president dismisses one offer.
   Future<void> dismiss(Volunteer v) async {
-    await _offer(v.id).update({
+    final b = db.batch();
+    b.update(_offer(v.id), {
       'open': false,
       'closedBy': {'email': roles.me, 'name': roles.myName},
     });
+    bumpPath(b, db, v.campus, Paths.volunteers(deptOf(v.courseId)));
+    await b.commit();
     await forget('vol|');
   }
 }

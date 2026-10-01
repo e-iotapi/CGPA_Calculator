@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -78,11 +80,17 @@ class ResourceStore {
     final key = '$campus|$department';
     final cached = _cache?.get(key);
     List<Resource>? fromCache;
-    int? cachedV;
+    int? cachedV, cachedMarker;
     if (cached is String) {
       final m = jsonDecode(cached) as Map;
       cachedV = m['v'] as int;
+      cachedMarker = m['hv'] as int?;
       fromCache = [for (final r in m['rows'] as List) Resource.fromMap(r)];
+    }
+    // The head's marker moves with every write here: unmoved, no read.
+    final marker = (await headFor(campus, db: _db))?.version(Paths.resources);
+    if (fromCache != null && marker != null && marker == cachedMarker) {
+      return fromCache;
     }
     try {
       // 1 read: the campus's version doc carries every live link.
@@ -91,7 +99,19 @@ class ResourceStore {
         () => _versions(campus).get(),
       );
       final v = (vd.data()?['v'] as num?)?.toInt() ?? 0;
-      if (fromCache != null && v == cachedV) return fromCache;
+      if (fromCache != null && v == cachedV) {
+        // Same links under a newer marker: remember it so the next open skips
+        // this read.
+        await _cache?.put(
+          key,
+          jsonEncode({
+            'v': v,
+            'hv': marker,
+            'rows': [for (final r in fromCache) r.toMap()],
+          }),
+        );
+        return fromCache;
+      }
       final List<Resource> rows;
       if (vd.data()?['links'] case final Map links) {
         rows = [
@@ -124,6 +144,7 @@ class ResourceStore {
         key,
         jsonEncode({
           'v': v,
+          'hv': marker,
           'rows': [for (final r in rows) r.toMap()],
         }),
       );
@@ -142,6 +163,7 @@ class ResourceStore {
           ?..remove('id')
           ..remove('campus')
           ..remove('removed');
+    bumpPath(b, _db, campus, Paths.resources);
     b.set(_versions(campus), {
       'v': FieldValue.increment(1),
       if (r != null) 'k': id ?? r.id,

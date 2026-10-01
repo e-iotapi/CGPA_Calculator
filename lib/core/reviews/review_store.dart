@@ -1,4 +1,6 @@
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -57,6 +59,7 @@ class ReviewStore {
     return cacheFirst(
       key: 'rix|$campus',
       maxAge: reviewIndexMaxAge,
+      version: await markerOf(db, campus, Paths.reviews),
       fetch: fetch,
       encode: (m) => {for (final e in m.entries) e.key: _statsToMap(e.value)},
       decode: _decodeIndex,
@@ -96,9 +99,11 @@ class ReviewStore {
     }
 
     if (fresh) return fetch();
+    // The professor counters move in the batch that moves the index.
     return cacheFirst(
       key: _rstKey(courseId, campus, professorIds),
       maxAge: reviewIndexMaxAge,
+      version: await markerOf(db, campus, Paths.reviews),
       fetch: fetch,
       encode: _statsToMap,
       decode: (o) => ReviewStats.fromMap(o as Map),
@@ -143,9 +148,10 @@ class ReviewStore {
   Future<Map<String, ReviewStats>> byProfessor(
     String courseId,
     String campus,
-  ) => cacheFirst(
+  ) async => cacheFirst(
     key: 'rbp|$campus|$courseId',
     maxAge: reviewIndexMaxAge,
+    version: await markerOf(db, campus, Paths.reviews),
     fetch: () async {
       final q = await Perf.time(
         'reviews.byProfessor',
@@ -225,6 +231,7 @@ class ReviewStore {
     final all = await cacheFirst<List<Review>>(
       key: _rcdKey(courseId, campus),
       maxAge: fresh,
+      version: await markerOf(db, campus, Paths.reviewsOf(courseId)),
       now: now == null ? null : () => now,
       fetch: () async {
         final d = await Perf.time(
@@ -294,10 +301,13 @@ class ReviewStore {
     String campus,
     String reviewId,
     Object entry,
-  ) => b.set(_mirror(courseId, campus), {
-    'k': reviewId,
-    'r': {reviewId: entry},
-  }, SetOptions(merge: true));
+  ) {
+    b.set(_mirror(courseId, campus), {
+      'k': reviewId,
+      'r': {reviewId: entry},
+    }, SetOptions(merge: true));
+    bumpPath(b, db, campus, Paths.reviewsOf(courseId));
+  }
 
   // Budget: 1 read per reviewed course, sequentially ("Your reviews" tab, P0).
   /// Reads the signed-in person's review of [courseId], or `null` if none.
@@ -354,6 +364,7 @@ class ReviewStore {
         'touchedBy': reviewId,
       }, SetOptions(merge: true));
     }
+    bumpPath(b, db, campus, Paths.reviews);
     // ponytail: old app versions skip this, so the index can lag their
     // reviews; backfill from stats if the drift shows.
     b.set(_index(campus), {

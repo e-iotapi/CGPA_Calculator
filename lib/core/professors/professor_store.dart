@@ -1,4 +1,6 @@
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -23,10 +25,11 @@ class ProfessorStore {
   static final _names = <String, Professor>{};
 
   /// A department's professors on a campus, merged ones hidden.
-  Future<List<Professor>> department(String campus, String department) =>
+  Future<List<Professor>> department(String campus, String department) async =>
       cacheFirst<List<Professor>>(
         key: 'prof|$campus|$department',
         maxAge: reviewIndexMaxAge,
+        version: await markerOf(db, campus, Paths.professors(department)),
         fetch: () async {
           final q =
               await _col
@@ -193,6 +196,7 @@ class ProfessorStore {
       'active': true,
       ..._stamp(r, audit),
     });
+    bumpPath(b, db, campus, Paths.professors(department));
     await b.commit();
     await _forget(campus);
     return _names[ref.id] = Professor(
@@ -225,6 +229,7 @@ class ProfessorStore {
           }.toList(),
       ..._stamp(r, audit),
     });
+    bumpPath(b, db, p.campus, Paths.professors(p.department));
     await b.commit();
     await _forget(p.campus);
     _names.remove(p.id);
@@ -261,6 +266,9 @@ class ProfessorStore {
           }.toList(),
       ..._stamp(r, audit),
     });
+    for (final p in {(keep.campus, keep.department), (absorbed.campus, absorbed.department)}) {
+      bumpPath(b, db, p.$1, Paths.professors(p.$2));
+    }
     await b.commit();
     await _forget(keep.campus);
     _names
