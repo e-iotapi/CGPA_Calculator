@@ -33,12 +33,21 @@
     })();
   </script>
 
-  <!-- TM-14 probe: ?dpr=2 makes the engine render at 2x on a 3x screen
-       (44% fewer pixels a frame), to compare iPhone scrolling by feel. -->
+  <!-- TM-14: a 3x phone screen made the engine redraw ~3M pixels a frame and
+       iPhone scrolling juddered; rendered at 2x (44% fewer pixels) the owner
+       found it smooth. The engine reads devicePixelRatio, so it is capped
+       here; below the cap (desktops, most zoom levels) nothing changes.
+       ?dpr=<n> sets the cap, e.g. ?dpr=3 to compare. -->
   <script>
     (function() {
-      var dpr = Number(new URLSearchParams(location.search).get('dpr'));
-      if (dpr > 0) Object.defineProperty(window, 'devicePixelRatio', { get: function() { return dpr; } });
+      var cap = Number(new URLSearchParams(location.search).get('dpr')) || 2;
+      var d = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio') ||
+          Object.getOwnPropertyDescriptor(Window.prototype, 'devicePixelRatio');
+      if (!d || !d.get) return;
+      Object.defineProperty(window, 'devicePixelRatio', {
+        configurable: true,
+        get: function() { return Math.min(d.get.call(window), cap); },
+      });
     })();
   </script>
 
