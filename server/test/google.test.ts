@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 async function makeServiceAccountJson(): Promise<{ saJson: string; email: string }> {
-  const keyPair = await crypto.subtle.generateKey(
+  const keyPair = (await crypto.subtle.generateKey(
     { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
     true,
     ["sign", "verify"]
-  );
-  const pkcs8 = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+  )) as CryptoKeyPair;
+  const pkcs8 = (await crypto.subtle.exportKey("pkcs8", keyPair.privateKey)) as ArrayBuffer;
   const b64 = btoa(String.fromCharCode(...new Uint8Array(pkcs8)));
   const pem = `-----BEGIN PRIVATE KEY-----\n${b64.match(/.{1,64}/g)!.join("\n")}\n-----END PRIVATE KEY-----\n`;
   const email = "test@test.iam.gserviceaccount.com";
@@ -38,7 +38,7 @@ describe("getAccessToken", () => {
     expect(token).toBe("tok-1");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://oauth2.googleapis.com/token");
 
     const params = new URLSearchParams(init.body as any);

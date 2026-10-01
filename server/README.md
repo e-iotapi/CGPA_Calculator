@@ -8,6 +8,8 @@ Cloudflare Worker that reads Firestore via the REST API using a service-account 
 2. `cd server && npx wrangler secret put FIREBASE_SA` — paste the full service-account JSON key when prompted.
 3. `npx wrangler deploy`.
 
+Note: the edge cache (`caches.default`) only works on a custom-domain route, not on `workers.dev`.
+
 ## Development
 
 ```
