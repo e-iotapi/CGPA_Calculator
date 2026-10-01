@@ -23,7 +23,9 @@ import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/firebase_options.dart';
 import 'package:cgpa_calculator/firebase_options_staging.dart';
+import 'package:cgpa_calculator/app/prefetch_levels.dart';
 import 'package:cgpa_calculator/app/router.dart';
+import 'package:cgpa_calculator/core/prefetch/prefetch.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -153,10 +155,10 @@ Future<void> startApp(User user) async {
       name: user.displayName ?? '',
     );
     final rolesDone = refreshMyRolesIfDue().then((_) => checkProfile());
-    unawaited(
-      rolesDone
-          .whenComplete(prefetchPresidentPages)
-          .then((_) {}, onError: (Object _) {}),
+    // ARCHITECTURE.md §13: screens load ahead, level by level, after the
+    // first frame.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(rolesDone.then((_) {}, onError: (Object _) {}).whenComplete(() => runPrefetch(prefetchLevels()))),
     );
     // A deep link on a first sign-in has no cached roles yet, and its guard
     // (/maintain, /admin) would send it Home: wait for them (BUG-51).
