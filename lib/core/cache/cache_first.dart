@@ -19,6 +19,18 @@ Future<void> openSharedCache() => Hive.openBox(sharedCacheBoxName);
 Box? get sharedCacheBox =>
     Hive.isBoxOpen(sharedCacheBoxName) ? Hive.box(sharedCacheBoxName) : null;
 
+/// The saved value under [key], read synchronously (for a screen's first
+/// frame); null when nothing is saved or it no longer decodes.
+T? peekCache<T>(String key, T Function(Object?) decode, {Box? box}) {
+  final raw = (box ?? sharedCacheBox)?.get(key);
+  if (raw is! String) return null;
+  try {
+    return decode((jsonDecode(raw) as Map)['v']);
+  } on Object {
+    return null;
+  }
+}
+
 /// Fetches in flight, keyed the same as the cache, so concurrent callers for
 /// one key share one fetch instead of each starting their own.
 final _inFlight = <String, Future<Object?>>{};
@@ -28,6 +40,8 @@ final _inFlight = <String, Future<Object?>>{};
 /// nothing is cached. Concurrent calls for one key share one fetch.
 /// [awaitStale] waits for that refresh instead (the cached value if it fails):
 /// the same single read, but the caller sees the new value now, not next open.
+/// With a [version], the saved value is fresh exactly when it was saved under
+/// that version, whatever its age; [maxAge] is then ignored.
 Future<T> cacheFirst<T>({
   required String key,
   required Duration maxAge,
@@ -37,6 +51,7 @@ Future<T> cacheFirst<T>({
   Box? box,
   DateTime Function()? now,
   bool awaitStale = false,
+  String? version,
 }) async {
   final b = box ?? sharedCacheBox;
   final at = (now ?? DateTime.now)().millisecondsSinceEpoch;
@@ -45,16 +60,19 @@ Future<T> cacheFirst<T>({
     try {
       final m = jsonDecode(raw) as Map;
       final value = decode(m['v']);
-      if (at - (m['at'] as int) < maxAge.inMilliseconds) return value;
+      final fresh = version != null
+          ? m['ver'] == version
+          : at - (m['at'] as int) < maxAge.inMilliseconds;
+      if (fresh) return value;
       if (awaitStale) {
         try {
-          return await _fetchAndCache(key, fetch, encode, b, at);
+          return await _fetchAndCache(key, fetch, encode, b, at, version);
         } on Object {
           return value;
         }
       }
       unawaited(
-        _fetchAndCache(key, fetch, encode, b, at).catchError((Object e) {
+        _fetchAndCache(key, fetch, encode, b, at, version).catchError((Object e) {
           debugPrint('[Pointer cache] $key: background refresh failed: $e');
           return value;
         }),
@@ -65,7 +83,7 @@ Future<T> cacheFirst<T>({
       await b?.delete(key);
     }
   }
-  return _fetchAndCache(key, fetch, encode, b, at);
+  return _fetchAndCache(key, fetch, encode, b, at, version);
 }
 
 Future<T> _fetchAndCache<T>(
@@ -74,10 +92,11 @@ Future<T> _fetchAndCache<T>(
   Object? Function(T) encode,
   Box? box,
   int at,
+  String? version,
 ) {
   final existing = _inFlight[key];
   if (existing != null) return existing.then((v) => v as T);
-  final future = _run(key, fetch, encode, box, at);
+  final future = _run(key, fetch, encode, box, at, version);
   _inFlight[key] = future;
   return future;
 }
@@ -88,13 +107,14 @@ Future<T> _run<T>(
   Object? Function(T) encode,
   Box? box,
   int at,
+  String? version,
 ) async {
   try {
     final value = await fetch();
     // Hive updates memory at once; the disk write need not hold the caller.
     unawaited(
       box
-          ?.put(key, jsonEncode({'at': at, 'v': encode(value)}))
+          ?.put(key, jsonEncode({'at': at, 'v': encode(value), 'ver': version}))
           .catchError((Object e) => debugPrint('[Pointer cache] $key: $e')),
     );
     return value;
