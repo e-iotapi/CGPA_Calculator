@@ -158,7 +158,14 @@ Future<void> startApp(User user) async {
     // ARCHITECTURE.md §13: screens load ahead, level by level, after the
     // first frame.
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => unawaited(rolesDone.then((_) {}, onError: (Object _) {}).whenComplete(() => runPrefetch(prefetchLevels()))),
+      (_) => unawaited(rolesDone.then((_) {}, onError: (Object _) {}).whenComplete(() {
+        try {
+          return runPrefetch(prefetchLevels());
+        } catch (e) {
+          debugPrint('prefetch: $e');
+          return null;
+        }
+      })),
     );
     // A deep link on a first sign-in has no cached roles yet, and its guard
     // (/maintain, /admin) would send it Home: wait for them (BUG-51).
