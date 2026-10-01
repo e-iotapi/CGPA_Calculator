@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cgpa_calculator/core/perf/perf.dart';
@@ -41,9 +42,39 @@ class ResourceStore {
   DocumentReference<Map<String, dynamic>> _versions(String campus) =>
       _db.collection('resourceVersions').doc(campus);
 
-  /// Every live link in [department] on [campus]; from the cache when the
-  /// campus version has not moved. Offline, the cache as it stands.
-  Future<List<Resource>> department(String campus, String department) async {
+  /// The saved list for [department] on [campus], read synchronously; null
+  /// when none is saved.
+  List<Resource>? peekDepartment(String campus, String department) {
+    final cached = _cache?.get('$campus|$department');
+    if (cached is! String) return null;
+    try {
+      return [
+        for (final r in (jsonDecode(cached) as Map)['rows'] as List)
+          Resource.fromMap(r),
+      ];
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Every live link in [department] on [campus]: the saved list at once,
+  /// with the campus version checked in the background (a change shows on
+  /// the next open); fetched when nothing is saved. Offline, the saved list.
+  Future<List<Resource>> department(String campus, String department) {
+    final hit = peekDepartment(campus, department);
+    if (hit == null) return _load(campus, department);
+    unawaited(_load(campus, department).then<void>((_) {}, onError: (Object _) {}));
+    return Future.value(hit);
+  }
+
+  /// A write on [campus] makes this device's saved lists stale at once.
+  Future<void> _dropLocal(String campus) async {
+    final c = _cache;
+    if (c == null) return;
+    await c.deleteAll(c.keys.where((k) => '$k'.startsWith('$campus|')).toList());
+  }
+
+  Future<List<Resource>> _load(String campus, String department) async {
     final key = '$campus|$department';
     final cached = _cache?.get(key);
     List<Resource>? fromCache;
@@ -149,6 +180,7 @@ class ResourceStore {
       ref.id,
     );
     await b.commit();
+    await _dropLocal(r.campus);
     return ref.id;
   }
 
@@ -191,6 +223,7 @@ class ResourceStore {
     }
     _bump(b, next.campus, next);
     await b.commit();
+    await _dropLocal(next.campus);
   }
 
   /// Reports [r]. False when this person already reported it.

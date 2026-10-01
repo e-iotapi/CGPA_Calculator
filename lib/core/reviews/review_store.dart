@@ -58,22 +58,8 @@ class ReviewStore {
       key: 'rix|$campus',
       maxAge: reviewIndexMaxAge,
       fetch: fetch,
-      encode:
-          (m) => {
-            for (final e in m.entries)
-              e.key: {
-                'count': e.value.count,
-                'starSum': e.value.starSum,
-                'recommendCount': e.value.recommendCount,
-              },
-          },
-      decode:
-          (o) => {
-            for (final e in (o as Map).entries)
-              '${e.key}': ReviewStats.fromMap(
-                Map<String, dynamic>.from(e.value),
-              ),
-          },
+      encode: (m) => {for (final e in m.entries) e.key: _statsToMap(e.value)},
+      decode: _decodeIndex,
     );
   }
 
@@ -94,43 +80,97 @@ class ReviewStore {
       return (await _courseIndex(campus, fresh: fresh))[courseId] ??
           const ReviewStats();
     }
-    final ids = [for (final p in professorIds) statsId(campus, p)];
-    // Budget: 1 read per professor id, sequentially, per course (P0) — the
-    // "Diagnosis" section's reviews_home.dart courses-tab bottleneck.
-    var total = const ReviewStats();
-    for (final id in ids) {
-      final d = await Perf.time(
-        'reviews.stats',
-        () => _stats(courseId, id).get(),
-      );
-      total += ReviewStats.fromMap(d.data());
+    Future<ReviewStats> fetch() async {
+      final ids = [for (final p in professorIds) statsId(campus, p)];
+      // Budget: 1 read per professor id, sequentially, per course (P0) — the
+      // "Diagnosis" section's reviews_home.dart courses-tab bottleneck.
+      var total = const ReviewStats();
+      for (final id in ids) {
+        final d = await Perf.time(
+          'reviews.stats',
+          () => _stats(courseId, id).get(),
+        );
+        total += ReviewStats.fromMap(d.data());
+      }
+      return total;
     }
-    return total;
+
+    if (fresh) return fetch();
+    return cacheFirst(
+      key: _rstKey(courseId, campus, professorIds),
+      maxAge: reviewIndexMaxAge,
+      fetch: fetch,
+      encode: _statsToMap,
+      decode: (o) => ReviewStats.fromMap(o as Map),
+    );
   }
+
+  String _rstKey(String courseId, String campus, List<String> ids) =>
+      'rst|$campus|$courseId|${ids.join(',')}';
+
+  static Map<String, int> _statsToMap(ReviewStats s) => {
+    'count': s.count,
+    'starSum': s.starSum,
+    'recommendCount': s.recommendCount,
+  };
+
+  /// The saved [stats], read synchronously; null when none is saved.
+  ReviewStats? peekStats(
+    String courseId,
+    String campus, {
+    List<String>? professorIds,
+  }) {
+    if (professorIds != null) {
+      return peekCache(
+        _rstKey(courseId, campus, professorIds),
+        (o) => ReviewStats.fromMap(o as Map),
+      );
+    }
+    final i = _peekIndex(campus);
+    return i == null ? null : i[courseId] ?? const ReviewStats();
+  }
+
+  Map<String, ReviewStats>? _peekIndex(String campus) =>
+      peekCache('rix|$campus', _decodeIndex);
+
+  static Map<String, ReviewStats> _decodeIndex(Object? o) => {
+    for (final e in (o as Map).entries)
+      '${e.key}': ReviewStats.fromMap(Map<String, dynamic>.from(e.value)),
+  };
 
   /// Every professor with reviews of [courseId] on [campus], and their
   /// counters: the Reviews screen's "Taught by" pills.
   Future<Map<String, ReviewStats>> byProfessor(
     String courseId,
     String campus,
-  ) async {
-    final q = await Perf.time(
-      'reviews.byProfessor',
-      () =>
-          db
-              .collection('courses')
-              .doc(courseId)
-              .collection('stats')
-              .where('campus', isEqualTo: campus)
-              .where('scope', isEqualTo: 'professor')
-              .get(),
-    );
-    return {
-      for (final d in q.docs)
-        if (d.data()['professorId'] case final String id)
-          id: ReviewStats.fromMap(d.data()),
-    };
-  }
+  ) => cacheFirst(
+    key: 'rbp|$campus|$courseId',
+    maxAge: reviewIndexMaxAge,
+    fetch: () async {
+      final q = await Perf.time(
+        'reviews.byProfessor',
+        () =>
+            db
+                .collection('courses')
+                .doc(courseId)
+                .collection('stats')
+                .where('campus', isEqualTo: campus)
+                .where('scope', isEqualTo: 'professor')
+                .get(),
+      );
+      return {
+        for (final d in q.docs)
+          if (d.data()['professorId'] case final String id)
+            id: ReviewStats.fromMap(d.data()),
+      };
+    },
+    encode: (m) => {for (final e in m.entries) e.key: _statsToMap(e.value)},
+    decode: _decodeIndex,
+  );
+
+  /// The saved [byProfessor], read synchronously; null when none is saved.
+  Map<String, ReviewStats>? peekByProfessor(String courseId, String campus) =>
+      peekCache('rbp|$campus|$courseId', _decodeIndex);
 
   /// The most reviewed courses on [campus] (§16.3 fix 14's index).
   Future<List<({String courseId, ReviewStats stats})>> mostReviewed(
@@ -138,12 +178,28 @@ class ReviewStore {
     int limit = 10,
     bool fresh = false,
   }) async {
+    return _top(await _courseIndex(campus, fresh: fresh), limit);
+  }
+
+  static List<({String courseId, ReviewStats stats})> _top(
+    Map<String, ReviewStats> index,
+    int limit,
+  ) {
     final all = [
-      for (final e in (await _courseIndex(campus, fresh: fresh)).entries)
+      for (final e in index.entries)
         if (e.value.count > 0) (courseId: e.key, stats: e.value),
     ]..sort((a, b) => b.stats.count.compareTo(a.stats.count));
     return all.take(limit).toList();
   }
+
+  /// The saved [mostReviewed], read synchronously; null when none is saved.
+  List<({String courseId, ReviewStats stats})>? peekMostReviewed(
+    String campus, {
+    int limit = 10,
+  }) => switch (_peekIndex(campus)) {
+    final i? => _top(i, limit),
+    _ => null,
+  };
 
   DocumentReference<Map<String, dynamic>> _mirror(
     String courseId,
@@ -167,7 +223,7 @@ class ReviewStore {
   }) async {
     if (after != null) return (reviews: const <Review>[], last: null);
     final all = await cacheFirst<List<Review>>(
-      key: 'rcd|$courseId|$campus',
+      key: _rcdKey(courseId, campus),
       maxAge: fresh,
       now: now == null ? null : () => now,
       fetch: () async {
@@ -184,18 +240,43 @@ class ReviewStore {
         ];
       },
       encode: (rs) => {for (final r in rs) r.id: r.toMap()},
-      decode:
-          (o) => [
-            for (final e in (o as Map).entries)
-              Review.fromMap('${e.key}', courseId, e.value as Map),
-          ],
+      decode: (o) => _decodePage(o, courseId),
     );
+    return (reviews: _shown(all, professorIds, order), last: null);
+  }
+
+  String _rcdKey(String courseId, String campus) => 'rcd|$courseId|$campus';
+
+  static List<Review> _decodePage(Object? o, String courseId) => [
+    for (final e in (o as Map).entries)
+      Review.fromMap('${e.key}', courseId, e.value as Map),
+  ];
+
+  /// The saved [page], read synchronously; null when none is saved.
+  ({List<Review> reviews, DocumentSnapshot? last})? peekPage(
+    String courseId,
+    String campus, {
+    List<String>? professorIds,
+    ReviewOrder order = ReviewOrder.helpful,
+  }) => switch (peekCache(
+    _rcdKey(courseId, campus),
+    (o) => _decodePage(o, courseId),
+  )) {
+    final all? => (reviews: _shown(all, professorIds, order), last: null),
+    _ => null,
+  };
+
+  static List<Review> _shown(
+    List<Review> all,
+    List<String>? professorIds,
+    ReviewOrder order,
+  ) {
     int key(Review r) => switch (order) {
       ReviewOrder.helpful => r.helpful,
       ReviewOrder.recent => r.createdAt,
       ReviewOrder.highest || ReviewOrder.lowest => r.stars,
     };
-    final shown = [
+    return [
       for (final r in all)
         if (professorIds == null || professorIds.contains(r.professorId)) r,
     ]..sort(
@@ -204,7 +285,6 @@ class ReviewStore {
               ? key(b).compareTo(key(a))
               : key(a).compareTo(key(b)),
     );
-    return (reviews: shown, last: null);
   }
 
   /// The student-visible copy of a review in its campus doc, in [b].
@@ -224,12 +304,31 @@ class ReviewStore {
   Future<Review?> mine(String courseId) async {
     final id = myReviewId(courseId);
     if (id == null) return null;
-    final d = await Perf.time(
-      'reviews.mine',
-      () => entries(courseId).doc(id).get(),
+    return cacheFirst<Review?>(
+      key: 'rmine|$courseId|$id',
+      maxAge: reviewPageMaxAge,
+      fetch: () async {
+        final d = await Perf.time(
+          'reviews.mine',
+          () => entries(courseId).doc(id).get(),
+        );
+        final m = d.data();
+        return m == null ? null : Review.fromMap(id, courseId, m);
+      },
+      encode: (r) => r?.toMap(),
+      decode: (o) => o == null ? null : Review.fromMap(id, courseId, o as Map),
     );
-    final m = d.data();
-    return m == null ? null : Review.fromMap(id, courseId, m);
+  }
+
+  /// The saved [mine], read synchronously; null when none is saved (or the
+  /// person has not reviewed it).
+  Review? peekMine(String courseId) {
+    final id = myReviewId(courseId);
+    if (id == null) return null;
+    return peekCache<Review?>(
+      'rmine|$courseId|$id',
+      (o) => o == null ? null : Review.fromMap(id, courseId, o as Map),
+    );
   }
 
   /// Moves the course counter, and the professor's, by the given amounts.
@@ -348,13 +447,16 @@ class ReviewStore {
       }
     }
     await b.commit();
-    await _forget(courseId);
+    await _forget(courseId, campus);
   }
 
   /// Drops [courseId]'s cached pages after a write, so the change shows.
-  Future<void> _forget(String courseId) async {
+  Future<void> _forget(String courseId, String campus) async {
     final c = sharedCacheBox;
     if (c == null) return;
+    await forget('rmine|$courseId|');
+    await forget('rbp|$campus|$courseId');
+    await forget('rst|$campus|$courseId|');
     await c.deleteAll(
       c.keys
           .where(
@@ -393,7 +495,7 @@ class ReviewStore {
     }
     try {
       await b.commit();
-      await _forget(r.courseId);
+      await _forget(r.courseId, r.campus);
       return true;
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') return false;
@@ -481,7 +583,7 @@ class ReviewStore {
       );
     }
     await b.commit();
-    await _forget(r.courseId);
+    await _forget(r.courseId, r.campus);
   }
 
   /// Hides [r] with a reason; its counters come off (§10.3).
