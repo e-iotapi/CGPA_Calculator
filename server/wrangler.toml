@@ -5,3 +5,11 @@ compatibility_date = "2026-09-01"
 [vars]
 PROJECT_ID = "cgpa-web"
 ALLOWED_ORIGINS = "https://cgpa-web.netlify.app"
+
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "CampusHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CampusHub"]

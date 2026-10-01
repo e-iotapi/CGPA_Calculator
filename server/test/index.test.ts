@@ -4,7 +4,7 @@ import { readDoc } from "../src/firestore";
 
 vi.mock("../src/firestore", () => ({ readDoc: vi.fn() }));
 
-const env = { PROJECT_ID: "p", FIREBASE_SA: "{}", ALLOWED_ORIGINS: "https://a.example,https://b.example" };
+const env = { PROJECT_ID: "p", FIREBASE_SA: "{}", ALLOWED_ORIGINS: "https://a.example,https://b.example" } as any;
 const store = new Map<string, Response>();
 const ctx = { waitUntil: (p: Promise<unknown>) => void p.catch(() => {}) } as unknown as ExecutionContext;
 const call = (path: string, init?: RequestInit) =>
@@ -73,5 +73,45 @@ describe("GET /heads/:campus", () => {
     const r = await call("/heads/goa", { method: "OPTIONS", headers: { Origin: "https://a.example" } });
     expect(r.status).toBe(204);
     expect(r.headers.get("Access-Control-Allow-Origin")).toBe("https://a.example");
+  });
+});
+
+describe("GET /live/:campus", () => {
+  const verify = vi.hoisted(() => vi.fn());
+  vi.mock("../src/token", () => ({ verifyIdToken: verify }));
+  const fetchHub = vi.fn(async (_r: Request) => new Response("hub"));
+  const hubEnv = {
+    ...env,
+    HUB: { idFromName: (n: string) => n, get: () => ({ fetch: fetchHub }) },
+  } as any;
+  const live = (path: string, headers: Record<string, string>) =>
+    worker.fetch(new Request("https://w.example" + path, { headers }), hubEnv, ctx);
+  const ws = { Upgrade: "websocket", "Sec-WebSocket-Protocol": "pointer, tok" };
+  beforeEach(() => {
+    verify.mockReset();
+    fetchHub.mockClear();
+  });
+
+  it("404s on an unknown campus, 426s without an upgrade", async () => {
+    expect((await live("/live/mars", ws)).status).toBe(404);
+    expect((await live("/live/goa", { "Sec-WebSocket-Protocol": "pointer, tok" })).status).toBe(426);
+  });
+
+  it("401s on a missing or bad token", async () => {
+    expect((await live("/live/goa", { Upgrade: "websocket", "Sec-WebSocket-Protocol": "pointer" })).status).toBe(401);
+    verify.mockRejectedValue(new Error("bad token"));
+    expect((await live("/live/goa", ws)).status).toBe(401);
+    expect(fetchHub).not.toHaveBeenCalled();
+  });
+
+  it("forwards to the campus hub with X-Uid, overriding a spoofed one, without the token", async () => {
+    verify.mockResolvedValue({ uid: "u9" });
+    const r = await live("/live/goa", { ...ws, "X-Uid": "evil" });
+    expect(await r.text()).toBe("hub");
+    expect(verify).toHaveBeenCalledWith("tok", "p");
+    const fwd = fetchHub.mock.calls[0][0];
+    expect(fwd.headers.get("X-Uid")).toBe("u9");
+    expect(fwd.headers.get("Sec-WebSocket-Protocol")).toBe("pointer");
+    expect(new URL(fwd.url).pathname).toBe("/live/goa");
   });
 });
