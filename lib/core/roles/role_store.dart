@@ -5,6 +5,7 @@ library;
 
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/timings.dart';
@@ -74,6 +75,17 @@ class AuditEntry {
     );
   }
 }
+
+/// [campus]'s marker of [path] as a cache version; null (so the cache's
+/// `maxAge` decides) when there is no campus, no head or no marker yet.
+Future<String?> markerOf(
+  FirebaseFirestore db,
+  String? campus,
+  String path,
+) async =>
+    campus == null
+        ? null
+        : (await headFor(campus, db: db))?.version(path)?.toString();
 
 /// `config/grantTerms`, in days (§4).
 typedef GrantTerms = ({int crDays, int presidentDays, int adminDays});
@@ -259,9 +271,10 @@ class RoleStore {
   // ---- Grants --------------------------------------------------------------
 
   /// Reads the grant terms, or [defaultTerms] when unset.
-  Future<GrantTerms> terms() => cacheFirst<GrantTerms>(
+  Future<GrantTerms> terms() async => cacheFirst<GrantTerms>(
     key: 'terms',
     maxAge: adminMaxAge,
+    version: await markerOf(db, campusOfAddress(me), Paths.terms),
     fetch: () async {
       final m = (await db.collection('config').doc('grantTerms').get()).data();
       return m == null ? defaultTerms : _decodeTerms(m);
@@ -300,6 +313,7 @@ class RoleStore {
       ..._termsMap(t),
       'auditId': id,
     });
+    bumpPathOnAllHeads(b, db, Paths.terms);
     await b.commit();
     await forget('terms');
     await forget('audit|');
@@ -329,6 +343,7 @@ class RoleStore {
     final staff = await _staff(g.email);
     final b = db.batch();
     _grantInto(b, g, staff, summary, before: before);
+    _bumpGrants(b, g.campus);
     also?.call(b);
     await b.commit();
     await forget('roster|');
@@ -378,6 +393,12 @@ class RoleStore {
     }
     _staffInto(b, staff, g);
   }
+
+  /// A grant on [campus] moved; an every-campus (admin) one moves every head
+  /// (the rules count it on goa's).
+  void _bumpGrants(WriteBatch b, String campus) => campus == 'all'
+      ? bumpPathOnAllHeads(b, db, Paths.grants)
+      : bumpPath(b, db, campus, Paths.grants);
 
   void _staffInto(WriteBatch b, StaffEntry staff, Grant g) {
     final s = staff.after(g);
@@ -442,6 +463,13 @@ class RoleStore {
             'open': false,
             'closedBy': {'email': me, 'name': myName},
           });
+        }
+        // Ids are `campus|courseId|email`: one bump per campus and department.
+        for (final k in {
+          for (final o in closeOffers)
+            (o.split('|')[0], deptOf(o.split('|')[1])),
+        }) {
+          bumpPath(b, db, k.$1, Paths.volunteers(k.$2));
         }
       },
     );
@@ -559,6 +587,7 @@ class RoleStore {
       'auditId': id,
     });
     _staffInto(b, ours, shortened);
+    _bumpGrants(b, mine.campus);
     await _relist(b, shortened);
     if (sec != null) {
       for (final old in await _secretaries(mine)) {
@@ -664,6 +693,7 @@ class RoleStore {
       'auditId': id,
     });
     _staffInto(b, ours, restored);
+    _bumpGrants(b, mine.campus);
     await _relist(b, restored);
     // ponytail: told apart by expiry — the new secretary ends with the new
     // president, the outgoing one with my shortened term.
@@ -708,8 +738,10 @@ class RoleStore {
       ],
       'updatedAt': FieldValue.serverTimestamp(),
     };
+    final campus = m['campus'] as String? ?? g.campus;
     b.set(ref, next);
-    await putRepCopy(b, m['campus'] as String? ?? g.campus, g.email, next);
+    bumpPath(b, db, campus, Paths.staff);
+    await putRepCopy(b, campus, g.email, next);
   }
 
   /// Puts [entry] as [email]'s whole listing in `repIndex/{campus}`. Not
@@ -729,6 +761,7 @@ class RoleStore {
     } on FirebaseException {
       // Unreadable (another campus): it exists if anyone is listed there.
     }
+    bumpPath(b, db, campus, Paths.reps);
     if (exists) {
       b.update(ref, {
         'k': email,
@@ -746,9 +779,11 @@ class RoleStore {
 
   /// Every grant the reader may see: all of them for owners and admins,
   /// [campus] plus the every-campus ones for a president.
-  Future<List<Grant>> roster({String? campus}) => cacheFirst<List<Grant>>(
+  Future<List<Grant>> roster({String? campus}) async => cacheFirst<List<Grant>>(
     key: 'roster|${campus ?? '*'}',
     maxAge: adminMaxAge,
+    // ponytail: the all-campus list (owners, admins) has no single marker.
+    version: await markerOf(db, campus, Paths.grants),
     fetch: () async {
       Query<Map<String, dynamic>> q = db.collection('grants');
       if (campus != null) q = q.where('campus', whereIn: [campus, 'all']);
@@ -770,10 +805,11 @@ class RoleStore {
   // ---- Owners --------------------------------------------------------------
 
   /// Reads every `owners/` document.
-  Future<List<Map<String, dynamic>>> owners() =>
+  Future<List<Map<String, dynamic>>> owners() async =>
       cacheFirst<List<Map<String, dynamic>>>(
         key: 'owners',
         maxAge: adminMaxAge,
+        version: await markerOf(db, campusOfAddress(me), Paths.owners),
         fetch: () async {
           final r = await db.collection('owners').get();
           return [for (final d in r.docs) d.data()];
@@ -808,6 +844,7 @@ class RoleStore {
       'addedAt': FieldValue.serverTimestamp(),
       'auditId': id,
     });
+    bumpPathOnAllHeads(b, db, Paths.owners);
     await b.commit();
     await forget('owners');
     await forget('audit|');
@@ -831,6 +868,7 @@ class RoleStore {
       'active': active,
       'auditId': id,
     });
+    bumpPathOnAllHeads(b, db, Paths.owners);
     await b.commit();
     await forget('owners');
     await forget('audit|');

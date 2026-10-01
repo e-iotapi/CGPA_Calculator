@@ -32,10 +32,16 @@ class MaintainStore {
       'courses/$courseId/offerings/${offeringId(campus, term)}';
 
   /// Reads one offering, or `null` if it does not exist.
-  Future<Offering?> offering(String courseId, String campus, String term) =>
-      cacheFirst<Offering?>(
+  Future<Offering?> offering(
+    String courseId,
+    String campus,
+    String term,
+  ) async => cacheFirst<Offering?>(
         key: 'mo|$campus|$term|$courseId',
         maxAge: adminMaxAge,
+        version: (await headFor(campus, db: _db))
+            ?.offering(courseId, term)
+            ?.toString(),
         fetch: () async {
           final m = (await _ref(courseId, campus, term).get()).data();
           return m == null ? null : Offering.fromMap(m);

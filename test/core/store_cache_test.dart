@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cgpa_calculator/core/analytics/analytics_store.dart';
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/roles/maintain_store.dart';
@@ -291,5 +293,202 @@ void main() {
     final c = await a.counts(campus: 'goa', now: t);
     expect(a.peekCounts(campus: 'goa')!.users, c.users);
     expect(a.peekCounts(), isNull);
+  });
+
+  group('markers', () {
+    Future<Object?> marker(String campus, String path) async =>
+        ((await db.doc('heads/$campus').get()).data()?['v'] as Map?)?[path];
+
+    Future<void> setMarker(String campus, String path, int n) =>
+        db.doc('heads/$campus').set({
+          'v': {path: n},
+        }, SetOptions(merge: true));
+
+    // The device's head copy is good for headMaxAge; this is a refresh.
+    Future<void> headRefresh() => forget('head|');
+
+    // Makes the saved copy older than any maxAge.
+    Future<void> age(String key) async {
+      final b = sharedCacheBox!;
+      final m = jsonDecode(b.get(key) as String) as Map;
+      await b.put(key, jsonEncode({...m, 'at': 0}));
+    }
+
+    Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 50));
+
+    test('every shared write moves its path on its campus head', () async {
+      await roles.addOwner('o@goa.bits-pilani.ac.in', 'O');
+      for (final c in ['goa', 'hyderabad', 'pilani', 'dubai']) {
+        expect(await marker(c, Paths.owners), 1, reason: c);
+      }
+      await roles.saveTerms((crDays: 1, presidentDays: 2, adminDays: 3));
+      expect(await marker('dubai', Paths.terms), 1);
+      await roles.setOwnerActive('o@goa.bits-pilani.ac.in', false);
+      expect(await marker('goa', Paths.owners), 2);
+
+      await db.doc('people/p@goa.bits-pilani.ac.in').set({'name': 'Pat'});
+      await roles.appoint(
+        role: GrantRole.dept,
+        email: 'p@goa.bits-pilani.ac.in',
+        campus: 'goa',
+        scope: 'CS',
+        expiresAt: DateTime(2099),
+      );
+      expect(await marker('goa', Paths.grants), 1);
+      expect(await marker('hyderabad', Paths.grants), isNull);
+
+      await ProfessorStore(db, roles: roles).add('Dr B', 'goa', 'CS');
+      expect(await marker('goa', Paths.professors('CS')), 1);
+
+      await ReviewStore(db, uid: 'u1', roles: roles).save(
+        courseId: 'CS F111',
+        campus: 'goa',
+        term: 'T1',
+        professorId: null,
+        stars: 4,
+        recommend: true,
+      );
+      expect(await marker('goa', Paths.reviews), 1);
+      expect(await marker('goa', Paths.reviewsOf('CS F111')), 1);
+
+      await ResourceStore(roles).add(
+        const Resource(
+          id: '',
+          title: 'More',
+          url: 'https://drive.google.com/m',
+          campus: 'goa',
+          department: 'CS',
+        ),
+      );
+      expect(await marker('goa', Paths.resources), 1);
+
+      final contacts = ContactStore(roles);
+      await contacts.volunteer('goa', 'CS F111', name: 'P', term: 'T1');
+      expect(await marker('goa', Paths.volunteers('CS')), 1);
+      await contacts.dismiss(
+        (await contacts.offers('goa', 'CS', term: 'T1'))['CS F111']!.single,
+      );
+      expect(await marker('goa', Paths.volunteers('CS')), 2);
+
+      await contacts.saveProfile(MyRoles.none, name: 'Q', phone: '+911234567');
+      expect(await marker('goa', Paths.staff), 1);
+    });
+
+    test('a listed profile also moves reps', () async {
+      final r = MyRoles(
+        email: _me,
+        grants: [
+          Grant(
+            role: GrantRole.course,
+            email: _me,
+            name: 'P',
+            campus: 'goa',
+            scope: 'CS F111',
+            active: true,
+            expiresAt: DateTime(2099),
+          ),
+        ],
+      );
+      await ContactStore(roles).saveProfile(
+        r,
+        name: 'P',
+        phone: '+911234567',
+        showEmail: true,
+      );
+      expect(await marker('goa', Paths.reps), 1);
+      expect(await marker('goa', Paths.staff), 1);
+    });
+
+    test('an unmoved marker skips the refetch, a moved one refetches', () async {
+      await db.doc('repIndex/goa').set({
+        'p': {
+          'a@goa.bits-pilani.ac.in': {'name': 'A', 'campus': 'goa', 'roles': []},
+        },
+      });
+      await setMarker('goa', Paths.reps, 1);
+      final contacts = ContactStore(roles);
+      expect((await contacts.directory('goa')).single.name, 'A');
+      await db.doc('repIndex/goa').set({
+        'p': {
+          'a@goa.bits-pilani.ac.in': {'name': 'B', 'campus': 'goa', 'roles': []},
+        },
+      });
+      // Old by the clock, current by the marker: no read.
+      await age('reps|goa');
+      await headRefresh();
+      expect((await contacts.directory('goa')).single.name, 'A');
+      await settle();
+      expect((await contacts.directory('goa')).single.name, 'A');
+      // The marker moves: the copy is stale, refreshed behind the read.
+      await setMarker('goa', Paths.reps, 2);
+      await headRefresh();
+      expect((await contacts.directory('goa')).single.name, 'A');
+      await settle();
+      expect((await contacts.directory('goa')).single.name, 'B');
+      expect(contacts.peekDirectory('goa')!.single.name, 'B');
+    });
+
+    test('with no marker the age decides', () async {
+      await db.doc('repIndex/goa').set({
+        'p': {
+          'a@goa.bits-pilani.ac.in': {'name': 'A', 'campus': 'goa', 'roles': []},
+        },
+      });
+      final contacts = ContactStore(roles);
+      await contacts.directory('goa');
+      await db.doc('repIndex/goa').set({
+        'p': {
+          'a@goa.bits-pilani.ac.in': {'name': 'B', 'campus': 'goa', 'roles': []},
+        },
+      });
+      expect((await contacts.directory('goa')).single.name, 'A');
+      await settle();
+      expect((await contacts.directory('goa')).single.name, 'A');
+      await age('reps|goa');
+      await contacts.directory('goa');
+      await settle();
+      expect((await contacts.directory('goa')).single.name, 'B');
+    });
+
+    test('professors and resources read by marker too', () async {
+      await db.doc('professors/p1').set({
+        'name': 'Dr A',
+        'campus': 'goa',
+        'department': 'CS',
+      });
+      await setMarker('goa', Paths.professors('CS'), 1);
+      await setMarker('goa', Paths.resources, 1);
+      await seedLink();
+      final ps = ProfessorStore(db, roles: roles);
+      final rs = ResourceStore(roles);
+      expect((await ps.department('goa', 'CS')).single.name, 'Dr A');
+      expect((await rs.department('goa', 'CS')).single.title, 'Notes');
+      await db.doc('professors/p1').update({'name': 'Dr Z'});
+      await db.doc('resourceVersions/goa').set({
+        'v': 2,
+        'links': {
+          'r1': {
+            'title': 'New',
+            'url': 'https://drive.google.com/n',
+            'department': 'CS',
+          },
+        },
+      });
+      await age('prof|goa|CS');
+      await headRefresh();
+      expect((await ps.department('goa', 'CS')).single.name, 'Dr A');
+      expect((await rs.department('goa', 'CS')).single.title, 'Notes');
+      await settle();
+      expect((await ps.department('goa', 'CS')).single.name, 'Dr A');
+      expect((await rs.department('goa', 'CS')).single.title, 'Notes');
+      await setMarker('goa', Paths.professors('CS'), 2);
+      await setMarker('goa', Paths.resources, 2);
+      await headRefresh();
+      await ps.department('goa', 'CS');
+      await rs.department('goa', 'CS');
+      await settle();
+      expect((await ps.department('goa', 'CS')).single.name, 'Dr Z');
+      expect((await rs.department('goa', 'CS')).single.title, 'New');
+    });
   });
 }
