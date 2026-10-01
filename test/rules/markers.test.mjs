@@ -64,8 +64,8 @@ describe('a marker moves by exactly one, on the right path', () => {
     department: 'ELEC', scope: 'department', courseIds: [], pinnedToDepartment: false, removed: false, actingFor: '',
   };
 
-  test('resources (a poisoned marker heals on the next bump)', async () => {
-    await seed(async (db) => { await setDoc(doc(db, 'heads', 'goa'), { v: { resources: 'x' } }); });
+  for (const poison of ['x', 3.5]) test(`resources (a ${typeof poison} marker heals on the next bump)`, async () => {
+    await seed(async (db) => { await setDoc(doc(db, 'heads', 'goa'), { v: { resources: poison } }); });
     const put = async (by, path = 'resources') => {
       const db = as(PRES);
       const b = writeBatch(db);

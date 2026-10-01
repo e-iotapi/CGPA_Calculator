@@ -302,6 +302,6 @@ class CatalogStore {
     // "did it publish" check included — would otherwise still see the old
     // version until that window passes (BUG-48).
     await forget('head|');
-    skipWorkerUntil = DateTime.now().add(const Duration(minutes: 2));
+    skipWorkerUntil = DateTime.now().add(const Duration(minutes: 3));
   }
 }

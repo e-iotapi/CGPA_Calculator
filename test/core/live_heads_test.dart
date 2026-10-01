@@ -150,10 +150,18 @@ void main() {
     expect(savedV(), {'resources': 3, 'reps': 0});
   });
 
-  test('versionsLive drops with the connection', () async {
+  test('an empty hello (hub read failed) does not count as live', () async {
     start();
     await pumpEventQueue();
     chans.single.push({'t': 'hello', 'head': <String, int>{}, 'me': 1});
+    await pumpEventQueue();
+    expect(versionsLive, isFalse);
+  });
+
+  test('versionsLive drops with the connection', () async {
+    start();
+    await pumpEventQueue();
+    chans.single.push({'t': 'hello', 'head': {'resources': 1}, 'me': 1});
     await pumpEventQueue();
     expect(versionsLive, isTrue);
     chans.single.drop();

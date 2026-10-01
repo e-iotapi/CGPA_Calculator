@@ -151,7 +151,7 @@ abstract final class LiveHeads {
         } on Object {
           // a drop
         }
-        versionsLive = false;
+        if (gen == _gen) versionsLive = false;
         ch.close();
         if (_ch == ch) _ch = null;
       }
@@ -178,7 +178,8 @@ abstract final class LiveHeads {
     switch (m['t']) {
       case 'hello':
         _merge(campus, m['head']);
-        versionsLive = true;
+        // An empty head means the hub couldn't read Firestore: not verified.
+        versionsLive = (m['head'] as Map?)?.isNotEmpty ?? false;
         _me(m['me'], hello: true);
         return true;
       case 'head':
