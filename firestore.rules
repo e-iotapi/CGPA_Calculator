@@ -552,7 +552,7 @@ service cloud.firestore {
     function pathBumped(campus, path) {
       let was0 = exists(headPath(campus))
         ? get(headPath(campus)).data.get('v', {}).get(path, 0) : 0;
-      let was = was0 is int ? was0 : 0;
+      let was = was0 is number ? was0 : 0;
       return getAfter(headPath(campus)).data.get('v', {}).get(path, 0) == was + 1;
     }
 
