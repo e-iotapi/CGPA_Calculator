@@ -367,6 +367,7 @@ class _SiteAnalyticsState extends State<SiteAnalytics> {
     final p = AppPalette.of(context);
     final store = AnalyticsStore(roleStore!.db);
     return Loaded<(PeopleCounts, List<DayCounts>)>(
+      cacheKey: 'admin-home|$_campus',
       key: ValueKey(_campus),
       load: () async {
         final r = await Future.wait<Object>([

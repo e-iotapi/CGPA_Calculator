@@ -183,6 +183,7 @@ class _AdminPeopleState extends State<AdminPeople> {
 
   @override
   Widget build(BuildContext context) => Loaded<List<Grant>>(
+    cacheKey: 'people-roster',
     load: () async {
       final all = await roleStore!.roster();
       return all..sort((a, b) {
@@ -347,6 +348,7 @@ class _PersonPageState extends State<PersonPage> {
         RowGroup(children: [GrantTile(g: _g)]),
         const SectionLabel('Recent edits'),
         Loaded<List<AuditEntry>>(
+          cacheKey: 'people-recent-edits|${_g.email}',
           load: () => roleStore!.audit(actor: _g.email, limit: 20),
           builder:
               (context, entries, _) =>

@@ -171,6 +171,7 @@ class _DeptProfessorsState extends State<DeptProfessors> {
       color: p.textMuted,
     );
     return Loaded<_Data>(
+      cacheKey: 'professors|${widget.campus}|${widget.dept}',
       key: ValueKey(_loads),
       load: () => _loadDept(widget.campus, widget.dept),
       builder: (context, data, _) {
@@ -747,6 +748,7 @@ class _TakenByState extends State<TakenBy> {
   @override
   Widget build(BuildContext context) {
     return Loaded<List<Professor>>(
+      cacheKey: 'professors-taken|${widget.campus}|${deptOf(widget.courseId)}',
       load: () => _store.department(widget.campus, deptOf(widget.courseId)),
       builder: (context, profs, _) {
         final byId = {for (final x in profs) x.id: x};

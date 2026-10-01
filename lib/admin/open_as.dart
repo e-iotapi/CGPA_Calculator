@@ -295,6 +295,7 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
 
   @override
   Widget build(BuildContext context) => Loaded<(List<Grant>, List<String>)>(
+    cacheKey: 'open-as-depts|$_campus',
     key: ValueKey(_campus),
     load:
         () async => (
@@ -421,6 +422,7 @@ class _ViewAsCoursePageState extends State<ViewAsCoursePage> {
 
   @override
   Widget build(BuildContext context) => Loaded<List<_Offered>>(
+    cacheKey: 'open-as-courses|$_campus',
     key: ValueKey(_campus),
     load: _load,
     builder: (context, offered, _) {

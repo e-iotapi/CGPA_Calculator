@@ -934,6 +934,7 @@ class CrHome extends StatelessWidget {
     // Large text puts a component's chips under its name.
     final stack = MediaQuery.textScalerOf(context).scale(10) > 12;
     return Loaded<Offering?>(
+      cacheKey: 'cr-home|$campus|$courseId',
       load: () => _store.offering(courseId, campus, maintainedTerm),
       builder: (context, o, reload) {
         Future<void> edit() async {

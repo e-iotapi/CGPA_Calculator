@@ -67,6 +67,7 @@ class _DeptReviewsState extends State<DeptReviews> {
   @override
   Widget build(BuildContext context) {
     return Loaded<_Lists>(
+      cacheKey: 'dept-reviews|${widget.campus}|${widget.dept}',
       key: ValueKey(_loads),
       load: _load,
       builder: (context, lists, _) {

@@ -45,6 +45,7 @@ class _OwnersPageState extends State<OwnersPage> {
 
   @override
   Widget build(BuildContext context) => Loaded<List<Map<String, dynamic>>>(
+    cacheKey: 'config-owners',
     load: () => roleStore!.owners(),
     builder: (context, owners, reload) {
       final p = AppPalette.of(context);
@@ -975,6 +976,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
         ],
         const SizedBox(height: Space.sm),
         Loaded<List<AuditEntry>>(
+          cacheKey: 'config-audit|$campus|$_course|$_actor',
           key: ValueKey('$campus|$_course|$_actor'),
           load: () => _load(campus),
           builder: (context, entries, _) {

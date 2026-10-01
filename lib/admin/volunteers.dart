@@ -137,6 +137,7 @@ class _VolunteersTabState extends State<VolunteersTab> {
           const SizedBox(height: Space.sm),
         ],
         Loaded<Map<String, List<Volunteer>>>(
+          cacheKey: 'volunteers|${widget.campus}|$dept|${currentTerm(DateTime.now())}',
           key: ValueKey('$dept|$_loads'),
           load:
               () => _store.offers(
