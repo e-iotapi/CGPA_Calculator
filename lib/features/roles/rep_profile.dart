@@ -62,14 +62,26 @@ class _RepProfilePageState extends State<RepProfilePage> {
 
   bool get _listed => listedRoles(myRoles.value).isNotEmpty;
 
+  /// The form as it stands, to tell whether the user has touched it.
+  (String, String, String, bool, bool, bool) _snap() => (
+    _name.text,
+    _phone.text,
+    _whatsapp.text,
+    _showEmail,
+    _showPhone,
+    _showWa,
+  );
+  (String, String, String, bool, bool, bool)? _seed;
+
   /// True when the saved copies filled the form in the first frame; the
-  /// load then only refreshes them, so it never overwrites what is typed.
+  /// fresh load then replaces them only while the form is still untouched.
   late final bool _primed = () {
     final store = contactStore;
     if (store == null) return false;
     final staff = store.peekMyStaffContact();
     if (staff == null) return false;
     _fill(staff, store.peekMyDirectory());
+    _seed = _snap();
     return true;
   }();
 
@@ -78,7 +90,12 @@ class _RepProfilePageState extends State<RepProfilePage> {
     if (store == null) return;
     final staff = await store.myStaffContact();
     final dir = await store.myDirectory();
-    if (!_primed) _fill(staff, dir);
+    if (!_primed) {
+      _fill(staff, dir);
+    } else if (_snap() == _seed) {
+      _fill(staff, dir);
+      if (mounted) setState(() {});
+    }
   }
 
   void _fill(({String name, String phone})? staff, DirectoryEntry? dir) {

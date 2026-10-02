@@ -136,3 +136,32 @@ Future<void> forget(String keyPrefix, {Box? box}) async {
   final keys = b.keys.where((k) => k is String && k.startsWith(keyPrefix));
   await b.deleteAll(keys);
 }
+
+/// [load] that also saves each successful result under [key] (JSON via
+/// [encode]), for a live read whose last list is drawn in the next first
+/// frame ([peekCache] with its decode); the screen keeps its writes disabled
+/// until the fresh load completes. [key] carries whatever scopes the data
+/// (campus, email).
+Future<T> Function() remembered<T>(
+  String key,
+  Future<T> Function() load,
+  Object? Function(T) encode,
+) => () async {
+  final v = await load();
+  try {
+    unawaited(
+      sharedCacheBox
+          ?.put(
+            key,
+            jsonEncode({
+              'at': DateTime.now().millisecondsSinceEpoch,
+              'v': encode(v),
+            }),
+          )
+          .catchError((Object e) => debugPrint('[Pointer cache] $key: $e')),
+    );
+  } on Object catch (e) {
+    debugPrint('[Pointer cache] $key: not saved: $e');
+  }
+  return v;
+};

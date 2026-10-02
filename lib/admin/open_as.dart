@@ -304,7 +304,8 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
         ),
     peek: () {
       final grants = roleStore!.peekRoster(campus: _campus);
-      return grants == null ? null : (grants, departmentsAt(_campus));
+      if (grants == null || departmentSource is! CampusDepartments) return null;
+      return (grants, departmentsAt(_campus));
     },
     builder: (context, data, _) {
       final (grants, depts) = data;

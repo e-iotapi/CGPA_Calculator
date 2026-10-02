@@ -284,19 +284,21 @@ GoRoute _admin(String path, Widget Function() page, bool Function() may) =>
 /// Admin screens live in a deferred library (§13): loaded on first visit.
 Widget _deferred(Widget Function() page) =>
     DeferredPage(
-      load: _adminLoad ??= admin.loadLibrary().then((_) => _adminReady = true),
+      load: _loadAdmin(),
       loaded: _adminReady,
       page: page,
     );
 Future<void>? _adminLoad;
 bool _adminReady = false;
+Future<void> _loadAdmin() =>
+    _adminLoad ??= admin.loadLibrary().then((_) => _adminReady = true);
 
 /// For a department president: loads the admin code and their board's data
 /// in the background, so the department pages open with data (TM-16).
 Future<void> prefetchPresidentPages() async {
   final presidencies = myRoles.value.presidencies;
   if (presidencies.isEmpty) return;
-  await (_adminLoad ??= admin.loadLibrary());
+  await _loadAdmin();
   admin.prefetchDeptScreens(presidencies);
 }
 

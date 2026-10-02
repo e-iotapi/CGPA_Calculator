@@ -202,7 +202,7 @@ class DeptHome extends StatelessWidget {
       cacheKey: cacheKey(campus, dept),
       load: () => load(campus, dept),
       peek: () => peek(campus, dept),
-      builder: (context, d, reload) {
+      gated: (context, d, reload, saved) {
         final missing =
             courses
                 .where((c) => !(d.offerings[c.id]?.hasScheme ?? false))
@@ -244,8 +244,11 @@ class DeptHome extends StatelessWidget {
           CardRow(
             leading: IconTile(Icons.rate_review_outlined),
             title: 'Reviews',
+            // The reports are live: nothing is claimed from a saved copy.
             subtitle:
-                d.reported == null || d.reported == 0
+                saved
+                    ? null
+                    : d.reported == null || d.reported == 0
                     ? 'Nothing reported'
                     : '${plural(d.reported!, 'review')} reported',
             trailing: badge(d.reported),

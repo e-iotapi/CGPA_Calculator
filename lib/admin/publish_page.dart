@@ -1,6 +1,7 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/catalog/publish.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -95,14 +96,26 @@ class _PublishPageState extends State<PublishPage> {
     if (saved == true) setState(() => _loads++);
   }
 
+  String get _draftsKey => 'last|drafts|${roleStore!.me}';
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Loaded<List<CourseEdit>>(
       cacheKey: 'publish-drafts',
       key: ValueKey(_loads),
-      load: _store.drafts,
-      builder: (context, drafts, reload) {
+      load: remembered(
+        _draftsKey,
+        _store.drafts,
+        (v) => [for (final e in v) e.toMap()],
+      ),
+      peek:
+          () => peekCache<List<CourseEdit>>(
+            _draftsKey,
+            (o) => [for (final m in o as List) CourseEdit.fromMap(m as Map)],
+          ),
+      // Last list: actions wait for the fresh one.
+      gated: (context, drafts, reload, saved) {
         final live = catalog;
         final next = applyEdits(live, drafts);
         final diff = diffCatalog(live, next);
@@ -143,7 +156,7 @@ class _PublishPageState extends State<PublishPage> {
                       ? 'Publishing…'
                       : 'Publish ${diff.count} change${diff.count == 1 ? '' : 's'}',
               onPressed:
-                  _busy || diff.isEmpty || (n > 0 && !_read)
+                  saved || _busy || diff.isEmpty || (n > 0 && !_read)
                       ? null
                       : () => _confirmAndPublish(next, diff, drafts),
             ),
@@ -278,7 +291,10 @@ class _PublishPageState extends State<PublishPage> {
             Align(
               alignment: Alignment.centerLeft,
               child: IntrinsicWidth(
-                child: OutlinedPill(label: 'Draft a change', onPressed: _draft),
+                child: OutlinedPill(
+                  label: 'Draft a change',
+                  onPressed: saved ? null : _draft,
+                ),
               ),
             ),
             if (drafts.isNotEmpty) ...[

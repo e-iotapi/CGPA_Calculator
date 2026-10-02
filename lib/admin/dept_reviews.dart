@@ -1,4 +1,6 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
@@ -64,13 +66,48 @@ class _DeptReviewsState extends State<DeptReviews> {
     await _act(() => _store.hide(r, why), 'Hidden. Its rating came off.');
   }
 
+  String get _lastKey =>
+      'last|dept-reviews|${roleStore!.me}|${widget.campus}|${widget.dept}';
+
+  static Map<String, dynamic> _encodeReview(Review r) => {
+    'id': r.id,
+    'courseId': r.courseId,
+    ...r.toMap(),
+    'reason': r.reason,
+    'hiddenBy': {'name': r.hiddenByName},
+  };
+
+  static Review _decodeReview(Object? o) {
+    final m = o as Map;
+    return Review.fromMap('${m['id']}', '${m['courseId']}', m);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Loaded<_Lists>(
       cacheKey: 'dept-reviews|${widget.campus}|${widget.dept}',
       key: ValueKey(_loads),
-      load: _load,
-      builder: (context, lists, _) {
+      load: remembered(
+        _lastKey,
+        _load,
+        (l) => {
+          for (final e in {
+            'all': l.all,
+            'reported': l.reported,
+            'hidden': l.hidden,
+          }.entries)
+            e.key: [for (final r in e.value) _encodeReview(r)],
+        },
+      ),
+      peek:
+          () => peekCache<_Lists>(_lastKey, (o) {
+            List<Review> list(String k) => [
+              for (final x in (o as Map)[k] as List) _decodeReview(x),
+            ];
+            return (all: list('all'), reported: list('reported'), hidden: list('hidden'));
+          }),
+      // Last list: the actions wait for the fresh one.
+      gated: (context, lists, _, saved) {
         final reviews = switch (_view) {
           _View.all => lists.all,
           _View.reported => lists.reported,
@@ -111,6 +148,7 @@ class _DeptReviewsState extends State<DeptReviews> {
             const SizedBox(height: Space.sm),
             for (final r in reviews) ...[
               _ModCard(
+                disabled: saved,
                 r: r,
                 onKeep:
                     r.reports > 0 && !r.hidden
@@ -243,8 +281,17 @@ class _Summary extends StatelessWidget {
 /// One review as a moderator sees it: chips, reports, rating, the text, and
 /// Keep / Hide (or Unhide) as 32 tall pills.
 class _ModCard extends StatelessWidget {
-  const _ModCard({required this.r, this.onKeep, this.onHide, this.onUnhide});
+  const _ModCard({
+    required this.r,
+    this.onKeep,
+    this.onHide,
+    this.onUnhide,
+    this.disabled = false,
+  });
   final Review r;
+
+  /// Waiting for the fresh list: the buttons show but do nothing.
+  final bool disabled;
   final VoidCallback? onKeep, onHide, onUnhide;
 
   @override
@@ -309,16 +356,24 @@ class _ModCard extends StatelessWidget {
             runSpacing: Space.sm,
             children: [
               if (onKeep != null)
-                PillButton(label: 'Keep', height: 32, onPressed: onKeep),
+                PillButton(
+                  label: 'Keep',
+                  height: 32,
+                  onPressed: disabled ? null : onKeep,
+                ),
               if (onHide != null)
                 PillButton(
                   label: 'Hide',
                   height: 32,
                   selected: true,
-                  onPressed: onHide,
+                  onPressed: disabled ? null : onHide,
                 ),
               if (onUnhide != null)
-                PillButton(label: 'Unhide', height: 32, onPressed: onUnhide),
+                PillButton(
+                  label: 'Unhide',
+                  height: 32,
+                  onPressed: disabled ? null : onUnhide,
+                ),
             ],
           ),
         ],
