@@ -161,6 +161,9 @@ class ProfessorStore {
   Professor? peekGet(String id) =>
       peekCache<Professor?>('pid|$id', (o) => _decodeOne(id, o));
 
+  /// Whether [get] has saved an answer for [id], even "no such professor".
+  bool peekSaved(String id) => sharedCacheBox?.containsKey('pid|$id') ?? false;
+
   /// The saved [get], following a merge to the survivor, read synchronously;
   /// null when it or the survivor is not saved.
   Professor? peekResolved(String id) {
@@ -283,7 +286,10 @@ class ProfessorStore {
           }.toList(),
       ..._stamp(r, audit),
     });
-    for (final p in {(keep.campus, keep.department), (absorbed.campus, absorbed.department)}) {
+    for (final p in {
+      (keep.campus, keep.department),
+      (absorbed.campus, absorbed.department),
+    }) {
       bumpPath(b, db, p.$1, Paths.professors(p.$2));
     }
     await b.commit();

@@ -28,6 +28,20 @@ void main() {
     await dir.delete(recursive: true);
   });
 
+  test('a professor looked up and gone is known, not merely unsaved', () async {
+    final dir = await Directory.systemTemp.createTemp('nospin');
+    Hive.init(dir.path);
+    await openSharedCache();
+    final store = ProfessorStore(FakeFirebaseFirestore());
+    expect(store.peekSaved('gone'), isFalse);
+    expect(await store.get('gone'), isNull);
+    // Screens skip it, as their loads do, instead of spinning every visit.
+    expect(store.peekResolved('gone'), isNull);
+    expect(store.peekSaved('gone'), isTrue);
+    await Hive.close();
+    await dir.delete(recursive: true);
+  });
+
   test('likelyPairs pairs the same surname', () {
     Professor p(String id, String n) =>
         Professor(id: id, name: n, campus: 'goa', department: 'CS');

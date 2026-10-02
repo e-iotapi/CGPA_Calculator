@@ -54,8 +54,11 @@ class _TakenByRowState extends State<TakenByRow> {
     final out = <String>[];
     for (final id in widget.professorIds) {
       final p = store.peekResolved(id);
-      if (p == null) return null;
-      out.add(p.name);
+      if (p != null) {
+        out.add(p.name);
+      } else if (!store.peekSaved(id)) {
+        return null; // never looked up; a known-gone one is skipped, as load does
+      }
     }
     return out;
   }
