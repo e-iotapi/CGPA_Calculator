@@ -327,6 +327,17 @@ flowchart TD
 - `audit/` records every privileged change with the actor, before and after.
 - Campus is part of almost every path or document, and the rules only let a
   student read their own campus.
+- **A professor is never hard-deleted** (the rules refuse it), so every review
+  keeps a professor with a name, and every filter and count keeps working:
+  - *Merge:* the duplicate points at the survivor (`mergedInto`) and the
+    survivor lists it (`mergedIds`). Reviews keep their original professor id
+    and count as the survivor's children everywhere: its stats, its filter
+    (`allIds`) and its page. Nothing is rewritten.
+  - *Delete* (planned, DATA_SYNC_PLAN §5.3): a soft delete (`removed: true`,
+    audited). The professor drops out of pickers and search, but its reviews
+    stay, under its name, and filter and count as before.
+  - A review naming an id with no document at all (only possible from a
+    reseed) is skipped by every screen, live and from the saved copy alike.
 
 ## 8. Roles and permissions
 
