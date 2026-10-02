@@ -20,14 +20,11 @@ import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 
-/// ERP → My Academics. A navigation collection rather than a report, so a
+/// ERP → My Academics. A component link rather than a report, so a
 /// signed-out user goes through SSO and still lands in the right place.
 final erpMyAcademics = Uri.parse(
   'https://sis.erp.bits-pilani.ac.in/psc/sisprd/EMPLOYEE/SA/c/'
-  'NUI_FRAMEWORK.PT_AGSTARTPAGE_NUI.GBL'
-  '?CONTEXTIDPARAMS=TEMPLATE_ID%3aPTPPNAVCOL'
-  '&scname=ADMN_MY_ACADEMICS&PTPPB_GROUPLET_ID=MY_ACADEMICS'
-  '&CRefName=ADMN_NAVCOLL_2',
+  'BITS_STD_CNT_LNK.BITS_STD_CNT_LNK.GBL',
 );
 
 /// Import from the ERP performance sheet: step 2 of setup, and the page the
