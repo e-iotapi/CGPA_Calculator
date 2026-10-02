@@ -50,19 +50,37 @@
       });
     })();
   </script>
-  <!-- UT-3: on iOS the engine already lays the app out above the keyboard
-       (a bottom inset), but Safari also pans the page up to show the focused
-       field, leaving a black band the size of the pan under the content.
-       The page is kept unpanned; the app scrolls the field into view itself.
-       ?pan=1 turns this off to compare. -->
+  <!-- UT-3: while a field is edited the engine keeps the app at full size
+       and reports the keyboard as a bottom inset, so each screen lays out
+       above it and scrolls the field into view itself. Every mobile browser
+       (Safari, Chrome, Firefox) also pans the page to the engine's hidden
+       input, which lifts the whole app and leaves a black band under it. The
+       page is kept unpanned on touch screens. ?pan=1 turns this off to
+       compare; ?kbdebug=1 shows the viewport numbers on screen. -->
   <script>
     (function() {
-      var vv = window.visualViewport;
-      var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      if (!vv || !ios || new URLSearchParams(location.search).get('pan') === '1') return;
+      var q = new URLSearchParams(location.search), vv = window.visualViewport;
+      var touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+      if (!vv || !touch) return;
+      var box;
+      var show = function() {
+        if (!q.get('kbdebug')) return;
+        if (!box) {
+          box = document.createElement('pre');
+          box.style.cssText = 'position:fixed;left:0;top:0;z-index:99;margin:0;' +
+              'padding:4px;font:11px monospace;background:#ff0;color:#000;pointer-events:none';
+          document.documentElement.appendChild(box);
+        }
+        box.textContent = 'inner ' + innerHeight + ' client ' +
+            document.documentElement.clientHeight + ' vv ' + Math.round(vv.height) +
+            ' vvTop ' + Math.round(vv.offsetTop) + ' scrollY ' + Math.round(scrollY);
+      };
       var reset = function() {
-        if (window.scrollY || vv.offsetTop) window.scrollTo(0, 0);
+        if (q.get('pan') !== '1' && (window.scrollY || vv.offsetTop)) {
+          window.scrollTo(0, 0);
+          document.documentElement.scrollTop = document.body ? (document.body.scrollTop = 0) : 0;
+        }
+        show();
       };
       vv.addEventListener('resize', reset);
       vv.addEventListener('scroll', reset);
