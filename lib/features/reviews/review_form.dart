@@ -89,7 +89,10 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
     final profs = <Professor>[];
     for (final id in ids) {
       final p = store.peekResolved(id);
-      if (p == null) return null;
+      if (p == null) {
+        if (store.peekSaved(id)) continue; // gone: skipped, as _load does
+        return null;
+      }
       profs.add(
         Professor(
           id: id,

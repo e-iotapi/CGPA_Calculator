@@ -130,7 +130,12 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
     final groups = <String, (Professor, ReviewStats)>{};
     for (final e in by.entries) {
       final p = profs.peekResolved(e.key);
-      if (p == null) return null;
+      // A professor known to be gone is skipped, as [_meta] does; only one
+      // never looked up means the copy is incomplete.
+      if (p == null) {
+        if (profs.peekSaved(e.key)) continue;
+        return null;
+      }
       names[e.key] = p.name;
       final g = groups[p.id];
       groups[p.id] = (p, g == null ? e.value : g.$2 + e.value);
@@ -153,10 +158,13 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
     var prof = _prof;
     if (prof != null && !groups.containsKey(prof)) {
       final p = profs.peekResolved(prof);
-      if (p == null) return null;
-      names[prof] = p.name;
-      prof = p.id;
-      groups.putIfAbsent(p.id, () => (p, const ReviewStats()));
+      if (p != null) {
+        names[prof] = p.name;
+        prof = p.id;
+        groups.putIfAbsent(p.id, () => (p, const ReviewStats()));
+      } else if (!profs.peekSaved(prof)) {
+        return null;
+      }
     }
     if (!_picked) prof = now;
     final g = groups[prof];

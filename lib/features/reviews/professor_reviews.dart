@@ -50,7 +50,12 @@ class ProfessorReviewsPage extends StatelessWidget {
   (Professor?, List<_Taught>)? _peek() {
     final campus = myCampus!;
     final p = ProfessorStore(roleStore!.db).peekResolved(professorId);
-    if (p == null) return null;
+    if (p == null) {
+      // Known to be gone: what _load shows; never looked up: no copy.
+      return ProfessorStore(roleStore!.db).peekSaved(professorId)
+          ? (null, const <_Taught>[])
+          : null;
+    }
     final taught = ProfessorStore(roleStore!.db).peekTaught(p, campus);
     if (taught == null) return null;
     final out = <_Taught>[];
