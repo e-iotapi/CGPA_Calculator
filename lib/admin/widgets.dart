@@ -411,6 +411,9 @@ class _LoadedState<T> extends State<Loaded<T>> {
   /// The latest data a load completed with: preferred over the first peek.
   T? _last;
 
+  /// The failed load already reported, so a rebuild doesn't report it again.
+  Future<T>? _toldFailed;
+
   Widget _draw(BuildContext context, T v, bool saved) =>
       widget.gated?.call(context, v, _reload, saved) ??
       widget.builder!(context, v, _reload);
@@ -453,7 +456,26 @@ class _LoadedState<T> extends State<Loaded<T>> {
       }
       if ((_cached || _peeked != null) &&
           (s.hasError || s.connectionState != ConnectionState.done)) {
-        if (s.hasError) debugPrint('[Pointer] refresh failed: ${s.error}');
+        if (s.hasError) {
+          debugPrint('[Pointer] refresh failed: ${s.error}');
+          // A gated screen keeps its writes off until a load completes: say
+          // why, and offer the retry (once per failed load).
+          if (widget.gated != null && !identical(_toldFailed, _f)) {
+            _toldFailed = _f;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    "Couldn't refresh: ${problem(s.error!)} Showing the last "
+                    'saved copy; changes are off until it refreshes.',
+                  ),
+                  action: SnackBarAction(label: 'Try again', onPressed: _reload),
+                ),
+              );
+            });
+          }
+        }
         return _draw(
           context,
           _last ??
