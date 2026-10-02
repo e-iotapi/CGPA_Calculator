@@ -52,6 +52,8 @@ class ProfileFigures {
     this.previous,
   });
   final GpaTally term;
+
+  /// The CGPA after this semester (later semesters left out).
   final GpaTally overall;
 
   /// The CGPA at the end of the last graded semester before this one; null
@@ -89,6 +91,10 @@ class SemesterData {
     // Every semester ordered before this one, for "last semester's" CGPA:
     // the same progression the Stats page draws.
     final before = semesters.takeWhile((s) => s != sem).toList();
+    // The CGPA as it stood after [sem]: an earlier semester's tab leaves out
+    // the semesters after it.
+    final after = semesters.skipWhile((s) => s != sem).skip(1).toSet();
+    final upToSem = allCourses.where((c) => !after.contains(c.sem));
     ProfileFigures figures(Profile p) => ProfileFigures(
       term: semesterTally(
         allCourses,
@@ -96,7 +102,7 @@ class SemesterData {
         discipline: discipline,
         profile: p,
       ),
-      overall: cumulativeTally(allCourses, discipline: discipline, profile: p),
+      overall: cumulativeTally(upToSem, discipline: discipline, profile: p),
       previous:
           progression(
             allCourses,
