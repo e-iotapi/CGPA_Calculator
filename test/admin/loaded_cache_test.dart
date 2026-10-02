@@ -69,4 +69,25 @@ void main() {
     await t.pump();
     expect(find.text('saved'), findsOneWidget);
   });
+
+  testWidgets('a gated screen whose refresh fails says so and offers a retry',
+      (t) async {
+    var loads = 0;
+    await t.pumpWidget(MaterialApp(home: Scaffold(body: Loaded<String>(
+      peek: () => 'saved',
+      load: () async {
+        loads++;
+        throw StateError('offline');
+      },
+      gated: (_, v, _, saved) => Text('$v ${saved ? 'off' : 'on'}'),
+    ))));
+    await t.pump();
+    await t.pump();
+    expect(find.text('saved off'), findsOneWidget);
+    expect(find.textContaining("Couldn't refresh"), findsOneWidget);
+    await t.pump(const Duration(milliseconds: 500)); // the bar slides in
+    await t.tap(find.text('Try again'));
+    await t.pump();
+    expect(loads, 2);
+  });
 }
