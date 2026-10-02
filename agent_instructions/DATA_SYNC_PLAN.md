@@ -1,6 +1,6 @@
 # Pointer — server structure for version markers and sync (plan)
 
-**Status (2026-10-02): Stages 1–3 built on `pointer-rebuild`** (plan: `LOADING_SERVER_PLAN.md`; design: `ARCHITECTURE.md` §6, §13). Stage 3 differs here: no subscriptions, the hub broadcasts only the `v` map and clients read data from Firestore; pokes coalesce ~1.5 s, one head read per 5 s at most. The Worker and DO await the owner's deploy (`server/README.md`).
+**Status (2026-10-02): Stages 1–3 built on `pointer-rebuild`** (plan: `LOADING_SERVER_PLAN.md`; design: `ARCHITECTURE.md` §6, §13). Stage 3 differs here: no subscriptions, the hub broadcasts only the `v` map and clients read data from Firestore; pokes coalesce ~1.5 s, one head read per 20 s at most. Staging Worker + DO deployed and verified 2026-10-02; production awaits the owner's deploy (`server/README.md`).
 
 Planning document, written 2026-09-30 from a design discussion with the
 owner. Covers the server side only: Firestore version markers, a Cloudflare Worker and a

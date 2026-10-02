@@ -94,8 +94,8 @@ from a real iPhone 13). Method and every number:
 | Repeat visit, first frame (desktop) | 1.80 s | 1.50 s | same |
 | Repeat visit, bytes downloaded | 858 KB | 176 KB | app files are revalidated (304) instead of downloaded again |
 | iPhone scrolling | visible judder | smooth (owner, iPhone 13) | the app draws at most 2× pixel density |
-| Reopening Resources, Reviews, Representatives, admin pages | spinner every time | last data at once, refreshed behind | per-screen cache |
-| Opening Resources, Reviews, Representatives after a relaunch | spinner, then a network read | saved data in the first frame, no spinner | data kept on the phone, refreshed only when its version moves |
+| Reopening any screen, admin pages included | spinner every time | last data at once, refreshed behind | per-screen cache |
+| Opening any screen after a relaunch | spinner, then a network read | saved data in the first frame, no spinner (live admin queues keep their buttons off until fresh) | data kept on the phone, refreshed only when its version moves |
 | iPhone loads stalling ~30 s on the first sync | 3 in 10 | 0 in 10 | Firestore uses long polling on iOS |
 
 **Next:** every data store keeps its data on the phone and is refreshed from
