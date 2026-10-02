@@ -157,8 +157,10 @@ from Firestore, rules and Cloudflare.
 ### 5.3 Professors
 
 - Delete is a **soft delete** (`removed: true`, audited, by that department's president):
-  reviews and stats point at professor ids, so a hard delete would orphan them. Merging duplicates
-  already exists.
+  reviews and stats point at professor ids, so a hard delete would orphan them. The professor
+  leaves pickers and search, but its reviews stay under its name, and filters and counts treat it
+  as before (owner, 2026-10-02). Merging duplicates already exists: the absorbed professor's
+  reviews count as the survivor's (`mergedInto` / `mergedIds`), nothing rewritten.
 
 ### 5.4 Calendar
 
