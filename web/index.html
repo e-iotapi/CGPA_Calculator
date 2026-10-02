@@ -50,6 +50,25 @@
       });
     })();
   </script>
+  <!-- UT-3: on iOS the engine already lays the app out above the keyboard
+       (a bottom inset), but Safari also pans the page up to show the focused
+       field, leaving a black band the size of the pan under the content.
+       The page is kept unpanned; the app scrolls the field into view itself.
+       ?pan=1 turns this off to compare. -->
+  <script>
+    (function() {
+      var vv = window.visualViewport;
+      var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (!vv || !ios || new URLSearchParams(location.search).get('pan') === '1') return;
+      var reset = function() {
+        if (window.scrollY || vv.offsetTop) window.scrollTo(0, 0);
+      };
+      vv.addEventListener('resize', reset);
+      vv.addEventListener('scroll', reset);
+      window.addEventListener('scroll', reset);
+    })();
+  </script>
 
   <!-- The Firebase JS SDK that FlutterFire imports once main() starts
        (firebase_core_web's supportedFirebaseJsSdkVersion; checked by
