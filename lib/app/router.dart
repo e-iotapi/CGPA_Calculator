@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cgpa_calculator/admin/admin.dart' deferred as admin;
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
@@ -31,9 +33,26 @@ export 'package:cgpa_calculator/app/routes.dart';
 final GoRouter appRouter = GoRouter(
   routes: appRoutes,
   refreshListenable: Listenable.merge([profileDue, ownerSetupDue]),
-  redirect: (_, s) => profileGate(s.matchedLocation),
+  redirect: (_, s) {
+    leaveRoleOutside(s.matchedLocation);
+    return profileGate(s.matchedLocation);
+  },
   errorBuilder: (_, _) => const NotFoundPage(),
 );
+
+/// The pages a role works in; everything else is a student's.
+const _rolePaths = ['/admin', '/maintain', '/roles', '/campus'];
+
+/// On a student page, a president or CR is a student again and an owner is
+/// the owner again (not a role they opened as): Switch role and Open as hold
+/// only while their pages are open.
+void leaveRoleOutside(String location) {
+  if (_rolePaths.any((p) => location == p || location.startsWith('$p/'))) {
+    return;
+  }
+  if (workingAs.value != null) unawaited(setWorkingAs(null));
+  viewAs.value = null;
+}
 
 /// RepProfile comes first after an appointment (§16.3 fix 8): while it is
 /// due, every location resolves to it.
@@ -283,11 +302,7 @@ GoRoute _admin(String path, Widget Function() page, bool Function() may) =>
 
 /// Admin screens live in a deferred library (§13): loaded on first visit.
 Widget _deferred(Widget Function() page) =>
-    DeferredPage(
-      load: _loadAdmin(),
-      loaded: _adminReady,
-      page: page,
-    );
+    DeferredPage(load: _loadAdmin(), loaded: _adminReady, page: page);
 Future<void>? _adminLoad;
 bool _adminReady = false;
 Future<void> _loadAdmin() =>
