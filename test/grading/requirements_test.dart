@@ -223,6 +223,16 @@ void main() {
       expect(of(el('BITS F382', 'Open Elective')), Elective.open);
     });
 
+    test('the degree\'s own projects are DELs, even tagged open', () {
+      // Tester report: CS study/lab/design projects counted as OPELs for A7.
+      for (final id in ['CS F266', 'CS F366', 'CS F376', 'CS F491']) {
+        expect(of(el(id, 'Open Elective'), 'A7--'), Elective.del1, reason: id);
+        expect(of(el(id, 'Open Elective')), Elective.del2, reason: id);
+      }
+      // Another department's project stays an open elective.
+      expect(of(el('ME F376', 'Open Elective'), 'A7--'), Elective.open);
+    });
+
     test('GS and HSS are humanities', () {
       expect(of(el('GS F211', 'Open Elective')), Elective.humanity);
       expect(of(el('HSS F334', 'Disciplinary Elective1')), Elective.humanity);

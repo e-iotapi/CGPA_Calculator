@@ -128,9 +128,11 @@ Elective _placed(String dept, String id, Elective taken, String discipline) {
   // A course taken under a BITS code is an open elective, whatever else it
   // is cross-listed as.
   if (dept == 'BITS') return Elective.open;
-  if (taken == Elective.humanity || taken == Elective.open) return taken;
+  if (taken == Elective.humanity) return taken;
   final a = discipline.substring(2, 4), b = discipline.substring(0, 2);
-  // Any code the course is cross-listed under can place it.
+  // Any code the course is cross-listed under can place it. The degree's own
+  // department is its DEL even when tagged open (its projects are on no DEL
+  // list); DELs past the need spill into the open card anyway.
   final depts = {for (final c in courseGraph.linked(id)) c.split(' ').first};
   if (depts.any(departments[a]?.contains ?? (_) => false)) {
     return Elective.del2;
@@ -138,6 +140,7 @@ Elective _placed(String dept, String id, Elective taken, String discipline) {
   if (depts.any(departments[b]?.contains ?? (_) => false)) {
     return Elective.del1;
   }
+  if (taken == Elective.open) return taken;
   if (del[a]?.contains(id) ?? false) return Elective.del2;
   if (del[b]?.contains(id) ?? false) return Elective.del1;
   return Elective.open;
