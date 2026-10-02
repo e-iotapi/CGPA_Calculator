@@ -192,6 +192,25 @@ void main() {
         'Your expected CGPA is the same as last semester\'s.',
       );
       expect(on(SemesterMode.expected).editorialEmphasis, 'the same as');
+      // An earlier semester's tab shows the CGPA as it stood after that
+      // semester, and compares that with the one before (tester report).
+      final three = [
+        _c('A', 'CS F111', 3, 8, sem: '1 - 1'),
+        _c('B', 'CS F222', 3, 6, sem: '1 - 2'),
+        _c('C', 'CS F333', 3, 10, sem: '2 - 1'),
+      ];
+      final past = SemesterData.from(
+        allCourses: three,
+        visible: [three[1]],
+        sem: '1 - 2',
+        semesters: semestersFor('B3A7'),
+        discipline: 'B3A7',
+        mode: SemesterMode.actual,
+        sort: CourseSort.creditsAsc,
+        profileNames: const ['Actual', 'Expected', 'P3', 'P4', 'P5'],
+      );
+      expect(formatGpa(past.current.overall), '7.00');
+      expect(past.editorial, 'Your CGPA is 1.00 below last semester\'s.');
       expect(
         _data(SemesterMode.actual, sem: '4 - 2').editorial,
         'Nothing graded in 4 - 2 yet.',
