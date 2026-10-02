@@ -165,6 +165,10 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
             ],
           );
         }
+        // A saved offering may name someone no longer on it.
+        if (!editing && !t.professors.any((x) => x.id == _professorId)) {
+          _professorId = t.professors.firstOrNull?.id;
+        }
         final prof =
             t.professors.where((x) => x.id == _professorId).firstOrNull;
         final label = TypeScale.label.copyWith(color: p.textMuted);

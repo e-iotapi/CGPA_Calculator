@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
@@ -44,6 +45,12 @@ Future<Grant?> _shownGrant(String campus, String dept) async {
       )
       .firstOrNull;
 }
+
+Grant? _decodeGrant(Object? o) =>
+    o == null ? null : Grant.fromMap(Map<String, dynamic>.from(o as Map));
+
+String _lastKey(String what, String campus, String dept) =>
+    'last|$what|${_roles.me}|$campus|$dept';
 
 /// Whether [g] is someone else's: the owner or an admin previewing.
 bool _previewing(Grant g) => g.email != _roles.me;
@@ -240,8 +247,18 @@ class _SuccessionState extends State<Succession> {
     return Loaded<Grant?>(
       cacheKey: 'succession|${widget.campus}|${widget.dept}',
       key: ValueKey(_loads),
-      load: () => _shownGrant(widget.campus, widget.dept),
-      builder: (context, mine, _) {
+      load: remembered(
+        _lastKey('succession', widget.campus, widget.dept),
+        () => _shownGrant(widget.campus, widget.dept),
+        (g) => g?.toMap(),
+      ),
+      peek:
+          () => peekCache<Grant?>(
+            _lastKey('succession', widget.campus, widget.dept),
+            _decodeGrant,
+          ),
+      // Last copy: the actions wait for the fresh one.
+      gated: (context, mine, _, saved) {
         if (mine == null) {
           return PageFrame(
             header: _header(widget.campus, widget.dept, 'Hand over'),
@@ -264,7 +281,7 @@ class _SuccessionState extends State<Succession> {
             bottom: BottomAction(
               child: PrimaryButton(
                 label: _busy ? 'Cancelling…' : 'Cancel the handover',
-                onPressed: _busy ? null : () => _cancel(mine),
+                onPressed: saved || _busy ? null : () => _cancel(mine),
               ),
             ),
             children: [
@@ -330,7 +347,7 @@ class _SuccessionState extends State<Succession> {
             child: PrimaryButton(
               label: 'Review the handover',
               onPressed:
-                  ready
+                  ready && !saved
                       ? () => context.push(
                         Routes.deptSuccessionConfirm(
                           widget.campus,
@@ -496,7 +513,7 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
     final typed = _code.text.trim().toUpperCase() == widget.dept;
     final campus = campusName(widget.campus);
     return Loaded<(Grant?, int?)>(
-      load: () async {
+      load: remembered(_lastKey('succession-confirm', widget.campus, widget.dept), () async {
         final mine = await _shownGrant(widget.campus, widget.dept);
         int? crs;
         try {
@@ -512,8 +529,14 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
                   .length;
         } catch (_) {}
         return (mine, crs);
-      },
-      builder: (context, data, _) {
+      }, (v) => {'g': v.$1?.toMap(), 'n': v.$2}),
+      peek:
+          () => peekCache<(Grant?, int?)>(
+            _lastKey('succession-confirm', widget.campus, widget.dept),
+            (o) => (_decodeGrant((o as Map)['g']), o['n'] as int?),
+          ),
+      // Last copy: the handover waits for the fresh one.
+      gated: (context, data, _, saved) {
         final (mine, crs) = data;
         final ends =
             mine == null
@@ -561,7 +584,7 @@ class _SuccessionConfirmState extends State<SuccessionConfirm> {
                       _busy
                           ? 'Handing over…'
                           : 'Hand ${widget.dept} to ${_id(widget.to)}',
-                  onPressed: typed && !_busy ? _go : null,
+                  onPressed: typed && !_busy && !saved ? _go : null,
                 ),
                 Center(child: TextLink('Not yet', onTap: () => context.pop())),
               ],

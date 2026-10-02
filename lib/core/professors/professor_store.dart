@@ -164,9 +164,15 @@ class ProfessorStore {
   /// The saved [get], following a merge to the survivor, read synchronously;
   /// null when it or the survivor is not saved.
   Professor? peekResolved(String id) {
-    final p = peekGet(id);
-    final into = p?.mergedInto;
-    return into == null || into == id ? p : peekResolved(into);
+    var p = peekGet(id);
+    final seen = {id};
+    // A merge cycle (a to b to a) ends at the first repeat.
+    while (true) {
+      final into = p?.mergedInto;
+      if (into == null || !seen.add(into)) break;
+      p = peekGet(into);
+    }
+    return p;
   }
 
   Future<void> _forget(String campus) async {

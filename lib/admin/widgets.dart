@@ -384,12 +384,19 @@ class Loaded<T> extends StatefulWidget {
   const Loaded({
     super.key,
     required this.load,
-    required this.builder,
+    this.builder,
+    this.gated,
     this.cacheKey,
     this.peek,
-  });
+  }) : assert(builder != null || gated != null);
   final Future<T> Function() load;
-  final Widget Function(BuildContext, T, VoidCallback reload) builder;
+  final Widget Function(BuildContext, T, VoidCallback reload)? builder;
+
+  /// Like [builder], told whether the data is only a saved copy (the fresh
+  /// load has not completed): the screen disables every action that writes
+  /// until it is false.
+  final Widget Function(BuildContext, T, VoidCallback reload, bool saved)?
+  gated;
   final String? cacheKey;
 
   /// The store's saved copy, read synchronously: drawn in the first frame
@@ -401,6 +408,13 @@ class Loaded<T> extends StatefulWidget {
 }
 
 class _LoadedState<T> extends State<Loaded<T>> {
+  /// The latest data a load completed with: preferred over the first peek.
+  T? _last;
+
+  Widget _draw(BuildContext context, T v, bool saved) =>
+      widget.gated?.call(context, v, _reload, saved) ??
+      widget.builder!(context, v, _reload);
+
   late Future<T> _f = switch (widget.cacheKey) {
     final key? => _loadKeyed(key, widget.load),
     null => widget.load(),
@@ -434,15 +448,17 @@ class _LoadedState<T> extends State<Loaded<T>> {
     future: _f,
     builder: (context, s) {
       if (s.hasData && s.connectionState == ConnectionState.done) {
-        return widget.builder(context, s.data as T, _reload);
+        _last = s.data as T;
+        return _draw(context, s.data as T, false);
       }
       if ((_cached || _peeked != null) &&
           (s.hasError || s.connectionState != ConnectionState.done)) {
         if (s.hasError) debugPrint('[Pointer] refresh failed: ${s.error}');
-        return widget.builder(
+        return _draw(
           context,
-          _cached ? _loadedCache[widget.cacheKey] as T : _peeked as T,
-          _reload,
+          _last ??
+              (_cached ? _loadedCache[widget.cacheKey] as T : _peeked as T),
+          true,
         );
       }
       if (s.hasError) {
@@ -473,7 +489,7 @@ class _LoadedState<T> extends State<Loaded<T>> {
           child: Center(child: CircularProgressIndicator()),
         );
       }
-      return widget.builder(context, s.data as T, _reload);
+      return _draw(context, s.data as T, false);
     },
   );
 }
@@ -725,7 +741,9 @@ class SelectRow extends StatelessWidget {
 class TextLink extends StatelessWidget {
   const TextLink(this.text, {super.key, required this.onTap});
   final String text;
-  final VoidCallback onTap;
+
+  /// Null while the action waits (the link stays, not tappable).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => InkWell(
@@ -750,7 +768,7 @@ class TextLink extends StatelessWidget {
 class AmberPill extends StatelessWidget {
   const AmberPill(this.label, {super.key, required this.onTap});
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

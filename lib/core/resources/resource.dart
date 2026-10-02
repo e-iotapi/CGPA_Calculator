@@ -205,6 +205,16 @@ class ResourceFlag {
     );
   }
 
+  /// JSON-safe: [fromMap] reads it back.
+  Map<String, dynamic> toMap() => {
+    'campus': campus,
+    'department': department,
+    'courseIds': courseIds,
+    'count': count,
+    'reasons': reasons,
+    'open': open,
+  };
+
   /// Reads the flag document of link [id].
   static ResourceFlag fromMap(String id, Map m) => ResourceFlag(
     resourceId: id,

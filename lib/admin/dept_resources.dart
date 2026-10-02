@@ -1,4 +1,6 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
@@ -490,6 +492,27 @@ class _RollupCard extends StatelessWidget {
 
 typedef _Data = ({List<Resource> links, List<ResourceFlag> flags});
 
+Map<String, dynamic> _encodeData(_Data d) => {
+  'links': [for (final r in d.links) r.toMap()],
+  'flags': [
+    for (final f in d.flags) {'id': f.resourceId, ...f.toMap()},
+  ],
+};
+
+_Data _decodeData(Object? o) {
+  final m = o as Map;
+  return (
+    links: [for (final r in m['links'] as List) Resource.fromMap(r as Map)],
+    flags: [
+      for (final f in m['flags'] as List)
+        ResourceFlag.fromMap('${(f as Map)['id']}', f),
+    ],
+  );
+}
+
+String _lastKey(String what, String campus, String dept, String? course) =>
+    'last|$what|${roleStore!.me}|$campus|$dept|$course';
+
 /// Boards `DeptResources` and `DeptResourcesReported`: the department's
 /// links, its courses' links, and every open report (§16.3 fix 17). A CR
 /// opens it filtered to their course.
@@ -538,6 +561,11 @@ class _DeptResourcesState extends State<DeptResources> {
 
   void _reload() => setState(() => _loads++);
 
+  /// True while the data on screen is the saved copy: every write waits.
+  bool _saved = false;
+
+  VoidCallback? _w(VoidCallback f) => _saved ? null : f;
+
   /// Saves a one-tap change to [r]; a refusal is said, not swallowed.
   Future<void> _change(Resource r, Resource next, String summary) async {
     try {
@@ -554,8 +582,19 @@ class _DeptResourcesState extends State<DeptResources> {
     return Loaded<_Data>(
       cacheKey: 'dept-resources|${widget.campus}|${widget.dept}|${widget.course}',
       key: ValueKey(_loads),
-      load: _load,
-      builder: (context, data, _) {
+      load: remembered(
+        _lastKey('dept-resources', widget.campus, widget.dept, widget.course),
+        _load,
+        _encodeData,
+      ),
+      peek:
+          () => peekCache<_Data>(
+            _lastKey('dept-resources', widget.campus, widget.dept, widget.course),
+            _decodeData,
+          ),
+      // Last list: the actions wait for the fresh one.
+      gated: (context, data, _, saved) {
+        _saved = saved;
         final dept = departmentList(data.links);
         final reported = data.flags.length;
         final tabs = [
@@ -578,7 +617,7 @@ class _DeptResourcesState extends State<DeptResources> {
                     child: PrimaryButton(
                       label: 'Add a link',
                       icon: Icons.add_rounded,
-                      onPressed: () async {
+                      onPressed: _w(() async {
                         if (await editLink(
                           context,
                           campus: widget.campus,
@@ -587,7 +626,7 @@ class _DeptResourcesState extends State<DeptResources> {
                         )) {
                           _reload();
                         }
-                      },
+                      }),
                     ),
                   )
                   : null,
@@ -621,7 +660,7 @@ class _DeptResourcesState extends State<DeptResources> {
           child: LinkRow(
             r: r,
             tag: r.rolledUp ? 'ROLLED UP' : null,
-            onTap: () async {
+            onTap: _w(() async {
               if (await editLink(
                 context,
                 campus: widget.campus,
@@ -631,27 +670,29 @@ class _DeptResourcesState extends State<DeptResources> {
               )) {
                 _reload();
               }
-            },
+            }),
             trailing:
                 r.rolledUp
                     ? TextLink(
                       'Unpin',
-                      onTap:
-                          () => _change(
-                            r,
-                            r.copyWith(pinnedToDepartment: false),
-                            'Unpinned “${r.title}” from ${widget.dept}',
-                          ),
+                      onTap: _w(
+                        () => _change(
+                          r,
+                          r.copyWith(pinnedToDepartment: false),
+                          'Unpinned “${r.title}” from ${widget.dept}',
+                        ),
+                      ),
                     )
                     : IconButton(
                       tooltip: 'Remove',
                       icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      onPressed:
-                          () => _change(
-                            r,
-                            r.copyWith(removed: true),
-                            'Removed “${r.title}” from ${widget.dept}',
-                          ),
+                      onPressed: _w(
+                        () => _change(
+                          r,
+                          r.copyWith(removed: true),
+                          'Removed “${r.title}” from ${widget.dept}',
+                        ),
+                      ),
                     ),
           ),
         );
@@ -679,7 +720,7 @@ class _DeptResourcesState extends State<DeptResources> {
               LinkRow(
                 r: r,
                 tag: r.isCourse ? null : 'IN DEPT',
-                onTap: () async {
+                onTap: _w(() async {
                   if (await editLink(
                     context,
                     campus: widget.campus,
@@ -689,7 +730,7 @@ class _DeptResourcesState extends State<DeptResources> {
                   )) {
                     _reload();
                   }
-                },
+                }),
               ),
           ],
         ),
@@ -748,7 +789,7 @@ class _DeptResourcesState extends State<DeptResources> {
                             label: 'Fix the link',
                             selected: true,
                             height: 34,
-                            onPressed: () async {
+                            onPressed: _w(() async {
                               if (await editLink(
                                 context,
                                 campus: widget.campus,
@@ -760,18 +801,18 @@ class _DeptResourcesState extends State<DeptResources> {
                               )) {
                                 _reload();
                               }
-                            },
+                            }),
                           ),
                           AmberPill(
                             'It works · dismiss',
-                            onTap: () async {
+                            onTap: _w(() async {
                               try {
                                 await _store.dismiss(f, r.title);
                                 _reload();
                               } catch (e) {
                                 if (context.mounted) _say(context, problem(e));
                               }
-                            },
+                            }),
                           ),
                         ],
                       ),
@@ -863,8 +904,19 @@ class _CourseResourcesState extends State<CourseResources> {
     return Loaded<_Data>(
       cacheKey: 'course-resources|${widget.campus}|$_dept|${widget.courseId}',
       key: ValueKey(_loads),
-      load: _load,
-      builder: (context, data, _) {
+      load: remembered(
+        _lastKey('course-resources', widget.campus, _dept, widget.courseId),
+        _load,
+        _encodeData,
+      ),
+      peek:
+          () => peekCache<_Data>(
+            _lastKey('course-resources', widget.campus, _dept, widget.courseId),
+            _decodeData,
+          ),
+      // Last list: the actions wait for the fresh one.
+      gated: (context, data, _, saved) {
+        VoidCallback? w(VoidCallback f) => saved ? null : f;
         final mine = courseList(data.links, widget.courseId);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -874,7 +926,7 @@ class _CourseResourcesState extends State<CourseResources> {
                 const Expanded(child: SectionLabel('Course resources')),
                 TextLink(
                   'Add',
-                  onTap: () async {
+                  onTap: w(() async {
                     if (await editLink(
                       context,
                       campus: widget.campus,
@@ -885,7 +937,7 @@ class _CourseResourcesState extends State<CourseResources> {
                     )) {
                       setState(() => _loads++);
                     }
-                  },
+                  }),
                 ),
               ],
             ),
@@ -939,7 +991,9 @@ class _CourseResourcesState extends State<CourseResources> {
                     r: r,
                     tag: r.isCourse ? null : 'IN DEPT',
                     onTap:
-                        r.isCourse && r.fromCourse == widget.courseId
+                        !saved &&
+                                r.isCourse &&
+                                r.fromCourse == widget.courseId
                             ? () async {
                               if (await editLink(
                                 context,
@@ -963,7 +1017,7 @@ class _CourseResourcesState extends State<CourseResources> {
               radius: 22,
               child: InkWell(
                 borderRadius: BorderRadius.circular(22),
-                onTap: () => _pick(data.links),
+                onTap: w(() => _pick(data.links)),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 44),
                   child: Center(

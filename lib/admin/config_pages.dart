@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/admin/maintain.dart' show courseTitle;
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -581,16 +582,92 @@ class _PublicContactPageState extends State<PublicContactPage> {
     return (c, changed);
   }
 
+  String get _lastKey => 'last|public-contact|${roleStore!.me}';
+
+  /// What the form was last filled with from a saved copy; the fresh load
+  /// refills it only while it is still untouched.
+  PublicContact? _seed;
+
+  PublicContact get _form => (
+    name: _name.text.trim(),
+    method: _method,
+    target: _target.text.trim(),
+    enabled: _enabled,
+  );
+
+  void _fill(PublicContact c) {
+    _name.text = c.name;
+    _target.text = c.target;
+    _enabled = c.enabled;
+    _method = c.method;
+  }
+
   @override
-  Widget build(BuildContext context) => Loaded(
-    load: _load,
-    builder: (context, loaded, _) {
+  Widget build(BuildContext context) => Loaded<
+    (PublicContact?, ({String name, String? role, DateTime? at})?)
+  >(
+    load: remembered(
+      _lastKey,
+      _load,
+      (v) => {
+        'c':
+            v.$1 == null
+                ? null
+                : {
+                  'name': v.$1!.name,
+                  'method': v.$1!.method,
+                  'target': v.$1!.target,
+                  'enabled': v.$1!.enabled,
+                },
+        'by':
+            v.$2 == null
+                ? null
+                : {
+                  'name': v.$2!.name,
+                  'role': v.$2!.role,
+                  'at': v.$2!.at?.millisecondsSinceEpoch,
+                },
+      },
+    ),
+    peek:
+        () => peekCache(_lastKey, (o) {
+          final m = o as Map;
+          final c = m['c'] as Map?;
+          final by = m['by'] as Map?;
+          return (
+            c == null
+                ? null
+                : (
+                  name: c['name'] as String,
+                  method: c['method'] as String,
+                  target: c['target'] as String,
+                  enabled: c['enabled'] as bool,
+                ),
+            by == null
+                ? null
+                : (
+                  name: by['name'] as String,
+                  role: by['role'] as String?,
+                  at:
+                      by['at'] == null
+                          ? null
+                          : DateTime.fromMillisecondsSinceEpoch(
+                            by['at'] as int,
+                          ),
+                ),
+          );
+        }),
+    // Last values: Save waits for the fresh ones.
+    gated: (context, loaded, _, saved) {
       final (c, changed) = loaded;
-      if (!_loaded && c != null) {
-        _name.text = c.name;
-        _target.text = c.target;
-        _enabled = c.enabled;
-        _method = c.method;
+      if (saved && !_loaded) {
+        if (c != null) _fill(c);
+        _seed = _form;
+      } else if (!saved && _seed != null) {
+        if (_form == _seed && c != null) _fill(c);
+        _seed = null;
+      } else if (!saved && !_loaded && c != null) {
+        _fill(c);
       }
       _loaded = true;
       final p = AppPalette.of(context);
@@ -607,7 +684,7 @@ class _PublicContactPageState extends State<PublicContactPage> {
           child: PrimaryButton(
             label: _busy ? 'Saving…' : 'Save',
             onPressed:
-                _busy
+                saved || _busy
                     ? null
                     : () async {
                       setState(() => _busy = true);
