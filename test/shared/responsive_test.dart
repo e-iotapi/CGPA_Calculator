@@ -195,4 +195,16 @@ void main() {
       expect(bg, p.background, reason: p.name);
     }
   });
+
+  testWidgets('the nav pill steps aside while the keyboard is up (UT-3)', (
+    t,
+  ) async {
+    await _pump(t, const Size(390, 844));
+    expect(find.text('Actual'), findsOneWidget);
+    t.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(t.view.resetViewInsets);
+    await t.pump();
+    expect(find.text('Actual'), findsNothing);
+    expect(find.byKey(const Key('body')), findsOneWidget);
+  });
 }

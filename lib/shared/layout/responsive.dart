@@ -74,14 +74,19 @@ class ResponsiveScaffold extends StatelessWidget {
           extendBody: true,
           floatingActionButton: floatingActionButton,
           body: SafeArea(bottom: false, child: body),
-          bottomNavigationBar: _FloatingPill(
-            fade: p.background,
-            child: AppNav.pill(
-              destinations: destinations,
-              selectedIndex: selectedIndex,
-              onSelected: onSelected,
-            ),
-          ),
+          // Off while the keyboard is up: only the field being typed in
+          // should rise with it, not the nav (UT-3).
+          bottomNavigationBar:
+              MediaQuery.viewInsetsOf(context).bottom > 0
+                  ? null
+                  : _FloatingPill(
+                    fade: p.background,
+                    child: AppNav.pill(
+                      destinations: destinations,
+                      selectedIndex: selectedIndex,
+                      onSelected: onSelected,
+                    ),
+                  ),
         );
       },
     );
