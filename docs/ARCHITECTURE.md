@@ -40,12 +40,15 @@ flowchart LR
 
   CF["Cloudflare Pages<br/>landing page at /, app at /calculator/"]
   FH["Firebase Hosting<br/>staging only"]
+  W["Cloudflare Worker + Durable Objects<br/>version markers, live push<br/>(read-only on Firestore)"]
 
   CF -- "serves the build" --> App
   FH -. "staging build" .-> App
   App -- "sign in" --> Auth
   App <-- "reads and writes,<br/>checked by rules" --> FS
   Auth -- "verified email" --> FS
+  App <-- "GET /heads, one WebSocket" --> W
+  W -- "reads heads/{campus}" --> FS
 ```
 
 - **Offline first.** Every grade lives in Hive (IndexedDB) first. The app
@@ -159,6 +162,8 @@ sequenceDiagram
     end
     M-->>B: runApp, first frame
     M--)F: background: catalogue, roles, analytics ping
+    M--)F: background: prefetch level by level (2 s after the first frame)
+    M--)B: background: live socket to the campus hub (when configured)
   end
 ```
 
@@ -198,13 +203,14 @@ sequenceDiagram
   S->>F: update {rev: base + 1, data, updatedAt}
   alt rules accept (rev was base)
     F-->>S: ok, localRev = base + 1
+    S--)S: pokeMe to the campus hub (~2 s later):<br/>your other open devices pull now
   else rules refuse (someone else pushed first)
     S->>F: pull the newer document
     F-->>S: server snapshot
     S->>H: server wins, local copy kept as backup
   end
 
-  Note over S,F: Pull, at most once a day:<br/>query users where rev > localRev.<br/>Unchanged costs 1 read and returns nothing.
+  Note over S,F: Pull when the hub says your account moved,<br/>else at most once a day: query users where rev > localRev.<br/>Unchanged costs 1 read and returns nothing.
 ```
 
 - **Push costs one write and no reads.** The rules only accept
@@ -236,7 +242,12 @@ and a `v` map with one counter per shared path. The `v` keys are the names in
 path's counter in the same batch (`bumpPath`, `bumpPathOnAllHeads`), and the
 rules refuse a write that doesn't (`pathBumped`). A cached copy saved under
 its path's counter stays current until the counter moves, so the app fetches
-only what moved.
+only what moved. Counters are compared for equality, never order: anyone on a
+campus may move markers (the rules can't check each key's step), so a
+lowered counter costs a re-read, never a freeze. The rules refuse removing a
+marker, cap the map at 3000 keys, and a non-number marker (written by hand)
+counts as 0, so the next real write repairs it. A reseed moves every marker
+once (`tools/test_env/seed.mjs`), so phones re-read the new data.
 
 ```mermaid
 flowchart LR
@@ -251,7 +262,7 @@ flowchart LR
     Head["heads/{campus}<br/>version += 1"]
   end
   Writers --> Src & Idx & Head
-  Student["Student opens a screen"] -->|"1 read every ≤ 6 h"| Head
+  Student["Student opens a screen"] -->|"pushed live over the socket;<br/>else Worker or Firestore read"| Head
   Head -->|"only if its version moved"| Idx
 ```
 
@@ -419,6 +430,7 @@ flowchart LR
   end
   Deploy --> Prod["Cloudflare Pages<br/>pointer-bits-pilani.pages.dev"]
   Rules["firebase deploy --only firestore:rules<br/>(by hand, when rules change)"] --> ProdFS[("Production Firestore")]
+  Wrangler["server/: npx wrangler deploy<br/>(by the owner; --env staging for staging)"] --> Workers["Cloudflare Workers<br/>pointer-heads, pointer-heads-staging"]
   DStaging --> Staging["Firebase Hosting<br/>pointer-staging.web.app<br/>(seeded test accounts)"]
   Local -- "tools/test_env/staging.sh" --> Staging
 ```
@@ -497,14 +509,21 @@ relaunch. It is the client half of the server plan in
 data) goes through `cacheFirst` (`lib/core/cache`), which saves the last value
 in the `sharedCache` box. A screen draws the saved copy in its first frame
 (`peek`) and asks for fresh data behind it; a failed refresh keeps the saved
-copy. Live search and one-time forms are not cached.
+copy. Screens that read live queues (publish drafts, the contact editor, CR
+handover, department moderation) also draw their last list at once, but keep
+every button that writes disabled until the fresh list arrives. A spinner
+shows only the first time a device opens a screen. Live search is not cached.
 
 **Freshness comes from version markers, not timers.** Every shared path has a
 version number in `heads/{campus}` (DATA_SYNC_PLAN Stage 1), and every write
-bumps it in the same batch. A saved copy is current while its path's version
-hasn't moved, so a check costs no reads beyond the head itself. Later stages
-deliver the head without Firestore reads: a Cloudflare Worker serving it from
-the edge (Stage 2), then a push over one WebSocket per client (Stage 3).
+bumps it in the same batch. While the live socket is connected, a saved copy
+is current while its path's version hasn't moved, so a check costs no reads
+beyond the head itself; when a version moved, the screen keeps drawing the
+saved copy and swaps in the fresh one as soon as it arrives. Without the
+socket (not deployed, offline, or after 3 failed connects) a saved copy also
+needs to be younger than its store's age limit (10 minutes for reviews and
+admin data), as before. A Cloudflare Worker serves the head (Stage 2) and a
+WebSocket per client pushes it (Stage 3).
 
 **Screens load ahead, level by level, after the first frame:**
 
@@ -520,16 +539,24 @@ starts when the previous one finishes; anything whose version hasn't moved is
 skipped; prefetch pauses offline and runs once per session; a screen opened
 early jumps the queue.
 
-**Built (`pointer-rebuild`):** the on-phone caches and `peek` (15 of 24
-screens; the rest are drafts and moderation queues), level prefetch, Stage 1
-markers with rules, and the Stage 2 Worker and Stage 3 Durable Object in
-`server/`. The Worker and Durable Object are deployed by the owner; until
-`POINTER_HEADS_URL` and `POINTER_LIVE_URL` are set, the app reads
-`heads/{campus}` from Firestore as before.
+**Built (`pointer-rebuild`):** the on-phone caches and `peek` on every
+screen, level prefetch, Stage 1 markers with rules, and the Stage 2 Worker
+and Stage 3 Durable Object in `server/`. Staging runs its own Worker
+(`pointer-heads-staging`, `wrangler deploy --env staging`), verified with two
+browsers; production waits for the owner's deploy. Without
+`POINTER_HEADS_URL` and `POINTER_LIVE_URL` the app reads `heads/{campus}`
+from Firestore as before.
+
+**Cost limits (free plans):** each campus hub reads Firestore at most once
+every 20 s (≤ ~17k reads a day for all four, under the 50k Spark limit);
+`GET /heads` keeps a 60 s copy per Worker instance, so it costs about one
+read a minute whatever the traffic, and browsers don't cache it. A publisher
+skips the Worker for 3 minutes after their own catalogue or contact change,
+so they see it at once.
 
 **Push (Stage 3):** a writer commits its Firestore batch first, then pokes
 the path. The campus's Durable Object waits ~1.5 s to gather pokes, reads the
-committed head from Firestore (at most one read every 5 s) and sends the `v`
+committed head from Firestore (at most one read every 20 s) and sends the `v`
 map to every socket only if it moved. Client-sent data is never broadcast.
 
 ```mermaid
@@ -540,7 +567,7 @@ sequenceDiagram
   participant S as Other students
   W->>F: batch: data + head v += 1 (rules check)
   W->>H: poke {path}
-  H->>F: read heads/{campus} (≤ 1 per 5 s)
+  H->>F: read heads/{campus} (≤ 1 per 20 s)
   H-->>S: head {v} (only if it moved)
   S->>F: re-read only the moved paths
 ```
