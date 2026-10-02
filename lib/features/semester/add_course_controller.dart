@@ -1,6 +1,7 @@
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/grading/requirements.dart' show departments;
 import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/models/elective.dart';
@@ -56,6 +57,13 @@ String categoryFor(String id, String discipline) {
     return Elective.del1.tag;
   }
   if (nonelist.contains(id)) return noCategory;
+  // The degree's own department, e.g. its projects (on no DEL list).
+  if (departments[discipline.substring(2, 4)]?.contains(dept) ?? false) {
+    return Elective.del2.tag;
+  }
+  if (departments[discipline.substring(0, 2)]?.contains(dept) ?? false) {
+    return Elective.del1.tag;
+  }
   return Elective.open.tag;
 }
 

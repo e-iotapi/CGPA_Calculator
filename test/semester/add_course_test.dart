@@ -72,6 +72,10 @@ void main() {
   test('category defaults follow the legacy rules', () {
     expect(categoryFor('HSS F222', 'A7--'), Elective.humanity.tag);
     expect(categoryFor('ZZZ F999', 'A7--'), Elective.open.tag);
+    // The degree's own department, even off the DEL list (projects).
+    expect(categoryFor('CS F266', 'A7--'), Elective.del1.tag);
+    expect(categoryFor('CS F376', 'B3A7'), Elective.del2.tag);
+    expect(categoryFor('ME F376', 'A7--'), Elective.open.tag);
     expect(categoryOptions('A7--'), isNot(contains(Elective.cdc2.tag)));
     // A single M.Sc. has its DEL; a dual's comes from the B.E. half.
     expect(categoryOptions('B3--'), contains(Elective.del1.tag));
@@ -335,7 +339,8 @@ void main() {
       expect(added?.title, _long);
       expect(added?.credits, 2);
       expect(added?.grade1, 10);
-      expect(added?.elective, Elective.open.tag);
+      // A7's own department: its DEL, even off the DEL list.
+      expect(added?.elective, Elective.del1.tag);
     });
   }
 
