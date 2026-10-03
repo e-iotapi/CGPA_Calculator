@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/features/contribute/leaderboard_page.dart';
 import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show SetOptions;
 import 'package:flutter/material.dart';
@@ -23,7 +24,13 @@ import 'package:flutter_test/flutter_test.dart';
 import '../helpers/fake_data.dart';
 
 void main() {
-  setUpAll(seedAll);
+  setUpAll(() async {
+    await seedAll();
+    // Hive writes stall inside a widget test once another has run: apply here.
+    await ContributorStore(
+      RoleStore(sharedDb, me: cr2Email, myName: 'Dev Patel'),
+    ).apply('goa', 'CS');
+  });
 
   Resource link({
     bool approved = false,
@@ -120,6 +127,36 @@ void main() {
     );
     await settle(t);
   }
+
+  testWidgets('Approvals: decline asks a reason; approve all', (t) async {
+    await open(t, As.president2, const Approvals(campus: 'goa', dept: 'CS'));
+    expect(find.text('Contributor approvals'), findsOneWidget);
+    expect(find.text('Dev Patel'), findsOneWidget);
+    await t.tap(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Dev Patel'),
+          matching: find.byType(AppCard),
+        ),
+        matching: find.text('Decline'),
+      ),
+    );
+    await settle(t);
+    expect(find.text('Not a good fit'), findsOneWidget);
+    expect(find.widgetWithText(PrimaryButton, 'Send'), findsOneWidget);
+    await t.tap(find.text('Not a good fit'));
+    await t.pump();
+    await t.tap(find.widgetWithText(PrimaryButton, 'Send'));
+    await settle(t);
+    expect(find.text('Dev Patel'), findsNothing);
+    final r = await t.runAsync(
+      () => ContributorStore(
+        RoleStore(sharedDb, me: cr2Email, myName: 'P'),
+      ).myRequest('goa', 'CS'),
+    );
+    expect(r!.status, RequestStatus.declined);
+    expect(r.reason, contains('Not a good fit'));
+  });
 
   testWidgets('Apply: a taken username shows inline; a free one sends', (
     t,
@@ -224,44 +261,35 @@ void main() {
     expect(find.text('Contribute'), findsNothing);
   });
 
-  testWidgets('Approvals: decline asks a reason; approve all', (t) async {
-    await t.runAsync(() async {
-      final s = ContributorStore(
-        RoleStore(sharedDb, me: cr2Email, myName: 'Dev Patel'),
-      );
-      await s.apply('goa', 'CS');
-    });
-    await open(t, As.president2, const Approvals(campus: 'goa', dept: 'CS'));
-    expect(find.text('Contributor approvals'), findsOneWidget);
-    expect(find.text('Dev Patel'), findsOneWidget);
-    await t.tap(find.text('Decline').first);
-    await settle(t);
-    expect(find.text('Not a good fit'), findsOneWidget);
-    expect(find.widgetWithText(PrimaryButton, 'Send'), findsOneWidget);
-    await t.tap(find.text('Not a good fit'));
-    await t.pump();
-    await t.tap(find.widgetWithText(PrimaryButton, 'Send'));
-    await settle(t);
-    expect(find.text('Dev Patel'), findsNothing);
-    final r = await t.runAsync(
-      () => ContributorStore(
-        RoleStore(sharedDb, me: cr2Email, myName: 'P'),
-      ).myRequest('goa', 'CS'),
-    );
-    expect(r!.status, RequestStatus.declined);
-    expect(r.reason, contains('Not a good fit'));
-  });
-
   testWidgets('Resources prompt shows once per session', (t) async {
     contributePromptShown = false;
-    await open(t, As.student, const ResourcesPage());
+    await open(t, As.student, const SizedBox());
+    // Someone who has not applied.
+    roleStore = RoleStore(
+      sharedDb,
+      me: 'f20250001@goa.bits-pilani.ac.in',
+      myName: 'New',
+    );
+    myRoles.value = const MyRoles(email: 'f20250001@goa.bits-pilani.ac.in');
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: const ResourcesPage(),
+      ),
+    );
     await settle(t);
     expect(find.text('Contribute to the Community Now'), findsOneWidget);
     expect(find.text('Not now'), findsOneWidget);
     await t.tap(find.text('Not now'));
     await settle(t);
     await t.pumpWidget(const SizedBox());
-    await open(t, As.student, const ResourcesPage());
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: const ResourcesPage(),
+      ),
+    );
+    await settle(t);
     expect(find.text('Contribute to the Community Now'), findsNothing);
   });
 }
