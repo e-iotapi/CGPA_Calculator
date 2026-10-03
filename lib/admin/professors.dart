@@ -477,7 +477,17 @@ class _ProfessorAddState extends State<ProfessorAdd> {
               for (final x in profs)
                 if (!x.removed && sameName(x.name, name)) x,
             ].firstOrNull;
-        final dup = same ?? (name.isEmpty ? null : duplicateOf(name, profs));
+        // duplicateOf needs two name words each; likelySame also catches
+        // "Dr. R. Menon" vs "Ramesh Menon".
+        final dup =
+            same ??
+            (name.isEmpty
+                ? null
+                : duplicateOf(name, profs) ??
+                    [
+                      for (final x in livePicks(profs))
+                        if (likelySame(x.name, name)) x,
+                    ].firstOrNull);
         return PageFrame(
           header: PageHeader(
             eyebrow:
