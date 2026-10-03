@@ -104,4 +104,67 @@ void main() {
       expect(taught['CS F211'], ['2025-26-1', '2024-25-1']);
     },
   );
+
+  test(
+    'remove hides from search and taught, keeps get; restore undoes',
+    () async {
+      final db = FakeFirebaseFirestore();
+      final store = ProfessorStore(
+        db,
+        roles: RoleStore(db, me: 'p@goa.bits-pilani.ac.in', myName: 'P'),
+      );
+      final p = await store.add('Ramesh Menon', 'goa', 'CS');
+      await store.remove(p);
+      expect(await store.search('goa', 'ram'), isEmpty);
+      final got = (await store.get(p.id))!;
+      expect(got.removed, isTrue);
+      expect(got.removedByName, 'P');
+      expect(await store.taught(got, 'goa'), isEmpty);
+      expect((await store.department('goa', 'CS')).single.removed, isTrue);
+      expect(livePicks(await store.department('goa', 'CS')), isEmpty);
+      final audits = await db.collection('audit').get();
+      expect(
+        audits.docs.any((d) => '${d['summary']}'.startsWith('Removed')),
+        isTrue,
+      );
+      await store.restore(got);
+      expect((await store.search('goa', 'ram')).single.id, p.id);
+      expect((await store.get(p.id))!.removed, isFalse);
+    },
+  );
+
+  test('a merged professor cannot be removed', () async {
+    final db = FakeFirebaseFirestore();
+    final store = ProfessorStore(
+      db,
+      roles: RoleStore(db, me: 'p@goa.bits-pilani.ac.in', myName: 'P'),
+    );
+    final a = await store.add('Ramesh Menon', 'goa', 'CS');
+    final b = await store.add('Dr. R. Menon', 'goa', 'CS');
+    await store.merge(a, b);
+    final merged = (await db.collection('professors').doc(b.id).get()).data()!;
+    expect(
+      () => store.remove(Professor.fromMap(b.id, merged)),
+      throwsA(isA<ProfessorError>()),
+    );
+  });
+
+  test('duplicateOf finds a containing name, ignores merged and short', () {
+    const a = Professor(
+      id: 'a',
+      name: 'Ramesh Menon',
+      campus: 'goa',
+      department: 'CS',
+    );
+    const m = Professor(
+      id: 'm',
+      name: 'Suresh Iyer',
+      campus: 'goa',
+      department: 'CS',
+      mergedInto: 'a',
+    );
+    expect(duplicateOf('Dr. Ramesh K Menon', [a])?.id, 'a');
+    expect(duplicateOf('Menon', [a]), isNull);
+    expect(duplicateOf('Suresh Iyer', [m]), isNull);
+  });
 }

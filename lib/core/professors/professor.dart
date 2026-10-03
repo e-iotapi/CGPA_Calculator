@@ -14,6 +14,8 @@ class Professor {
     this.mergedInto,
     this.mergedIds = const [],
     this.active = true,
+    this.removed = false,
+    this.removedByName,
   });
 
   /// The immutable id, the display name, and the campus and department keys.
@@ -31,6 +33,12 @@ class Professor {
 
   /// Whether the professor can still be picked.
   final bool active;
+
+  /// Soft-deleted by a president or admin; kept so reviews stay named.
+  final bool removed;
+
+  /// Who removed it.
+  final String? removedByName;
 
   /// Whether this entry was absorbed into another.
   bool get merged => mergedInto != null;
@@ -59,6 +67,10 @@ class Professor {
     mergedInto: m['mergedInto'] as String?,
     mergedIds: [for (final a in m['mergedIds'] as List? ?? const []) '$a'],
     active: m['active'] as bool? ?? true,
+    removed: m['removed'] as bool? ?? false,
+    removedByName:
+        (m['removedBy'] as Map?)?['name'] as String? ??
+        m['removedByName'] as String?,
   );
 
   /// JSON-safe, for `cacheFirst`: [fromMap] reads it back.
@@ -70,6 +82,8 @@ class Professor {
     'mergedInto': mergedInto,
     'mergedIds': mergedIds,
     'active': active,
+    'removed': removed,
+    'removedByName': removedByName,
   };
 }
 
@@ -109,4 +123,27 @@ bool likelySame(String a, String b) {
   if (x.isEmpty || y.isEmpty || x.last != y.last) return false;
   if (x.length == 1 || y.length == 1) return true;
   return x.first[0] == y.first[0];
+}
+
+/// Professors that can be picked: not removed, not merged, active.
+List<Professor> livePicks(List<Professor> all) => [
+  for (final p in all)
+    if (!p.removed && !p.merged && p.active) p,
+];
+
+/// The first non-merged professor whose name words equal, or contain (or are
+/// contained by), [name]'s words, at least two words; null when none.
+Professor? duplicateOf(String name, Iterable<Professor> all) {
+  Set<String> words(String s) => {
+    for (final w in s.toLowerCase().split(RegExp(r'[^a-z0-9]+')))
+      if (w.isNotEmpty && !{'dr', 'prof', 'mr', 'ms', 'mrs'}.contains(w)) w,
+  };
+  final mine = words(name);
+  for (final p in all) {
+    if (p.merged) continue;
+    final t = words(p.name);
+    if (t.length < 2 || mine.length < 2) continue;
+    if (t.containsAll(mine) || mine.containsAll(t)) return p;
+  }
+  return null;
 }
