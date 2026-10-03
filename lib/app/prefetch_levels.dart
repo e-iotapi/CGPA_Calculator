@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_data.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
@@ -67,6 +68,9 @@ List<PrefetchLevel> prefetchLevels() {
     }
   }
   two.add(_job(() => roles.publicContact()));
+  // More shows the board and my contributor state on open.
+  if (leaderboardStore case final lb?) two.add(_job(() => lb.of(campus)));
+  two.add(_job(loadMyContrib));
 
   for (final c in taking) {
     three.add(_job(() => reviews.page(c, campus)));
@@ -82,6 +86,15 @@ List<PrefetchLevel> prefetchLevels() {
     four.add(_job(() => gateInfo(c)));
   }
   if (me.reachesAdmin) four.add(_job(() => gateInfo(campus)));
+  // The approvals queue of each department I head.
+  if (contributorStore case final cs?) {
+    for (final g in me.presidencies) {
+      if (store case final rs?) {
+        four.add(_job(() => rs.pending(g.campus, g.scope)));
+      }
+      four.add(_job(() => cs.requests(g.campus, g.scope)));
+    }
+  }
   final maintain = MaintainStore(roles);
   for (final g in me.courses) {
     four.add(_job(() => maintain.offering(g.scope, campus, term)));
