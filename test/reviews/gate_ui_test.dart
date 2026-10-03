@@ -178,9 +178,9 @@ void main() {
   ) async {
     await locked(t);
     await t.runAsync(
-      () => Hive.box<Course>(coursesBoxName).add(
-        _c('HSS F301', Elective.humanity.tag, sem: '4 - 2'),
-      ),
+      () => Hive.box<Course>(
+        coursesBoxName,
+      ).add(_c('HSS F301', Elective.humanity.tag, sem: '4 - 2')),
     );
     await t.pumpWidget(app(const CompulsoryPickPage()));
     await t.pumpAndSettle();
@@ -188,6 +188,36 @@ void main() {
     await t.pumpWidget(const SizedBox());
     await settle(t);
   });
+
+  testWidgets(
+    'reviews this device forgot still unlock, read back by recoverMyReviews',
+    (t) async {
+      await locked(t);
+      await t.runAsync(() async {
+        // Both electives reviewed (e.g. on another device), but this device's
+        // list of them is gone (a sync replaced it) and nothing is cached.
+        for (final c in ['HSS F101', 'BITS F201']) {
+          await reviewStore!.save(
+            courseId: c,
+            campus: 'goa',
+            term: '2024-25-1',
+            professorId: null,
+            stars: 4,
+            recommend: true,
+            grade: 'ND',
+          );
+        }
+        await Hive.box('settingsBox').delete('myReviews');
+        await sharedCacheBox!.deleteAll(
+          sharedCacheBox!.keys.where((k) => '$k'.startsWith('rmine|')).toList(),
+        );
+        expect(myGate('goa'), GateState.locked);
+        await recoverMyReviews('goa');
+      });
+      expect(myGate('goa'), GateState.unlocked);
+      expect(myReviewedCourses().toSet(), {'HSS F101', 'BITS F201'});
+    },
+  );
 
   // Last: its saves leave the shared cache busy for any test after it.
   testWidgets('CompulsoryPick posts the ticked electives and unlocks', (
