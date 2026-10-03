@@ -35,10 +35,24 @@ service cloud.firestore {
     // 'goa' from f20230802@goa.bits-pilani.ac.in.
     function campusOf(email) { return email.split('@')[1].split('[.]')[0]; }
 
-    // Departments are keyed by course prefix; electronics is one (§4).
+    // Departments are keyed by course prefix; electronics is one (§4). A
+    // prefix no department owns belongs to GEN, the electives department (B2).
     function deptOf(course) {
       let p = course.split(' ')[0];
-      return p in ['EEE', 'ECE', 'INSTR', 'ECOM'] ? 'ELEC' : p == 'FIN' ? 'ECON' : p;
+      return p in ['EEE', 'ECE', 'INSTR', 'ECOM'] ? 'ELEC'
+        : p == 'FIN' ? 'ECON'
+        : p in ['BIO', 'BIOT', 'CE', 'CHE', 'CHEM', 'CS', 'ECON', 'ELEC', 'ENVS',
+                'MAC', 'MATH', 'ME', 'MF', 'PHA', 'PHY', 'SNS'] ? p : 'GEN';
+    }
+
+    // Who manages a course: its department, or, for a GEN course a department
+    // has claimed (courseClaims, B2), the claimant.
+    function claimPath(campus, course) {
+      return /databases/$(db)/documents/courseClaims/$(campus + '|' + course);
+    }
+    function managingDept(campus, course) {
+      return deptOf(course) == 'GEN' && exists(claimPath(campus, course))
+        ? get(claimPath(campus, course)).data.dept : deptOf(course);
     }
 
     // An owner need not be a BITS account: the list in owners/{email} is the
@@ -100,7 +114,11 @@ service cloud.firestore {
         && request.resource.data.actor.name == myName()
         && request.resource.data.at == request.time
         && request.resource.data.path is string
-        && getAfter(afterPath(request.resource.data.path)).data.auditId == id;
+        // The document it describes names it, or is deleted in this batch
+        // (an unclaim, B2: the only delete in the build-out).
+        && (existsAfter(afterPath(request.resource.data.path))
+            ? getAfter(afterPath(request.resource.data.path)).data.auditId == id
+            : exists(afterPath(request.resource.data.path)));
       allow read: if readsRoster(resource.data.campus);
       allow update, delete: if false;
     }
@@ -203,11 +221,14 @@ service cloud.firestore {
                 || presidentNotSecretary(d.campus, d.scope)
                   && d.get('programme', null) == get(grantPath('dept', d.campus,
                        d.scope, me())).data.get('programme', null))
-              : (isOwner() || isAdmin() || handsOver(d) || cancelsHandover(d))
-                && d.programme is string)
+              : d.scope == 'GEN'
+                // The electives department: no branch, no handover (B2).
+                ? (isOwner() || isAdmin()) && d.get('programme', null) == null
+                : (isOwner() || isAdmin() || handsOver(d) || cancelsHandover(d))
+                  && d.programme is string)
             && isStudent(d.email) && campusOf(d.email) == d.campus
         : d.role == 'course'
-          ? (isOwner() || isAdmin() || isPresident(d.campus, deptOf(d.scope)))
+          ? (isOwner() || isAdmin() || isPresident(d.campus, managingDept(d.campus, d.scope)))
             && isStudent(d.email) && campusOf(d.email) == d.campus
         // B7: campus-wide, no expiry; `dept` names the president (or
         // secretary) whose request it answers. isPresident covers both.
@@ -483,7 +504,7 @@ service cloud.firestore {
              ['name', 'email', 'campus', 'courseId', 'dept', 'term', 'open', 'createdAt', 'closedBy'])
         && request.resource.data.email == me()
         && request.resource.data.campus == campusOf(me())
-        && request.resource.data.dept == deptOf(request.resource.data.courseId)
+        && request.resource.data.dept == managingDept(request.resource.data.campus, request.resource.data.courseId)
         && nameOk(request.resource.data.name)
         && request.resource.data.term is string
         && request.resource.data.open == true
@@ -557,6 +578,34 @@ service cloud.firestore {
     // links: { <resourceId>: {title, url} } } } }. A link enters beside its
     // create and leaves beside its approval or rejection.
     function pendingId(id, i) { return id.split('[|]')[i]; }
+
+    // courseClaims/{campus}|{course}: a department takes over a GEN-prefix
+    // course (B2). Created or deleted (the one hard delete) by that
+    // department's president or secretary, audited; never edited, so a
+    // claim by another department is a delete then a create.
+    match /courseClaims/{id} {
+      allow read: if mayUse();
+      allow create: if mayUse()
+        && id == request.resource.data.campus + '|' + request.resource.data.courseId
+        && request.resource.data.keys().hasOnly(['campus', 'courseId', 'dept', 'by', 'at', 'auditId'])
+        && request.resource.data.campus in ['goa', 'hyderabad', 'pilani', 'dubai']
+        && deptOf(request.resource.data.courseId) == 'GEN'
+        && request.resource.data.dept is string && request.resource.data.dept != 'GEN'
+        && (isOwner() || isAdmin()
+            || isPresident(request.resource.data.campus, request.resource.data.dept))
+        && request.resource.data.by.email == me()
+        && request.resource.data.at == request.time
+        && audited('courseClaims/' + id)
+        && pathBumped(request.resource.data.campus, 'courseClaims');
+      allow update: if false;
+      allow delete: if mayUse()
+        && (isOwner() || isAdmin() || isPresident(resource.data.campus, resource.data.dept))
+        // A deleted doc cannot name its audit entry; its id is derived.
+        && getAfter(/databases/$(db)/documents/audit/$('del|' + id + '|' + string(resource.data.at.toMillis()))).data.path
+             == 'courseClaims/' + id
+        && getAfter(/databases/$(db)/documents/audit/$('del|' + id + '|' + string(resource.data.at.toMillis()))).data.actor.email == me()
+        && pathBumped(resource.data.campus, 'courseClaims');
+    }
 
     // activity/{campus}: { course: {<id>: ts}, dept: {<dept>: ts}, c, d }:
     // when staff last made a meaningful edit (Last updated, B4). `c` and `d`
@@ -912,7 +961,7 @@ service cloud.firestore {
     // An owner, the department's president or the course's CR, on the
     // campus in the path. Each is checked against the grant, not the index.
     function maintains(campus, courseId) {
-      return isOwner() || isPresident(campus, deptOf(courseId))
+      return isOwner() || isPresident(campus, managingDept(campus, courseId))
         || isCr(campus, courseId);
     }
 
@@ -926,7 +975,7 @@ service cloud.firestore {
     match /courses/{courseId} {
       allow read: if isOwner() || isAdmin();
       allow create, update: if mayUse()
-        && (isOwner() || isPresident(campusOf(me()), deptOf(courseId)))
+        && (isOwner() || isPresident(campusOf(me()), managingDept(campusOf(me()), courseId)))
         && request.resource.data.id == courseId
         && request.resource.data.draft == true
         && request.resource.data.keys().hasOnly(['id', 'title', 'credits',
@@ -1181,7 +1230,7 @@ service cloud.firestore {
       // Moderation is hide-only, with a reason and an audit entry; a hide
       // takes the review off the counters and an unhide puts it back.
       allow update: if mayUse()
-        && (isOwner() || isPresident(resource.data.campus, deptOf(c)))
+        && (isOwner() || isPresident(resource.data.campus, managingDept(resource.data.campus, c)))
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['hidden', 'reason', 'hiddenBy', 'reports', 'auditId', 'moderatedAt'])
         && request.resource.data.moderatedAt == request.time
@@ -1253,7 +1302,7 @@ service cloud.firestore {
         && d.scope in ['department', 'course']
         && d.courseIds is list && d.courseIds.size() <= 20
         && (d.scope == 'department'
-            || (d.courseIds.size() > 0 && deptOf(d.courseIds[0]) == d.department))
+            || (d.courseIds.size() > 0 && managingDept(d.campus, d.courseIds[0]) == d.department))
         && d.removed is bool && d.pinnedToDepartment is bool;
     }
 

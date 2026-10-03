@@ -24,6 +24,7 @@ String homeFor(Grant? g) => switch (g?.role) {
 String roleLabel(Grant? g) => switch (g?.role) {
   null => 'Student',
   GrantRole.admin => 'Admin',
+  GrantRole.dept when g!.scope == genDept => 'Electives',
   GrantRole.dept => 'President · ${g!.scopeLabel}',
   GrantRole.course => 'CR · ${g!.scopeLabel}',
   GrantRole.contributor => 'Contributor',
@@ -68,7 +69,11 @@ class RoleSwitchPage extends StatelessWidget {
                     g == null ? const TierTag('STUDENT') : TierTag.of(g.role),
                     const SizedBox(height: 6),
                     Text(
-                      g == null ? 'Student' : g.role.label,
+                      g == null
+                          ? 'Student'
+                          : g.scope == genDept
+                          ? 'Elective Contributor'
+                          : g.role.label,
                       style: TypeScale.body.copyWith(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,

@@ -25,6 +25,11 @@ void main() {
     expect(isStale(ms(2026, 3), now), isTrue);
   });
 
+  test('monthYear is the plain month and year', () {
+    expect(monthYear(ms(2026, 8)), 'Aug 2026');
+    expect(monthYear(ms(2027, 1)), 'Jan 2027');
+  });
+
   test('touch stamps the course and department with hints', () async {
     final db = FakeFirebaseFirestore();
     final b = db.batch();

@@ -1,6 +1,7 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/roles/activity_store.dart';
 import 'package:cgpa_calculator/core/roles/contacts.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -16,7 +17,11 @@ import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 
-typedef _Data = ({List<DirectoryEntry> people, Map<String, Volunteer?> offers});
+typedef _Data = ({
+  List<DirectoryEntry> people,
+  Map<String, Volunteer?> offers,
+  Activity activity,
+});
 
 /// Board `Representatives` (§13.5): the department president and the CR of
 /// each course the student is taking, with only what each chose to show.
@@ -46,7 +51,11 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
       );
       if (!hasCr) offers[c] = await store.myOffer(_campus!, c);
     }
-    return (people: people, offers: offers);
+    // Last updated is a courtesy: a failed read leaves the text out.
+    final activity = await ActivityStore(
+      roleStore!.db,
+    ).of(_campus!).catchError((_) => const Activity());
+    return (people: people, offers: offers, activity: activity);
   }
 
   Future<void> _volunteer(String courseId, Volunteer? mine) async {
@@ -128,7 +137,12 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
           );
           if (!hasCr) offers[c] = store.peekMyOffer(_campus!, c);
         }
-        return (people: people, offers: offers);
+        return (
+          people: people,
+          offers: offers,
+          activity:
+              ActivityStore(roleStore!.db).peekOf(_campus!) ?? const Activity(),
+        );
       },
       builder: (context, data, _) {
         final now = DateTime.now();
@@ -191,7 +205,12 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
             if (depts.isNotEmpty) const SectionLabel('Department'),
             for (final b in branches)
               if (pres(b) case final list when list.isNotEmpty) ...[
-                _President(code: b, list: list, now: now),
+                _President(
+                  code: b,
+                  list: list,
+                  now: now,
+                  updated: data.activity.ofDept(list.first.$2.scope),
+                ),
                 if (pres(b, secretary: true) case final s
                     when s.isNotEmpty) ...[
                   const SizedBox(height: Space.xs),
@@ -199,6 +218,7 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
                     code: b,
                     list: s,
                     now: now,
+                    updated: data.activity.ofDept(s.first.$2.scope),
                     title: 'Department secretary',
                   ),
                 ],
@@ -222,6 +242,7 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
                         offer: data.offers[c],
                         noCr: data.offers.containsKey(c),
                         onVolunteer: () => _volunteer(c, data.offers[c]),
+                        updated: data.activity.ofCourse(c),
                       ),
                     ],
                   ],
@@ -283,9 +304,11 @@ class _President extends StatelessWidget {
     required this.code,
     required this.list,
     required this.now,
+    this.updated,
     this.title = 'Department president',
   });
   final String code, title;
+  final int? updated;
   final List<(DirectoryEntry, ListedRole)> list;
   final DateTime now;
 
@@ -338,6 +361,14 @@ class _President extends StatelessWidget {
                         color: p.textMuted,
                       ),
                     ),
+                    if (updated case final ms?)
+                      Text(
+                        'Resources last updated ${monthYear(ms)}',
+                        style: TypeScale.caption.copyWith(
+                          fontSize: 10.5,
+                          color: p.textMuted,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -434,7 +465,9 @@ class _CourseRow extends StatelessWidget {
     required this.offer,
     required this.noCr,
     required this.onVolunteer,
+    this.updated,
   });
+  final int? updated;
   final String title;
   final DirectoryEntry? cr;
   final Volunteer? offer;
@@ -478,6 +511,14 @@ class _CourseRow extends StatelessWidget {
                       color: p.textMuted,
                     ),
                   ),
+                  if (updated case final ms?)
+                    Text(
+                      'Resources last updated ${monthYear(ms)}',
+                      style: TypeScale.caption.copyWith(
+                        fontSize: 10.5,
+                        color: p.textMuted,
+                      ),
+                    ),
                 ],
               ),
             ),

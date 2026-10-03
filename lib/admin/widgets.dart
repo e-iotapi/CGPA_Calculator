@@ -3,6 +3,7 @@ library;
 
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/roles/claim_store.dart' show ClaimError;
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
@@ -342,6 +343,7 @@ String shortDay(DateTime d, {bool year = false}) =>
 
 /// A failed load or save, said plainly. Never includes the raw exception.
 String problem(Object e) {
+  if (e is ClaimError) return 'Another department already manages this course.';
   final s = '$e';
   if (s.contains('permission-denied')) {
     return 'Not allowed. Your access may have ended; sign in again or ask an '
