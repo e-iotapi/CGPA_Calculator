@@ -27,6 +27,13 @@ void main() {
     expect(bumped.id, r.id);
   });
 
+  test('old reviews without grade or marks still read', () {
+    final r = Review.fromMap('x', 'c', {'stars': 3, 'recommend': true});
+    expect(r.grade, isNull);
+    expect(r.marks, isNull);
+    expect(r.toMap().containsKey('grade'), isFalse);
+  });
+
   test('stats add up; empty stats say nothing', () {
     const a = ReviewStats(count: 2, starSum: 9, recommendCount: 2);
     const b = ReviewStats(count: 2, starSum: 5, recommendCount: 0);
@@ -53,11 +60,24 @@ void main() {
       professorId: 'p1',
       stars: 4,
       recommend: true,
+      grade: 'A',
+      marks: 90,
       text: '  Fair grading.  ',
     );
     var r = (await me.mine('CS F111'))!;
     expect(r.id, hashedId('u1', 'CS F111'));
     expect(r.text, 'Fair grading.');
+    expect(r.grade, 'A');
+    expect(r.marks, 90);
+    expect(Review.fromMap('x', 'c', r.toMap()).marks, 90);
+    final copy =
+        await db
+            .collection('reviews')
+            .doc('CS F111')
+            .collection('campus')
+            .doc('goa')
+            .get();
+    expect(copy.data()!['r'][r.id]['grade'], 'A');
     expect((await course()).count, 1);
     expect((await prof()).average, 4);
 
@@ -68,10 +88,13 @@ void main() {
       professorId: 'p1',
       stars: 2,
       recommend: false,
+      grade: 'ND',
       before: r,
     );
     r = (await me.mine('CS F111'))!;
     expect(r.text, isNull);
+    expect(r.grade, 'ND');
+    expect(r.marks, isNull);
     expect((await course()).count, 1);
     expect((await course()).average, 2);
     expect((await prof()).recommendPercent, 0);
@@ -81,6 +104,8 @@ void main() {
     final by = await me.byProfessor('CS F111', 'goa');
     expect(by.keys, ['p1']);
     expect((await me.mostReviewed('goa')).single.courseId, 'CS F111');
+    expect((await me.index('goa'))['CS F111']!.count, 1);
+    expect((await me.all('CS F111', 'goa')).single.id, r.id);
 
     await me.hide(r, 'Names a person');
     r = (await me.mine('CS F111'))!;

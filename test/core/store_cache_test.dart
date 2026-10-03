@@ -193,6 +193,7 @@ void main() {
       professorId: 'p1',
       stars: 4,
       recommend: true,
+      grade: 'B',
     );
     expect(rs.peekByProfessor('CS F111', 'goa'), isNull);
     expect(rs.peekStats('CS F111', 'goa', professorIds: ['p1']), isNull);
@@ -201,8 +202,12 @@ void main() {
     expect((await rs.stats('CS F111', 'goa')).count, 1);
     expect(rs.peekStats('CS F111', 'goa')!.count, 1);
     expect(rs.peekMostReviewed('goa')!.single.courseId, 'CS F111');
+    expect(rs.peekIndex('goa')!['CS F111']!.count, 1);
     expect((await rs.page('CS F111', 'goa')).reviews, hasLength(1));
     expect(rs.peekPage('CS F111', 'goa')!.reviews, hasLength(1));
+    expect(rs.peekAll('CS F111', 'goa'), hasLength(1));
+    expect(await rs.all('CS F111', 'goa'), hasLength(1));
+    expect((await rs.index('goa'))['CS F111']!.count, 1);
   });
 
   test('a write forgets the saved roster', () async {
@@ -369,6 +374,7 @@ void main() {
         professorId: null,
         stars: 4,
         recommend: true,
+        grade: 'B',
       );
       expect(await marker('goa', Paths.reviews), 1);
       expect(await marker('goa', Paths.reviewsOf('CS F111')), 1);

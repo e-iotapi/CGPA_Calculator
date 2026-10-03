@@ -117,6 +117,8 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
         professorId: _professorId,
         stars: _stars,
         recommend: _recommend!,
+        grade: widget.existing?.grade ?? 'ND',
+        marks: widget.existing?.marks,
         text: _text.text,
         before: widget.existing,
       );
