@@ -40,6 +40,7 @@ String grantLabel(
       scope == null
           ? 'Grant — course manager'
           : 'Grant — course manager, $scope$where',
+    GrantRole.contributor => 'Grant — contributor',
   };
 }
 
@@ -124,7 +125,8 @@ class _AdminGrantState extends State<AdminGrant> {
     GrantRole.admin => _Tier.admin,
     GrantRole.dept => _secretary ? _Tier.secretary : _Tier.president,
     GrantRole.course => _Tier.course,
-    null => null,
+    // Contributors are approved from requests, never granted by form.
+    GrantRole.contributor || null => null,
   };
 
   String get _address => _email.text.trim().toLowerCase();
@@ -230,7 +232,7 @@ class _AdminGrantState extends State<AdminGrant> {
     GrantRole.dept => _dept,
     GrantRole.course =>
       _course.text.trim().isEmpty ? null : _course.text.trim().toUpperCase(),
-    null => null,
+    GrantRole.contributor || null => null,
   };
 
   /// Catalogue codes starting with what is typed, until one is exact.

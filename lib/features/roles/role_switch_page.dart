@@ -17,6 +17,7 @@ String homeFor(Grant? g) => switch (g?.role) {
   null || GrantRole.admin => g == null ? Routes.home : Routes.admin,
   GrantRole.dept => Routes.dept(g!.campus, g.scope),
   GrantRole.course => Routes.crCourse(g!.campus, g.scope),
+  GrantRole.contributor => Routes.home,
 };
 
 /// "Student", "President · A3", "CR · CS F301".
@@ -25,6 +26,7 @@ String roleLabel(Grant? g) => switch (g?.role) {
   GrantRole.admin => 'Admin',
   GrantRole.dept => 'President · ${g!.scopeLabel}',
   GrantRole.course => 'CR · ${g!.scopeLabel}',
+  GrantRole.contributor => 'Contributor',
 };
 
 /// Board `RoleSwitch`: a president or CR picks the role Pointer works in

@@ -317,6 +317,10 @@ class _PersonPageState extends State<PersonPage> {
     final mayRevoke = switch (_g.role) {
       GrantRole.admin => r.owner,
       GrantRole.dept => r.owner || r.admin,
+      GrantRole.contributor =>
+        r.owner ||
+            r.admin ||
+            r.presidencies.any((p) => p.campus == _g.campus),
       GrantRole.course =>
         r.owner ||
             r.admin ||

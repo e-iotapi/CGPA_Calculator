@@ -22,4 +22,13 @@ abstract final class Paths {
 
   /// The review gate switch (B6).
   static const reviewGate = 'reviewGate';
+
+  /// A campus's unapproved contributor links, per department (B7).
+  static String pending(String dept) => 'pending/$dept';
+
+  /// The contributor leaderboard (B7).
+  static const leaderboard = 'leaderboard';
+
+  /// Contributor requests, per department (B7).
+  static String contribRequests(String dept) => 'contributorRequests/$dept';
 }

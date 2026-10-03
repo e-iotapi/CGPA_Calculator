@@ -53,7 +53,10 @@ String campusName(String key) => campusNames[key] ?? key;
 enum GrantRole {
   admin('admin', 'Admin', 'ADMIN'),
   dept('dept', 'Department president', 'PRESIDENT'),
-  course('course', 'Course manager', 'CR');
+  course('course', 'Course manager', 'CR'),
+
+  /// B7: campus-wide, no expiry (the sentinel 2100-01-01), until revoked.
+  contributor('contributor', 'Contributor', 'CONTRIBUTOR');
 
   const GrantRole(this.key, this.label, this.tag);
 
@@ -68,6 +71,7 @@ enum GrantRole {
     admin => Role.admin,
     dept => Role.president,
     course => Role.cr,
+    contributor => Role.student,
   };
 }
 
@@ -148,6 +152,7 @@ class Grant {
     GrantRole.admin => 'Every campus',
     GrantRole.dept => branchCode(scope, programme),
     GrantRole.course => scope,
+    GrantRole.contributor => 'Every department',
   };
 
   /// Reads a grant document's data.
@@ -269,6 +274,7 @@ class MyRoles {
     required this.email,
     this.owner = false,
     this.grants = const [],
+    this.contributor = false,
   });
 
   /// Nobody signed in, or a plain student.
@@ -280,8 +286,12 @@ class MyRoles {
   /// Whether the person is the owner.
   final bool owner;
 
-  /// Live grants only.
+  /// Live grants only (contributor grants are not among them, see
+  /// [contributor]).
   final List<Grant> grants;
+
+  /// Whether a live contributor grant is held (B7).
+  final bool contributor;
 
   /// Whether a live admin grant is held.
   bool get admin => grants.any((g) => g.role == GrantRole.admin);
