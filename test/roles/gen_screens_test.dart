@@ -178,6 +178,9 @@ void main() {
       signIn(pres, roles: MyRoles(email: pres, grants: [g]));
       await t.pumpWidget(app(DeptCourses(campus: 'goa', dept: g.scope)));
       await t.pumpAndSettle();
+      // The claim list sits below the (lazy) course rows; search brings it up.
+      await t.enterText(find.byType(TextField).first, course);
+      await t.pumpAndSettle();
     }
 
     testWidgets('a president sees Claim on a GEN core course', (t) async {

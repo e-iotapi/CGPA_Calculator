@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/app/prefetch_levels.dart';
 import 'package:cgpa_calculator/core/roles/activity_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/timetable/timetable_store.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -67,6 +68,7 @@ void main() {
     await db.doc('activity/goa').set({
       'dept': {'CS': Timestamp.fromDate(DateTime(2026, 8, 20))},
     });
+    await openSharedCache();
     startRoles(db, email: 'f20230802@goa.bits-pilani.ac.in', name: 'S');
     for (final job in prefetchLevels().first) {
       try {
