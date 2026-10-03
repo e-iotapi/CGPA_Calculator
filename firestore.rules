@@ -652,6 +652,8 @@ service cloud.firestore {
             // Added beside the contributor's own unapproved create.
             ? !exists(contribDoc('resources/' + k))
               && now[b].email == me() && r.addedBy.email == me()
+              // Only into a new batch or the contributor's own.
+              && (!(b in was) || was[b].email == me())
               && r.batchId == b && r.get('approved', true) == false
               && r.campus == pendingId(id, 0) && r.department == pendingId(id, 1)
               && nowL[k].title == r.title && nowL[k].url == r.url

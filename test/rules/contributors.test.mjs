@@ -251,6 +251,14 @@ describe('links', () => {
     await assertFails(submit(as(C), C, 'r1', { extra: { campus: 'pilani' } }));
   });
 
+  test("adding into another contributor's batch is denied", async () => {
+    await seedContributor();
+    await seedContributor(C2);
+    await assertSucceeds(submit(as(C), C, 'r1', { bid: 'b1' }));
+    await assertFails(submit(as(C2), C2, 'r2', { bid: 'b1' }));
+    await assertSucceeds(submit(as(C2), C2, 'r2', { bid: 'b2' }));
+  });
+
   test('a revoked grant cannot create', async () => {
     await seedContributor();
     await seed((db) => setDoc(doc(db, 'grants', gid(C)), { active: false }, { merge: true }));
