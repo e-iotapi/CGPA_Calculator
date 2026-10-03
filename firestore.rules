@@ -781,7 +781,11 @@ service cloud.firestore {
     function reviewOk(d) {
       return d.stars is int && d.stars >= 1 && d.stars <= 5
         && d.recommend is bool
-        && (!('text' in d) || (d.text is string && d.text.size() <= 600));
+        && (!('text' in d) || (d.text is string && d.text.size() <= 600))
+        && (!('grade' in d) || d.grade in ['A', 'A-', 'B', 'B-', 'C', 'C-', 'D', 'E',
+             'NC', 'RC', 'W', 'ND'])
+        && (!('marks' in d) || ((d.marks is int || d.marks is float)
+             && d.marks >= 0 && d.marks <= 1000));
     }
 
     // Taking a course is self-declared (fix 5): the term must have an
@@ -829,7 +833,9 @@ service cloud.firestore {
         && (e.hidden
             ? !(k in now)
             : now[k].keys().hasOnly(['stars', 'recommend', 'text', 'term',
-                  'professorId', 'helpful', 'createdAt', 'updatedAt'])
+                  'professorId', 'helpful', 'createdAt', 'updatedAt', 'grade', 'marks'])
+              && now[k].get('grade', null) == e.get('grade', null)
+              && now[k].get('marks', null) == e.get('marks', null)
               && now[k].stars == e.stars
               && now[k].recommend == e.recommend
               && now[k].get('text', null) == e.get('text', null)
@@ -850,7 +856,8 @@ service cloud.firestore {
       allow create: if isStudent(me()) && id == hashOf(c)
         && request.resource.data.keys().hasOnly(['courseId', 'department', 'stars',
              'recommend', 'text', 'campus', 'term', 'professorId', 'hidden',
-             'helpful', 'reports', 'createdAt', 'updatedAt'])
+             'helpful', 'reports', 'createdAt', 'updatedAt', 'grade', 'marks'])
+        && 'grade' in request.resource.data
         && reviewOk(request.resource.data)
         && request.resource.data.courseId == c
         && request.resource.data.department == deptOf(c)
@@ -868,7 +875,7 @@ service cloud.firestore {
       // while it is hidden. Votes are kept (fix 6).
       allow update: if isStudent(me()) && id == hashOf(c)
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['stars', 'recommend', 'text', 'updatedAt'])
+             .hasOnly(['stars', 'recommend', 'text', 'grade', 'marks', 'updatedAt'])
         && reviewOk(request.resource.data)
         && request.resource.data.updatedAt == request.time
         && (resource.data.hidden

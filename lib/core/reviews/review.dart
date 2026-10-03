@@ -27,6 +27,8 @@ class Review {
     required this.term,
     this.professorId,
     this.text,
+    this.grade,
+    this.marks,
     this.hidden = false,
     this.reason,
     this.hiddenByName,
@@ -51,6 +53,13 @@ class Review {
   final String? professorId;
   /// The written review, if any.
   final String? text;
+
+  /// The grade the reviewer got: a letter, `NC`, `RC`, `W` or `ND` (not
+  /// disclosed). Null on reviews written before grades existed.
+  final String? grade;
+
+  /// The marks out of 1000, when given.
+  final num? marks;
 
   /// Whether a moderator hid the review.
   final bool hidden;
@@ -79,6 +88,8 @@ class Review {
     term: term,
     professorId: professorId,
     text: text,
+    grade: grade,
+    marks: marks,
     hidden: hidden,
     reason: reason,
     hiddenByName: hiddenByName,
@@ -96,6 +107,8 @@ class Review {
     'term': term,
     'professorId': professorId,
     if (text != null) 'text': text,
+    if (grade != null) 'grade': grade,
+    if (marks != null) 'marks': marks,
     'hidden': hidden,
     'helpful': helpful,
     'reports': reports,
@@ -120,6 +133,8 @@ class Review {
     term: m['term'] as String? ?? '',
     professorId: m['professorId'] as String?,
     text: m['text'] as String?,
+    grade: m['grade'] as String?,
+    marks: m['marks'] as num?,
     hidden: m['hidden'] as bool? ?? false,
     reason: m['reason'] as String?,
     hiddenByName: (m['hiddenBy'] as Map?)?['name'] as String?,

@@ -312,6 +312,7 @@ Future<void> seedFirestore(FakeFirebaseFirestore db) async {
       professorId: course == takingId ? 'p1' : 'p4',
       stars: [4, 5, 2, 4, 3, 5][i],
       recommend: i != 2,
+      grade: 'B',
       text: texts[i % texts.length],
     );
   }

@@ -67,6 +67,12 @@ class ReviewStore {
     );
   }
 
+  /// Every course's counter on [campus] (the `rix|` cache).
+  Future<Map<String, ReviewStats>> index(String campus) => _courseIndex(campus);
+
+  /// The saved [index], read synchronously; null when none is saved.
+  Map<String, ReviewStats>? peekIndex(String campus) => _peekIndex(campus);
+
   /// The signed-in person's review id for [courseId], or `null` when signed
   /// out.
   String? myReviewId(String courseId) =>
@@ -253,6 +259,15 @@ class ReviewStore {
     return (reviews: _shown(all, professorIds, order), last: null);
   }
 
+  /// Every review of [courseId] on [campus], unordered, from the same
+  /// cached campus doc as [page].
+  Future<List<Review>> all(String courseId, String campus) async =>
+      (await page(courseId, campus)).reviews;
+
+  /// The saved [all], read synchronously; null when none is saved.
+  List<Review>? peekAll(String courseId, String campus) =>
+      peekCache(_rcdKey(courseId, campus), (o) => _decodePage(o, courseId));
+
   String _rcdKey(String courseId, String campus) => 'rcd|$courseId|$campus';
 
   static List<Review> _decodePage(Object? o, String courseId) => [
@@ -389,6 +404,8 @@ class ReviewStore {
     required String? professorId,
     required int stars,
     required bool recommend,
+    required String grade,
+    num? marks,
     String? text,
     Review? before,
   }) async {
@@ -403,6 +420,8 @@ class ReviewStore {
         'stars': stars,
         'recommend': recommend,
         if (t != null && t.isNotEmpty) 'text': t,
+        'grade': grade,
+        if (marks != null) 'marks': marks,
         'campus': campus,
         'term': term,
         'professorId': professorId,
@@ -426,6 +445,8 @@ class ReviewStore {
         'stars': stars,
         'recommend': recommend,
         if (t != null && t.isNotEmpty) 'text': t,
+        'grade': grade,
+        if (marks != null) 'marks': marks,
         'term': term,
         'professorId': professorId,
         'helpful': 0,
@@ -437,6 +458,8 @@ class ReviewStore {
         'stars': stars,
         'recommend': recommend,
         'text': t == null || t.isEmpty ? FieldValue.delete() : t,
+        'grade': grade,
+        'marks': marks ?? FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
       if (!before.hidden) {
@@ -444,6 +467,8 @@ class ReviewStore {
           'stars': stars,
           'recommend': recommend,
           'text': t == null || t.isEmpty ? FieldValue.delete() : t,
+          'grade': grade,
+          'marks': marks ?? FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
         _count(

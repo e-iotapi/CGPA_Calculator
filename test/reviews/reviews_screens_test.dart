@@ -110,6 +110,7 @@ void main() {
     professorId: prof,
     stars: stars,
     recommend: take,
+    grade: 'B',
     text: text,
   );
 

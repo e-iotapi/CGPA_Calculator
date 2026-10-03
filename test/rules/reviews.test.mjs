@@ -45,15 +45,17 @@ function post(db, who, extra = {}, { dc = 1, ds, dr, m = {} } = {}) {
   const id = hash(who, C);
   const d = {
     courseId: C, department: 'ELEC', stars: 4, recommend: true, text: 'Good', campus: 'goa', term: '2025-26-2',
-    professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    grade: 'B', professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     ...extra,
   };
+  for (const k in d) if (d[k] === undefined) delete d[k];
   const b = writeBatch(db);
   b.set(doc(db, 'reviews', C, 'entries', id), d);
   count(b, db, id, d, dc, ds ?? d.stars, dr ?? (d.recommend ? 1 : 0));
   if (m) {
-    const { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt } = d;
-    mirror(b, db, id, { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt, ...m });
+    const { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt, grade, marks } = d;
+    const g = { grade, ...(marks === undefined ? {} : { marks }) };
+    mirror(b, db, id, { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt, ...g, ...m });
   }
   return b.commit();
 }
@@ -69,6 +71,42 @@ describe('reviews', () => {
     await assertFails(post(as(STUDENT), STUDENT));
     const s = await getDoc(doc(as(STUDENT), 'courses', C, 'stats', 'goa'));
     if (s.data().count !== 1 || s.data().starSum !== 4) throw new Error('bad counter');
+  });
+
+  test('grade is required on create, from the list; ND is valid', async () => {
+    await offering();
+    await assertFails(post(as(STUDENT), STUDENT, { grade: undefined }, { m: null }));
+    await assertFails(post(as(STUDENT), STUDENT, { grade: 'F' }));
+    await assertFails(post(as(STUDENT), STUDENT, { grade: 5 }));
+    await assertSucceeds(post(as(STUDENT), STUDENT, { grade: 'ND' }));
+  });
+
+  test('marks are optional, 0 to 1000, and mirrored with the grade', async () => {
+    await offering();
+    await assertFails(post(as(STUDENT), STUDENT, { marks: -1 }));
+    await assertFails(post(as(STUDENT), STUDENT, { marks: 1001 }));
+    await assertFails(post(as(STUDENT), STUDENT, { marks: '80' }));
+    await assertFails(post(as(STUDENT), STUDENT, { marks: 80 }, { m: { marks: 79 } }));
+    await assertFails(post(as(STUDENT), STUDENT, { marks: 80 }, { m: { grade: 'A' } }));
+    await assertSucceeds(post(as(STUDENT), STUDENT, { marks: 80.5 }));
+    const s = await getDoc(doc(as(STUDENT), 'courses', C, 'stats', 'goa'));
+    if (s.data().count !== 1 || s.data().starSum !== 4) throw new Error('bad counter');
+  });
+
+  test('an old review without a grade can be edited, and gain one', async () => {
+    await offering();
+    const id = hash(STUDENT, C);
+    await seed(async (db) => {
+      await setDoc(doc(db, 'reviews', C, 'entries', id), {
+        courseId: C, department: 'ELEC', stars: 4, recommend: true, campus: 'goa', term: '2025-26-2',
+        professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: new Date(), updatedAt: new Date(),
+      });
+    });
+    const db = as(STUDENT);
+    const b = writeBatch(db);
+    b.update(doc(db, 'reviews', C, 'entries', id), { grade: 'A-', marks: 90, updatedAt: serverTimestamp() });
+    count(b, db, id, { professorId: 'p1' }, 0, 0, 0);
+    await assertSucceeds(b.commit());
   });
 
   test('no professor on the offering: null, counted for the course only', async () => {
@@ -96,7 +134,7 @@ describe('reviews', () => {
     const b = writeBatch(db);
     const d = {
       courseId: C, department: 'ELEC', stars: 4, recommend: true, campus: 'goa', term: '2025-26-2',
-      professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      grade: 'B', professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     };
     b.set(doc(db, 'reviews', C, 'entries', id), d);
     count(b, db, id, d, 1, 4, 1, false);

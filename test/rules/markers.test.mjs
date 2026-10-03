@@ -252,7 +252,7 @@ describe('a marker moves by exactly one, on the right path', () => {
       const b = writeBatch(db);
       const d = {
         courseId: C, department: 'ELEC', stars: 4, recommend: true, text: 'Good', campus: 'goa', term: '2025-26-2',
-        professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+        grade: 'B', professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       };
       b.set(doc(db, 'reviews', C, 'entries', id), d);
       for (const p of [null, 'p1']) {
@@ -264,9 +264,9 @@ describe('a marker moves by exactly one, on the right path', () => {
       b.set(doc(db, 'reviewIndex', 'goa'), {
         k: C, c: { [C]: { count: increment(1), starSum: increment(4), recommendCount: increment(1) } },
       }, { merge: true });
-      const { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt } = d;
+      const { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt, grade } = d;
       b.set(doc(db, 'reviews', C, 'campus', 'goa'), {
-        k: id, r: { [id]: { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt } },
+        k: id, r: { [id]: { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt, grade } },
       }, { merge: true });
       b.set(doc(db, 'heads', 'goa'), { v: Object.fromEntries(paths.map((p) => [p, increment(1)])) }, { merge: true });
       return b.commit();

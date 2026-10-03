@@ -108,7 +108,7 @@ before(async () => {
     firestore: {
       rules: readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8'),
       host: '127.0.0.1',
-      port: 8085,
+      port: Number(process.env.RULES_PORT ?? 8085),
     },
   });
 });
