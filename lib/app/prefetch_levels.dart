@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/core/roles/maintain_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
+import 'package:cgpa_calculator/features/calendar/calendar_data.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
@@ -36,6 +37,9 @@ List<PrefetchLevel> prefetchLevels() {
     two.add(_job(() => reviews.mine(c)));
   }
   two.add(_job(() => contacts.directory(campus)));
+  // The broadcast timetable (marker `timetable`): the Calendar opens with it.
+  final tt = timetableStore;
+  if (tt != null) two.add(_job(() => tt.current(campus)));
   for (final c in taking) {
     two.add(
       _job(() async {
