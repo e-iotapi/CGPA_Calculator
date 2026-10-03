@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:flutter/material.dart';
 
 const _gateCampuses = ['goa', 'hyderabad', 'pilani', 'dubai'];
@@ -89,7 +90,7 @@ class _GateSwitchRowState extends State<GateSwitchRow> {
 
   String _subtitle() {
     final i = _info;
-    if (i == null) return _failed ?? 'Students must review their electives';
+    if (i == null) return 'Students must review their electives';
     if (!i.on) return 'Off · reviews are open to everyone';
     final since =
         i.at == null
@@ -120,6 +121,15 @@ class _GateSwitchRowState extends State<GateSwitchRow> {
           ),
           const SizedBox(height: Space.sm),
         ],
+        if (_failed != null && _info == null) ...[
+          Notice(text: TextSpan(text: _failed), warning: true),
+          const SizedBox(height: Space.sm),
+          SizedBox(
+            height: Sizes.minTouch,
+            child: OutlinedButton(onPressed: _load, child: const Text('Try again')),
+          ),
+          const SizedBox(height: Space.sm),
+        ],
         AppCard(
           padding: EdgeInsets.zero,
           child: CardRow(
@@ -128,7 +138,6 @@ class _GateSwitchRowState extends State<GateSwitchRow> {
             titleLines: 2,
             subtitle: _subtitle(),
             minHeight: 58,
-            onTap: _info == null ? _load : null,
             trailing: Semantics(
               label: 'Compulsory reviews',
               child: Switch(

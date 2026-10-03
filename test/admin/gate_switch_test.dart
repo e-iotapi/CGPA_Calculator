@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 
+import '../helpers/flaky_firestore.dart';
+
 void main() {
   late FakeFirebaseFirestore db;
 
@@ -52,6 +54,19 @@ void main() {
       await t.pump();
     }
   }
+
+  // First: the saves of the next test stall the cache for any after it.
+  testWidgets('a failed load says so and offers Try again', (t) async {
+    final flaky = FlakyFirestore()..down = true;
+    roleStore = RoleStore(flaky, me: 'owner@x.com', myName: 'Owner');
+    await t.pumpWidget(app(const Scaffold(body: GateSwitchRow(campus: 'dubai'))));
+    await t.pumpAndSettle();
+    expect(find.text('No connection. Nothing was changed.'), findsOneWidget);
+    expect(t.widget<Switch>(find.byType(Switch)).onChanged, isNull);
+    await t.tap(find.text('Try again'));
+    await t.pumpAndSettle();
+    expect(find.text('No connection. Nothing was changed.'), findsOneWidget);
+  });
 
   testWidgets('staff row: switching on asks, off does not', (t) async {
     await t.runAsync(
