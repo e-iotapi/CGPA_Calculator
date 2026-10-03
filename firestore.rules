@@ -595,6 +595,20 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // The review gate switch (B6, ruling R-A): one doc per campus, read by
+    // anyone on it. The unlock count is enforced in the app only.
+    match /reviewGate/{campus} {
+      allow read: if mayUse();
+      allow create, update: if (isOwner() || isAdmin() || isPresidentOn(campus))
+        && request.resource.data.keys().hasOnly(['on', 'by', 'at', 'auditId'])
+        && request.resource.data.on is bool
+        && request.resource.data.by.email == me()
+        && request.resource.data.at == request.time
+        && audited('reviewGate/' + campus)
+        && pathBumped(campus, 'reviewGate');
+      allow delete: if false;
+    }
+
     match /config/public {
       allow read: if mayUse();
       allow write: if (isOwner() || isAdmin())
