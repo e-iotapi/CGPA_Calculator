@@ -629,14 +629,9 @@ void main() {
   testWidgets('form: grade required, Not disclosed allowed, marks optional', (
     t,
   ) async {
-    await openForm(t); // still ongoing: nothing to prefill
-    expect(find.text('Choose a grade'), findsOneWidget);
+    await openForm(t); // still ongoing: the grade starts at Not disclosed
+    expect(find.text('Not disclosed'), findsOneWidget);
     await starsAndYes(t);
-    expect(postButton(t), isNull);
-    await t.tap(find.text('Choose a grade'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Not disclosed'));
-    await t.pumpAndSettle();
     expect(postButton(t), isNotNull); // no marks needed
     final marks = find.widgetWithText(TextField, 'Marks (optional)');
     await t.enterText(marks, '1500');

@@ -37,8 +37,9 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
   late final _text = TextEditingController(text: widget.existing?.text);
 
   /// Prefilled from the review being edited, else from the student's own
-  /// course; null until chosen, and Post waits for it. `ND` is a choice.
-  late String? _grade = widget.existing?.grade ?? ownGrade(widget.courseId);
+  /// course; else Not disclosed (contract B5: ND is the UI default).
+  late String? _grade =
+      widget.existing?.grade ?? ownGrade(widget.courseId) ?? 'ND';
   late final _marks = TextEditingController(
     text: switch (widget.existing?.marks ?? ownMarks(widget.courseId)) {
       final m? => marksText(m),
