@@ -289,6 +289,30 @@ describe('links', () => {
     await assertFails(edit(as(C2), C2, { title: 'Hijack' }));
   });
 
+  // The edit also refreshes the link's title/url in the approvers' queue.
+  const editQueued = async (db, actor, title, { qTitle = title, extra = {} } = {}) => {
+    const b = writeBatch(db);
+    const auditId = audit(b, db, actor, 'resources/r1');
+    b.update(doc(db, 'resources', 'r1'), { title, auditId });
+    const v = (await getDoc(doc(db, 'resourceVersions', 'goa'))).data().v;
+    b.set(doc(db, 'resourceVersions', 'goa'), { v: v + 1 }, { merge: true });
+    b.set(doc(db, 'pending', 'goa|ELEC'), {
+      batches: { b1: { links: { r1: { title: qTitle, url: URL } }, ...extra } }, b: 'b1', k: 'r1',
+    }, { merge: true });
+    bumps(b, db, ['resources', 'pending/ELEC']);
+    return b.commit();
+  };
+
+  test('edit own pending link: queue entry follows; mismatch, batch fields, others denied', async () => {
+    await seedContributor();
+    await seedContributor(C2);
+    await seedPending('r1');
+    await assertFails(editQueued(as(C), C, 'Newer', { qTitle: 'Other' }));
+    await assertFails(editQueued(as(C), C, 'Newer', { extra: { username: 'x' } }));
+    await assertFails(editQueued(as(C2), C2, 'Hijack'));
+    await assertSucceeds(editQueued(as(C), C, 'Newer'));
+  });
+
   test('an edited approved link stays approved and earns nothing', async () => {
     await seedContributor();
     await seedPending('r1');

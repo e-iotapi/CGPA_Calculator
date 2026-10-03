@@ -586,6 +586,12 @@ service cloud.firestore {
               && r.batchId == b && r.get('approved', true) == false
               && r.campus == pendingId(id, 0) && r.department == pendingId(id, 1)
               && nowL[k].title == r.title && nowL[k].url == r.url
+            // Refreshed beside the contributor's own edit of it, still unapproved.
+            : k in wasL && k in nowL
+            ? now[b].diff(was[b]).affectedKeys().hasOnly(['links'])
+              && r.addedBy.email == me() && r.get('approved', true) == false
+              && nowL[k].keys().hasOnly(['title', 'url'])
+              && nowL[k].title == r.title && nowL[k].url == r.url
             // Dropped beside its approval or rejection.
             : k in wasL && !(k in nowL)
               && approves(pendingId(id, 0), pendingId(id, 1))

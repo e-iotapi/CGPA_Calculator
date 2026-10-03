@@ -408,10 +408,27 @@ class ResourceStore {
       'actingFor': '',
     });
     _bump(b, r.campus, r);
+    // Still awaiting approval: the approvers' queue shows the new title/url.
+    final queued = !r.approved && r.batchId.isNotEmpty;
+    if (queued) {
+      b.set(_pendingDoc(r.campus, r.department), {
+        'batches': {
+          r.batchId: {
+            'links': {
+              r.id: {'title': r.title, 'url': r.url},
+            },
+          },
+        },
+        'b': r.batchId,
+        'k': r.id,
+      }, SetOptions(merge: true));
+      bumpPath(b, _db, r.campus, Paths.pending(r.department));
+    }
     await b.commit();
     LiveHeads.poke(Paths.resources);
     await _dropLocal(r.campus);
     await forget('rmine|');
+    if (queued) await _afterPendingWrite(r.campus, r.department);
   }
 
   /// The submissions awaiting a decision in [dept] on [campus], oldest
