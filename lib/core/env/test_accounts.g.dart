@@ -14,6 +14,11 @@ const testAccounts = <String, String>{
   'student_hyd': 'f20249997@hyderabad.bits-pilani.ac.in',
   'president_expired': 'f20219998@goa.bits-pilani.ac.in',
   'faculty': 'testfaculty@goa.bits-pilani.ac.in',
+  'contributor': 'f20249911@goa.bits-pilani.ac.in',
+  'applicant': 'f20249912@goa.bits-pilani.ac.in',
+  'electiveContributor': 'f20249913@goa.bits-pilani.ac.in',
+  'gateStudent': 'f20249914@goa.bits-pilani.ac.in',
+  'gateExempt': 'f20259915@goa.bits-pilani.ac.in',
 };
 
 const testAccountPassword = 'pointer-test-only';

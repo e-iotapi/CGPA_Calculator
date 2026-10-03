@@ -44,6 +44,8 @@ void main() {
       await _build(outDir, 'student_full', _seedStudentFull);
       await _build(outDir, 'student_dual', _seedStudentDual);
       await _build(outDir, 'first_login', (_) async {});
+      await _build(outDir, 'gate_student', _seedGateStudent);
+      await _build(outDir, 'gate_exempt', _seedGateExempt);
     },
     skip: shouldRun
         ? false
@@ -299,4 +301,43 @@ Future<void> _seedStudentDual(DateTime now) async {
     grade2: gradeValues['B']!,
   ));
   await setOffshootOutOf(60);
+}
+
+/// `--A3`, batch 24, at 3-1 with three electives already graded and no
+/// reviews: the review gate locks this student when it is on (B9).
+Future<void> _seedGateStudent(DateTime now) async {
+  await _startAt('3 - 1', 24);
+  final open = offshootCourses[0];
+  final picks = [
+    ('Ethics and Self Awareness', 'HSS F219', '2 - 2', Elective.humanity),
+    (open.title, open.id, '2 - 1', Elective.open),
+    ('Embedded Systems', 'EEE F332', '2 - 2', Elective.del1),
+  ];
+  for (final (title, id, sem, tag) in picks) {
+    await saveCourse(Course(
+      title: title,
+      id: id,
+      discipline: '--',
+      sem: sem,
+      elective: tag.tag,
+      credits: 3,
+      grade1: gradeValues['B']!,
+      grade2: gradeValues['B']!,
+    ));
+  }
+}
+
+/// `--A3`, batch 25, still at 1-2: before the gate's semester, so exempt.
+Future<void> _seedGateExempt(DateTime now) => _startAt('1 - 2', 25);
+
+Future<void> _startAt(String sem, int batch) async {
+  app.selecteddiscipline = '--A3';
+  app.batch = batch;
+  app.campus = Campus.goa;
+  app.erase = 1;
+  await app.setdis();
+  await app.initializeCourses();
+  app.erase = 0;
+  app.currentsem = sem;
+  await app.setsem();
 }
