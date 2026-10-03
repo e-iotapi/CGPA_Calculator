@@ -147,6 +147,33 @@ void main() {
     expect(myGate('goa'), GateState.exempt);
   });
 
+  testWidgets('a tick with no stars keeps Post off; search adds a course', (
+    t,
+  ) async {
+    await locked(t);
+    await t.runAsync(
+      () => Hive.box<Course>(coursesBoxName).add(_c('EEE F111', 'CDC')),
+    );
+    await t.pumpWidget(app(const CompulsoryPickPage()));
+    await t.pumpAndSettle();
+    final post = find.widgetWithText(PrimaryButton, 'Post 2 reviews');
+    expect(t.widget<PrimaryButton>(post).onPressed, isNull);
+    await t.enterText(
+      find.descendant(
+        of: find.byType(SearchBox),
+        matching: find.byType(TextField),
+      ),
+      'EEE F111',
+    );
+    await t.pump();
+    await t.tap(find.text('EEE F111 · Title EEE F111'));
+    await t.pump();
+    expect(find.text('Post 3 reviews'), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+    await settle(t);
+  });
+
+  // Last: its saves leave the shared cache busy for any test after it.
   testWidgets('CompulsoryPick posts the ticked electives and unlocks', (
     t,
   ) async {
@@ -210,31 +237,5 @@ void main() {
       ]),
     );
     expect(mine!.every((r) => r != null && r.stars == 4), isTrue);
-  });
-
-  testWidgets('a tick with no stars keeps Post off; search adds a course', (
-    t,
-  ) async {
-    await locked(t);
-    await t.runAsync(
-      () => Hive.box<Course>(coursesBoxName).add(_c('EEE F111', 'CDC')),
-    );
-    await t.pumpWidget(app(const CompulsoryPickPage()));
-    await t.pumpAndSettle();
-    final post = find.widgetWithText(PrimaryButton, 'Post 2 reviews');
-    expect(t.widget<PrimaryButton>(post).onPressed, isNull);
-    await t.enterText(
-      find.descendant(
-        of: find.byType(SearchBox),
-        matching: find.byType(TextField),
-      ),
-      'EEE F111',
-    );
-    await t.pump();
-    await t.tap(find.text('EEE F111 · Title EEE F111'));
-    await t.pump();
-    expect(find.text('Post 3 reviews'), findsOneWidget);
-    await t.pumpWidget(const SizedBox());
-    await settle(t);
   });
 }
