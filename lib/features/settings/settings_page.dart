@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
+import 'package:cgpa_calculator/features/tour/tour.dart';
 import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
@@ -126,6 +127,10 @@ class _SettingsPageState extends State<SettingsPage> {
               onReset: () => _reset(context),
               onSignOut: _signOut,
               onInstall: kIsWeb ? () => _install(context) : null,
+              // U8: students only, like the first-run tour.
+              onReplayTour: (workingAs.value == null && viewAs.value == null)
+                  ? () => replayTour(context)
+                  : null,
               installed: kIsWeb && isStandalone(),
               onEmail: () => openUrl('mailto:mishra.siddharth@icloud.com'),
               onGithub: () => openUrl('https://github.com/e-iotapi'),

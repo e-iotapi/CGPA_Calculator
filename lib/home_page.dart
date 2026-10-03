@@ -35,6 +35,8 @@ import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
 import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
+import 'package:cgpa_calculator/features/tour/tour.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 
 /// Nav ids in display order: 1..4 are the profiles (Actual, Expected,
 /// Compare, Offshoot), 0 is More. Hiding Offshoot drops id 4 only, so
@@ -90,11 +92,24 @@ class _MyHomePageState extends State<MyHomePage> {
     // A saved Offshoot profile from before it was hidden (or from another
     // device): land on Actual instead of an unhighlighted nav.
     if (selectedprofile == 4 && offshootHiddenNow.value) selectedprofile = 1;
+    // The guided tour: first sign-in after setup, and its profile switches.
+    tourSelectProfile = _tourSelectProfile;
+    maybeStartFirstTour();
+  }
+
+  /// The tour looks at a profile without saving the choice.
+  void _tourSelectProfile(int id) {
+    if (!mounted) return;
+    setState(() {
+      _isrightswipe = id > selectedprofile;
+      selectedprofile = id;
+    });
   }
 
   @override
   void dispose() {
     offshootHiddenNow.removeListener(_offshootChanged);
+    if (tourSelectProfile == _tourSelectProfile) tourSelectProfile = null;
     super.dispose();
   }
 
@@ -113,14 +128,31 @@ class _MyHomePageState extends State<MyHomePage> {
   List<int> get _navIds => homeNavIds(!offshootHiddenNow.value);
 
   NavDestination _navDestination(int id) => switch (id) {
-    1 => NavDestination(icon: Icons.home_outlined, label: profile1n),
-    2 => NavDestination(icon: Icons.bar_chart_rounded, label: profile2n),
-    3 => const NavDestination(icon: Icons.open_in_full_rounded, label: 'Compare'),
+    1 => NavDestination(
+      icon: Icons.home_outlined,
+      label: profile1n,
+      tourId: 'nav.1',
+    ),
+    2 => NavDestination(
+      icon: Icons.bar_chart_rounded,
+      label: profile2n,
+      tourId: 'nav.2',
+    ),
+    3 => const NavDestination(
+      icon: Icons.open_in_full_rounded,
+      label: 'Compare',
+      tourId: 'nav.3',
+    ),
     4 => const NavDestination(
       icon: Icons.workspace_premium_outlined,
       label: 'Offshoot',
+      tourId: 'nav.4',
     ),
-    _ => const NavDestination(icon: Icons.more_horiz_rounded, label: 'More'),
+    _ => const NavDestination(
+      icon: Icons.more_horiz_rounded,
+      label: 'More',
+      tourId: 'nav.0',
+    ),
   };
 
   /// Saves what [c] changed. Build saves nothing (UI_OPT O3.1).
@@ -143,7 +175,10 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!degree_selected) {
       return DegreeSetupPage(
         email: FirebaseAuth.instance.currentUser?.email,
-        onDone: () => setState(() => degree_selected = true),
+        onDone: () {
+          setState(() => degree_selected = true);
+          maybeStartFirstTour();
+        },
       );
     }
     List<Course> sitems = items.toList();
@@ -195,7 +230,9 @@ class _MyHomePageState extends State<MyHomePage> {
             );
           },
         ),
-        floatingActionButton: AnimatedSwitcher(
+        floatingActionButton: KeyedSubtree(
+          key: tourKey('copy'),
+          child: AnimatedSwitcher(
           duration: Duration(milliseconds: 100),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
@@ -221,6 +258,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     },
                   )
                   : SizedBox.shrink(),
+        ),
         ),
       ),
     );

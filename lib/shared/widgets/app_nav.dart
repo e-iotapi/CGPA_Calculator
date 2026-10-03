@@ -1,18 +1,28 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/shared/widgets/pointer_mark.dart';
 import 'package:flutter/material.dart';
 
 /// One entry of [AppNav].
 class NavDestination {
-  const NavDestination({required this.icon, required this.label});
+  const NavDestination({required this.icon, required this.label, this.tourId});
 
   /// The entry's icon.
   final IconData icon;
 
   /// The entry's label, also its tooltip and screen-reader name.
   final String label;
+
+  /// The guided tour's key id for this entry, when it tours it.
+  final String? tourId;
 }
+
+/// Gives [item] the tour key of [d], if it has one.
+Widget _tour(NavDestination d, Widget item) =>
+    d.tourId == null
+        ? item
+        : KeyedSubtree(key: tourKey(d.tourId!), child: item);
 
 /// The app's primary navigation: a floating pill along the bottom on narrow
 /// windows, a left rail on wide ones.
@@ -78,10 +88,13 @@ class AppNav extends StatelessWidget {
               Center(child: PointerMark(color: p.hero, size: 30)),
               const SizedBox(height: Space.lg),
               for (var i = 0; i < destinations.length; i++) ...[
-                _RailItem(
-                  destination: destinations[i],
-                  selected: i == selectedIndex,
-                  onTap: () => onSelected(i),
+                _tour(
+                  destinations[i],
+                  _RailItem(
+                    destination: destinations[i],
+                    selected: i == selectedIndex,
+                    onTap: () => onSelected(i),
+                  ),
                 ),
                 const SizedBox(height: Space.sm),
               ],
@@ -102,15 +115,21 @@ class AppNav extends StatelessWidget {
                 for (var i = 0; i < destinations.length; i++)
                   if (i == selectedIndex)
                     Flexible(
-                      child: _SelectedPill(
-                        destination: destinations[i],
-                        onTap: () => onSelected(i),
+                      child: _tour(
+                        destinations[i],
+                        _SelectedPill(
+                          destination: destinations[i],
+                          onTap: () => onSelected(i),
+                        ),
                       ),
                     )
                   else
-                    _IconItem(
-                      destination: destinations[i],
-                      onTap: () => onSelected(i),
+                    _tour(
+                      destinations[i],
+                      _IconItem(
+                        destination: destinations[i],
+                        onTap: () => onSelected(i),
+                      ),
                     ),
               ],
             ),

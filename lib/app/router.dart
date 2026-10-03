@@ -52,13 +52,15 @@ final GoRouter appRouter = GoRouter(
 /// The pages a role works in; everything else is a student's.
 const _rolePaths = ['/admin', '/maintain', '/roles', '/campus'];
 
+/// Whether [location] is one of the role pages.
+bool onRolePath(String location) =>
+    _rolePaths.any((p) => location == p || location.startsWith('$p/'));
+
 /// On a student page, a president or CR is a student again and an owner is
 /// the owner again (not a role they opened as): Switch role and Open as hold
 /// only while their pages are open.
 void leaveRoleOutside(String location) {
-  if (_rolePaths.any((p) => location == p || location.startsWith('$p/'))) {
-    return;
-  }
+  if (onRolePath(location)) return;
   if (workingAs.value != null) unawaited(setWorkingAs(null));
   viewAs.value = null;
 }

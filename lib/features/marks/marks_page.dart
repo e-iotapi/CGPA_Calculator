@@ -30,6 +30,7 @@ import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/retired_tag.dart';
@@ -249,36 +250,49 @@ class _MarksPageState extends State<MarksPage> {
     );
 
     return PageFrame(
-      header: PageHeader(
-        eyebrow: '${c.id} · ${formatCredits(c.credits)} CREDITS'.toUpperCase(),
-        title: displayTitle(c.id, c.title),
-        leading: false,
-        actions: [
-          CircleIconButton(
-            icon: Icons.edit_outlined,
-            tooltip: 'Edit scheme',
-            onPressed:
-                () => _open(
-                  SchemeEditorPage(
-                    course: c,
-                    onEditCourse:
-                        widget.onEditCourse == null
-                            ? null
-                            : () {
-                              Navigator.of(context).pop();
-                              widget.onEditCourse!();
-                            },
+      header: KeyedSubtree(
+        key: tourKey('page.course'),
+        child: PageHeader(
+          eyebrow:
+              '${c.id} · ${formatCredits(c.credits)} CREDITS'.toUpperCase(),
+          title: displayTitle(c.id, c.title),
+          leading: false,
+          actions: [
+            KeyedSubtree(
+              key: tourKey('marks.actions'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleIconButton(
+                    icon: Icons.edit_outlined,
+                    tooltip: 'Edit scheme',
+                    onPressed:
+                        () => _open(
+                          SchemeEditorPage(
+                            course: c,
+                            onEditCourse:
+                                widget.onEditCourse == null
+                                    ? null
+                                    : () {
+                                      Navigator.of(context).pop();
+                                      widget.onEditCourse!();
+                                    },
+                          ),
+                        ),
+                    size: 42,
                   ),
-                ),
-            size: 42,
-          ),
-          CircleIconButton(
-            icon: Icons.delete_outline,
-            tooltip: 'Delete course',
-            onPressed: _delete,
-            size: 42,
-          ),
-        ],
+                  const SizedBox(width: Space.sm),
+                  CircleIconButton(
+                    icon: Icons.delete_outline,
+                    tooltip: 'Delete course',
+                    onPressed: _delete,
+                    size: 42,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       children: [
         if (isRetired(c.id))
@@ -299,16 +313,19 @@ class _MarksPageState extends State<MarksPage> {
             ),
           ),
         if (off != null && yours.isNotEmpty) ...[
-          DivergedCard(
-            yours: yours.keys.toList(),
-            changed: changed,
-            age: ago(DateTime.fromMillisecondsSinceEpoch(off.updatedAt)),
-            body: _changedBody(off, evals, changed),
-            onReview: () => _open(SchemeEditorPage(course: c)),
-            onKeepMine: () async {
-              await keepMine(_id, off.updatedAt);
-              if (mounted) setState(() {});
-            },
+          KeyedSubtree(
+            key: tourKey('marks.diverged'),
+            child: DivergedCard(
+              yours: yours.keys.toList(),
+              changed: changed,
+              age: ago(DateTime.fromMillisecondsSinceEpoch(off.updatedAt)),
+              body: _changedBody(off, evals, changed),
+              onReview: () => _open(SchemeEditorPage(course: c)),
+              onKeepMine: () async {
+                await keepMine(_id, off.updatedAt);
+                if (mounted) setState(() {});
+              },
+            ),
           ),
           const SizedBox(height: Space.md),
         ],
@@ -316,38 +333,51 @@ class _MarksPageState extends State<MarksPage> {
             when off != null ||
                 c.grade1 == GradeCode.ongoing ||
                 c.grade1 == GradeCode.clr)
-          TakenByRow(
-            term: term,
-            professorIds: off?.professors ?? const [],
-            onReviews:
-                roleStore == null
-                    ? null
-                    : () => openRoute(
-                      context,
-                      Routes.courseReviews(c.id),
-                      () => CourseReviewsPage(courseId: c.id),
-                    ),
+          KeyedSubtree(
+            key: tourKey('marks.takenby'),
+            child: TakenByRow(
+              term: term,
+              professorIds: off?.professors ?? const [],
+              onReviews:
+                  roleStore == null
+                      ? null
+                      : () => openRoute(
+                        context,
+                        Routes.courseReviews(c.id),
+                        () => CourseReviewsPage(courseId: c.id),
+                      ),
+            ),
           ),
-        _Total(s: s, grade: grade, onSetup: () => _open(courseSetup())),
+        KeyedSubtree(
+          key: tourKey('marks.total'),
+          child: _Total(
+            s: s,
+            grade: grade,
+            onSetup: () => _open(courseSetup()),
+          ),
+        ),
         const SizedBox(height: Space.sm),
-        _ClassAverage(
-          text: classAvgText(off?.courseAverage),
-          onTap:
-              () => _open(
-                AverageSourcesPage(
-                  course: c,
-                  courseAverage: s.config.classAverage,
-                  evals: [for (final (_, e) in evals) e],
-                  official: off,
-                  detached: detached,
-                  onOpenCourse: () => _open(courseSetup()),
-                  onOpenEval: (e) {
-                    for (final (key, x) in evals) {
-                      if (identical(x, e)) editEval(key, x);
-                    }
-                  },
+        KeyedSubtree(
+          key: tourKey('marks.avg'),
+          child: _ClassAverage(
+            text: classAvgText(off?.courseAverage),
+            onTap:
+                () => _open(
+                  AverageSourcesPage(
+                    course: c,
+                    courseAverage: s.config.classAverage,
+                    evals: [for (final (_, e) in evals) e],
+                    official: off,
+                    detached: detached,
+                    onOpenCourse: () => _open(courseSetup()),
+                    onOpenEval: (e) {
+                      for (final (key, x) in evals) {
+                        if (identical(x, e)) editEval(key, x);
+                      }
+                    },
+                  ),
                 ),
-              ),
+          ),
         ),
         const SizedBox(height: Space.md),
         if (evals.isEmpty)
@@ -362,17 +392,20 @@ class _MarksPageState extends State<MarksPage> {
               ),
             ),
           ),
-        for (final (key, e) in evals) ...[
-          EvaluativeCard(
-            e: e,
-            weighted: s.config.weighted,
-            onDuplicate: () async {
-              await saveEvaluative(duplicateEvaluative(e));
-              if (mounted) setState(() {});
-            },
-            tag: tag(e),
-            classAverage: off?.component(e.sourceId ?? '')?.average,
-            onTap: () => editEval(key, e),
+        for (final (n, (key, e)) in evals.indexed) ...[
+          KeyedSubtree(
+            key: n == 0 ? tourKey('marks.eval') : null,
+            child: EvaluativeCard(
+              e: e,
+              weighted: s.config.weighted,
+              onDuplicate: () async {
+                await saveEvaluative(duplicateEvaluative(e));
+                if (mounted) setState(() {});
+              },
+              tag: tag(e),
+              classAverage: off?.component(e.sourceId ?? '')?.average,
+              onTap: () => editEval(key, e),
+            ),
           ),
           const SizedBox(height: 7),
         ],
@@ -398,36 +431,42 @@ class _MarksPageState extends State<MarksPage> {
         if (off != null && off.hasScheme)
           Padding(
             padding: const EdgeInsets.only(top: Space.xs, bottom: Space.sm),
-            child: Notice(
-              text: const TextSpan(
-                text: 'Changing a component’s ',
-                children: [
-                  TextSpan(
-                    text: 'weight, out of, average or date',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  TextSpan(
-                    text:
-                        ' makes it yours: it stops updating and you keep it '
-                        'current. Components you leave alone keep updating. '
-                        'Your own marks never detach anything.',
-                  ),
-                ],
+            child: KeyedSubtree(
+              key: tourKey('marks.official'),
+              child: Notice(
+                text: const TextSpan(
+                  text: 'Changing a component’s ',
+                  children: [
+                    TextSpan(
+                      text: 'weight, out of, average or date',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    TextSpan(
+                      text:
+                          ' makes it yours: it stops updating and you keep it '
+                          'current. Components you leave alone keep updating. '
+                          'Your own marks never detach anything.',
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         const SizedBox(height: Space.sm),
-        PrimaryButton(
-          label: 'Add evaluative',
-          icon: Icons.add_rounded,
-          onPressed:
-              () => _open(
-                AddEvaluativePage(
-                  courseId: _id,
-                  weighted: s.config.weighted,
-                  unassigned: s.courseTotal - s.assignedWeight,
+        KeyedSubtree(
+          key: tourKey('marks.add'),
+          child: PrimaryButton(
+            label: 'Add evaluative',
+            icon: Icons.add_rounded,
+            onPressed:
+                () => _open(
+                  AddEvaluativePage(
+                    courseId: _id,
+                    weighted: s.config.weighted,
+                    unassigned: s.courseTotal - s.assignedWeight,
+                  ),
                 ),
-              ),
+          ),
         ),
       ],
     );
