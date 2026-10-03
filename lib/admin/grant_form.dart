@@ -34,6 +34,7 @@ String grantLabel(
   final dept = secretary ? 'secretary' : 'president';
   return switch (role) {
     GrantRole.admin => 'Grant — admin',
+    GrantRole.dept when scope == genDept => 'Grant — electives$where',
     GrantRole.dept =>
       scope == null ? 'Grant — $dept' : 'Grant — $dept, $scope$where',
     GrantRole.course =>
@@ -50,7 +51,8 @@ enum _Tier {
   admin('Admin'),
   president('President'),
   secretary('Secretary'),
-  course('CR');
+  course('CR'),
+  electives('Electives');
 
   const _Tier(this.label);
   final String label;
@@ -59,6 +61,7 @@ enum _Tier {
     admin => GrantRole.admin,
     president || secretary => GrantRole.dept,
     course => GrantRole.course,
+    electives => GrantRole.dept,
   };
 }
 
@@ -89,6 +92,9 @@ class _AdminGrantState extends State<AdminGrant> {
   );
   late GrantRole? _role = widget.prefill?.role ?? _tiers.lastOrNull?.role;
   bool _secretary = false;
+
+  /// Electives (GEN, B2): a department grant with no branch.
+  late bool _electives = widget.prefill?.scope == genDept;
   late String? _dept =
       widget.prefill?.role == GrantRole.dept ? widget.prefill?.scope : null;
   String? _programme;
@@ -114,7 +120,7 @@ class _AdminGrantState extends State<AdminGrant> {
   /// Course manager.
   List<_Tier> get _tiers => [
     if (_roles.owner) _Tier.admin,
-    if (_roles.owner || _roles.admin) _Tier.president,
+    if (_roles.owner || _roles.admin) ...[_Tier.president, _Tier.electives],
     if (_roles.owner || _roles.admin || _roles.presidencies.isNotEmpty) ...[
       _Tier.secretary,
       _Tier.course,
@@ -123,7 +129,12 @@ class _AdminGrantState extends State<AdminGrant> {
 
   _Tier? get _tier => switch (_role) {
     GrantRole.admin => _Tier.admin,
-    GrantRole.dept => _secretary ? _Tier.secretary : _Tier.president,
+    GrantRole.dept =>
+      _electives
+          ? _Tier.electives
+          : _secretary
+          ? _Tier.secretary
+          : _Tier.president,
     GrantRole.course => _Tier.course,
     // Contributors are approved from requests, never granted by form.
     GrantRole.contributor || null => null,
@@ -229,7 +240,7 @@ class _AdminGrantState extends State<AdminGrant> {
 
   String? get _scope => switch (_role) {
     GrantRole.admin => 'all',
-    GrantRole.dept => _dept,
+    GrantRole.dept => _electives ? genDept : _dept,
     GrantRole.course =>
       _course.text.trim().isEmpty ? null : _course.text.trim().toUpperCase(),
     GrantRole.contributor || null => null,
@@ -276,7 +287,7 @@ class _AdminGrantState extends State<AdminGrant> {
       _campus != null &&
       _scope != null &&
       (_role != GrantRole.course || !catalogLoaded || _exactCourse) &&
-      (_role != GrantRole.dept || _programme != null);
+      (_role != GrantRole.dept || _electives || _programme != null);
 
   Future<void> _grant() async {
     setState(() => _busy = true);
@@ -286,7 +297,7 @@ class _AdminGrantState extends State<AdminGrant> {
         email: _address,
         campus: _campus!,
         scope: _scope!,
-        programme: _role == GrantRole.dept ? _programme : null,
+        programme: _role == GrantRole.dept && !_electives ? _programme : null,
         secretary: _role == GrantRole.dept && _secretary,
         expiresAt:
             _early && _earlier != null
@@ -479,6 +490,7 @@ class _AdminGrantState extends State<AdminGrant> {
                     (t) => setState(() {
                       _role = t.role;
                       _secretary = t == _Tier.secretary;
+                      _electives = t == _Tier.electives;
                     }),
               ),
               const Note(
@@ -496,7 +508,13 @@ class _AdminGrantState extends State<AdminGrant> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SectionLabel('Scope · one per grant'),
-                if (role == GrantRole.dept) ...[
+                if (role == GrantRole.dept && _electives)
+                  const Note(
+                    'GEN · Electives. Manages the resources, reviews, '
+                    'structures and professors of courses no department '
+                    'owns. No branch, and no handover.',
+                  )
+                else if (role == GrantRole.dept) ...[
                   SelectRow(
                     text:
                         _dept == null
@@ -657,7 +675,16 @@ class _AdminGrantState extends State<AdminGrant> {
 /// The shared department list ([deptBranches]) as a sheet: a row per
 /// branch, so ELEC shows as its four branches. Pops the [Branch].
 class DeptSheet extends StatelessWidget {
-  const DeptSheet({super.key, required this.campus, this.selected, this.only});
+  const DeptSheet({
+    super.key,
+    required this.campus,
+    this.selected,
+    this.only,
+    this.gen = false,
+  });
+
+  /// Whether to end the list with Electives (GEN, B2) when [only] is null.
+  final bool gen;
 
   /// Whose departments to list ([campusBranches]); null lists them all.
   final String? campus;
@@ -707,6 +734,8 @@ class DeptSheet extends StatelessWidget {
                   final rows = [
                     for (final b in snap.data ?? const <Branch>[])
                       if (only == null || only!.contains(b.dept)) b,
+                    if (only?.contains(genDept) ?? gen)
+                      (dept: genDept, programme: null),
                   ];
                   if (!snap.hasData) return const SizedBox(height: 120);
                   if (rows.isEmpty) {

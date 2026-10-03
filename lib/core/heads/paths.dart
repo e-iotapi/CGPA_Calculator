@@ -34,4 +34,7 @@ abstract final class Paths {
 
   /// Contributor requests, per department (B7).
   static String contribRequests(String dept) => 'contributorRequests/$dept';
+
+  /// Course claims by a department (GEN courses, B2).
+  static const courseClaims = 'courseClaims';
 }
