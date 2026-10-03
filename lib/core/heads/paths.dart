@@ -19,4 +19,7 @@ abstract final class Paths {
   static const terms = 'terms';
   static String volunteers(String dept) => 'volunteers/$dept';
   static const staff = 'staff';
+
+  /// The review gate switch (B6).
+  static const reviewGate = 'reviewGate';
 }
