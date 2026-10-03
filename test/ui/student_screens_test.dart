@@ -18,6 +18,9 @@ import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/more/more_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
@@ -101,6 +104,17 @@ void main() {
       844,
     ),
     ('s_resources', () => const ResourcesPage(), 920),
+    (
+      's_resource_degree',
+      () => ResourceDegreePage(code: 'A7', onRepresentatives: () {}),
+      844,
+    ),
+    ('s_resource_courses', () => const ResourceCoursesPage(), 844),
+    (
+      's_resource_course',
+      () => const ResourceCoursePage(courseId: takingId),
+      844,
+    ),
     (
       's_resources_empty',
       () => PageFrame(
