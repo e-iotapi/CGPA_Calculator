@@ -3,13 +3,11 @@ import 'dart:io';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
-import 'package:cgpa_calculator/core/timetable/timetable.dart';
 import 'package:cgpa_calculator/features/calendar/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_time.dart';
 import 'package:cgpa_calculator/features/calendar/week_view.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
-import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/sync.dart';
@@ -454,7 +452,9 @@ void main() {
         }
         await pump(t, size: const Size(320, 640), k: 2);
         await tab(t, v);
-        final ex = t.takeException(); if (ex != null) debugPrint('${ex.toString()}'); expect(ex, isNull, reason: '$v 200%');
+        final ex = t.takeException();
+        if (ex != null) debugPrint(ex.toString());
+        expect(ex, isNull, reason: '$v 200%');
       }
     });
   });
