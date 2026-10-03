@@ -22,4 +22,7 @@ abstract final class Paths {
 
   /// The review gate switch (B6).
   static const reviewGate = 'reviewGate';
+
+  /// The broadcast timetable's publish counter (B8b).
+  static const timetable = 'timetable';
 }
