@@ -4,6 +4,19 @@ Planning document. **Nothing here is built.** Listed 2026-09-30 by the owner. Th
 each feature (data, rules, Cloudflare) is in `DATA_SYNC_PLAN.md` Stage 5; this file is the
 features as the user sees them. Build nothing before the owner has settled the open questions.
 
+**Staging is the spec for everything not listed here** (owner, 2026-10-03). These screens get no
+UI change and stay out of every build list; they already work and are tested: SignIn,
+DegreeSetup, ProgrammePick, ErpImport, ImportPreview, InstallGuide, GradeMenu, CourseSetup,
+AverageSources, Stats (incl. its Degree tab), ReportLink, ProfessorReviews, RepProfile,
+ProfessorMerge, DeptReviews, DeptResources, CrHome, CourseScheme, Roster, AuditLog, People,
+Person, Terms, PublicContact, Owners, Publish, Analytics, OpenAs, ViewAsDept, ViewAsCourse,
+OwnerSetup, CampusPick, Succession, SuccessionConfirm, Volunteers, BulkUpload. On the screens that
+do change, only the parts a section below names change; the rest stays as staging. Where the UI
+Directions board disagrees with staging outside those parts, staging wins.
+
+**Navigation:** the board's PLAY links only illustrate. A button does in the app what it does on
+staging today; a new control goes where its section (and the UI map) says.
+
 ---
 
 ## 1. Star ratings while adding courses
@@ -15,7 +28,10 @@ with the ratings in front of them. Data: one rating summary per course per campu
 ## 2. Forced reviews
 
 - Owners/admins/presidents/secretaries switch it on (e.g. around timetable release).
-- A student must post **at least 5 reviews** before reviews unlock.
+- A student must post **min(electives they have taken, 5)** reviews before reviews unlock; a
+  student with no electives taken is never locked. Reaching that number unlocks reviews.
+- The lock applies only after the student has completed **2-1**: first-year students and students
+  in 2-1 are never locked, since electives start then and they need reviews to choose them.
 - Which reviews count, (Mandatory: Star Ratings and Will I take it, Optional: Written Review).
 - Only electives count: **HEL, DEL, OPEL**; never CDCs.
 - By default the app pre-selects **last semester's electives** from the student's own courses; the
@@ -42,7 +58,10 @@ Server: `DATA_SYNC_PLAN.md` §5.1.
    contribution, awarded **only when it is published**; removing a published link does not take them back.
    Ranked **campus-wide**, shown with rank numbers in the **More** tab. Usernames only, never
    names or emails.
-6. **A Contribute Tab inside More, Just like Resources etc.**, Opens the contribute Page.
+6. **A Contribute Tab inside More, Just like Resources etc.**, Opens the contribute Page. It
+   appears as soon as a student applies (showing the pending state and the president's contact);
+   if the application is rejected the tab disappears and the apply prompts start again. The
+   leaderboard card in More is shown to everyone, contributor or not.
 7. **Everyone can be a contributor:** admins, presidents and CRs are contributors by default
    (their links publish directly and earn points). All contributors can be seen by all branches within a campus, Tag (Admins, Presidents and Secretaries by their Branch Codes).
 
@@ -143,6 +162,11 @@ Calendar, Stats, Resources, Reviews, Representatives, More and Settings.
   owners) never see it on their privileged screens.
 - Each step highlights the real control with a one-line explanation; **Skip** and **Next** on
   every step; skipping ends the tour.
+- It explains every feature, not only where things are: gestures (swipe between profiles, tap or
+  hold-and-drag a grade, pull down and hold to clear grades, drag to reorder), the marks tracker
+  (course setup, evaluatives, parts and best-k, class averages, the CR's official scheme,
+  divergence), Offshoot and Minor, Calendar week view, Stats targets and planning, More and
+  Settings. Grouped in chapters; Replay can run the whole tour or one chapter.
 - Shown once per account: "tour seen" is saved in the user's own data (synced), so a second
   device doesn't repeat it. A "Replay the tour" option in Settings.
 - No server work beyond that one preference field.
@@ -159,6 +183,18 @@ Students see how current a representative's work is, so the branch can hold them
 - **Representatives page:** "N courses stale" per rep or department.
 - Server: a `lastUpdated` timestamp on the course/department, set in the same batch as each
   meaningful edit (rules require `request.time`).
+
+## 16. Weekly calendar and timetable (planned; generator deferred)
+
+- Calendar gets Month / Week tabs. Week view has a time axis; each class shows its course code,
+  name, room and start/end time, from a published semester timetable.
+- Tapping a class: open the course, **change its time for this student only** (timings shift to
+  remove clashes; a "your time" tag and a reset to the published time), or remove it from the
+  timetable.
+- **Deferred — timetable generator:** the owner publishes the semester's full timetable. CDCs are
+  added automatically by degree and current semester; the student sees the electives that clash
+  with nothing and adds them; once they finalise the semester, the electives list disappears.
+  The week view is designed so this is a state on top of it (same grid, blocks and class sheet).
 
 ---
 
