@@ -1,12 +1,15 @@
 import 'package:cgpa_calculator/admin/widgets.dart' show problem;
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
+import 'package:cgpa_calculator/core/reviews/review_stats.dart';
 import 'package:cgpa_calculator/core/reviews/review_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
@@ -58,6 +61,47 @@ Future<void> rememberReview(String courseId) async {
     }
   }
   return null;
+}
+
+/// The grades a review can carry; `ND` is "not disclosed".
+const reviewGrades = [
+  'A',
+  'A-',
+  'B',
+  'B-',
+  'C',
+  'C-',
+  'D',
+  'E',
+  'NC',
+  'RC',
+  'W',
+  'ND',
+];
+
+/// [g] as shown: `ND` in words.
+String gradeName(String g) => g == 'ND' ? 'Not disclosed' : g;
+
+/// Marks as typed or shown: no trailing ".0".
+String marksText(num m) => m == m.roundToDouble() ? '${m.round()}' : '$m';
+
+/// The student's own (Actual) grade for [courseId], when it is one a review
+/// can carry; the form prefills it.
+String? ownGrade(String courseId) {
+  final g = switch (tookIt(courseId)) {
+    final t? => gradecalc(t.course.grade1),
+    _ => null,
+  };
+  return g != null && g != 'ND' && reviewGrades.contains(g) ? g : null;
+}
+
+/// The student's total marks for [courseId] once every component is graded;
+/// null before that, so a part-way total is never offered as the result.
+num? ownMarks(String courseId) {
+  if (!Hive.isBoxOpen(marksBoxName)) return null;
+  final s = summaryFor(courseId);
+  if (s.gradedWeight <= 0 || s.gradedShare < 0.999) return null;
+  return (s.shownSecured * 10).round() / 10;
 }
 
 /// Five stars, tappable when [onChanged] is set.
@@ -139,9 +183,18 @@ class StarPicker extends StatelessWidget {
 /// five with stars, how many would take it, and a mint bar of that share.
 /// White, and the right column scales down rather than overflow (N27).
 class StatsCard extends StatelessWidget {
-  const StatsCard({super.key, required this.stats, this.note, this.label});
+  const StatsCard({
+    super.key,
+    required this.stats,
+    this.note,
+    this.label,
+    this.summary,
+  });
   final ReviewStats stats;
   final String? note;
+
+  /// When set, adds the average grade and (if anyone shared it) marks.
+  final ReviewSummary? summary;
 
   /// "CS F301 · GOA · 41 REVIEWS", above the number.
   final String? label;
@@ -228,6 +281,22 @@ class StatsCard extends StatelessWidget {
               ),
             ),
           ),
+          if (summary?.avgGradeLetter != null || summary?.avgMarks != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              [
+                if (summary!.avgGradeLetter != null)
+                  'Average grade ${summary!.avgGradeLetter}',
+                if (summary!.avgMarks != null)
+                  'Average marks ${marksText(double.parse(summary!.avgMarks!.toStringAsFixed(1)))}'
+                      ' from ${summary!.marksCount}',
+              ].join(' · '),
+              style: TypeScale.caption.copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           if (note != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -286,6 +355,7 @@ class ReviewTile extends StatelessWidget {
     this.onReport,
     this.onTap,
     this.showCourse = false,
+    this.showGrade = false,
     this.footer,
   });
 
@@ -293,6 +363,9 @@ class ReviewTile extends StatelessWidget {
   final String? professor;
   final VoidCallback? onHelpful, onReport, onTap;
   final bool showCourse;
+
+  /// Chips for the reviewer's grade, and marks when given.
+  final bool showGrade;
   final Widget? footer;
 
   @override
@@ -339,6 +412,10 @@ class ReviewTile extends StatelessWidget {
               if (showCourse) _Chip(r.courseId, ink: true),
               _Chip(termLabel(r.term).toUpperCase()),
               if (professor != null) _Chip(professor!.toUpperCase()),
+              if (showGrade && r.grade != null)
+                _Chip('GRADE ${gradeName(r.grade!).toUpperCase()}'),
+              if (showGrade && r.marks != null)
+                _Chip('MARKS ${marksText(r.marks!)}'),
             ],
           ),
           if (r.text != null) ...[
@@ -425,9 +502,19 @@ class ReviewTile extends StatelessWidget {
 
 /// The sort row: four equal pills on the board, wrapping once text is large.
 class SortPills extends StatelessWidget {
-  const SortPills({super.key, required this.value, required this.onChanged});
-  final ReviewOrder value;
+  const SortPills({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.onAll,
+  });
+
+  /// Null selects "All" (when [onAll] is set).
+  final ReviewOrder? value;
   final ValueChanged<ReviewOrder> onChanged;
+
+  /// Adds a leading "All" pill, the unsorted default.
+  final VoidCallback? onAll;
 
   @override
   Widget build(BuildContext context) {
@@ -438,15 +525,29 @@ class SortPills extends StatelessWidget {
       selected: value == o,
       onPressed: () => onChanged(o),
     );
+    PillButton all({double padding = 15}) => PillButton(
+      label: 'All',
+      height: 30,
+      padding: padding,
+      selected: value == null,
+      onPressed: onAll,
+    );
     if (MediaQuery.textScalerOf(context).scale(10) > 13) {
       return Wrap(
         spacing: 6,
         runSpacing: 6,
-        children: [for (final o in ReviewOrder.values) pill(o)],
+        children: [
+          if (onAll != null) all(),
+          for (final o in ReviewOrder.values) pill(o),
+        ],
       );
     }
     return Row(
       children: [
+        if (onAll != null) ...[
+          Expanded(child: all(padding: 4)),
+          const SizedBox(width: 6),
+        ],
         for (final (i, o) in ReviewOrder.values.indexed) ...[
           if (i > 0) const SizedBox(width: 6),
           Expanded(child: pill(o, padding: 4)),

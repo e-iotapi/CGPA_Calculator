@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hive_ce/hive.dart';
@@ -47,7 +49,20 @@ class ResourceStore {
 
   /// The saved list for [department] on [campus], read synchronously; null
   /// when none is saved.
-  List<Resource>? peekDepartment(String campus, String department) {
+  List<Resource>? peekDepartment(String campus, String department) =>
+      _live(_peekDepartment(campus, department));
+
+  /// Unapproved links past their 15 days are hidden from everyone (B7).
+  List<Resource>? _live(List<Resource>? rows) {
+    if (rows == null) return null;
+    final now = DateTime.now();
+    return [
+      for (final r in rows)
+        if (!r.hiddenAt(now)) r,
+    ];
+  }
+
+  List<Resource>? _peekDepartment(String campus, String department) {
     final cached = _cache?.get('$campus|$department');
     if (cached is! String) return null;
     try {
@@ -64,8 +79,11 @@ class ResourceStore {
   /// when the head's marker still matches it (the campus version is then
   /// re-checked in the background); the loaded list when the marker moved,
   /// the saved one if that fails; fetched when nothing is saved.
-  Future<List<Resource>> department(String campus, String department) async {
-    final hit = peekDepartment(campus, department);
+  Future<List<Resource>> department(String campus, String department) async =>
+      _live(await _department(campus, department))!;
+
+  Future<List<Resource>> _department(String campus, String department) async {
+    final hit = _peekDepartment(campus, department);
     if (hit == null) return _load(campus, department);
     final saved = (jsonDecode(_cache!.get('$campus|$department') as String) as Map)['hv'];
     final marker = (await headFor(campus, db: _db))?.version(Paths.resources);
@@ -173,7 +191,13 @@ class ResourceStore {
         r?.toMap()
           ?..remove('id')
           ..remove('campus')
-          ..remove('removed');
+          ..remove('removed')
+          // The approval fields belong to the contributor flows: the merge
+          // leaves the mirror's as they are.
+          ..remove('approved')
+          ..remove('publishedAt')
+          ..remove('batchId')
+          ..remove('rejectedReason');
     bumpPath(b, _db, campus, Paths.resources);
     b.set(_versions(campus), {
       'v': FieldValue.increment(1),
@@ -260,6 +284,308 @@ class ResourceStore {
     LiveHeads.poke(Paths.resources);
     await _dropLocal(next.campus);
   }
+
+  // ---- Contributors (B7) ---------------------------------------------------
+
+  DocumentReference<Map<String, dynamic>> _pendingDoc(
+    String campus,
+    String dept,
+  ) => _db.collection('pending').doc('$campus|$dept');
+
+  Future<void> _afterPendingWrite(String campus, String dept) async {
+    LiveHeads.poke(Paths.resources);
+    LiveHeads.poke(Paths.pending(dept));
+    await _dropLocal(campus);
+    await forget('pend|');
+    await forget('rmine|');
+  }
+
+  Future<String> _usernameOf() async =>
+      ((await _db.collection('contributors').doc(roles.me).get())
+              .data()?['username']
+          as String?) ??
+      '';
+
+  /// Adds [r] as an unapproved link: live at once, listed for approval.
+  /// [batchId] groups one submission; one commit per link (marker budget).
+  Future<String> addAsContributor(
+    Resource r, {
+    String? batchId,
+    String? username,
+  }) async {
+    final ref = _resources.doc();
+    final bid = batchId ?? _resources.doc().id;
+    final name = username ?? await _usernameOf();
+    final b = _db.batch();
+    final audit = roles.logInto(
+      b,
+      path: 'resources/${ref.id}',
+      summary: 'Submitted “${r.title}” to ${r.fromCourse ?? r.department}',
+      campus: r.campus,
+      course: r.fromCourse,
+      after: {'url': r.url},
+    );
+    final data = r.toMap()..remove('id');
+    b.set(ref, {
+      ...data,
+      'approved': false,
+      'publishedAt': FieldValue.serverTimestamp(),
+      'batchId': bid,
+      'addedBy': {'email': roles.me, 'name': roles.myName},
+      'addedAt': FieldValue.serverTimestamp(),
+      'auditId': audit,
+      'actingFor': '',
+    });
+    bumpPath(b, _db, r.campus, Paths.resources);
+    bumpPath(b, _db, r.campus, Paths.pending(r.department));
+    final copy =
+        data
+          ..remove('campus')
+          ..remove('removed')
+          ..remove('batchId')
+          ..remove('rejectedReason');
+    b.set(_versions(r.campus), {
+      'v': FieldValue.increment(1),
+      'k': ref.id,
+      'links': {
+        ref.id: {
+          ...copy,
+          'approved': false,
+          'publishedAt': FieldValue.serverTimestamp(),
+        },
+      },
+    }, SetOptions(merge: true));
+    b.set(_pendingDoc(r.campus, r.department), {
+      'batches': {
+        bid: {
+          'email': roles.me,
+          'username': name,
+          'at': FieldValue.serverTimestamp(),
+          'links': {
+            ref.id: {'title': r.title, 'url': r.url},
+          },
+        },
+      },
+      'b': bid,
+      'k': ref.id,
+    }, SetOptions(merge: true));
+    await b.commit();
+    await _afterPendingWrite(r.campus, r.department);
+    return ref.id;
+  }
+
+  /// Submits [rs] as one batch: a commit per link, one shared batch id,
+  /// returned. Stops and rethrows at the first failure.
+  Future<String> addBatchAsContributor(List<Resource> rs) async {
+    final bid = _resources.doc().id;
+    final name = await _usernameOf();
+    for (final r in rs) {
+      await addAsContributor(r, batchId: bid, username: name);
+    }
+    return bid;
+  }
+
+  /// A contributor edits their own link: approval and window stay (an edited
+  /// approved link stays approved, audited, no new points).
+  Future<void> updateOwn(Resource r) async {
+    final b = _db.batch();
+    final audit = roles.logInto(
+      b,
+      path: 'resources/${r.id}',
+      summary: 'Edited “${r.title}”',
+      campus: r.campus,
+      course: r.fromCourse,
+      after: {'title': r.title, 'url': r.url},
+    );
+    b.update(_resources.doc(r.id), {
+      'title': r.title,
+      'url': r.url,
+      'host': r.host,
+      'kind': r.kind,
+      'courseIds': r.courseIds,
+      'pinnedToDepartment': r.pinnedToDepartment,
+      'auditId': audit,
+      'actingFor': '',
+    });
+    _bump(b, r.campus, r);
+    await b.commit();
+    LiveHeads.poke(Paths.resources);
+    await _dropLocal(r.campus);
+    await forget('rmine|');
+  }
+
+  /// The submissions awaiting a decision in [dept] on [campus], oldest
+  /// first (approvers only).
+  Future<List<PendingBatch>> pending(String campus, String dept) async =>
+      cacheFirst<List<PendingBatch>>(
+        key: 'pend|$campus|$dept',
+        maxAge: const Duration(minutes: 5),
+        version: await markerOf(_db, campus, Paths.pending(dept)),
+        fetch: () async {
+          final m = (await _pendingDoc(campus, dept).get()).data();
+          final batches = (m?['batches'] as Map?) ?? const {};
+          return [
+            for (final e in batches.entries)
+              if ((e.value as Map)['links'] case final Map ls
+                  when ls.isNotEmpty)
+                PendingBatch(
+                  id: '${e.key}',
+                  campus: campus,
+                  dept: dept,
+                  email: (e.value as Map)['email'] as String? ?? '',
+                  username: (e.value as Map)['username'] as String? ?? '',
+                  at:
+                      asDate(
+                        (e.value as Map)['at'],
+                      )?.millisecondsSinceEpoch ??
+                      0,
+                  links: [
+                    for (final l in ls.entries)
+                      (
+                        id: '${l.key}',
+                        title: (l.value as Map)['title'] as String? ?? '',
+                        url: (l.value as Map)['url'] as String? ?? '',
+                      ),
+                  ],
+                ),
+          ]..sort((a, b) => a.at - b.at);
+        },
+        encode: (l) => [for (final x in l) x.toMap()],
+        decode: _decodePending,
+      );
+
+  static List<PendingBatch> _decodePending(Object? o) => [
+    for (final m in o as List) PendingBatch.fromMap(m as Map),
+  ];
+
+  /// The saved [pending], read synchronously; null when none is saved.
+  List<PendingBatch>? peekPending(String campus, String dept) =>
+      peekCache('pend|$campus|$dept', _decodePending);
+
+  /// Approves [linkIds] (default every link) of [b]: one commit per link
+  /// (the rules' access limit, K1), +4 to the contributor each. Stops and
+  /// rethrows at the first failure.
+  Future<void> approve(PendingBatch b, {Iterable<String>? linkIds}) async {
+    final ids = linkIds?.toSet() ?? {for (final l in b.links) l.id};
+    var left = b.links.length;
+    for (final l in b.links.where((l) => ids.contains(l.id))) {
+      final ref = _db.collection('contributors').doc(b.email);
+      final c = (await ref.get()).data();
+      final points = ((c?['points'] as num?)?.toInt() ?? 0) + 4;
+      final username = c?['username'] as String? ?? '';
+      final wb = _db.batch();
+      final audit = roles.logInto(
+        wb,
+        path: 'resources/${l.id}',
+        summary: 'Approved “${l.title}”',
+        campus: b.campus,
+        after: {'approved': true},
+      );
+      wb.update(_resources.doc(l.id), {'approved': true, 'auditId': audit});
+      wb.update(_versions(b.campus), {
+        'v': FieldValue.increment(1),
+        'k': l.id,
+        'links.${l.id}.approved': true,
+      });
+      wb.update(_pendingDoc(b.campus, b.dept), {
+        (left == 1 ? 'batches.${b.id}' : 'batches.${b.id}.links.${l.id}'):
+            FieldValue.delete(),
+        'b': b.id,
+        'k': l.id,
+      });
+      if (c == null) {
+        wb.set(ref, {
+          'campus': b.campus,
+          'points': points,
+          'lastLink': l.id,
+        });
+      } else {
+        wb.update(ref, {'points': points, 'lastLink': l.id});
+      }
+      bumpPath(wb, _db, b.campus, Paths.resources);
+      bumpPath(wb, _db, b.campus, Paths.pending(b.dept));
+      if (username.isNotEmpty) {
+        wb.set(_db.collection('leaderboard').doc(b.campus), {
+          'p': {username: points},
+          'k': username,
+        }, SetOptions(merge: true));
+        bumpPath(wb, _db, b.campus, Paths.leaderboard);
+      }
+      await wb.commit();
+      left--;
+    }
+    LiveHeads.poke(Paths.leaderboard);
+    await _afterPendingWrite(b.campus, b.dept);
+    await forget('lb|');
+  }
+
+  /// Rejects [linkIds] (default every link) of [b] with [reason]: the link
+  /// is removed, no points.
+  Future<void> reject(
+    PendingBatch b, {
+    Iterable<String>? linkIds,
+    required String reason,
+  }) async {
+    final ids = linkIds?.toSet() ?? {for (final l in b.links) l.id};
+    var left = b.links.length;
+    for (final l in b.links.where((l) => ids.contains(l.id))) {
+      final wb = _db.batch();
+      final audit = roles.logInto(
+        wb,
+        path: 'resources/${l.id}',
+        summary: 'Rejected “${l.title}”: $reason',
+        campus: b.campus,
+        after: {'removed': true},
+      );
+      wb.update(_resources.doc(l.id), {
+        'removed': true,
+        'rejectedReason': reason,
+        'auditId': audit,
+      });
+      wb.update(_versions(b.campus), {
+        'v': FieldValue.increment(1),
+        'k': l.id,
+        'links.${l.id}': FieldValue.delete(),
+      });
+      wb.update(_pendingDoc(b.campus, b.dept), {
+        (left == 1 ? 'batches.${b.id}' : 'batches.${b.id}.links.${l.id}'):
+            FieldValue.delete(),
+        'b': b.id,
+        'k': l.id,
+      });
+      bumpPath(wb, _db, b.campus, Paths.resources);
+      bumpPath(wb, _db, b.campus, Paths.pending(b.dept));
+      await wb.commit();
+      left--;
+    }
+    await _afterPendingWrite(b.campus, b.dept);
+  }
+
+  /// The contributor's own links on [campus], pending, approved and
+  /// rejected ones included.
+  Future<List<Resource>> mine(String campus) => cacheFirst<List<Resource>>(
+    key: 'rmine|$campus|${roles.me}',
+    maxAge: const Duration(minutes: 5),
+    fetch: () async {
+      final q =
+          await _resources
+              .where('campus', isEqualTo: campus)
+              .where('addedBy.email', isEqualTo: roles.me)
+              .get();
+      return [for (final d in q.docs) Resource.fromMap(d.data(), d.id)]
+        ..sort((a, b) => b.addedAt - a.addedAt);
+    },
+    encode: (l) => [for (final r in l) r.toMap()],
+    decode: _decodeMine,
+  );
+
+  static List<Resource> _decodeMine(Object? o) => [
+    for (final m in o as List) Resource.fromMap(m as Map),
+  ];
+
+  /// The saved [mine], read synchronously; null when none is saved.
+  List<Resource>? peekMine(String campus) =>
+      peekCache('rmine|$campus|${roles.me}', _decodeMine);
 
   /// Reports [r]. False when this person already reported it.
   Future<bool> report(Resource r, ReportReason reason, {String? note}) async {

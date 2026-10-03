@@ -50,6 +50,13 @@ enum Capability {
     '✓',
     '✓ own campus',
     '—',
+  ),
+  contribute(
+    'Contribute links (approved within 15 days)',
+    '✓',
+    '✓',
+    '✓',
+    '✓',
   );
 
   const Capability(this.label, this.owner, this.admin, this.president, this.cr);

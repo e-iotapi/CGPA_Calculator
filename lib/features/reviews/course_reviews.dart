@@ -1,21 +1,24 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
-import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/reviews/review_filter.dart';
+import 'package:cgpa_calculator/core/reviews/review_stats.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
+import 'package:cgpa_calculator/features/reviews/pick_sheet.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 
@@ -27,8 +30,9 @@ typedef _Meta =
       Review? mine,
     });
 
-/// Board `Reviews`: one course on the student's campus, filtered by
-/// professor — by default whoever teaches it now (§10.3).
+/// Boards `CourseReviews`, `CourseReviewsNoMatch`: one course on the
+/// student's campus, filtered by professor (by default whoever teaches it
+/// now, §10.3), year, semester and text; the stats follow the filters.
 class CourseReviewsPage extends StatefulWidget {
   const CourseReviewsPage({
     super.key,
@@ -48,25 +52,34 @@ class CourseReviewsPage extends StatefulWidget {
 class _CourseReviewsPageState extends State<CourseReviewsPage> {
   late String? _prof = widget.professorId;
   late bool _picked = widget.professorId != null;
-  final _profSearch = TextEditingController();
 
-  final _q = TextEditingController();
-  String? _year, _sem;
+  final _q = TextEditingController(), _yearText = TextEditingController();
+  String? _sem;
 
-  ReviewFilter get _filter =>
-      ReviewFilter(year: _year, sem: _sem, query: _q.text);
+  /// Null is "All": the unsorted default, newest first.
+  ReviewOrder? _order;
+
+  /// Reviews shown so far; More reviews adds 10.
+  int _visible = 10;
+
+  /// The year as typed: null when empty, [_yearBad] when not a year.
+  String? get _year => validYear(_yearText.text);
+  bool get _yearBad => _yearText.text.trim().isNotEmpty && _year == null;
+
+  /// Changes a filter and starts the list over from its top.
+  void _set(VoidCallback f) => setState(() {
+    f();
+    _visible = 10;
+  });
 
   @override
   void dispose() {
     _q.dispose();
-    _profSearch.dispose();
+    _yearText.dispose();
     super.dispose();
   }
 
-  ReviewOrder _order = ReviewOrder.helpful;
   final _reviews = <Review>[];
-  DocumentSnapshot? _last;
-  bool _more = true, _loading = false;
   int _loads = 0;
   final _names = <String, String>{};
 
@@ -118,7 +131,7 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
     );
   }
 
-  /// [_meta] and the first page from the saved copies; null if any part is
+  /// [_meta] and the reviews from the saved copies; null if any part is
   /// not saved.
   _Meta? _peek() {
     final store = reviewStore!;
@@ -167,56 +180,19 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
       }
     }
     if (!_picked) prof = now;
-    final g = groups[prof];
-    final page = store.peekPage(
-      widget.courseId,
-      _campus,
-      professorIds: prof == null ? null : g?.$1.allIds,
-      order: _order,
-    );
-    if (page == null) return null;
+    final all = store.peekAll(widget.courseId, _campus);
+    if (all == null) return null;
     _names.addAll(names);
     _prof = prof;
-    _last = null;
     _reviews
       ..clear()
-      ..addAll(page.reviews);
-    _more = page.reviews.length == 10 && page.last != null;
+      ..addAll(all);
     return (
       course: course,
       taughtBy: groups.values.toList()..sort((a, b) => b.$2.count - a.$2.count),
       now: now,
       mine: store.peekMine(widget.courseId),
     );
-  }
-
-  List<String>? _ids(_Meta m) {
-    final g = m.taughtBy.where((x) => x.$1.id == _prof).firstOrNull;
-    return g?.$1.allIds;
-  }
-
-  Future<void> _page(_Meta m, {bool reset = false}) async {
-    if (_loading) return;
-    _loading = true;
-    try {
-      final r = await reviewStore!.page(
-        widget.courseId,
-        _campus,
-        professorIds: _prof == null ? null : _ids(m),
-        order: _order,
-        after: reset ? null : _last,
-      );
-      setState(() {
-        if (reset) _reviews.clear();
-        _reviews.addAll(r.reviews);
-        _last = r.last;
-        _more = r.reviews.length == 10 && r.last != null;
-      });
-    } catch (e) {
-      if (mounted) sayReview(context, e);
-    } finally {
-      _loading = false;
-    }
   }
 
   Future<void> _write(Review? mine) async {
@@ -231,7 +207,6 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
     final title =
         catalog.master.where((m) => m.id == widget.courseId).firstOrNull?.title;
     if (roleStore == null || myCampus == null) {
@@ -250,17 +225,32 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
       peek: _peek,
       load: () async {
         final m = await _meta();
-        _last = null;
-        await _page(m, reset: true);
+        _reviews
+          ..clear()
+          ..addAll(await reviewStore!.all(widget.courseId, _campus));
         return m;
       },
       builder: (context, m, _) {
         final sel = m.taughtBy.where((x) => x.$1.id == _prof).firstOrNull;
-        final f = _filter;
-        final shown = f.apply(_reviews, _names);
+        final yr = _year;
+        final text = _q.text.trim();
+        final filtered =
+            _prof != null || yr != null || _sem != null || text.isNotEmpty;
+        final shown = applyQuery(
+          _reviews,
+          ReviewQuery(
+            professorIds: sel == null ? const {} : sel.$1.allIds.toSet(),
+            year: yr,
+            sem: _sem,
+            text: _q.text,
+            sort:
+                _order == null
+                    ? ReviewSort.recent
+                    : ReviewSort.values.byName(_order!.name),
+          ),
+          _names,
+        );
         final years = ReviewFilter.yearsIn(_reviews);
-        final stats =
-            f.active ? ReviewFilter.statsOf(shown) : sel?.$2 ?? m.course;
         final took = tookIt(widget.courseId);
         final action =
             m.mine != null
@@ -282,107 +272,119 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
           header: PageHeader(
             eyebrow: '${widget.courseId} · ${_campus.toUpperCase()}',
             title: title ?? widget.courseId,
+            actions: [
+              CircleIconButton(
+                icon: Icons.folder_open_rounded,
+                tooltip: 'Course resources',
+                onPressed:
+                    () => openRoute(
+                      context,
+                      Routes.resourceCourse(widget.courseId),
+                      () => ResourceCoursePage(courseId: widget.courseId),
+                    ),
+              ),
+            ],
           ),
           children: [
             if (m.taughtBy.isNotEmpty) ...[
-              const SectionLabel('Taught by'),
-              if (m.taughtBy.length > 3) ...[
-                SearchBox(
-                  controller: _profSearch,
-                  hint: 'Search a professor, even past ones',
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: Space.xs),
-              ],
-              ChoicePills<String?>(
-                values: [
-                  for (final x in m.taughtBy)
-                    if (x.$1.id == _prof ||
-                        x.$1.name.toLowerCase().contains(
-                          _profSearch.text.trim().toLowerCase(),
-                        ))
-                      x.$1.id,
-                  null,
-                ],
-                selected: _prof,
-                label: (id) {
-                  if (id == null) return 'All';
-                  final name =
-                      m.taughtBy.firstWhere((x) => x.$1.id == id).$1.name;
-                  return id == m.now ? '$name · now' : name;
-                },
-                onSelected: (id) {
-                  setState(() {
-                    _prof = id;
+              const SectionLabel('Professor'),
+              SelectRow(
+                text:
+                    sel == null
+                        ? 'All professors'
+                        : sel.$1.id == m.now
+                        ? '${sel.$1.name} · now'
+                        : sel.$1.name,
+                onTap: () async {
+                  final v = await pickSheet<String?>(
+                    context,
+                    title: 'Professor',
+                    searchHint: 'Search a professor, even past ones',
+                    selected: _prof,
+                    options: [
+                      (null, 'All professors'),
+                      for (final x in m.taughtBy)
+                        (
+                          x.$1.id,
+                          x.$1.id == m.now ? '${x.$1.name} · now' : x.$1.name,
+                        ),
+                    ],
+                  );
+                  if (v == null) return;
+                  _set(() {
+                    _prof = v.value;
                     _picked = true;
                   });
-                  _page(m, reset: true);
                 },
-              ),
-              const SizedBox(height: Space.xs),
-              Text(
-                sel == null
-                    ? 'Every professor · ${m.course.count} reviews'
-                    : '${sel.$1.id == m.now ? 'Teaching this semester · ' : ''}'
-                        '${sel.$2.count} of ${m.course.count} reviews',
-                style: TypeScale.caption.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: p.accent,
-                ),
               ),
               const SizedBox(height: Space.sm),
             ],
             SearchBox(
               controller: _q,
               hint: 'Search reviews',
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => _set(() {}),
             ),
             const SizedBox(height: Space.xs),
-            if (years.length > 1) ...[
-              ChoicePills<String?>(
-                values: [null, ...years],
-                selected: _year,
-                label: (y) => y ?? 'All years',
-                onSelected: (y) => setState(() => _year = y),
-              ),
-              const SizedBox(height: Space.xs),
-            ],
-            ChoicePills<String?>(
-              values: const [null, '1', '2', 'S'],
-              selected: _sem,
-              label: (x) => x == null ? 'Any semester' : semesterLabels[x]!,
-              onSelected: (x) => setState(() => _sem = x),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: AppTextField(
+                    controller: _yearText,
+                    label: 'Year',
+                    hint: years.isEmpty ? '2023-24' : years.first,
+                    dense: true,
+                    error: _yearBad ? 'Use a year like 2023-24' : null,
+                    onChanged: (_) => _set(() {}),
+                  ),
+                ),
+                const SizedBox(width: Space.xs),
+                Expanded(
+                  child: SelectRow(
+                    text: _sem == null ? 'Any semester' : semesterLabels[_sem]!,
+                    placeholder: _sem == null,
+                    onTap: () async {
+                      final v = await pickSheet<String?>(
+                        context,
+                        title: 'Semester',
+                        selected: _sem,
+                        options: [
+                          (null, 'Any semester'),
+                          for (final e in semesterLabels.entries)
+                            (e.key, e.value),
+                        ],
+                      );
+                      if (v != null) _set(() => _sem = v.value);
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: Space.sm),
             StatsCard(
-              stats: stats,
+              stats: ReviewFilter.statsOf(shown),
+              summary: statsOf(shown),
               note:
-                  f.active
+                  filtered
                       ? [
-                        _year ?? 'All years',
+                        yr ?? 'All years',
                         if (_sem != null) semesterLabels[_sem],
                         '${shown.length} of ${_reviews.length} reviews',
                       ].join(' · ')
-                      : sel == null || m.course.average == null
-                      ? null
-                      : '${sel.$1.name} only. The whole course sits at '
-                          '${m.course.average!.toStringAsFixed(1)} across every '
-                          'professor.',
+                      : null,
             ),
             const SizedBox(height: Space.sm),
             SortPills(
               value: _order,
-              onChanged: (o) {
-                setState(() => _order = o);
-                _page(m, reset: true);
-              },
+              onAll: () => _set(() => _order = null),
+              onChanged: (o) => _set(() => _order = o),
             ),
             const SizedBox(height: Space.sm),
-            for (final r in shown) ...[
+            for (final r in shown.take(_visible)) ...[
               ReviewTile(
                 r: r,
                 professor: _names[r.professorId],
+                showGrade: true,
                 onHelpful:
                     r.id == m.mine?.id
                         ? null
@@ -422,25 +424,29 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
               ),
               const SizedBox(height: Space.xs),
             ],
-            if (_reviews.isNotEmpty && shown.isEmpty) ...[
-              const Note('No reviews match.'),
+            if (_reviews.isNotEmpty && shown.isEmpty)
+              const Note('No reviews match'),
+            if (filtered && _reviews.isNotEmpty)
               TextButton(
                 onPressed:
-                    () => setState(() {
+                    () => _set(() {
                       _q.clear();
-                      _year = _sem = null;
+                      _yearText.clear();
+                      _sem = null;
+                      _order = null;
+                      _prof = null;
+                      _picked = true;
                     }),
                 child: const Text('Clear filters'),
               ),
-            ],
             if (_reviews.isEmpty)
               const Note(
                 'No reviews here yet. A course taught by someone new starts '
                 'a fresh set.',
               ),
-            if (_more)
+            if (shown.length > _visible)
               TextButton(
-                onPressed: () => _page(m),
+                onPressed: () => setState(() => _visible += 10),
                 child: const Text('More reviews'),
               ),
           ],
