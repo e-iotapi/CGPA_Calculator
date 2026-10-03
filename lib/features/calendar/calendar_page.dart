@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
+import 'package:cgpa_calculator/core/timetable/auto_fill.dart';
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
 import 'package:cgpa_calculator/core/timetable/occurrences.dart';
 import 'package:cgpa_calculator/core/timetable/timetable.dart';
@@ -21,7 +22,7 @@ import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart' show takingNow;
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart' show viewCampus;
-import 'package:cgpa_calculator/script.dart' show selectedprofile;
+import 'package:cgpa_calculator/script.dart' show batch, selectedprofile;
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
@@ -32,6 +33,7 @@ import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_ce/hive.dart';
 
 const _months = [
   'January',
@@ -59,6 +61,7 @@ class CalendarPage extends StatefulWidget {
     this.timetables,
     this.campus,
     this.calendar,
+    this.prefs,
   });
 
   /// Defaults to now; fixed in tests.
@@ -68,6 +71,10 @@ class CalendarPage extends StatefulWidget {
   final TimetableStore? timetables;
   final String? campus;
   final CalendarStore? calendar;
+
+  /// Where the "we added your courses" notice remembers it was shown (the
+  /// settings box); tests swap it.
+  final Box? prefs;
 
   @override
   State<CalendarPage> createState() => _CalendarPageState();
@@ -86,6 +93,9 @@ class _CalendarPageState extends State<CalendarPage> {
   CalendarStore? _cal;
   Object? _error;
   bool _loaded = false;
+
+  /// The courses were just put in for the student and the note is still up.
+  bool _added = false;
 
   TimetableStore? get _store => widget.timetables ?? timetableStore;
   String? get _campus => widget.campus ?? viewCampus();
@@ -109,11 +119,27 @@ class _CalendarPageState extends State<CalendarPage> {
         _tt = await store.current(campus) ?? _tt;
         final t = _tt;
         if (t != null && _cal!.state.sem != t.sem) await _cal!.adopt(campus, t.sem);
+        if (t != null) await _autoFill(t);
       }
     } on Object catch (e) {
       _error = e;
     }
     if (mounted) setState(() => _loaded = true);
+  }
+
+  static const _seenKey = 'calendar_autofill_seen';
+
+  /// A sem's first load: the student's courses go in, once; the note says so
+  /// the first time only.
+  Future<void> _autoFill(Timetable t) async {
+    final c = _cal!;
+    if (c.state.autoFilled) return;
+    final fresh = c.state.picks.isEmpty;
+    await c.autoFill(autoPicks(t, allCourses(), batch));
+    final prefs = widget.prefs ?? (Hive.isBoxOpen('settingsBox') ? Hive.box('settingsBox') : null);
+    if (!fresh || c.state.picks.isEmpty || prefs?.get(_seenKey) == true) return;
+    _added = true;
+    await prefs?.put(_seenKey, true);
   }
 
   CalendarState get _state => _cal?.state ?? const CalendarState();
@@ -287,6 +313,24 @@ class _CalendarPageState extends State<CalendarPage> {
   List<Widget> _notices(AppPalette p) {
     final published = _tt != null;
     return [
+      if (_added) ...[
+        const SizedBox(height: Space.sm),
+        const Notice(
+          text: TextSpan(
+            text:
+                'We added your courses from the timetable. You can add or '
+                'remove courses, or switch sections.',
+          ),
+        ),
+        const SizedBox(height: Space.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedPill(
+            label: 'Got it',
+            onPressed: () => setState(() => _added = false),
+          ),
+        ),
+      ],
       if (!published && _error != null) ...[
         const SizedBox(height: Space.sm),
         Notice(text: TextSpan(text: problem(_error!)), warning: true),
