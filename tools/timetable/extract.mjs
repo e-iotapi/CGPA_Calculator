@@ -170,7 +170,7 @@ export function summarize(result, extra) {
     `chunks: ${extra.chunks}`,
     `unparsed rows: ${result.unparsed.length}`,
     ...list(result.unparsed.map((u) => `  page ${u.page} line ${u.line}: ${u.why}`)),
-    `compre/midsem disagreements between sections of one course: ${result.conflicts.length}`,
+    `compre/midsem disagreements between sections of one course (first kept): ${result.conflicts.length}`,
     ...list(result.conflicts.map((c) => `  ${c.id} ${c.field} (page ${c.page} line ${c.line})`)),
     extra.unmatched
       ? `unmatched professors: ${extra.unmatched.length}`

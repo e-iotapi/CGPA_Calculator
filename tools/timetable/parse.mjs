@@ -172,9 +172,10 @@ export function parseTable(text, hours = DEFAULT_HOURS) {
 function splitLine(l, c, first) {
   const out = { title: l.slice(first ? c[1] : 0, c[2]).trim() };
   if (first) {
-    const sm = l.slice(c[4] - 1, c[6] - 1).match(/([LTPIRltpir])\s+(\d+)/);
-    out.type = sm?.[1].toUpperCase();
-    out.no = sm ? Number(sm[2]) : undefined;
+    // STAT then SEC. Either may be missing or odd ("P P"): the type defaults to L, the section to 1.
+    const st = l.slice(c[4] - 1, c[6] - 1);
+    out.type = (st.match(/[LTPIRltpir]/)?.[0] ?? 'L').toUpperCase();
+    out.no = Number(st.match(/\d+/)?.[0] ?? 1);
   }
   // Instructor, schedule and room share one run: peel the room off the end (it
   // sits in the room column), then the schedule (it may start a few columns left
@@ -210,7 +211,6 @@ const join = (xs) => xs.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
 function finishRow(cur, hours) {
   const f = cur.parts[0];
-  if (!f.type) return { why: 'no STAT/SEC' };
   // pdftotext sometimes prints a title line twice; drop an exact repeat of the line above.
   const titles = [];
   for (const p of cur.parts) if (p.title && titles.at(-1) !== p.title) titles.push(p.title);
@@ -260,6 +260,7 @@ export function groupCourses(rows) {
     for (const k of ['compre', 'midsem']) {
       if (!r[k]) continue;
       if (!c[k]) c[k] = r[k];
+      // The first value wins; a disagreement is only counted, for the summary.
       else if (JSON.stringify(c[k]) !== JSON.stringify(r[k])) conflicts.push({ id: r.id, field: k, page: r.page, line: r.line });
     }
   }
