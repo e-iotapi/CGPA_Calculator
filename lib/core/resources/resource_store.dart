@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:cgpa_calculator/core/roles/store_error.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
@@ -22,6 +23,11 @@ Future<void> openResources() => Hive.openBox(resourcesBoxName);
 
 Box? get _cache =>
     Hive.isBoxOpen(resourcesBoxName) ? Hive.box(resourcesBoxName) : null;
+
+/// The link is past its 15 days: it can no longer be approved, only rejected.
+class LinkExpired extends StoreError {
+  const LinkExpired() : super('expired');
+}
 
 /// `sha256(uid + id)` as lowercase hex: one report per person per link,
 /// with nothing that links a person's reports together (§16.3 fix 3).
@@ -526,11 +532,16 @@ class ResourceStore {
 
   /// Approves [linkIds] (default every link) of [b]: one commit per link
   /// (the rules' access limit, K1), +4 to the contributor each. Stops and
-  /// rethrows at the first failure.
+  /// rethrows at the first failure; throws [LinkExpired] for a link past
+  /// [contributorWindow] (the rules refuse it).
   Future<void> approve(PendingBatch b, {Iterable<String>? linkIds}) async {
     final ids = linkIds?.toSet() ?? {for (final l in b.links) l.id};
     var left = b.links.length;
     for (final l in b.links.where((l) => ids.contains(l.id))) {
+      final doc = (await _resources.doc(l.id).get()).data();
+      if (doc != null && Resource.fromMap(doc, l.id).hiddenAt(DateTime.now())) {
+        throw const LinkExpired();
+      }
       final ref = _db.collection('contributors').doc(b.email);
       final c = (await ref.get()).data();
       final points = ((c?['points'] as num?)?.toInt() ?? 0) + 4;
