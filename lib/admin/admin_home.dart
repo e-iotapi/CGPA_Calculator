@@ -177,6 +177,12 @@ class _AdminHomeState extends State<AdminHome> {
             mint: true,
           ),
           _Row(
+            Icons.volunteer_activism_outlined,
+            'Contributor approvals',
+            'Applications and student links, by department',
+            () => go(Routes.adminApprovals),
+          ),
+          _Row(
             Icons.badge_outlined,
             'Roster',
             'By campus, with volunteers',
