@@ -232,8 +232,8 @@ void main() {
   testWidgets('Leaderboard: empty, then ranked with my place', (t) async {
     // Hyderabad has no board.
     await open(t, As.admin, const LeaderboardPage());
-    expect(find.text('Contributor Leaderboard'), findsOneWidget);
-    expect(find.text('No contributors yet'), findsOneWidget);
+    expect(find.text('Leaderboard'), findsOneWidget);
+    expect(find.text('No one has points yet'), findsOneWidget);
     await t.pumpWidget(const SizedBox());
     await t.runAsync(() async {
       await sharedDb.collection('leaderboard').doc('goa').set({
@@ -244,6 +244,7 @@ void main() {
       }, SetOptions(merge: true));
     });
     await open(t, As.student, const LeaderboardPage());
+    expect(find.text('Leaderboard'), findsOneWidget);
     expect(find.textContaining('ann'), findsOneWidget);
     expect(find.textContaining('quiet_owl'), findsOneWidget);
   });

@@ -36,7 +36,186 @@ int? rankOf(LeaderData d) {
   return d.mine == null || i < 0 ? null : i + 1;
 }
 
-/// One board row: rank, username (with the branch for staff views), points.
+/// 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th, 21st.
+String ordinal(int n) {
+  final teen = n % 100 >= 11 && n % 100 <= 13;
+  return '$n${teen ? 'th' : const ['th', 'st', 'nd', 'rd'][n % 10 < 4 ? n % 10 : 0]}';
+}
+
+String _pts(LeaderEntry e) => '${e.points} pts';
+
+String _label(int rank, LeaderEntry e, bool me) =>
+    'Number $rank, ${e.username}${me ? ', you' : ''}, ${e.points} points';
+
+/// A four-point star, as the boards draw on the top places.
+class _Star extends CustomPainter {
+  const _Star(this.opacity);
+  final double opacity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.width / 24;
+    final path =
+        Path()
+          ..moveTo(12 * k, k)
+          ..lineTo(14.2 * k, 9.8 * k)
+          ..lineTo(23 * k, 12 * k)
+          ..lineTo(14.2 * k, 14.2 * k)
+          ..lineTo(12 * k, 23 * k)
+          ..lineTo(9.8 * k, 14.2 * k)
+          ..lineTo(k, 12 * k)
+          ..lineTo(9.8 * k, 9.8 * k)
+          ..close();
+    canvas.drawPath(
+      path,
+      Paint()..color = Colors.white.withValues(alpha: opacity),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_Star old) => old.opacity != opacity;
+}
+
+// (left, top, size, opacity) of each place's stars, from the board.
+const _sparkles = [
+  [(250.0, 8.0, 12.0, .9), (214.0, 50.0, 9.0, .7), (300.0, 44.0, 14.0, .85)],
+  [(250.0, 8.0, 12.0, .9), (214.0, 44.0, 9.0, .7), (300.0, 38.0, 14.0, .85)],
+  [(250.0, 8.0, 12.0, .9), (214.0, 44.0, 9.0, .7), (300.0, 38.0, 14.0, .85)],
+  [(262.0, 8.0, 10.0, .9), (300.0, 36.0, 9.0, .8)],
+  [(262.0, 8.0, 10.0, .9), (300.0, 36.0, 9.0, .8)],
+];
+
+/// A top-five row of the leaderboard page: the medal's gradient and stars.
+class MedalRow extends StatelessWidget {
+  const MedalRow({
+    super.key,
+    required this.place,
+    required this.entry,
+    this.me = false,
+  });
+
+  /// 0 for first.
+  final int place;
+  final LeaderEntry entry;
+  final bool me;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = pageMedals[place];
+    final ink = m.ink;
+    final style = TypeScale.body.copyWith(
+      color: ink,
+      fontWeight: FontWeight.w800,
+    );
+    return Semantics(
+      label: _label(place + 1, entry, me),
+      excludeSemantics: true,
+      child: Container(
+        constraints: BoxConstraints(minHeight: place == 0 ? 70 : place < 3 ? 64 : 58),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: m.colors,
+            stops: m.stops,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          alignment: Alignment.centerLeft,
+          children: [
+            for (final (l, t, size, o) in _sparkles[place])
+              Positioned(
+                left: l,
+                top: t,
+                child: CustomPaint(
+                  size: Size.square(size),
+                  painter: _Star(o),
+                ),
+              ),
+            Row(
+              children: [
+                Container(
+                  constraints: const BoxConstraints(minWidth: 42),
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .62),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    ordinal(place + 1),
+                    style: style.copyWith(fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    me ? '${entry.username} (you)' : entry.username,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: style.copyWith(fontSize: place == 0 ? 15 : 13.5),
+                  ),
+                ),
+                if (entry.tag != null) ...[
+                  const SizedBox(width: 11),
+                  _Tag(
+                    entry.tag!,
+                    fill: ink.withValues(alpha: .13),
+                    ink: ink,
+                  ),
+                ],
+                const SizedBox(width: 11),
+                SizedBox(
+                  width: 48,
+                  child: Text(
+                    _pts(entry),
+                    textAlign: TextAlign.right,
+                    style: style.copyWith(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The branch beside a name.
+class _Tag extends StatelessWidget {
+  const _Tag(this.text, {required this.fill, required this.ink, this.small = false});
+  final String text;
+  final Color fill, ink;
+
+  /// The More card's smaller chip.
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: small ? null : 20,
+    padding: EdgeInsets.symmetric(horizontal: small ? 6 : 8, vertical: small ? 2 : 0),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: fill,
+      borderRadius: BorderRadius.circular(small ? 8 : 10),
+    ),
+    child: Text(
+      text,
+      style: TypeScale.caption.copyWith(
+        fontSize: small ? 9 : 9.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: small ? 0 : .3,
+        color: ink,
+      ),
+    ),
+  );
+}
+
+/// A row from 6th down on the leaderboard page; mine is filled.
 class LeaderRow extends StatelessWidget {
   const LeaderRow({
     super.key,
@@ -51,58 +230,56 @@ class LeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final ink = me ? p.onHero : p.text;
+    final style = TypeScale.body.copyWith(fontSize: 13, color: ink);
     return Semantics(
-      label:
-          'Number $rank, ${entry.username}${me ? ', you' : ''}, '
-          '${entry.points} points',
+      label: _label(rank, entry, me),
       excludeSemantics: true,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: Sizes.minTouch),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 30,
-                child: Text(
-                  '$rank',
-                  style: TypeScale.body.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: p.textMuted,
-                  ),
-                ),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 50),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+        decoration:
+            me
+                ? BoxDecoration(
+                  color: p.hero,
+                  borderRadius: BorderRadius.circular(20),
+                )
+                : null,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 34,
+              child: Text(
+                ordinal(rank),
+                style: style.copyWith(fontWeight: FontWeight.w800),
               ),
-              Expanded(
-                child: Text(
-                  me ? '${entry.username} (you)' : entry.username,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TypeScale.body.copyWith(
-                    fontSize: 13,
-                    fontWeight: me ? FontWeight.w800 : FontWeight.w600,
-                    color: p.text,
-                  ),
-                ),
+            ),
+            Expanded(
+              child: Text(
+                me ? '${entry.username} (you)' : entry.username,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style.copyWith(fontWeight: FontWeight.w700),
               ),
-              if (entry.tag != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text(
-                    entry.tag!,
-                    style: TypeScale.caption.copyWith(color: p.textMuted),
-                  ),
-                ),
-              Text(
-                '${entry.points}',
-                style: TypeScale.body.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: p.text,
-                ),
+            ),
+            if (entry.tag != null) ...[
+              const SizedBox(width: 10),
+              _Tag(
+                entry.tag!,
+                fill: p.chipFill,
+                ink: p.icon,
               ),
             ],
-          ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 48,
+              child: Text(
+                _pts(entry),
+                textAlign: TextAlign.right,
+                style: style.copyWith(fontSize: 12, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -116,10 +293,7 @@ class LeaderboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final campus = viewCampus();
-    final header = PageHeader(
-      eyebrow: campus == null ? 'More' : campusName(campus).toUpperCase(),
-      title: 'Contributor Leaderboard',
-    );
+    const header = PageHeader(eyebrow: 'CONTRIBUTE', title: 'Leaderboard');
     if (roleStore == null || campus == null) {
       return PageFrame(
         header: header,
@@ -131,37 +305,171 @@ class LeaderboardPage extends StatelessWidget {
         ],
       );
     }
+    final p = AppPalette.of(context);
     return Loaded<LeaderData>(
       cacheKey: leaderKey(campus),
       load: () => loadLeader(campus),
       peek: () => peekLeader(campus),
       builder: (context, d, _) {
-        final rank = rankOf(d);
+        if (d.board.isEmpty) {
+          return PageFrame(
+            header: header,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 31, horizontal: 15),
+                decoration: BoxDecoration(
+                  color: p.surface,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: p.hero,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Icon(
+                        Icons.emoji_events_outlined,
+                        size: 21,
+                        color: p.onHero,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No one has points yet',
+                      style: TypeScale.body.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: p.text,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Points start when an approver confirms a link. '
+                      'Be the first on ${campusName(campus)}.',
+                      textAlign: TextAlign.center,
+                      style: TypeScale.caption.copyWith(
+                        fontSize: 10.5,
+                        height: 1.45,
+                        color: p.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+        final top = d.board.take(5).toList();
         return PageFrame(
           header: header,
           children: [
             Note(
-              rank == null
-                  ? 'Four points for every approved link. Add links to join '
-                      'the board.'
-                  : 'You are number $rank of ${d.board.length}.',
+              '${campusName(campus)} campus. Usernames only; admins, '
+              'presidents and secretaries show their branch beside their name.',
             ),
-            const SizedBox(height: Space.sm),
-            if (d.board.isEmpty)
-              const Note('No contributors yet')
-            else
+            const SizedBox(height: Space.md),
+            Column(
+              spacing: 7,
+              children: [
+                for (final (i, e) in top.indexed)
+                  MedalRow(place: i, entry: e, me: e.username == d.mine),
+              ],
+            ),
+            if (d.board.length > 5) ...[
+              const SizedBox(height: Space.md),
               SliverRowGroup(
-                count: d.board.length,
+                count: d.board.length - 5,
+                radius: 20,
                 row:
                     (_, i) => LeaderRow(
-                      rank: i + 1,
-                      entry: d.board[i],
-                      me: d.board[i].username == d.mine,
+                      rank: i + 6,
+                      entry: d.board[i + 5],
+                      me: d.board[i + 5].username == d.mine,
                     ),
               ),
+            ],
+            const Note(
+              '4 points for each approved link. Admins, presidents and '
+              'secretaries show their branch beside the name.',
+            ),
           ],
         );
       },
+    );
+  }
+}
+
+/// One compact row of More's card: a medal for the top five, mine in green.
+class _CardRow extends StatelessWidget {
+  const _CardRow({
+    required this.rank,
+    required this.entry,
+    required this.me,
+    required this.palette,
+  });
+  final int rank;
+  final LeaderEntry entry;
+  final bool me;
+  final AppPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final medal = rank <= 5 ? cardMedals[rank - 1] : null;
+    final ink = medal?.ink ?? palette.onHero;
+    final style = TypeScale.body.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: ink,
+    );
+    return Semantics(
+      label: _label(rank, entry, me),
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: medal == null ? palette.hero : null,
+          gradient:
+              medal == null
+                  ? null
+                  : LinearGradient(colors: medal.colors, stops: medal.stops),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 30,
+              child: Text(
+                ordinal(rank),
+                style: style.copyWith(fontSize: 10.5, fontWeight: FontWeight.w800),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                me ? '${entry.username} (you)' : entry.username,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
+            ),
+            if (entry.tag != null) ...[
+              const SizedBox(width: 8),
+              _Tag(entry.tag!, fill: ink.withValues(alpha: .12), ink: ink, small: true),
+            ],
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 58,
+              child: Text(
+                _pts(entry),
+                textAlign: TextAlign.right,
+                style: style.copyWith(fontSize: 11.5, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -175,9 +483,15 @@ class LeaderboardCard extends StatelessWidget {
     final campus = viewCampus();
     if (roleStore == null || campus == null) return const SizedBox.shrink();
     final p = AppPalette.of(context);
+    // The board's near-black card; in dark mode the usual card colour.
+    final fg = p.isDark ? p.text : p.onInverse;
+    final sub = TypeScale.caption.copyWith(
+      fontSize: 10.5,
+      color: fg.withValues(alpha: .8),
+    );
     return Material(
-      color: p.surface,
-      borderRadius: BorderRadius.circular(Radii.row),
+      color: p.navBackground,
+      borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap:
@@ -187,7 +501,7 @@ class LeaderboardCard extends StatelessWidget {
               () => const LeaderboardPage(),
             ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
           child: Loaded<LeaderData>(
             cacheKey: leaderKey(campus),
             load: () => loadLeader(campus),
@@ -201,53 +515,68 @@ class LeaderboardCard extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Icon(Icons.emoji_events_outlined, color: p.icon),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Contributor Leaderboard',
-                            style: TypeScale.body.copyWith(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: p.text,
-                            ),
-                          ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0C648),
+                          borderRadius: BorderRadius.circular(13),
                         ),
-                        Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                        child: const Icon(
+                          Icons.emoji_events_outlined,
+                          size: 20,
+                          color: Color(0xFF17170F),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Contributor Leaderboard',
+                              style: TypeScale.body.copyWith(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: fg,
+                              ),
+                            ),
+                            if (rank != null)
+                              Text(
+                                'You are ${ordinal(rank)} of ${d.board.length} '
+                                'on ${campusName(campus)}',
+                                style: sub,
+                              ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: fg.withValues(alpha: .8)),
+                    ],
+                  ),
+                  const SizedBox(height: 9),
+                  if (d.board.isEmpty)
+                    Text('No contributors yet', style: sub)
+                  else
+                    Column(
+                      spacing: 4,
+                      children: [
+                        for (final (i, e) in d.board.take(5).indexed)
+                          _CardRow(
+                            rank: i + 1,
+                            entry: e,
+                            me: e.username == d.mine,
+                            palette: p,
+                          ),
+                        if (mine != null && rank! > 5)
+                          _CardRow(rank: rank, entry: mine, me: true, palette: p),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  if (d.board.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                      child: Text(
-                        'No contributors yet',
-                        style: TypeScale.caption.copyWith(color: p.textMuted),
-                      ),
-                    )
-                  else
-                    for (final (i, e) in d.board.take(5).indexed)
-                      LeaderRow(
-                        rank: i + 1,
-                        entry: e,
-                        me: e.username == d.mine,
-                      ),
-                  if (mine != null && rank! > 5) ...[
-                    Divider(height: 1, indent: 15, endIndent: 15, color: p.divider),
-                    LeaderRow(rank: rank, entry: mine, me: true),
-                  ] else if (mine == null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-                      child: Text(
-                        'You are not on the board yet',
-                        style: TypeScale.caption.copyWith(color: p.textMuted),
-                      ),
-                    ),
+                  if (mine == null && d.board.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text('You are not on the board yet', style: sub),
+                  ],
                 ],
               );
             },
