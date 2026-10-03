@@ -50,10 +50,18 @@ List<Course> electivesTaken() {
 int myReviewCount() {
   final store = reviewStore;
   if (store == null) return 0;
+  final remembered = myReviewedCourses().toSet();
   var n = 0;
-  for (final id in myReviewedCourses()) {
+  for (final id in remembered) {
     final r = store.peekMine(id);
     if (r == null || r.stars > 0) n++;
+  }
+  // Reviews this device does not remember (posted on another device, or the
+  // list replaced by a sync): their saved copies, read by [refreshGate].
+  for (final c in electivesTaken()) {
+    if (remembered.contains(c.id)) continue;
+    final r = store.peekMine(c.id);
+    if (r != null && r.stars > 0) n++;
   }
   return n;
 }
@@ -73,6 +81,24 @@ Future<void> refreshGate(String campus) async {
     await gateStore?.of(campus);
   } catch (_) {
     // The saved gate stands.
+  }
+}
+
+/// Still locked: the reviews themselves decide, not this device's list of
+/// them (another device posted them, or a sync replaced the list). Reads each
+/// elective taken and not remembered (one cached read each, only while
+/// locked) and remembers the ones reviewed. A prefetch job, never the UI's.
+Future<void> recoverMyReviews(String campus) async {
+  final store = reviewStore;
+  if (store == null || myGate(campus) != GateState.locked) return;
+  final known = myReviewedCourses().toSet();
+  for (final c in electivesTaken()) {
+    if (known.contains(c.id)) continue;
+    try {
+      if (await store.mine(c.id) != null) await rememberReview(c.id);
+    } catch (_) {
+      // Offline: the saved state stands.
+    }
   }
 }
 

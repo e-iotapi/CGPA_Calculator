@@ -33,7 +33,14 @@ List<PrefetchLevel> prefetchLevels() {
   final two = l2.first, three = l3.first;
 
   // The lock decides what Reviews draws, so its first frame must know it.
-  if (gateStore case final g?) two.add(_job(() => g.of(campus)));
+  if (gateStore case final g?) {
+    two.add(
+      _job(() async {
+        await g.of(campus);
+        await recoverMyReviews(campus);
+      }),
+    );
+  }
   two.add(_job(() => reviews.mostReviewed(campus)));
   for (final c in taking) {
     two.add(_job(() => reviews.stats(c, campus)));
