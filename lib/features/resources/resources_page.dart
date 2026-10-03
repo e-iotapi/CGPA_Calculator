@@ -5,23 +5,21 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
-import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
 import 'package:cgpa_calculator/core/models/offering.dart' show termOf;
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
-import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
-import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 
 /// The signed-in user's resource store, or `null` before sign-in.
@@ -634,217 +632,192 @@ class _ContactRow extends StatelessWidget {
   }
 }
 
-/// Board `Resources` (§10.4): by degree, then department and course links;
-/// courses default to this semester, All is one tap.
-class ResourcesPage extends StatefulWidget {
-  const ResourcesPage({super.key, this.onRepresentatives});
-  final VoidCallback? onRepresentatives;
+/// One degree's department and its links.
+typedef ResourceDegreeData = ({String code, String dept, List<Resource> links});
 
-  @override
-  State<ResourcesPage> createState() => _ResourcesPageState();
+/// The signed-in student's degrees with their department links: the hub and
+/// each degree screen share it (one cache key, [degreesKey]).
+Future<List<ResourceDegreeData>> loadDegrees() async {
+  final store = resourceStore;
+  final campus = viewCampus();
+  if (store == null || campus == null) return const [];
+  return [
+    for (final code in programmesOf(selecteddiscipline))
+      if (departmentOfProgramme(code) case final dept?)
+        (code: code, dept: dept, links: await store.department(campus, dept)),
+  ];
 }
 
-typedef _Degree = ({String code, String dept, List<Resource> links});
-
-class _ResourcesPageState extends State<ResourcesPage> {
-  final _all = <String>{};
-
-  Future<List<_Degree>> _load() async {
-    final store = resourceStore;
-    final campus = viewCampus();
-    if (store == null || campus == null) return const [];
-    final codes = programmesOf(selecteddiscipline);
-    return [
-      for (final code in codes)
-        if (departmentOfProgramme(code) case final dept?)
-          (code: code, dept: dept, links: await store.department(campus, dept)),
-    ];
+/// [loadDegrees] from the saved copies, or null when any is missing.
+List<ResourceDegreeData>? peekDegrees() {
+  final store = resourceStore, campus = viewCampus();
+  if (store == null || campus == null) return null;
+  final out = <ResourceDegreeData>[];
+  for (final code in programmesOf(selecteddiscipline)) {
+    final dept = departmentOfProgramme(code);
+    if (dept == null) continue;
+    final links = store.peekDepartment(campus, dept);
+    if (links == null) return null;
+    out.add((code: code, dept: dept, links: links));
   }
+  return out;
+}
+
+String degreesKey(String? campus) =>
+    'resources|$campus|${programmesOf(selecteddiscipline).join(',')}';
+
+/// Board `Resources` (§10.4): a card per degree, then Course resources.
+class ResourcesPage extends StatelessWidget {
+  const ResourcesPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final campus = viewCampus();
+    final dual = programmesOf(selecteddiscipline).length > 1;
+    return Loaded<List<ResourceDegreeData>>(
+      // A reopen shows the last links at once and refreshes behind them.
+      cacheKey: degreesKey(campus),
+      load: loadDegrees,
+      peek: peekDegrees,
+      builder:
+          (context, degrees, reload) => PageFrame(
+            header: PageHeader(
+              eyebrow: resourcesEyebrow(campus, dual: dual),
+              title: 'Resources',
+            ),
+            children: [
+              if (roleStore == null)
+                const Note('Sign in with your BITS account to see resources.')
+              else if (campus == null)
+                campusPrompt(context)
+              else ...[
+                for (final (i, d) in degrees.indexed) ...[
+                  if (i > 0) const SizedBox(height: 9),
+                  _ResourceCard(
+                    code: d.code,
+                    second: i > 0,
+                    title: programmeName(d.code),
+                    subtitle:
+                        d.links.isEmpty
+                            ? 'No links yet'
+                            : '${departmentList(d.links).length} department '
+                                'links',
+                    onTap:
+                        () => openRoute(
+                          context,
+                          Routes.resourceDegree(d.code),
+                          () => ResourceDegreePage(code: d.code),
+                        ),
+                  ),
+                ],
+                const SizedBox(height: 9),
+                _ResourceCard(
+                  icon: Icons.menu_book_outlined,
+                  title: 'Course resources',
+                  subtitle: 'Search any course, this semester or all',
+                  onTap:
+                      () => openRoute(
+                        context,
+                        Routes.resourceCourses,
+                        () => const ResourceCoursesPage(),
+                      ),
+                ),
+              ],
+            ],
+          ),
+    );
+  }
+}
+
+/// The More tab's card, with a degree code or an icon in the tile.
+class _ResourceCard extends StatelessWidget {
+  const _ResourceCard({
+    this.code,
+    this.second = false,
+    this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String? code;
+  final bool second;
+  final IconData? icon;
+  final String title, subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final campus = viewCampus();
-    final dual = programmesOf(selecteddiscipline).length > 1;
-    final now = takingNow();
-    return Loaded<List<_Degree>>(
-      // A reopen shows the last links at once and refreshes behind them.
-      cacheKey: 'resources|$campus|${programmesOf(selecteddiscipline).join(',')}',
-      load: _load,
-      peek: () {
-        final store = resourceStore, campus = viewCampus();
-        if (store == null || campus == null) return null;
-        final out = <_Degree>[];
-        for (final code in programmesOf(selecteddiscipline)) {
-          final dept = departmentOfProgramme(code);
-          if (dept == null) continue;
-          final links = store.peekDepartment(campus, dept);
-          if (links == null) return null;
-          out.add((code: code, dept: dept, links: links));
-        }
-        return out;
-      },
-      builder: (context, degrees, reload) {
-        final keep = [
-          for (final d in degrees)
-            if (campus != null &&
-                myRoles.value.may(
-                  Capability.departmentResources,
-                  campus: campus,
-                  scope: d.dept,
-                ))
-              d.dept,
-        ];
-        return PageFrame(
-          header: PageHeader(
-            eyebrow: resourcesEyebrow(campus, dual: dual),
-            title: 'Resources',
-          ),
-          bottom:
-              keep.isEmpty
-                  ? null
-                  : BottomAction(
-                    child: PrimaryButton(
-                      label: 'Add a link',
-                      icon: Icons.add_rounded,
-                      onPressed:
-                          () => GoRouter.maybeOf(
-                            context,
-                          )?.push(Routes.deptResources(campus!, keep.first)),
-                    ),
-                  ),
-          children: [
-            if (roleStore == null)
-              const Note('Sign in with your BITS account to see resources.')
-            else if (campus == null)
-              campusPrompt(context),
-            for (final (i, d) in degrees.indexed) ...[
-              if (i > 0) const SizedBox(height: 11),
-              Row(
-                children: [
-                  _CodeTile(d.code, second: i > 0),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      programmeName(d.code),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TypeScale.body.copyWith(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 11),
-              if (d.links.isEmpty)
-                ResourcesEmpty(onRepresentatives: widget.onRepresentatives)
-              else
-                _degree(context, d, now, p),
-            ],
-            if (degrees.any((d) => d.links.any((r) => r.rolledUp))) ...[
-              const SizedBox(height: 11),
-              Text(
-                'A course link tagged FROM is also listed under its '
-                'department, so everyone in the degree finds it.',
-                style: TypeScale.caption.copyWith(
-                  height: 1.45,
-                  color: p.textMuted,
-                ),
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _degree(
-    BuildContext context,
-    _Degree d,
-    Set<String> now,
-    AppPalette p,
-  ) {
-    final dept = departmentList(d.links);
-    final all = _all.contains(d.code);
-    final courseLinks = [
-      for (final r in d.links)
-        if (!r.removed &&
-            r.courseIds.isNotEmpty &&
-            (all || r.courseIds.any(now.contains)))
-          r,
-    ]..sort((a, b) => a.courseIds.first.compareTo(b.courseIds.first));
-    final label = TypeScale.label.copyWith(color: p.textMuted);
-    Widget rows(List<Resource> links, String? Function(Resource) tag) => Column(
-      children: [
-        for (final (i, r) in links.indexed) ...[
-          if (i > 0) Divider(height: 1, indent: 15, color: p.divider),
-          LinkRow(r: r, tag: tag(r), onReport: () => reportLink(context, r)),
-        ],
-      ],
-    );
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(15, 10, 15, 6),
-            child: Text('DEPARTMENT · ${dept.length}', style: label),
-          ),
-          if (dept.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
-              child: Text(
-                'No department links yet.',
-                style: TypeScale.caption.copyWith(color: p.textMuted),
-              ),
-            )
-          else
-            rows(dept, (r) => r.rolledUp ? 'FROM ${r.fromCourse}' : null),
-          Divider(height: 1, color: p.divider),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(15, 10, 15, 6),
+    final (fill, ink) =
+        second
+            ? (p.inverse, p.isDark ? p.onInverse : p.hero)
+            : (p.hero, p.onHero);
+    return Material(
+      color: p.surface,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 76),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
-                Expanded(child: Text('COURSES', style: label)),
-                for (final v in const [false, true]) ...[
-                  if (v) const SizedBox(width: 6),
-                  PillButton(
-                    label: v ? 'All' : 'This semester',
-                    height: 24,
-                    padding: 10,
-                    selected: all == v,
-                    onPressed:
-                        () => setState(
-                          () => v ? _all.add(d.code) : _all.remove(d.code),
-                        ),
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: fill,
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                ],
+                  child:
+                      code != null
+                          ? Text(
+                            code!,
+                            style: TypeScale.label.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: ink,
+                            ),
+                          )
+                          : Icon(icon, size: 21, color: ink),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TypeScale.body.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: p.text,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: TypeScale.caption.copyWith(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                          height: 1.35,
+                          color: p.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right_rounded, color: p.textMuted),
               ],
             ),
           ),
-          if (courseLinks.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 4, 15, 14),
-              child: Text(
-                all
-                    ? 'No course links yet.'
-                    : 'Nothing for your courses this semester. Tap All for '
-                        'every course.',
-                style: TypeScale.caption.copyWith(color: p.textMuted),
-              ),
-            )
-          else
-            rows(
-              courseLinks,
-              (r) => r.courseIds.firstWhere(
-                now.contains,
-                orElse: () => r.courseIds.first,
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -856,35 +829,3 @@ String resourcesEyebrow(String? campus, {required bool dual}) => [
   if (campus != null) campusName(campus).toUpperCase(),
   if (dual) 'DUAL DEGREE',
 ].join(' · ');
-
-/// A 30 × 24 code tile: the first degree mint, the second ink with mint text.
-class _CodeTile extends StatelessWidget {
-  const _CodeTile(this.code, {this.second = false});
-  final String code;
-  final bool second;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Container(
-      constraints: const BoxConstraints(minWidth: 30, minHeight: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: second ? p.inverse : p.hero,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Center(
-        widthFactor: 1,
-        heightFactor: 1,
-        child: Text(
-          code,
-          style: TypeScale.label.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: second ? (p.isDark ? p.onInverse : p.hero) : p.onHero,
-          ),
-        ),
-      ),
-    );
-  }
-}

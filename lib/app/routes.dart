@@ -9,6 +9,11 @@ abstract final class Routes {
   static const calendar = '/calendar';
   static const settings = '/settings';
   static const resources = '/resources';
+  static String resourceDegree(String code) =>
+      '/resources/degree/${Uri.encodeComponent(code)}';
+  static const resourceCourses = '/resources/courses';
+  static String resourceCourse(String id) =>
+      '/resources/course/${Uri.encodeComponent(id)}';
   static const reviews = '/reviews';
   static const more = '/more';
   static const representatives = '/representatives';
