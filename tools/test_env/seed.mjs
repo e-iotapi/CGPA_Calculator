@@ -168,8 +168,12 @@ async function wipeStaging(db, accounts) {
   }
   // Docs whose rules allow only their own keys carry no `seed` flag; they
   // are wiped by their known ids.
-  for (const p of ['pending/goa|ELEC', 'leaderboard/goa', 'activity/goa', 'timetable/goa|current',
-                   'timetable/goa|2026-1', 'timetable/goa|2026-1|0']) {
+  // The timetable is wiped only when it is this seed's own: the owner may
+  // have published the real one to staging (B8a), under the same sem id.
+  const tt = (await isSeededTimetable(db))
+    ? ['timetable/goa|current', 'timetable/goa|2026-1', 'timetable/goa|2026-1|0']
+    : [];
+  for (const p of ['pending/goa|ELEC', 'leaderboard/goa', 'activity/goa', ...tt]) {
     await db.doc(p).delete().catch(() => {});
   }
   await db.doc('catalog/marker').delete().catch(() => {});
@@ -1049,7 +1053,20 @@ async function seedActivity(db) {
 
 // Invented courses only (never the published PDF). Moves the timetable
 // marker by one and writes the same number into the docs.
+/// True when goa has no timetable yet, or the one it has is this seed's
+/// (its chunk holds the invented `AAA F111`).
+async function isSeededTimetable(db) {
+  if (!(await db.doc('timetable/goa|current').get()).exists) return true;
+  const chunk = (await db.doc('timetable/goa|2026-1|0').get()).data();
+  return Boolean(chunk?.courses?.['AAA F111']);
+}
+
 async function seedTimetable(db) {
+  // Never overwrite a real published timetable (see wipeStaging).
+  if (!(await isSeededTimetable(db))) {
+    console.log('Timetable: a real one is published on goa; left as is.');
+    return;
+  }
   const campus = 'goa', sem = '2026-1';
   const head = (await db.doc(`heads/${campus}`).get()).data() ?? {};
   const marker = (head.v?.timetable ?? 0) + 1;
