@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { makePlan, readAnswers } from './extract.mjs';
-import { buildBatches, deptOf, likelySame, nameTokens, planOfferings, resolveProfessors, termOf, titleCase } from './plan.mjs';
+import { buildBatches, deptOf, likelySame, nameTokens, pdfCredits, planCatalog, planOfferings, resolveProfessors, termOf, titleCase } from './plan.mjs';
 import { renderReport } from './report.mjs';
 
 const ARGS = { campus: 'goa', sem: '2026-1', input: 't.pdf' };
@@ -16,7 +16,7 @@ const mk = () => ({
   courses: {
     'AAA F101': { title: 'ALPHA', sections: [sec('Dr. Alder Quill')] },
     'BBB F202': { title: 'BETA OF THINGS', credits: 4, sections: [sec('R. Aduri', 'Cedar Vale')] },
-    'ECE F303': { title: 'GAMMA', sections: [sec('TBA')] },
+    'ECE F303': { title: 'GAMMA', credits: 3, sections: [sec('TBA')] },
   },
 });
 const prof = (id, name, extra = {}) => ({ id, name, campus: 'goa', department: 'BIO', aliases: [], nameTokens: [], ...extra });
@@ -77,7 +77,7 @@ test('catalogue: only the missing courses, next version, titles cased, 4th eleme
   assert.deepEqual(plan.catalog.adds.map((a) => a.id), ['BBB F202', 'ECE F303']);
   const n = plan.catalog.next;
   assert.equal(n.version, 5);
-  assert.deepEqual(n.master.slice(1), [['BBB F202', 'Beta of Things', 4, 'timetable'], ['ECE F303', 'Gamma', 0, 'timetable']]);
+  assert.deepEqual(n.master.slice(1), [['BBB F202', 'Beta of Things', 4, 'timetable'], ['ECE F303', 'Gamma', 3, 'timetable']]);
   assert.deepEqual(n.master[0], ['AAA F101', 'Alpha', 3]);
   const cat = plan.batches.find((b) => b.label === 'catalogue');
   assert.deepEqual(cat.ops.map((o) => o.path), ['catalog/v5', 'catalog/marker', cat.ops[2].path, 'heads/goa', 'heads/pilani', 'heads/hyderabad', 'heads/dubai']);
@@ -223,4 +223,21 @@ test('a branch department beats GEN for a professor who leads both', () => {
   const res = resolveProfessors(courses, [], {}, (k) => `${k}-${++n}`);
   const dept = Object.fromEntries(res.newProfs.map((p) => [p.name, p.dept]));
   assert.deepEqual(dept, { 'Abe Chat': 'ME', 'Rena Cher': 'GEN' });
+});
+
+test('credits: LPU units digit; a U course never takes its credit hours; --credits fills and corrects', () => {
+  assert.equal(pdfCredits('CS F211', { credits: 4, lpu3: true }), 4);
+  assert.equal(pdfCredits('BITS F422T', { credits: 16, lpu3: false }), 16);
+  assert.equal(pdfCredits('CS U111', { credits: 12, lpu3: false }), null);
+  const courses = {
+    'CS U111': { title: 'COMPUTATIONAL THINKING', credits: 12, lpu3: false, sections: [] },
+    'EEE U111': { title: 'ELECTRICAL SCIENCES', credits: 10, lpu3: false, sections: [] },
+  };
+  const cat = { version: 1, master: [], chartOld: [], chartNew: [] };
+  const none = planCatalog(courses, cat, 1);
+  assert.deepEqual(none.adds, []);
+  assert.deepEqual(none.needCredits.map((a) => a.id), ['CS U111', 'EEE U111']);
+  const some = planCatalog(courses, cat, 1, { 'CS U111': 4 });
+  assert.deepEqual(some.adds.map((a) => [a.id, a.credits]), [['CS U111', 4]]);
+  assert.deepEqual(some.next.master.at(-1), ['CS U111', 'Computational Thinking', 4, 'timetable']);
 });

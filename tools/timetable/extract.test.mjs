@@ -59,7 +59,9 @@ test('summarize: counts, page and line of unparsed rows, and the headline number
   assert.match(text, /courses: 1\n/);
   assert.match(text, /events: 2/);
   assert.match(text, /page 7 line 12: bad row/);
-  assert.match(text, /new courses \(not in the catalogue\): 1\n  ZZZ F1 /);
+  // No credits in the PDF: held back until --credits gives them.
+  assert.match(text, /new courses \(not in the catalogue\): 0\n/);
+  assert.match(text, /waiting for their credits \(give --credits\): 1\n  ZZZ F1 /);
   assert.match(text, /new professors: 1\n  Zed Quux \(GEN\)/);
   assert.match(text, /unsure matches, need your answer: 0/);
 });

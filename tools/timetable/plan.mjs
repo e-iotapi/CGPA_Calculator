@@ -187,15 +187,31 @@ export function resolveProfessors(courses, profs, answers, newId) {
 
 // ---- catalogue ---------------------------------------------------------------
 
+/**
+ * A course's credits as the PDF states them: the units digit of a three-digit
+ * LPU, else the bare number in the credit column. For first-year U courses that
+ * number is credit hours, not credits (CS U111 shows 12 for 4): never used.
+ */
+export function pdfCredits(id, c) {
+  if (c.lpu3) return c.credits;
+  if (/^[A-Z]+ U\d/.test(id)) return null;
+  return c.credits ?? null;
+}
+
 /** The catalogue plus the courses the PDF has that it lacks (master rows [id, title, credits, 'timetable']). */
-export function planCatalog(courses, catalog, markerVersion) {
+export function planCatalog(courses, catalog, markerVersion, given = {}) {
   const known = new Set([...catalog.master, ...catalog.chartOld, ...catalog.chartNew].map((r) => r[0]));
-  const adds = Object.entries(courses).filter(([id]) => !known.has(id)).map(([id, c]) => ({
-    id, title: titleCase(c.title), credits: c.credits ?? 0, creditsKnown: c.credits != null,
-  }));
-  if (!adds.length) return { adds, next: null };
+  const adds = [];
+  const needCredits = []; // not added until the owner gives their credits
+  for (const [id, c] of Object.entries(courses)) {
+    if (known.has(id)) continue;
+    const credits = given[id] ?? pdfCredits(id, c);
+    const row = { id, title: titleCase(c.title), credits };
+    if (credits == null) needCredits.push(row); else adds.push(row);
+  }
+  if (!adds.length) return { adds, needCredits, next: null };
   const version = Math.max(markerVersion ?? 0, catalog.version) + 1;
-  return { adds, next: { ...catalog, version, master: [...catalog.master, ...adds.map((a) => [a.id, a.title, a.credits, 'timetable'])] } };
+  return { adds, needCredits, next: { ...catalog, version, master: [...catalog.master, ...adds.map((a) => [a.id, a.title, a.credits, 'timetable'])] } };
 }
 
 // ---- offerings ---------------------------------------------------------------

@@ -46,7 +46,7 @@ export function parseArgs(argv) {
     const a = argv[i];
     if (a === '--commit') out.commit = true;
     else if (a === '--allow-prod') out.allowProd = true;
-    else if (['--campus', '--sem', '--project', '--key', '--professors', '--out', '--report', '--answers'].includes(a)) out[a.slice(2)] = argv[++i];
+    else if (['--campus', '--sem', '--project', '--key', '--professors', '--out', '--report', '--answers', '--credits'].includes(a)) out[a.slice(2)] = argv[++i];
     else if (a.startsWith('--')) throw new Error(`Unknown option ${a}`);
     else rest.push(a);
   }
@@ -161,7 +161,9 @@ export function summarize(result, plan) {
     `compre/midsem disagreements between sections of one course (first kept): ${result.conflicts.length}`,
     ...list(result.conflicts.map((c) => `  ${c.id} ${c.field} (page ${c.page} line ${c.line})`)),
     `new courses (not in the catalogue): ${plan.catalog.adds.length}`,
-    ...list(plan.catalog.adds.map((a) => `  ${a.id} ${a.title} (${a.creditsKnown ? a.credits : '?'} credits)`)),
+    ...list(plan.catalog.adds.map((a) => `  ${a.id} ${a.title} (${a.credits} credits)`)),
+    `new courses waiting for their credits (give --credits): ${plan.catalog.needCredits.length}`,
+    ...list(plan.catalog.needCredits.map((a) => `  ${a.id} ${a.title}`)),
     `new professors: ${res.newProfs.length}`,
     ...list(res.newProfs.map((p) => `  ${p.name} (${p.dept})`)),
     `professors linked by exact match: ${res.entries.filter((e) => e.status === 'linked').length}`,
@@ -275,7 +277,7 @@ export function makePlan(args, out, live, answers, asset, extraProfs = []) {
   const names = new Map([...profs.map((p) => [p.id, p.name]), ...res.newProfs.map((p) => [p.id, p.name])]);
 
   const baseCat = live?.catalog ?? asset;
-  const catalog = { ...planCatalog(out.courses, baseCat, live?.marker?.version ?? 0), base: baseCat.version, marker: live?.marker ?? null, hadMarker: !!live?.marker };
+  const catalog = { ...planCatalog(out.courses, baseCat, live?.marker?.version ?? 0, args.creditsGiven ?? {}), base: baseCat.version, marker: live?.marker ?? null, hadMarker: !!live?.marker };
   const offerings = planOfferings(out.courses, live?.offerings ?? new Map(), profById, term, args.campus, newId);
 
   const doc = toSchema(out, { marker: Number(live?.head?.v?.timetable ?? 0) + 1, publishedAt: 0 });
@@ -297,6 +299,16 @@ export function loadText(file) {
     : execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 });
 }
 
+/** `--credits <file>`: {"CS U111": 4}, credits for courses the PDF can't give (or a correction). */
+export function readCredits(file) {
+  if (!file) return {};
+  const a = JSON.parse(readFileSync(file, 'utf8'));
+  if (!a || typeof a !== 'object' || Array.isArray(a) || Object.values(a).some((v) => !Number.isInteger(v) || v < 0 || v > 40)) {
+    throw new Error('--credits must be a JSON object of {"COURSE ID": <whole number 0-40>}');
+  }
+  return a;
+}
+
 export function readAnswers(file) {
   if (!file) return {};
   const a = JSON.parse(readFileSync(file, 'utf8'));
@@ -311,6 +323,7 @@ async function main() {
   const parsed = parseTimetable(loadText(args.input), args.sem);
   const out = { sem: args.sem, campus: args.campus, ...parsed };
   const answers = readAnswers(args.answers);
+  args.creditsGiven = readCredits(args.credits);
   const asset = JSON.parse(readFileSync(path.join(root, 'assets', 'catalog.json'), 'utf8'));
   const term = termOf(args.sem);
 
