@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/admin/dept_list.dart';
 import 'package:cgpa_calculator/admin/duplicates.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
@@ -15,6 +16,7 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/debounce.dart';
@@ -22,6 +24,7 @@ import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 ProfessorStore get _store => ProfessorStore(roleStore!.db, roles: roleStore);
 
@@ -30,11 +33,11 @@ void _say(BuildContext context, String text) =>
       ..clearSnackBars()
       ..showSnackBar(SnackBar(content: Text(text)));
 
+/// The Rename dialog.
 Future<String?> _nameDialog(
   BuildContext context, {
   required String title,
   String initial = '',
-  List<Professor> others = const [],
 }) async {
   final c = TextEditingController(text: initial);
   final name = await showDialog<String>(
@@ -42,59 +45,23 @@ Future<String?> _nameDialog(
     builder:
         (context) => StatefulBuilder(
           builder: (context, setState) {
-            final exact = [
-              for (final p in others)
-                if (sameName(p.name, c.text)) p,
-            ];
-            final similar = [
-              for (final p in others)
-                if (exact.isEmpty &&
-                    c.text.trim().length > 2 &&
-                    likelySame(p.name, c.text))
-                  p,
-            ];
             final pal = AppPalette.of(context);
             return AppDialog(
               title: title,
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: c,
-                    autofocus: true,
-                    style: appFieldStyle(pal),
-                    cursorColor: pal.text,
-                    decoration: appFieldDecoration(pal, hint: 'Dr. R. Menon'),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  if (exact.isNotEmpty) ...[
-                    const SizedBox(height: Space.sm),
-                    Text(
-                      '${exact.first.name} is already listed. Use that entry '
-                      'instead of adding it again.',
-                      style: TypeScale.caption.copyWith(
-                        color: pal.noticeTone.text,
-                      ),
-                    ),
-                  ] else if (similar.isNotEmpty) ...[
-                    const SizedBox(height: Space.sm),
-                    Text(
-                      'Already listed: ${similar.map((p) => p.name).join(', ')}. '
-                      'If that is the same person, use it instead.',
-                      style: TypeScale.caption.copyWith(
-                        color: pal.noticeTone.text,
-                      ),
-                    ),
-                  ],
-                ],
+              content: TextField(
+                controller: c,
+                autofocus: true,
+                style: appFieldStyle(pal),
+                cursorColor: pal.text,
+                decoration: appFieldDecoration(pal, hint: 'Dr. R. Menon'),
+                onChanged: (_) => setState(() {}),
               ),
               actions: [
                 DialogAction('Cancel', onTap: () => Navigator.pop(context)),
                 DialogAction(
-                  similar.isEmpty ? 'Save' : 'Add anyway',
+                  'Save',
                   onTap:
-                      c.text.trim().length < 2 || exact.isNotEmpty
+                      c.text.trim().length < 2
                           ? null
                           : () => Navigator.pop(context, c.text.trim()),
                   ink: true,
@@ -163,11 +130,27 @@ _Data? _peekDept(String campus, String dept) {
   return (profs: profs, teaching: teaching, last: last);
 }
 
-/// Board `DeptProfessors`: one entry per person, reused every term. Search
-/// comes before Add (§10.1).
+/// Opens `ProfessorMerge` for the department; the list reloads after.
+Future<void> _openMerge(BuildContext context, String campus, String dept) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ProfessorMerge(campus: campus, dept: dept),
+      ),
+    );
+
+/// Board `DeptProfessors`: one entry per person, reused every term. Add
+/// opens `ProfessorAdd`, which does the searching for duplicates; removed
+/// professors are listed last and keep their reviews.
 class DeptProfessors extends StatefulWidget {
   const DeptProfessors({super.key, required this.campus, required this.dept});
   final String campus, dept;
+
+  static String cacheKey(String campus, String dept) =>
+      'professors|$campus|$dept';
+
+  /// Loads the screen's data in the background (TM-16).
+  static Future<void> prefetch(String campus, String dept) =>
+      prefetchLoaded(cacheKey(campus, dept), () => _loadDept(campus, dept));
 
   @override
   State<DeptProfessors> createState() => _DeptProfessorsState();
@@ -187,6 +170,63 @@ class _DeptProfessorsState extends State<DeptProfessors> {
     super.dispose();
   }
 
+  Future<void> _add() async {
+    final loc = Routes.deptProfessorsAdd(widget.campus, widget.dept);
+    final q = _search.text.trim();
+    final at = q.isEmpty ? loc : '$loc?name=${Uri.encodeQueryComponent(q)}';
+    // The page answers with a name when a possible duplicate was tapped: show
+    // that professor here instead of adding.
+    final open =
+        GoRouter.maybeOf(context) != null
+            ? await context.push<String>(at)
+            : await Navigator.of(context).push<String>(
+              MaterialPageRoute(
+                builder:
+                    (_) => ProfessorAdd(
+                      campus: widget.campus,
+                      dept: widget.dept,
+                      initial: q,
+                    ),
+              ),
+            );
+    if (!mounted) return;
+    setState(() {
+      _loads++;
+      if (open != null) _search.text = open;
+    });
+  }
+
+  Future<void> _delete(Professor x) async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Delete ${x.name}?',
+      body:
+          'Reviews stay under the name. They are no longer offered in '
+          'searches or when picking who teaches a course.',
+      action: 'Delete',
+      cancel: 'Keep',
+      danger: true,
+    );
+    if (!ok || !mounted) return;
+    try {
+      await _store.remove(x);
+      if (mounted) setState(() => _loads++);
+    } catch (e) {
+      if (mounted) _say(context, problem(e));
+    }
+  }
+
+  Future<void> _rename(Professor x) async {
+    final name = await _nameDialog(context, title: 'Rename', initial: x.name);
+    if (name == null || name == x.name) return;
+    try {
+      await _store.rename(x, name);
+      if (mounted) setState(() => _loads++);
+    } catch (e) {
+      if (mounted) _say(context, problem(e));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -195,13 +235,18 @@ class _DeptProfessorsState extends State<DeptProfessors> {
       color: p.textMuted,
     );
     return Loaded<_Data>(
-      cacheKey: 'professors|${widget.campus}|${widget.dept}',
+      cacheKey: DeptProfessors.cacheKey(widget.campus, widget.dept),
       key: ValueKey(_loads),
       load: () => _loadDept(widget.campus, widget.dept),
       peek: () => _peekDept(widget.campus, widget.dept),
-      builder: (context, data, _) {
+      gated: (context, data, _, saved) {
         final q = _search.text.trim();
-        final shown = data.profs.where((x) => x.matches(q)).toList();
+        final live = data.profs.where((x) => !x.removed);
+        final shown = live.where((x) => x.matches(q)).toList();
+        final gone = [
+          for (final x in data.profs)
+            if (x.removed && x.matches(q)) x,
+        ];
         return PageFrame(
           header: PageHeader(
             eyebrow:
@@ -217,25 +262,7 @@ class _DeptProfessorsState extends State<DeptProfessors> {
             child: PrimaryButton(
               label: 'Add a professor',
               icon: Icons.add_rounded,
-              onPressed:
-                  q.length < 3
-                      ? null
-                      : () async {
-                        final name = await _nameDialog(
-                          context,
-                          title: 'Add a professor',
-                          initial: q,
-                          others: data.profs,
-                        );
-                        if (name == null) return;
-                        try {
-                          await _store.add(name, widget.campus, widget.dept);
-                          _search.clear();
-                          setState(() => _loads++);
-                        } catch (e) {
-                          if (context.mounted) _say(context, problem(e));
-                        }
-                      },
+              onPressed: _add,
             ),
           ),
           children: [
@@ -248,7 +275,7 @@ class _DeptProfessorsState extends State<DeptProfessors> {
             const SizedBox(height: Space.md),
             SearchBox(
               controller: _search,
-              hint: 'Search ${data.profs.length} professors',
+              hint: 'Search ${live.length} professors',
               onChanged:
                   (_) => _typed(() {
                     if (mounted) setState(() {});
@@ -271,30 +298,60 @@ class _DeptProfessorsState extends State<DeptProfessors> {
                       _ => 'Not taught here yet',
                     },
                     minHeight: 58,
-                    onTap: () async {
-                      final name = await _nameDialog(
-                        context,
-                        title: 'Rename',
-                        initial: x.name,
-                      );
-                      if (name == null || name == x.name) return;
-                      try {
-                        await _store.rename(x, name);
-                        setState(() => _loads++);
-                      } catch (e) {
-                        if (context.mounted) _say(context, problem(e));
-                      }
-                    },
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleIconButton(
+                          icon: Icons.merge_type_rounded,
+                          tooltip: 'Merge ${x.name}',
+                          size: Sizes.minTouch,
+                          onPressed:
+                              saved
+                                  ? null
+                                  : () async {
+                                    await _openMerge(
+                                      context,
+                                      widget.campus,
+                                      widget.dept,
+                                    );
+                                    if (mounted) setState(() => _loads++);
+                                  },
+                        ),
+                        CircleIconButton(
+                          icon: Icons.delete_outline_rounded,
+                          tooltip: 'Delete ${x.name}',
+                          size: Sizes.minTouch,
+                          onPressed: saved ? null : () => _delete(x),
+                        ),
+                        Icon(Icons.chevron_right_rounded, color: p.textMuted),
+                      ],
+                    ),
+                    onTap: saved ? null : () => _rename(x),
                   );
                 },
               ),
-            if (shown.isEmpty)
+            if (shown.isEmpty && gone.isEmpty)
               Note(
                 q.isEmpty
                     ? 'Nobody listed yet.'
                     : 'Nobody matches “$q”. Check other spellings before '
                         'adding.',
               ),
+            if (gone.isNotEmpty) ...[
+              const SectionLabel('Removed'),
+              SliverRowGroup(
+                count: gone.length,
+                inset: 13,
+                row:
+                    (context, i) => CardRow(
+                      leading: const IconTile(Icons.school_outlined),
+                      title: gone[i].name,
+                      titleLines: 2,
+                      subtitle: 'Removed · reviews stay under the name',
+                      minHeight: 58,
+                    ),
+              ),
+            ],
             const SizedBox(height: Space.sm),
             const Notice(
               icon: Icons.warning_amber_rounded,
@@ -310,16 +367,8 @@ class _DeptProfessorsState extends State<DeptProfessors> {
             AppCard(
               color: p.hero,
               onTap: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder:
-                        (_) => ProfessorMerge(
-                          campus: widget.campus,
-                          dept: widget.dept,
-                        ),
-                  ),
-                );
-                setState(() => _loads++);
+                await _openMerge(context, widget.campus, widget.dept);
+                if (mounted) setState(() => _loads++);
               },
               child: Row(
                 children: [
@@ -370,6 +419,114 @@ class _DeptProfessorsState extends State<DeptProfessors> {
                 ],
               ),
             ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Board `ProfessorAdd`: a name, the professor it may duplicate, Add. Pops
+/// with that professor's name when it is tapped (the list then shows it).
+class ProfessorAdd extends StatefulWidget {
+  const ProfessorAdd({
+    super.key,
+    required this.campus,
+    required this.dept,
+    this.initial = '',
+  });
+  final String campus, dept, initial;
+
+  @override
+  State<ProfessorAdd> createState() => _ProfessorAddState();
+}
+
+class _ProfessorAddState extends State<ProfessorAdd> {
+  late final _name = TextEditingController(text: widget.initial);
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _add() async {
+    setState(() => _busy = true);
+    try {
+      await _store.add(_name.text.trim(), widget.campus, widget.dept);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        _say(context, problem(e));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Loaded<List<Professor>>(
+      cacheKey: 'professors-add|${widget.campus}|${widget.dept}',
+      load: () => _store.department(widget.campus, widget.dept),
+      peek: () => _store.peekDepartment(widget.campus, widget.dept),
+      gated: (context, profs, _, saved) {
+        final name = _name.text.trim();
+        final same =
+            [
+              for (final x in profs)
+                if (!x.removed && sameName(x.name, name)) x,
+            ].firstOrNull;
+        final dup = same ?? (name.isEmpty ? null : duplicateOf(name, profs));
+        return PageFrame(
+          header: PageHeader(
+            eyebrow:
+                '${campusName(widget.campus).toUpperCase()} · ${widget.dept}',
+            title: 'Add a professor',
+          ),
+          bottom: BottomAction(
+            child: PrimaryButton(
+              label: dup == null ? 'Add' : 'Add anyway',
+              onPressed:
+                  saved || _busy || name.length < 2 || same != null
+                      ? null
+                      : _add,
+            ),
+          ),
+          children: [
+            AppTextField(
+              controller: _name,
+              label: 'Name',
+              hint: 'Dr. R. Menon',
+              labelAbove: true,
+              onChanged: (_) => setState(() {}),
+            ),
+            if (same != null)
+              Note(
+                '${same.name} is already listed. Use that entry instead of '
+                'adding it again.',
+              ),
+            if (dup != null) ...[
+              const SectionLabel('Possible duplicates'),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: CardRow(
+                  leading: const IconTile(Icons.school_outlined),
+                  title: dup.name,
+                  titleLines: 2,
+                  subtitle:
+                      dup.removed
+                          ? 'Removed · tap to open instead'
+                          : 'Tap to open instead',
+                  minHeight: 58,
+                  onTap: () => Navigator.of(context).pop(dup.name),
+                ),
+              ),
+              Note(
+                'If this is the same person, open that entry. Two entries '
+                'split their reviews in half.',
+              ),
+            ],
           ],
         );
       },
@@ -491,7 +648,10 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
     >(
       key: ValueKey('$_campus|$dept|$_loads'),
       load: () async {
-        final profs = await _store.department(_campus, dept);
+        final profs = [
+          for (final x in await _store.department(_campus, dept))
+            if (!x.removed) x,
+        ];
         final counts = <String, (int, int)>{};
         for (final x in profs) {
           final t = await _store.taught(x, _campus);
@@ -501,8 +661,12 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
         return (profs, counts, dups);
       },
       peek: () {
-        final profs = _store.peekDepartment(_campus, dept);
-        if (profs == null || duplicateSource is! NameDuplicates) return null;
+        final saved = _store.peekDepartment(_campus, dept);
+        if (saved == null || duplicateSource is! NameDuplicates) return null;
+        final profs = [
+          for (final x in saved)
+            if (!x.removed) x,
+        ];
         final counts = <String, (int, int)>{};
         for (final x in profs) {
           final t = _store.peekTaught(x, _campus);
@@ -726,22 +890,23 @@ class _TakenByState extends State<TakenBy> {
                         style: TypeScale.caption.copyWith(color: pal.textMuted),
                       ),
                       for (final x in profs)
-                        CheckboxListTile(
-                          value: chosen.contains(x.id),
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            x.name,
-                            style: TypeScale.body.copyWith(color: pal.text),
+                        if (!x.removed || chosen.contains(x.id))
+                          CheckboxListTile(
+                            value: chosen.contains(x.id),
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              x.name,
+                              style: TypeScale.body.copyWith(color: pal.text),
+                            ),
+                            onChanged:
+                                (v) => setState(() {
+                                  if (v == true && chosen.length < 2) {
+                                    chosen.add(x.id);
+                                  } else {
+                                    chosen.remove(x.id);
+                                  }
+                                }),
                           ),
-                          onChanged:
-                              (v) => setState(() {
-                                if (v == true && chosen.length < 2) {
-                                  chosen.add(x.id);
-                                } else {
-                                  chosen.remove(x.id);
-                                }
-                              }),
-                        ),
                       if (profs.isEmpty)
                         const Note(
                           'Nobody is listed for this department yet. Ask your '
