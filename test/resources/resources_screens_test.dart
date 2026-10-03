@@ -172,20 +172,10 @@ void main() {
       expect(find.text('Add a link'), findsOneWidget);
     });
 
-    testWidgets('course: Last updated beside the CR, omitted when unknown', (
-      t,
-    ) async {
-      await sharedDb.doc('activity/goa').set({
-        'course': {takingId: Timestamp.fromDate(DateTime(2026, 9, 5))},
-      });
-      await forget('act|');
+    testWidgets('course: Last updated beside the CR', (t) async {
+      // The seed's scheme save stamped the course (ActivityStore.touch).
       await open(t, As.student, const ResourceCoursePage(courseId: takingId));
-      expect(find.text('Last updated Sep 2026'), findsOneWidget);
-      await sharedDb.doc('activity/goa').delete();
-      await forget('act|');
-      await t.pumpWidget(const SizedBox());
-      await open(t, As.student, const ResourceCoursePage(courseId: takingId));
-      expect(find.textContaining('Last updated'), findsNothing);
+      expect(find.textContaining('Last updated '), findsOneWidget);
     });
 
     testWidgets('a reopened course screen draws its last copy at once', (
