@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:cgpa_calculator/features/resources/link_sheet.dart';
 import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
@@ -20,6 +21,7 @@ void main() {
   late FakeFirebaseFirestore db;
 
   setUp(() {
+    contributePromptShown = true;
     db = FakeFirebaseFirestore();
     roleStore = RoleStore(
       db,
@@ -106,6 +108,7 @@ void main() {
     setUpAll(seedAll);
 
     Future<void> open(WidgetTester t, As who, Widget page) async {
+      contributePromptShown = true;
       roleStore = RoleStore(sharedDb, me: who.email, myName: who.name);
       myRoles.value = who.roles;
       myUid = 'u-test';
