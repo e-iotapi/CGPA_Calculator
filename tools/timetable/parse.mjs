@@ -172,6 +172,10 @@ export function parseTable(text, hours = DEFAULT_HOURS) {
 function splitLine(l, c, first) {
   const out = { title: l.slice(first ? c[1] : 0, c[2]).trim() };
   if (first) {
+    // LPU (or a bare credit count, or "3*"): three digits are lectures, practicals, units.
+    const lp = l.slice(c[2] - 2, c[4] - 1).match(/(\d+)\*?\s*$/)?.[1];
+    if (lp) out.credits = lp.length === 3 ? Number(lp[2]) : Number(lp);
+    out.lpu3 = lp?.length === 3;
     // STAT then SEC. Either may be missing or odd ("P P"): the type defaults to L, the section to 1.
     const st = l.slice(c[4] - 1, c[6] - 1);
     out.type = (st.match(/[LTPIRltpir]/)?.[0] ?? 'L').toUpperCase();
@@ -228,6 +232,8 @@ function finishRow(cur, hours) {
     title: join(titles),
     type: f.type,
     no: f.no,
+    credits: f.credits,
+    lpu3: f.lpu3,
     instructors: names.map((name) => ({ name, ic: /[A-Z]/.test(name) && name === name.toUpperCase() })),
     slots: schedule,
     room: join(cur.parts.map((p) => p.room)) || undefined,
@@ -245,6 +251,8 @@ export function groupCourses(rows) {
   for (const r of rows) {
     const c = (courses[r.id] ??= { title: '', sections: [] });
     if (r.title.length > c.title.length) c.title = r.title;
+    // A three-digit LPU is the real one; "33" on a practical row is not credits.
+    if (r.credits != null && (c.credits == null || (r.lpu3 && !c.lpu3))) { c.credits = r.credits; c.lpu3 = r.lpu3; }
     const room = r.room === 'TBA' ? undefined : r.room;
     // A second line for the same section (another day, maybe another room) joins it.
     const same = c.sections.find((x) => x.type === r.type && x.no === r.no);
