@@ -12,7 +12,14 @@ void main() {
       leaveRoleOutside(at);
       expect(workingAs.value, presGrant, reason: at);
     }
-    for (final at in ['/', '/reviews', '/settings', '/administrator']) {
+    for (final at in [
+      '/',
+      '/reviews',
+      '/settings',
+      '/administrator',
+      '/resources',
+      '/resources/courses',
+    ]) {
       workingAs.value = presGrant;
       leaveRoleOutside(at);
       expect(workingAs.value, isNull, reason: at);

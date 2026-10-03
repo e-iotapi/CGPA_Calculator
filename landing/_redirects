@@ -7,6 +7,7 @@
 /calculator/settings /calculator/index.html 200
 /calculator/course/* /calculator/index.html 200
 /calculator/resources /calculator/index.html 200
+/calculator/resources/* /calculator/index.html 200
 /calculator/reviews /calculator/index.html 200
 /calculator/more /calculator/index.html 200
 /calculator/representatives /calculator/index.html 200

@@ -10,6 +10,9 @@ import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/more/representatives_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
@@ -78,10 +81,26 @@ final List<RouteBase> appRoutes = [
       GoRoute(path: 'settings', builder: (_, _) => const SettingsPage()),
       GoRoute(
         path: 'resources',
-        builder:
-            (c, _) => ResourcesPage(
-              onRepresentatives: () => c.push(Routes.representatives),
-            ),
+        builder: (_, _) => const ResourcesPage(),
+        routes: [
+          GoRoute(
+            path: 'degree/:code',
+            builder:
+                (c, s) => ResourceDegreePage(
+                  code: s.pathParameters['code']!,
+                  onRepresentatives: () => c.push(Routes.representatives),
+                ),
+          ),
+          GoRoute(
+            path: 'courses',
+            builder: (_, _) => const ResourceCoursesPage(),
+          ),
+          GoRoute(
+            path: 'course/:id',
+            builder:
+                (_, s) => ResourceCoursePage(courseId: s.pathParameters['id']!),
+          ),
+        ],
       ),
       GoRoute(path: 'more', builder: (_, _) => const MorePage()),
       GoRoute(

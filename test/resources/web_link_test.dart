@@ -1,4 +1,4 @@
-import 'package:cgpa_calculator/admin/dept_resources.dart';
+import 'package:cgpa_calculator/features/resources/link_sheet.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
