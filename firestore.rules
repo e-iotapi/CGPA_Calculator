@@ -625,7 +625,13 @@ service cloud.firestore {
       allow create, update: if privileged()
         && request.resource.data.keys().hasOnly(['course', 'dept', 'c', 'd'])
         && touchedNow('course', request.resource.data.c)
-        && touchedNow('dept', request.resource.data.d);
+        && touchedNow('dept', request.resource.data.d)
+        // A stamped course belongs to the stamped department (B4). Not tied to
+        // a resource/structure/professor write in the same batch: rules cannot
+        // tell which of those documents the batch touched.
+        && (request.resource.data.c == ''
+            || request.resource.data.d == deptOf(request.resource.data.c)
+            || request.resource.data.d == managingDept(campus, request.resource.data.c));
       allow delete: if false;
     }
 
