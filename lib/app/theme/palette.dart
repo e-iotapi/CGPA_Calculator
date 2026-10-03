@@ -124,6 +124,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
           ? const GradeTone(Color(0xFF3B2F16), Color(0xFFF1C77A))
           : const GradeTone(Color(0xFFFAEFD8), Color(0xFF7A5410));
 
+  /// Fill of a small tag chip (a branch beside a name).
+  Color get chipFill => isDark ? surfaceSunken : const Color(0xFFE4E4DC);
+
   /// Tone for a course that exists but does not count (e.g. a dropped
   /// offshoot course).
   GradeTone get mutedTone => (isDark ? _darkTones : _lightTones)['']!;
@@ -389,3 +392,31 @@ const _darkTones = {
   // was a hair off surface (0xFF1C1C1A), so GD/W/"–" badges were invisible.
   '': GradeTone(Color(0xFF262622), Color(0xFFBDBDB2)),
 };
+
+/// One leaderboard medal: a 135-degree gradient and the ink on it. The
+/// boards draw it the same in light and dark.
+@immutable
+class Medal {
+  const Medal(this.colors, this.ink, [this.stops]);
+  final List<Color> colors;
+  final Color ink;
+  final List<double>? stops;
+}
+
+/// Places 1 to 5 on the leaderboard page (board PfLeaderboard).
+const pageMedals = [
+  Medal([Color(0xFFFBE9A0), Color(0xFFE5B232), Color(0xFFF8E08C)], Color(0xFF3A2A05), [0, .55, 1]),
+  Medal([Color(0xFFF6F8FA), Color(0xFFB4BDC6), Color(0xFFE8ECEF)], Color(0xFF20262C), [0, .55, 1]),
+  Medal([Color(0xFFF7D6B3), Color(0xFFC6824A), Color(0xFFEDBB8E)], Color(0xFF38200A), [0, .55, 1]),
+  Medal([Color(0xFFEFE9FB), Color(0xFFC8B6EE)], Color(0xFF2B1F4A)),
+  Medal([Color(0xFFF1ECFB), Color(0xFFCDBFF0)], Color(0xFF2B1F4A)),
+];
+
+/// Places 1 to 5 on More's leaderboard card (board FlS_More).
+const cardMedals = [
+  Medal([Color(0xFFF3D66B), Color(0xFFE3B53A)], Color(0xFF17170F)),
+  Medal([Color(0xFFDADDE2), Color(0xFFB9BEC6)], Color(0xFF17170F)),
+  Medal([Color(0xFFE7B48A), Color(0xFFC98B5B)], Color(0xFF17170F)),
+  Medal([Color(0xFFE4DBF7), Color(0xFFCFC1F0)], Color(0xFF17170F)),
+  Medal([Color(0xFFEDE7FA), Color(0xFFDCD2F4)], Color(0xFF17170F)),
+];
