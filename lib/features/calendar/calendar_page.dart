@@ -451,7 +451,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _blockTap(Occurrence o) async {
-    final act = await showModalBottomSheet<ClassAct>(
+    final act = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       builder:
@@ -464,7 +464,11 @@ class _CalendarPageState extends State<CalendarPage> {
     );
     if (act == null || !mounted) return;
     final sk = o.sectionKey;
-    switch (act) {
+    if (act is String) {
+      if (sk != null) await _write((c) => c.setSection(o.courseId, sk, act));
+      return;
+    }
+    switch (act as ClassAct) {
       case ClassAct.open:
         await _openCourse(o.courseId);
       case ClassAct.changeTime:
