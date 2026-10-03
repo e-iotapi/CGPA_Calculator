@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
+import 'package:cgpa_calculator/features/reviews/compulsory_pick.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
@@ -128,6 +129,11 @@ final List<RouteBase> appRoutes = [
         builder: (_, _) => const ReviewsHome(),
         routes: [
           // Before :courseId: no course code is "professor".
+          GoRoute(
+            path: 'compulsory',
+            redirect: (_, _) => viewCampus() == null ? Routes.reviews : null,
+            builder: (_, _) => const CompulsoryPickPage(),
+          ),
           GoRoute(
             path: 'professor/:id',
             builder:

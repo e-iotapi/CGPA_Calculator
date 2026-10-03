@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/admin/gate_switch.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -8,6 +9,7 @@ import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/count_badge.dart';
@@ -221,6 +223,8 @@ class _AdminHomeState extends State<AdminHome> {
             () => go(Routes.adminAudit),
           ),
         ]),
+        const SectionLabel('Reviews'),
+        GateSwitchRow(campus: viewCampus() ?? 'goa'),
         if (owner) ...[
           const SectionLabel('Owner only'),
           _Rows([

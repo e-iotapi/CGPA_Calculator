@@ -21,6 +21,7 @@ void main() {
     for (final at in [
       '/',
       '/reviews',
+      '/reviews/compulsory',
       '/settings',
       '/administrator',
       '/resources',

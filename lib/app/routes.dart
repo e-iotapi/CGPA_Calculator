@@ -15,6 +15,7 @@ abstract final class Routes {
   static String resourceCourse(String id) =>
       '/resources/course/${Uri.encodeComponent(id)}';
   static const reviews = '/reviews';
+  static const compulsoryReviews = '/reviews/compulsory';
   static const more = '/more';
   static const representatives = '/representatives';
   static String courseReviews(String id, {String? professor}) =>
