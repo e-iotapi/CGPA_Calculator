@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
@@ -96,6 +97,8 @@ class _SettingsPageState extends State<SettingsPage> {
               onPickDiscipline: (dual) => _pickDiscipline(context, dual),
               campus: campus?.label,
               onTheme: _setTheme,
+              showOffshoot: !offshootHiddenNow.value,
+              onShowOffshoot: prefsStore == null ? null : _setShowOffshoot,
               onRenameProfile: (i) => _renameProfile(context, i),
               onExport: () => _exportCsv(context),
               onImportOld: () => _importFromOldSite(context),
@@ -177,6 +180,18 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _install(BuildContext context) => offerInstall(context);
+
+  /// Tap only; the store writes the device copy first, so a failed sync
+  /// leaves the switch where the person put it.
+  Future<void> _setShowOffshoot(bool show) async {
+    final done = prefsStore!.setOffshootHidden(!show);
+    setState(() {});
+    try {
+      await done;
+    } catch (e) {
+      debugPrint('prefs: $e');
+    }
+  }
 
   Future<void> _setTheme(bool dark) => switchTheme(
     dark,

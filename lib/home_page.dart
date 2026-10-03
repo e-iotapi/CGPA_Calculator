@@ -34,6 +34,21 @@ import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
+import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
+
+/// Nav ids in display order: 1..4 are the profiles (Actual, Expected,
+/// Compare, Offshoot), 0 is More. Hiding Offshoot drops id 4 only, so
+/// [selectedprofile] and More keep their meaning (U3).
+@visibleForTesting
+List<int> homeNavIds(bool offshoot) => [1, 2, 3, if (offshoot) 4, 0];
+
+/// The profile a swipe by [delta] lands on, or null at either end. A hidden
+/// Offshoot is not the end of the line: the line is one shorter.
+@visibleForTesting
+int? homeNextProfile(int current, int delta, bool offshoot) {
+  final next = current + delta;
+  return next < 1 || next > (offshoot ? 4 : 3) ? null : next;
+}
 
 /// The home screen: the course list, SGPA and CGPA.
 class MyHomePage extends StatefulWidget {
@@ -71,7 +86,42 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     setnavcolor();
+    offshootHiddenNow.addListener(_offshootChanged);
+    // A saved Offshoot profile from before it was hidden (or from another
+    // device): land on Actual instead of an unhighlighted nav.
+    if (selectedprofile == 4 && offshootHiddenNow.value) selectedprofile = 1;
   }
+
+  @override
+  void dispose() {
+    offshootHiddenNow.removeListener(_offshootChanged);
+    super.dispose();
+  }
+
+  /// The Show Offshoot tab switch (Settings) or a pull changed. Only Home
+  /// rebuilds, and only for this.
+  void _offshootChanged() {
+    if (!mounted) return;
+    setState(() {
+      if (selectedprofile == 4 && offshootHiddenNow.value) {
+        selectedprofile = 1;
+        _persist(HomeChange.profile);
+      }
+    });
+  }
+
+  List<int> get _navIds => homeNavIds(!offshootHiddenNow.value);
+
+  NavDestination _navDestination(int id) => switch (id) {
+    1 => NavDestination(icon: Icons.home_outlined, label: profile1n),
+    2 => NavDestination(icon: Icons.bar_chart_rounded, label: profile2n),
+    3 => const NavDestination(icon: Icons.open_in_full_rounded, label: 'Compare'),
+    4 => const NavDestination(
+      icon: Icons.workspace_premium_outlined,
+      label: 'Offshoot',
+    ),
+    _ => const NavDestination(icon: Icons.more_horiz_rounded, label: 'More'),
+  };
 
   /// Saves what [c] changed. Build saves nothing (UI_OPT O3.1).
   void _persist(HomeChange c) {
@@ -107,36 +157,21 @@ class _MyHomePageState extends State<MyHomePage> {
     return PopScope(
       canPop: false,
       child: ResponsiveScaffold(
-        selectedIndex: selectedprofile - 1,
+        selectedIndex: _navIds.indexOf(selectedprofile),
         onSelected: (index) {
+          final id = _navIds[index];
           // More is a hub above the profiles, not a fifth profile.
-          if (index == 4) {
+          if (id == 0) {
             openRoute(context, Routes.more, () => const MorePage());
             return;
           }
           setState(() {
-            if (index + 1 > selectedprofile) {
-              _isrightswipe = true;
-            } else {
-              _isrightswipe = false;
-            }
-            selectedprofile = index + 1;
+            _isrightswipe = id > selectedprofile;
+            selectedprofile = id;
           });
           _persist(HomeChange.profile);
         },
-        destinations: [
-          NavDestination(icon: Icons.home_outlined, label: profile1n),
-          NavDestination(icon: Icons.bar_chart_rounded, label: profile2n),
-          const NavDestination(
-            icon: Icons.open_in_full_rounded,
-            label: 'Compare',
-          ),
-          const NavDestination(
-            icon: Icons.workspace_premium_outlined,
-            label: 'Offshoot',
-          ),
-          const NavDestination(icon: Icons.more_horiz_rounded, label: 'More'),
-        ],
+        destinations: [for (final id in _navIds) _navDestination(id)],
         body: LayoutBuilder(
           builder: (context, c) {
             // The legacy screens below size and centre themselves off
@@ -325,8 +360,12 @@ class _MyHomePageState extends State<MyHomePage> {
       onCompareChanged: _changeCompared,
       onClearRequested: _confirmClearSemester,
       onSwipe: (delta) {
-        final next = selectedprofile + delta;
-        if (next < 1 || next > 4) return;
+        final next = homeNextProfile(
+          selectedprofile,
+          delta,
+          !offshootHiddenNow.value,
+        );
+        if (next == null) return;
         setState(() {
           _isrightswipe = delta > 0;
           selectedprofile = next;
