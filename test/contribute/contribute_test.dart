@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fake_data.dart';
+import '../helpers/flaky_firestore.dart';
 
 void main() {
   setUpAll(() async {
@@ -291,5 +292,25 @@ void main() {
     );
     await settle(t);
     expect(find.text('Contribute to the Community Now'), findsNothing);
+  });
+
+  testWidgets('Approvals: a failed load says so, and Try again loads it', (
+    t,
+  ) async {
+    final flaky = FlakyFirestore()..down = true;
+    await open(t, As.president2, const SizedBox());
+    roleStore = RoleStore(flaky, me: cr2Email, myName: 'Dev Patel');
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: const Approvals(campus: 'goa', dept: 'ECE'),
+      ),
+    );
+    await settle(t);
+    expect(find.text('No connection. Nothing was changed.'), findsOneWidget);
+    flaky.down = false;
+    await t.tap(find.text('Try again'));
+    await settle(t);
+    expect(find.text('No connection. Nothing was changed.'), findsNothing);
   });
 }
