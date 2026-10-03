@@ -22,6 +22,7 @@ import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart' show takingNow;
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart' show viewCampus;
 import 'package:cgpa_calculator/script.dart' show selectedprofile;
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
@@ -152,14 +153,17 @@ class _CalendarPageState extends State<CalendarPage> {
     final top = <Widget>[
       _header(p),
       const SizedBox(height: 10),
-      SegmentedTrack<_View>(
-        tabs: const [
-          (_View.month, 'Month'),
-          (_View.week, 'Week'),
-          (_View.day, 'Day'),
-        ],
-        value: _view,
-        onChanged: (v) => setState(() => _view = v),
+      KeyedSubtree(
+        key: tourKey('cal.views'),
+        child: SegmentedTrack<_View>(
+          tabs: const [
+            (_View.month, 'Month'),
+            (_View.week, 'Week'),
+            (_View.day, 'Day'),
+          ],
+          value: _view,
+          onChanged: (v) => setState(() => _view = v),
+        ),
       ),
       const SizedBox(height: 10),
       _actions(p),

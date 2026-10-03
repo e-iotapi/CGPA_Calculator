@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/minor_progress.dart';
@@ -255,17 +256,23 @@ class StatsScreen extends StatelessWidget {
                           if (v != StatsView.values.first)
                             const SizedBox(width: 7),
                           Expanded(
-                            child: PillButton(
-                              label: switch (v) {
-                                // Short enough for three tabs at 320 × 1.5.
-                                StatsView.progression => 'Progress',
-                                StatsView.degree => 'Degree',
-                                StatsView.minor => 'Minor',
-                              },
-                              selected: shown == v,
-                              onPressed: () => onViewChanged(v),
-                              height: 38,
-                              expand: true,
+                            child: KeyedSubtree(
+                              key:
+                                  v == StatsView.degree
+                                      ? tourKey('stats.degree')
+                                      : null,
+                              child: PillButton(
+                                label: switch (v) {
+                                  // Short enough for three tabs at 320 × 1.5.
+                                  StatsView.progression => 'Progress',
+                                  StatsView.degree => 'Degree',
+                                  StatsView.minor => 'Minor',
+                                },
+                                selected: shown == v,
+                                onPressed: () => onViewChanged(v),
+                                height: 38,
+                                expand: true,
+                              ),
                             ),
                           ),
                         ],
