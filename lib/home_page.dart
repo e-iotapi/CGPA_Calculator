@@ -346,7 +346,12 @@ class _MyHomePageState extends State<MyHomePage> {
           () => MarksPage(course: c, onEditCourse: edit),
           extra: edit,
         );
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            sgpa = sgcalc(currentsem);
+            cgpa = cgcalc();
+          });
+        }
       },
       classDeltas: classDeltas(),
       onGradePicked: (c, g) async {

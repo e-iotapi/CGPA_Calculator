@@ -229,7 +229,7 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
               borderRadius: BorderRadius.circular(18),
             ),
             child: CardRow(
-              title: 'Credits, grades and delete',
+              title: 'Credits and grades',
               subtitle: 'The course card',
               onTap: () {
                 Navigator.of(context).pop();

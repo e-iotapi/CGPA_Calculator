@@ -14,6 +14,7 @@ import 'package:cgpa_calculator/features/marks/marks_format.dart';
 import 'package:cgpa_calculator/features/marks/course_setup_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
 import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
+import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_row.dart';
 import 'package:cgpa_calculator/sync.dart';
@@ -308,6 +309,16 @@ void main() {
       expect(evaluativesFor('BITS F421T'), isEmpty);
     });
 
+    test('removeCourse deletes the row it was read from', () async {
+      final courses = Hive.box<Course>('coursesBox');
+      await courses.put('gone', _os);
+      await removeCourse(courses.get('gone')!);
+      expect(courses.containsKey('gone'), isFalse);
+      await courses.put(_os.id, _os);
+      await removeCourse(_os.copyWith());
+      expect(courses.containsKey(_os.id), isFalse);
+    });
+
     test('Ongoing survives a sync round trip', () async {
       final courses = Hive.box<Course>('coursesBox');
       await courses.put('x', _os.withGrade(1, GradeCode.ongoing));
@@ -380,6 +391,53 @@ void main() {
       expect(find.textContaining('/ 0'), findsNothing);
       expect(find.textContaining('pending'), findsNothing);
     });
+
+    testWidgets(
+      'bin: Keep leaves the course, Delete removes it and goes back',
+      (t) async {
+        final removed = <String>[];
+        await pump(
+          t,
+          Builder(
+            builder:
+                (c) => TextButton(
+                  onPressed:
+                      () => Navigator.of(c).push(
+                        MaterialPageRoute<void>(
+                          builder:
+                              (_) => MarksPage(
+                                course: _os,
+                                remove: (x) async => removed.add(x.id),
+                              ),
+                        ),
+                      ),
+                  child: const Text('home'),
+                ),
+          ),
+          const Size(390, 844),
+        );
+        await t.tap(find.text('home'));
+        await t.pumpAndSettle();
+        await t.tap(find.byTooltip('Delete course'));
+        await t.pumpAndSettle();
+        expect(find.text('Remove this course?'), findsOneWidget);
+        expect(
+          find.text('CS F372 leaves 4 − 1, with its grades.'),
+          findsOneWidget,
+        );
+        await t.tap(find.text('Keep'));
+        await t.pumpAndSettle();
+        expect(removed, isEmpty);
+        expect(find.byType(MarksPage), findsOneWidget);
+        await t.tap(find.byTooltip('Delete course'));
+        await t.pumpAndSettle();
+        await t.tap(find.text('Delete'));
+        await t.pumpAndSettle();
+        expect(removed, ['CS F372']);
+        expect(find.byType(MarksPage), findsNothing);
+        expect(find.text('home'), findsOneWidget);
+      },
+    );
 
     testWidgets('eyebrow is upper case', (t) async {
       await pump(t, MarksPage(course: _os), const Size(390, 844));
