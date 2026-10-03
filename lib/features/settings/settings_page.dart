@@ -16,6 +16,8 @@ import 'package:cgpa_calculator/sync.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cgpa_calculator/features/settings/install_guide.dart';
+import 'package:cgpa_calculator/features/contribute/apply_page.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -76,6 +78,23 @@ Future<String?> pickDisciplineHalf(
 class _SettingsPageState extends State<SettingsPage> {
   User? get _user => FirebaseAuth.instance.currentUser;
 
+  void _again() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    contribState.addListener(_again);
+    refreshContribState();
+  }
+
+  @override
+  void dispose() {
+    contribState.removeListener(_again);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _user;
@@ -124,6 +143,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       if (mounted) setState(() {});
                     }
                   : null,
+              onContribute:
+                  roleStore == null ||
+                          myRoles.value.privileged ||
+                          const [
+                            ContribState.applied,
+                            ContribState.approved,
+                          ].contains(contribState.value)
+                      ? null
+                      : () => openRoute(
+                        context,
+                        Routes.contributeApply,
+                        () => const ApplyPage(),
+                      ),
               contactSummary: myContactSummary.value ?? 'Not set',
               onContact: myRoles.value.privileged
                   ? () async {

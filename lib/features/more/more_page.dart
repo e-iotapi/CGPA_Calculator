@@ -2,6 +2,9 @@ import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_page.dart';
+import 'package:cgpa_calculator/features/contribute/leaderboard_page.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
@@ -24,8 +27,19 @@ String moreEyebrow({DateTime? now}) =>
 
 /// Board `More`: the bottom bar's fifth item, holding what is not a grade
 /// profile (§12). Representatives lives here, not as a destination.
-class MorePage extends StatelessWidget {
+class MorePage extends StatefulWidget {
   const MorePage({super.key});
+
+  @override
+  State<MorePage> createState() => _MorePageState();
+}
+
+class _MorePageState extends State<MorePage> {
+  @override
+  void initState() {
+    super.initState();
+    refreshContribState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +115,33 @@ class MorePage extends StatelessWidget {
                 () => const ResourcesPage(),
               ),
         ),
+        ValueListenableBuilder<ContribState>(
+          valueListenable: contribState,
+          builder: (context, st, _) {
+            if (st == ContribState.none || st == ContribState.declined) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(top: 9),
+              child: _MoreCard(
+                icon: Icons.volunteer_activism_outlined,
+                title: 'Contribute',
+                subtitle:
+                    st == ContribState.applied
+                        ? 'Your application is with your president'
+                        : 'Add links and see where they stand',
+                onTap:
+                    () => openRoute(
+                      context,
+                      Routes.contribute,
+                      () => const ContributePage(),
+                    ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 9),
+        const LeaderboardCard(),
         if (campus != null) ...[
           const SizedBox(height: 13),
           Text.rich(

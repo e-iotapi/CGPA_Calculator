@@ -1,9 +1,14 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/app/routes.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/core/roles/contacts.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/features/contribute/apply_page.dart';
 import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
@@ -104,5 +109,29 @@ class _Head extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// The first Resources open of a session offers to become a contributor, to
+/// anyone who has not applied (or was declined). In-memory flag, no print.
+Future<void> maybeShowContributePrompt(BuildContext context) async {
+  if (contributePromptShown || roleStore == null || viewCampus() == null) {
+    return;
+  }
+  if (myRoles.value.privileged) return;
+  contributePromptShown = true;
+  await refreshContribState();
+  if (!context.mounted) return;
+  final s = contribState.value;
+  if (s != ContribState.none && s != ContribState.declined) return;
+  final apply = await confirmDialog(
+    context,
+    title: 'Contribute to the Community Now',
+    body: 'Become a contributor and add links for your department.',
+    action: 'Apply now',
+    cancel: 'Not now',
+  );
+  if (apply && context.mounted) {
+    openRoute(context, Routes.contributeApply, () => const ApplyPage());
   }
 }

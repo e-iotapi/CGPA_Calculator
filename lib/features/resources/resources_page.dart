@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_widgets.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
@@ -667,8 +668,21 @@ String degreesKey(String? campus) =>
     'resources|$campus|${programmesOf(selecteddiscipline).join(',')}';
 
 /// Board `Resources` (§10.4): a card per degree, then Course resources.
-class ResourcesPage extends StatelessWidget {
+class ResourcesPage extends StatefulWidget {
   const ResourcesPage({super.key});
+
+  @override
+  State<ResourcesPage> createState() => _ResourcesPageState();
+}
+
+class _ResourcesPageState extends State<ResourcesPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) maybeShowContributePrompt(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
