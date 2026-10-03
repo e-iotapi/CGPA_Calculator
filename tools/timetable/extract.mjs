@@ -86,6 +86,45 @@ export function unknownCourseIds(courses, catalog) {
   return Object.keys(courses).filter((id) => !known.has(id));
 }
 
+// ---- schema (BUILDOUT_CONTRACTS B8b) ----------------------------------------
+
+const DAYNO = { M: 1, T: 2, W: 3, TH: 4, F: 5, S: 6 };
+const mins = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+const span = (a, b) => [mins(a), mins(b)];
+
+/** The parser's output in the published shape: day numbers, minutes, section type L/T/P only. */
+export function toSchema(out, { marker, publishedAt }) {
+  const part = out.sem.endsWith('-2') ? 'sem2' : 'sem1';
+  const courses = {};
+  for (const [id, c] of Object.entries(out.courses)) {
+    const sec = c.sections.filter((x) => 'LTP'.includes(x.type)).map((x) => {
+      const o = {
+        ty: x.type, no: x.no,
+        prof: x.instructors.map((i) => i.name),
+        slots: x.slots.map((sl) => ({ d: DAYNO[sl.day], s: mins(sl.start), e: mins(sl.end) })),
+      };
+      if (x.instructors.some((i) => i.prof)) o.profIds = x.instructors.map((i) => i.prof ?? '');
+      if (x.room) o.room = x.room;
+      return o;
+    });
+    const r = { t: c.title, sec };
+    if (c.compre) r.compre = { d: c.compre.date, slot: c.compre.session, s: mins(c.compre.start), e: mins(c.compre.end) };
+    if (c.midsem?.start) r.mid = { d: c.midsem.date, s: mins(c.midsem.start), e: mins(c.midsem.end) };
+    courses[id] = r;
+  }
+  return {
+    v: 1, campus: out.campus, sem: out.sem, publishedAt, marker,
+    hours: Object.fromEntries(Object.entries(out.hours.periods).map(([k, v]) => [k, span(...v)])),
+    examSlots: Object.fromEntries(Object.entries(out.hours.compre).map(([k, v]) => [k, span(...v)])),
+    events: out.events.filter((e) => e.part === part).map((e) => {
+      const o = { from: e.date, title: e.title, kind: e.kind };
+      if (e.end && e.end !== e.date) o.to = e.end;
+      return o;
+    }),
+    courses,
+  };
+}
+
 // ---- chunks ---------------------------------------------------------------
 
 /** Courses grouped by id prefix ("BIO"), packed in order into chunks under maxBytes of JSON each. */
@@ -180,33 +219,34 @@ async function readProfessors(fs, campus) {
 
 const ACTOR = { email: 'timetable-script@pointer.local', name: 'Timetable extractor', role: 'owner' };
 
-async function commit(fs, out, chunks) {
+async function commit(fs, doc, chunks) {
   const db = fs.getFirestore();
   const { FieldValue, FieldPath } = fs;
-  const base = `${out.campus}|${out.sem}`;
+  const base = `${doc.campus}|${doc.sem}`;
   const batch = db.batch();
   // Replace, not merge: chunk docs a shorter run no longer fills are removed.
   const old = await db.collection('timetable')
-    .where(FieldPath.documentId(), '>=', `${base}|`).where(FieldPath.documentId(), '<', `${base}|`).get();
+    .where(FieldPath.documentId(), '>=', `${base}|`).where(FieldPath.documentId(), '<', `${base}|\uf8ff`).get();
   old.docs.filter((d) => Number(d.id.split('|')[2]) >= chunks.length).forEach((d) => batch.delete(d.ref));
-  chunks.forEach((courses, n) => batch.set(db.doc(`timetable/${base}|${n}`), { sem: out.sem, campus: out.campus, n, courses }));
+  chunks.forEach((courses, n) => batch.set(db.doc(`timetable/${base}|${n}`), { n, courses }));
   const audit = db.collection('audit').doc();
-  const nSections = Object.values(out.courses).reduce((n, c) => n + c.sections.length, 0);
+  const nSections = Object.values(doc.courses).reduce((n, c) => n + c.sec.length, 0);
   batch.set(audit, {
     actor: ACTOR,
     action: 'publish timetable',
     summary: 'publish timetable',
     path: `timetable/${base}`,
-    campus: out.campus,
+    campus: doc.campus,
     before: null,
-    after: { sem: out.sem, courses: Object.keys(out.courses).length, sections: nSections, chunks: chunks.length },
+    after: { sem: doc.sem, courses: Object.keys(doc.courses).length, sections: nSections, chunks: chunks.length },
     at: FieldValue.serverTimestamp(),
   });
   batch.set(db.doc(`timetable/${base}`), {
-    sem: out.sem, campus: out.campus, hours: out.hours, chunks: chunks.length, events: out.events,
-    publishedAt: FieldValue.serverTimestamp(), auditId: audit.id,
+    v: 1, sem: doc.sem, campus: doc.campus, hours: doc.hours, examSlots: doc.examSlots, events: doc.events,
+    chunks: chunks.length, publishedAt: FieldValue.serverTimestamp(), marker: doc.marker, auditId: audit.id,
   });
-  batch.set(db.doc(`heads/${out.campus}`), { v: { timetable: FieldValue.increment(1) } }, { merge: true });
+  batch.set(db.doc(`timetable/${doc.campus}|current`), { sem: doc.sem, marker: doc.marker });
+  batch.set(db.doc(`heads/${doc.campus}`), { v: { timetable: FieldValue.increment(1) } }, { merge: true });
   await batch.commit();
 }
 
@@ -231,14 +271,17 @@ async function main() {
   out.unmatchedProfessors = unmatched;
   out.unknownCourseIds = unknownCourseIds(out.courses, JSON.parse(readFileSync(path.join(root, 'assets', 'catalog.json'), 'utf8')));
 
-  const chunks = packChunks(out.courses);
-  if (args.out) writeFileSync(args.out, JSON.stringify(out, null, 1));
+  // The marker this publish will leave on the head (read now, bumped in the batch).
+  const head = fs ? (await fs.getFirestore().doc(`heads/${args.campus}`).get()).data() : null;
+  const doc = toSchema(out, { marker: Number(head?.v?.timetable ?? 0) + 1, publishedAt: Date.now() });
+  const chunks = packChunks(doc.courses);
+  if (args.out) writeFileSync(args.out, JSON.stringify({ ...out, published: doc }, null, 1));
   console.log(summarize(out, { chunks: chunks.length, unmatched, unknown: out.unknownCourseIds }));
   if (!args.commit) {
     console.log('\nDry run: nothing written. Add --commit to publish.');
     return;
   }
-  await commit(fs, out, chunks);
+  await commit(fs, doc, chunks);
   console.log(`\nPublished timetable/${args.campus}|${args.sem} (${chunks.length} chunks).`);
 }
 
