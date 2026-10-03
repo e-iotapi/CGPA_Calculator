@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { matchProfessors, normName, packChunks, parseArgs, profIndex, summarize, unknownCourseIds } from './extract.mjs';
+import { toSchema, matchProfessors, normName, packChunks, parseArgs, profIndex, summarize, unknownCourseIds } from './extract.mjs';
 
 const course = (...names) => ({ title: 'T', sections: [{ type: 'L', no: 1, instructors: names.map((name) => ({ name, ic: false })), slots: [] }] });
 
@@ -70,4 +70,33 @@ test('summarize: counts, page and line of unparsed rows, and the not-checked not
   assert.match(text, /page 7 line 12: no STAT\/SEC/);
   assert.match(text, /not checked/);
   assert.match(text, /unknown course ids: 1\n  ZZZ F1/);
+});
+
+test('toSchema: day numbers, minutes, L/T/P only, profIds parallel, sem events only', () => {
+  const out = {
+    campus: 'goa', sem: '2026-1',
+    hours: { periods: { 1: ['08:00', '09:00'] }, compre: { FN: ['10:00', '13:00'] } },
+    events: [
+      { date: '2026-08-03', title: 'Begins', kind: 'term', part: 'sem1' },
+      { date: '2027-01-05', end: '2027-01-06', title: 'Later', kind: 'term', part: 'sem2' },
+    ],
+    courses: { 'ZZZ F1': {
+      title: 'T',
+      compre: { date: '2026-12-10', session: 'FN', start: '10:00', end: '13:00' },
+      midsem: { date: '2026-10-12', note: 'Forenoon' },
+      sections: [
+        { type: 'L', no: 1, room: 'F101', instructors: [{ name: 'A', prof: 'p1' }, { name: 'B' }], slots: [{ day: 'TH', start: '09:00', end: '10:30' }] },
+        { type: 'I', no: 1, instructors: [], slots: [] },
+      ],
+    } },
+  };
+  const t = toSchema(out, { marker: 3, publishedAt: 5 });
+  assert.deepEqual(t.hours, { 1: [480, 540] });
+  assert.deepEqual(t.examSlots, { FN: [600, 780] });
+  assert.deepEqual(t.events, [{ from: '2026-08-03', title: 'Begins', kind: 'term' }]);
+  const c = t.courses['ZZZ F1'];
+  assert.deepEqual(c.sec, [{ ty: 'L', no: 1, prof: ['A', 'B'], slots: [{ d: 4, s: 540, e: 630 }], profIds: ['p1', ''], room: 'F101' }]);
+  assert.deepEqual(c.compre, { d: '2026-12-10', slot: 'FN', s: 600, e: 780 });
+  assert.equal(c.mid, undefined);
+  assert.equal(t.marker, 3);
 });
