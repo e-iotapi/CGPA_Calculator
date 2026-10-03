@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
+import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
@@ -28,6 +29,8 @@ List<PrefetchLevel> prefetchLevels() {
   final l2 = <PrefetchLevel>[[]], l3 = <PrefetchLevel>[[]];
   final two = l2.first, three = l3.first;
 
+  // The lock decides what Reviews draws, so its first frame must know it.
+  if (gateStore case final g?) two.add(_job(() => g.of(campus)));
   two.add(_job(() => reviews.mostReviewed(campus)));
   for (final c in taking) {
     two.add(_job(() => reviews.stats(c, campus)));
@@ -71,6 +74,10 @@ List<PrefetchLevel> prefetchLevels() {
   }
 
   final four = <Future<void> Function()>[_job(prefetchPresidentPages)];
+  for (final c in {for (final g in me.presidencies) g.campus}) {
+    four.add(_job(() => gateInfo(c)));
+  }
+  if (me.reachesAdmin) four.add(_job(() => gateInfo(campus)));
   final maintain = MaintainStore(roles);
   for (final g in me.courses) {
     four.add(_job(() => maintain.offering(g.scope, campus, term)));

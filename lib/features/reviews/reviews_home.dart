@@ -7,6 +7,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
+import 'package:cgpa_calculator/core/reviews/gate.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -14,6 +15,7 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/script.dart' show selecteddiscipline;
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
+import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/features/reviews/mine_filter.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
@@ -51,6 +53,17 @@ class _ReviewsHomeState extends State<ReviewsHome> {
   ReviewOrder _order = ReviewOrder.recent;
   MineFilter _filter = MineFilter.all;
   int _loads = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // The saved gate draws the first frame; a changed one lands behind it.
+    if (myCampus case final c?) {
+      refreshGate(c).then((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -220,6 +233,17 @@ class _ReviewsHomeState extends State<ReviewsHome> {
       );
     }
 
+    // Board ReviewsLocked: no search, no course rows, only the way out.
+    if (myGate(campus) == GateState.locked) {
+      return PageFrame(
+        header: header,
+        children: [
+          tabs,
+          const SizedBox(height: Space.sm),
+          LockedReviews(onBack: () => setState(() => _loads++)),
+        ],
+      );
+    }
     final q = _search.text.trim().toLowerCase();
     final found =
         q.length < 2
