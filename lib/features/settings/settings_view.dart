@@ -35,6 +35,8 @@ class SettingsView extends StatelessWidget {
     this.contactSummary,
     this.onContact,
     this.onControls,
+    this.showOffshoot = true,
+    this.onShowOffshoot,
   });
 
   final String name;
@@ -90,6 +92,10 @@ class SettingsView extends StatelessWidget {
 
   /// Owners and admins: the /admin controls.
   final VoidCallback? onControls;
+
+  /// The "Show Offshoot tab" switch (B1 pref); null hides the row.
+  final bool showOffshoot;
+  final ValueChanged<bool>? onShowOffshoot;
 
   @override
   Widget build(BuildContext context) {
@@ -206,6 +212,16 @@ class SettingsView extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (onShowOffshoot != null) ...[
+                  const SizedBox(height: Space.sm),
+                  _Group([
+                    _SwitchItem(
+                      label: 'Show Offshoot tab',
+                      value: showOffshoot,
+                      onChanged: onShowOffshoot!,
+                    ),
+                  ]),
+                ],
                 _SectionLabel('GRADE PROFILES'),
                 _Group([
                   for (final (i, name) in profiles.indexed)
@@ -455,6 +471,50 @@ class _Group extends StatelessWidget {
             item,
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// A row with a switch; the whole row toggles it.
+class _SwitchItem extends StatelessWidget {
+  const _SwitchItem({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return MergeSemantics(
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TypeScale.body.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: p.text,
+                    ),
+                  ),
+                ),
+                Switch(value: value, onChanged: onChanged),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

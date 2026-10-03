@@ -294,7 +294,7 @@ class Sync {
       final newRev = await _db.runTransaction<int?>((tx) async {
         final s = await tx.get(_doc);
         Perf.mark('sync.push.read');
-        final int serverRev = s.exists ? s.data()!['rev'] : 0;
+        final int serverRev = (s.data()?['rev'] as num?)?.toInt() ?? 0;
         if (serverRev != base) return null; // conflict
         // The last whole-course snapshot is kept once, so the move to
         // courses stored by id can be undone (ARCHITECTURE.md §9 step 3).
@@ -308,7 +308,7 @@ class Sync {
           'data': cur,
           if (v1 != null) 'v1': v1,
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        }, SetOptions(merge: true)); // keeps `prefs` (B1)
         Perf.markWrite('sync.push.write');
         return base + 1;
       });
