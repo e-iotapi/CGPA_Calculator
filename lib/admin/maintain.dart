@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cgpa_calculator/admin/bulk_upload.dart';
 import 'package:cgpa_calculator/admin/dept_resources.dart';
+import 'package:cgpa_calculator/admin/gate_switch.dart';
 import 'package:cgpa_calculator/admin/offering_scale.dart';
 import 'package:cgpa_calculator/admin/professors.dart';
 import 'package:cgpa_calculator/admin/scheme_editor.dart';
@@ -331,6 +332,8 @@ class DeptHome extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: Space.sm),
+            GateSwitchRow(campus: campus, dept: dept),
             // A secretary never hands over.
             if (!myRoles.value.presidencies.any(
               (g) => g.campus == campus && g.scope == dept && g.secretary,
