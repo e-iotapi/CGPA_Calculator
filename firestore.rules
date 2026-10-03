@@ -620,6 +620,42 @@ service cloud.firestore {
         && audited('config/public');
     }
 
+    // The broadcast timetable (B8b), written only by the owner-run script, in
+    // one batch: the meta doc timetable/<campus>|<sem> (audited, moves the
+    // `timetable` marker), its chunks <campus>|<sem>|<n> (same audit id) and
+    // the pointer <campus>|current (marker equal to the head's after the batch).
+    match /timetable/{id} {
+      allow read: if mayUse();
+      allow create, update: if (isOwner() || isAdmin()) && ttOk(id);
+      allow delete: if false;
+    }
+
+    function ttOk(id) {
+      let p = id.split('[|]');
+      let d = request.resource.data;
+      let tag = getAfter(headPath(p[0])).data.get('v', {}).get('timetable', 0);
+      return (p.size() == 2 && p[1] == 'current'
+            && d.keys().hasOnly(['sem', 'marker'])
+            && d.sem is string && d.marker == tag
+            && pathBumped(p[0], 'timetable'))
+        || (p.size() == 2 && p[1] != 'current'
+            && d.keys().hasOnly(['v', 'sem', 'campus', 'hours', 'examSlots', 'events',
+                                 'chunks', 'publishedAt', 'marker', 'auditId'])
+            && d.v == 1 && d.campus == p[0] && d.sem == p[1]
+            && d.chunks is int && d.chunks > 0 && d.chunks <= 40
+            && d.hours is map && d.examSlots is map && d.events is list
+            && d.publishedAt == request.time && d.marker == tag
+            && audited('timetable/' + id)
+            && pathBumped(p[0], 'timetable'))
+        || (p.size() == 3
+            && d.keys().hasOnly(['n', 'courses'])
+            && d.n is int && string(d.n) == p[2] && d.courses is map
+            && d.n < getAfter(metaPath(p)).data.chunks
+            && getAfter(/databases/$(db)/documents/audit/$(getAfter(metaPath(p)).data.auditId)).data.actor.email == me());
+    }
+
+    function metaPath(p) { return /databases/$(db)/documents/timetable/$(p[0] + '|' + p[1]); }
+
     // ---- Shared course data ------------------------------------------------
 
     // The published catalogue (§1): not secret, one read per new version.
