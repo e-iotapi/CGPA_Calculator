@@ -10,13 +10,17 @@ import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/script.dart' show selecteddiscipline;
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
+import 'package:cgpa_calculator/features/reviews/mine_filter.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
@@ -45,6 +49,7 @@ class _ReviewsHomeState extends State<ReviewsHome> {
   Timer? _debounce;
   Future<List<Professor>>? _profs;
   ReviewOrder _order = ReviewOrder.recent;
+  MineFilter _filter = MineFilter.all;
   int _loads = 0;
 
   @override
@@ -125,8 +130,14 @@ class _ReviewsHomeState extends State<ReviewsHome> {
         },
         builder: (context, mine, _) {
           final mq = _mine.text.trim().toLowerCase();
+          final shown = filterMine(
+            mine,
+            _filter,
+            taking: takingNow(),
+            electives: electiveIds(allCourses(), selecteddiscipline),
+          );
           final sorted = [
-            for (final r in mine)
+            for (final r in shown)
               if (mq.isEmpty ||
                   r.courseId.toLowerCase().contains(mq) ||
                   courseTitle(r.courseId).toLowerCase().contains(mq) ||
@@ -149,6 +160,20 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                 controller: _mine,
                 hint: 'Search your reviews',
                 onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: Space.sm),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final f in MineFilter.values)
+                    PillButton(
+                      label: f.label,
+                      height: 30,
+                      selected: _filter == f,
+                      onPressed: () => setState(() => _filter = f),
+                    ),
+                ],
               ),
               const SizedBox(height: Space.sm),
               SortPills(
@@ -183,9 +208,11 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                 const SizedBox(height: Space.xs),
               ],
               if (sorted.isEmpty)
-                const Note(
-                  'You have not reviewed anything yet. Open a course you took '
-                  'to add one.',
+                Note(
+                  mine.isEmpty
+                      ? 'You have not reviewed anything yet. Open a course '
+                          'you took to add one.'
+                      : 'No reviews here',
                 ),
             ],
           );
