@@ -212,6 +212,8 @@ void main() {
 
   testWidgets('More: Contribute card follows the state', (t) async {
     await open(t, As.student, const MorePage());
+    contribState.value = ContribState.none;
+    await t.pump();
     expect(find.text('Contributor Leaderboard'), findsOneWidget);
     expect(find.text('Contribute'), findsNothing);
     contribState.value = ContribState.applied;
@@ -225,13 +227,13 @@ void main() {
   testWidgets('Approvals: decline asks a reason; approve all', (t) async {
     await t.runAsync(() async {
       final s = ContributorStore(
-        RoleStore(sharedDb, me: studentEmail, myName: 'Priya Sharma'),
+        RoleStore(sharedDb, me: cr2Email, myName: 'Dev Patel'),
       );
       await s.apply('goa', 'CS');
     });
     await open(t, As.president2, const Approvals(campus: 'goa', dept: 'CS'));
     expect(find.text('Contributor approvals'), findsOneWidget);
-    expect(find.text('Priya Sharma'), findsOneWidget);
+    expect(find.text('Dev Patel'), findsOneWidget);
     await t.tap(find.text('Decline').first);
     await settle(t);
     expect(find.text('Not a good fit'), findsOneWidget);
@@ -240,10 +242,10 @@ void main() {
     await t.pump();
     await t.tap(find.widgetWithText(PrimaryButton, 'Send'));
     await settle(t);
-    expect(find.text('Priya Sharma'), findsNothing);
+    expect(find.text('Dev Patel'), findsNothing);
     final r = await t.runAsync(
       () => ContributorStore(
-        RoleStore(sharedDb, me: studentEmail, myName: 'P'),
+        RoleStore(sharedDb, me: cr2Email, myName: 'P'),
       ).myRequest('goa', 'CS'),
     );
     expect(r!.status, RequestStatus.declined);

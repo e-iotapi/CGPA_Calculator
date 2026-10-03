@@ -26,6 +26,9 @@ void main() {
       '/administrator',
       '/resources',
       '/resources/courses',
+      '/contribute',
+      '/contribute/add',
+      '/leaderboard',
     ]) {
       workingAs.value = presGrant;
       leaveRoleOutside(at);
