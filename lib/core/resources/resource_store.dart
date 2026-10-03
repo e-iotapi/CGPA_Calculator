@@ -347,7 +347,7 @@ class ResourceStore {
     LiveHeads.poke(Paths.pending(dept));
     await _dropLocal(campus);
     await forget('pend|');
-    await forget('rmine|');
+    await forget('cmine|');
   }
 
   Future<String> _usernameOf() async =>
@@ -478,7 +478,7 @@ class ResourceStore {
     await b.commit();
     LiveHeads.poke(Paths.resources);
     await _dropLocal(r.campus);
-    await forget('rmine|');
+    await forget('cmine|');
     if (queued) await _afterPendingWrite(r.campus, r.department);
   }
 
@@ -637,7 +637,7 @@ class ResourceStore {
   /// The contributor's own links on [campus], pending, approved and
   /// rejected ones included.
   Future<List<Resource>> mine(String campus) => cacheFirst<List<Resource>>(
-    key: 'rmine|$campus|${roles.me}',
+    key: 'cmine|$campus|${roles.me}',
     maxAge: const Duration(minutes: 5),
     fetch: () async {
       final q =
@@ -658,7 +658,7 @@ class ResourceStore {
 
   /// The saved [mine], read synchronously; null when none is saved.
   List<Resource>? peekMine(String campus) =>
-      peekCache('rmine|$campus|${roles.me}', _decodeMine);
+      peekCache('cmine|$campus|${roles.me}', _decodeMine);
 
   /// Reports [r]. False when this person already reported it.
   Future<bool> report(Resource r, ReportReason reason, {String? note}) async {
