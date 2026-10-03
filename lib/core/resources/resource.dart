@@ -2,6 +2,63 @@
 /// hierarchy a student sees is a view over these (§10.4).
 library;
 
+/// How long a contributor's link may wait for approval (B7).
+const contributorWindow = Duration(days: 15);
+
+/// One contributor submission awaiting approval (`pending/<campus>|<dept>`).
+class PendingBatch {
+  const PendingBatch({
+    required this.id,
+    required this.campus,
+    required this.dept,
+    required this.email,
+    required this.username,
+    required this.at,
+    required this.links,
+  });
+
+  /// The batch id, its campus and department keys, the contributor's
+  /// address and username.
+  final String id, campus, dept, email, username;
+
+  /// When it was submitted (epoch ms).
+  final int at;
+
+  /// The links still awaiting a decision.
+  final List<({String id, String title, String url})> links;
+
+  /// JSON-safe, for the cache.
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'campus': campus,
+    'dept': dept,
+    'email': email,
+    'username': username,
+    'at': at,
+    'links': [
+      for (final l in links) {'id': l.id, 'title': l.title, 'url': l.url},
+    ],
+  };
+
+  /// Reads [toMap].
+  static PendingBatch fromMap(Map m) => PendingBatch(
+    id: m['id'] as String,
+    campus: m['campus'] as String,
+    dept: m['dept'] as String,
+    email: m['email'] as String? ?? '',
+    username: m['username'] as String? ?? '',
+    at: (m['at'] as num?)?.toInt() ?? 0,
+    links: [
+      for (final l in m['links'] as List)
+        (
+          id: (l as Map)['id'] as String,
+          title: l['title'] as String? ?? '',
+          url: l['url'] as String? ?? '',
+        ),
+    ],
+  );
+}
+
 /// The host shown under a link ("drive.google.com", "en.wikipedia.org"),
 /// or null when [url] is not an http(s) link with a dotted host. Any website
 /// may be linked; a bad one is what Reported is for (UI_REBUILD_HANDOFF.md
@@ -50,7 +107,28 @@ class Resource {
     this.addedByEmail = '',
     this.addedAt = 0,
     this.removed = false,
+    this.approved = true,
+    this.publishedAt,
+    this.batchId = '',
+    this.rejectedReason = '',
   });
+
+  /// B7: a contributor's link is live but `approved: false` until a
+  /// president approves it; absent (true) on every other link.
+  final bool approved;
+
+  /// Contributor links only: when published (epoch ms) and the submission
+  /// batch it belongs to.
+  final int? publishedAt;
+
+  /// The submission batch id, and the reason a rejected link was removed.
+  final String batchId, rejectedReason;
+
+  /// Whether readers hide the link: unapproved and past its 15 days.
+  bool hiddenAt(DateTime now) =>
+      !approved &&
+      publishedAt != null &&
+      now.millisecondsSinceEpoch - publishedAt! > contributorWindow.inMilliseconds;
 
   /// The document id, the title and address shown, and the campus key and
   /// department key it belongs to.
@@ -98,6 +176,7 @@ class Resource {
     List<String>? courseIds,
     bool? pinnedToDepartment,
     bool? removed,
+    bool? approved,
   }) => Resource(
     id: id,
     title: title ?? this.title,
@@ -111,6 +190,10 @@ class Resource {
     addedByEmail: addedByEmail,
     addedAt: addedAt,
     removed: removed ?? this.removed,
+    approved: approved ?? this.approved,
+    publishedAt: publishedAt,
+    batchId: batchId,
+    rejectedReason: rejectedReason,
   );
 
   /// The shape cached in Hive; Firestore adds its own bookkeeping.
@@ -128,6 +211,10 @@ class Resource {
     'addedBy': {'name': addedByName, 'email': addedByEmail},
     'addedAt': addedAt,
     'removed': removed,
+    if (!approved) 'approved': false,
+    if (publishedAt != null) 'publishedAt': publishedAt,
+    if (batchId.isNotEmpty) 'batchId': batchId,
+    if (rejectedReason.isNotEmpty) 'rejectedReason': rejectedReason,
   };
 
   /// Reads a link from Firestore or the Hive cache; [id] overrides `m['id']`.
@@ -152,6 +239,14 @@ class Resource {
               ? at.toInt()
               : (at as dynamic)?.millisecondsSinceEpoch as int? ?? 0,
       removed: m['removed'] as bool? ?? false,
+      approved: m['approved'] as bool? ?? true,
+      publishedAt: switch (m['publishedAt']) {
+        null => null,
+        final num n => n.toInt(),
+        final Object o => (o as dynamic).millisecondsSinceEpoch as int,
+      },
+      batchId: m['batchId'] as String? ?? '',
+      rejectedReason: m['rejectedReason'] as String? ?? '',
     );
   }
 }
