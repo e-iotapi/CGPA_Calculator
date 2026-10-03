@@ -64,7 +64,7 @@ test('summarize: counts, page and line of unparsed rows, and the headline number
   assert.match(text, /unsure matches, need your answer: 0/);
 });
 
-test('toSchema: day numbers, minutes, L/T/P only, profIds parallel, sem events only', () => {
+test('toSchema: day numbers, minutes, L/T/P only, ICs only with profIds parallel, sem events only', () => {
   const out = {
     campus: 'goa', sem: '2026-1',
     hours: { periods: { 1: ['08:00', '09:00'] }, compre: { FN: ['10:00', '13:00'] } },
@@ -77,7 +77,7 @@ test('toSchema: day numbers, minutes, L/T/P only, profIds parallel, sem events o
       compre: { date: '2026-12-10', session: 'FN', start: '10:00', end: '13:00' },
       midsem: { date: '2026-10-12', note: 'Forenoon' },
       sections: [
-        { type: 'L', no: 1, room: 'F101', instructors: [{ name: 'A', prof: 'p1' }, { name: 'B' }], slots: [{ day: 'TH', start: '09:00', end: '10:30' }] },
+        { type: 'L', no: 1, room: 'F101', instructors: [{ name: 'A', prof: 'p1', ic: true }, { name: 'B', ic: true }, { name: 'Assistant' }], slots: [{ day: 'TH', start: '09:00', end: '10:30' }] },
         { type: 'I', no: 1, instructors: [], slots: [] },
       ],
     } },

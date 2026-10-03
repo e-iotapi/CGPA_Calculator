@@ -214,3 +214,13 @@ test('only the instructor-in-charge becomes a professor and fills the offering',
   const { ops } = planOfferings(courses, new Map(), new Map(), '2026-27-1', 'goa', newId);
   assert.deepEqual(ops.find((o) => o.coll === 'offerings').set.professors, [res.newProfs[0].id]);
 });
+
+test('a branch department beats GEN for a professor who leads both', () => {
+  const ic = (name) => ({ name, ic: true });
+  const c = (name) => ({ title: 'T', sections: [{ type: 'L', no: 1, slots: [], instructors: [ic(name)] }] });
+  const courses = { 'BITS F234': c('Abe Chat'), 'ME G641': c('Abe Chat'), 'HSS F343': c('Rena Cher') };
+  let n = 0;
+  const res = resolveProfessors(courses, [], {}, (k) => `${k}-${++n}`);
+  const dept = Object.fromEntries(res.newProfs.map((p) => [p.name, p.dept]));
+  assert.deepEqual(dept, { 'Abe Chat': 'ME', 'Rena Cher': 'GEN' });
+});
