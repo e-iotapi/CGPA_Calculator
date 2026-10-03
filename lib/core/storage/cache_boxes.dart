@@ -13,7 +13,14 @@ const cacheBoxes = <String>{
   'reviewsBox',
   sharedCacheBoxName,
   deviceBoxName,
+  'timetable',
+  'calendar',
 };
+
+/// Boxes opened on first use (never before the first frame): signing out
+/// opens them to empty them, so a closed box's file does not outlive the
+/// account.
+const _lazyBoxes = <String>{'timetable', 'calendar'};
 
 /// The `cacheFirst` helper's (PERF_TEST_PLAN.md P1) shared store, for the
 /// stores that don't keep their own cache box.
@@ -27,6 +34,15 @@ const deviceBoxName = 'deviceBox';
 /// what one account saw must not show to the next on this device.
 Future<void> clearAccountCaches() async {
   for (final n in cacheBoxes) {
-    if (n != 'catalogBox' && Hive.isBoxOpen(n)) await Hive.box(n).clear();
+    if (n == 'catalogBox') continue;
+    if (Hive.isBoxOpen(n)) {
+      await Hive.box(n).clear();
+    } else if (_lazyBoxes.contains(n)) {
+      try {
+        await (await Hive.openBox(n)).clear();
+      } on Object {
+        // Nothing saved under this name on this device.
+      }
+    }
   }
 }
