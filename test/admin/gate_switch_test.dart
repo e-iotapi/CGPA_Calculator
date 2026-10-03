@@ -1,15 +1,13 @@
-// U10: the staff compulsory-reviews switch, and the gate's place in prefetch.
+// U10: the staff compulsory-reviews switch (prefetch: gate_prefetch_test.dart).
 import 'dart:io';
 
 import 'package:cgpa_calculator/admin/gate_switch.dart';
-import 'package:cgpa_calculator/app/prefetch_levels.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,14 +78,5 @@ void main() {
     await until(t, find.textContaining('Off'));
     expect(find.byType(AlertDialog), findsNothing);
     expect((await db.collection('reviewGate').doc('goa').get())['on'], isFalse);
-  });
-
-  testWidgets('prefetch level 2 loads the gate', (t) async {
-    await t.runAsync(() async {
-      await db.collection('reviewGate').doc('goa').set({'on': true});
-      expect(gateStore!.peekOf('goa'), isNull);
-      await prefetchLevels().first.first(); // the gate job leads level 2
-    });
-    expect(gateStore!.peekOf('goa'), isTrue);
   });
 }
