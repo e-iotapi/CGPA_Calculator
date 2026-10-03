@@ -17,6 +17,7 @@ import 'package:cgpa_calculator/admin/volunteers.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/roles/contacts.dart';
@@ -330,6 +331,35 @@ void main() {
     expect(find.byTooltip('90xxx 00xxx'), findsOneWidget);
     expect(find.text('90000 00001'), findsNothing);
     expect(find.text('Volunteer'), findsNothing);
+  });
+
+  testWidgets('Representatives: Resources last updated, per president and CR', (
+    t,
+  ) async {
+    signIn(student, name: 'Rohan');
+    await courses(t, ['EEE F211']);
+    await listed('p1@x', 'Pres One', [('dept', 'ELEC', far)]);
+    await listed('cr@x', 'Cr Person', [('course', 'EEE F211', far)]);
+    await db.doc('activity/goa').set({
+      'dept': {'ELEC': Timestamp.fromDate(DateTime(2026, 8, 20))},
+      'course': {'EEE F211': Timestamp.fromDate(DateTime(2026, 9, 5))},
+    });
+    await forget('act|');
+    await t.pumpWidget(app(const RepresentativesPage()));
+    await t.pumpAndSettle();
+    expect(find.text('Resources last updated Aug 2026'), findsOneWidget);
+    expect(find.text('Resources last updated Sep 2026'), findsOneWidget);
+  });
+
+  testWidgets('Representatives: no activity, no text', (t) async {
+    signIn(student, name: 'Rohan');
+    await courses(t, ['EEE F211']);
+    await listed('p1@x', 'Pres One', [('dept', 'ELEC', far)]);
+    await forget('act|');
+    await t.pumpWidget(app(const RepresentativesPage()));
+    await t.pumpAndSettle();
+    expect(find.text('Pres One'), findsOneWidget);
+    expect(find.textContaining('last updated'), findsNothing);
   });
 
   testWidgets('president card shows shared channels', (t) async {

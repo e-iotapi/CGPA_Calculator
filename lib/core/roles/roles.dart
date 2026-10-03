@@ -5,6 +5,7 @@ library;
 
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
+import 'package:cgpa_calculator/core/roles/claim_store.dart' show CourseClaim;
 
 final _student = RegExp(
   r'^[fhp][0-9]{4}[0-9]+@(goa|hyderabad|pilani|dubai)\.bits-pilani\.ac\.in$',
@@ -30,11 +31,26 @@ int? batchOfAddress(String email) =>
         : null;
 
 /// A president's scope is a department key, derived from the course code:
-/// electronics is one department, FIN sits under ECON.
+/// electronics is one department, FIN sits under ECON. A prefix no department
+/// owns belongs to [genDept], the electives department (B2); mirrors the
+/// rules' `deptOf`.
 String deptOf(String courseId) {
   final p = courseId.trim().split(' ').first.toUpperCase();
   if (const {'EEE', 'ECE', 'INSTR', 'ECOM'}.contains(p)) return 'ELEC';
-  return p == 'FIN' ? 'ECON' : p;
+  if (p == 'FIN') return 'ECON';
+  return departments.containsKey(p) ? p : genDept;
+}
+
+/// The management-only electives department (shown as "Electives"). Never a
+/// programme, a branch or a choice in setup.
+const genDept = 'GEN';
+
+/// Who manages [courseId]: its department, or the department that claimed a
+/// GEN course (B2). [claims] maps course id to its claim; a
+/// claim on a non-GEN course is ignored.
+String managingDept(String courseId, Map<String, CourseClaim> claims) {
+  final d = deptOf(courseId);
+  return d == genDept ? claims[courseId]?.dept ?? d : d;
 }
 
 /// Display names by campus key, plus `all` for grants that span campuses.
@@ -365,7 +381,8 @@ const departments = <String, ({String name, List<String> programmes})>{
 };
 
 /// The display name for department [key], or [key] itself when unknown.
-String departmentName(String key) => departments[key]?.name ?? key;
+String departmentName(String key) =>
+    key == genDept ? 'Electives' : departments[key]?.name ?? key;
 
 /// Department keys a campus runs, in [departments] order: those with a
 /// programme offered there (`programmesAt`, DISCIPLINES_GOA_HYD.md).

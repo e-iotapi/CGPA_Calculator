@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
+import 'package:cgpa_calculator/core/roles/activity_store.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/contacts.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -18,7 +19,7 @@ import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 
-typedef _Data = ({List<Resource> links, DirectoryEntry? cr});
+typedef _Data = ({List<Resource> links, DirectoryEntry? cr, int? updated});
 
 DirectoryEntry? _crOf(List<DirectoryEntry> people, String courseId) {
   final now = DateTime.now();
@@ -50,6 +51,12 @@ class _ResourceCoursePageState extends State<ResourceCoursePage> {
   Future<_Data> _load(String campus) async => (
     links: await resourceStore!.department(campus, _dept),
     cr: _crOf(await contactStore!.directory(campus), widget.courseId),
+    // Last updated is a courtesy: a failed read leaves the text out.
+    updated:
+        (await ActivityStore(roleStore!.db)
+                .of(campus)
+                .catchError((_) => const Activity()))
+            .ofCourse(widget.courseId),
   );
 
   _Data? _peek(String campus) {
@@ -57,7 +64,12 @@ class _ResourceCoursePageState extends State<ResourceCoursePage> {
     final people = contactStore?.peekDirectory(campus);
     return links == null || people == null
         ? null
-        : (links: links, cr: _crOf(people, widget.courseId));
+        : (
+          links: links,
+          cr: _crOf(people, widget.courseId),
+          updated:
+              ActivityStore(roleStore!.db).peekOf(campus)?.ofCourse(widget.courseId),
+        );
   }
 
   @override
@@ -121,7 +133,8 @@ class _ResourceCoursePageState extends State<ResourceCoursePage> {
                   )
                   : null,
           children: [
-            if (data.cr case final cr?) _CrContact(cr: cr),
+            if (data.cr case final cr?)
+              _CrContact(cr: cr, updated: data.updated),
             if (mine.isEmpty)
               const Note('No links for this course yet.')
             else
@@ -150,8 +163,9 @@ class _ResourceCoursePageState extends State<ResourceCoursePage> {
 
 /// The course's CR and the contact pills they chose to show.
 class _CrContact extends StatelessWidget {
-  const _CrContact({required this.cr});
+  const _CrContact({required this.cr, this.updated});
   final DirectoryEntry cr;
+  final int? updated;
 
   @override
   Widget build(BuildContext context) {
@@ -167,12 +181,26 @@ class _CrContact extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'CR · ${cr.name}',
-            style: TypeScale.body.copyWith(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'CR · ${cr.name}',
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (updated case final ms?)
+                Text(
+                  'Last updated ${monthYear(ms)}',
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 10.5,
+                    color: p.textMuted,
+                  ),
+                ),
+            ],
           ),
           if (pills.isEmpty)
             Text(

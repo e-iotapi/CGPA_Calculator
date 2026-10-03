@@ -1,5 +1,6 @@
 // T7.4: Resources, Report this link and the empty state (UI.md §8.11–§8.13).
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -10,6 +11,7 @@ import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -168,6 +170,22 @@ void main() {
         const ResourceCoursePage(courseId: takingId),
       );
       expect(find.text('Add a link'), findsOneWidget);
+    });
+
+    testWidgets('course: Last updated beside the CR, omitted when unknown', (
+      t,
+    ) async {
+      await sharedDb.doc('activity/goa').set({
+        'course': {takingId: Timestamp.fromDate(DateTime(2026, 9, 5))},
+      });
+      await forget('act|');
+      await open(t, As.student, const ResourceCoursePage(courseId: takingId));
+      expect(find.text('Last updated Sep 2026'), findsOneWidget);
+      await sharedDb.doc('activity/goa').delete();
+      await forget('act|');
+      await t.pumpWidget(const SizedBox());
+      await open(t, As.student, const ResourceCoursePage(courseId: takingId));
+      expect(find.textContaining('Last updated'), findsNothing);
     });
 
     testWidgets('a reopened course screen draws its last copy at once', (

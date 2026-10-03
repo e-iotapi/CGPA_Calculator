@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:cgpa_calculator/app/prefetch_levels.dart';
+import 'package:cgpa_calculator/core/roles/activity_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/core/timetable/timetable_store.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/sync.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
@@ -59,4 +61,20 @@ void main() {
       );
     },
   );
+
+  test('level 2 loads Last updated (activity), saved for a peek', () async {
+    final db = FakeFirebaseFirestore();
+    await db.doc('activity/goa').set({
+      'dept': {'CS': Timestamp.fromDate(DateTime(2026, 8, 20))},
+    });
+    startRoles(db, email: 'f20230802@goa.bits-pilani.ac.in', name: 'S');
+    for (final job in prefetchLevels().first) {
+      try {
+        await job();
+      } on Object {
+        // Other jobs read data this test did not seed; they are dropped too.
+      }
+    }
+    expect(ActivityStore(db).peekOf('goa')?.ofDept('CS'), isNotNull);
+  });
 }
