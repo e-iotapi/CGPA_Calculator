@@ -244,6 +244,18 @@ void main() {
       expect((await LeaderboardStore(db).of('goa')).single.points, 8);
     });
 
+    test('editing a rejected link never re-queues it', () async {
+      await contributor.addAsContributor(_link('Notes'));
+      await approver.reject(
+        (await approver.pending('goa', 'ELEC')).single,
+        reason: 'duplicate',
+      );
+      final mine = (await contributor.mine('goa')).single;
+      expect(mine.removed, isTrue);
+      await contributor.updateOwn(mine.copyWith(title: 'Again'));
+      expect(await approver.pending('goa', 'ELEC'), isEmpty);
+    });
+
     test('approve without a username creates contributors; no board', () async {
       await contributor.addAsContributor(_link('Notes'));
       await approver.approve((await approver.pending('goa', 'ELEC')).single);

@@ -1415,6 +1415,7 @@ service cloud.firestore {
       // (an edited approved link stays approved, no new points), never removed.
       allow update: if mayUse()
         && resourceOk(request.resource.data)
+        && resource.data.removed == false
         && resource.data.addedBy.email == me()
         && holds('contributor', resource.data.campus, resource.data.campus)
         && request.resource.data.diff(resource.data).unchangedKeys()
