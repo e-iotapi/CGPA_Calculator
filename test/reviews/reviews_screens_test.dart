@@ -103,6 +103,8 @@ void main() {
     bool take = true,
     String? text,
     String term = '2024-25-1',
+    String grade = 'B',
+    num? marks,
   }) => as(uid).save(
     courseId: id,
     campus: 'goa',
@@ -110,7 +112,8 @@ void main() {
     professorId: prof,
     stars: stars,
     recommend: take,
-    grade: 'B',
+    grade: grade,
+    marks: marks,
     text: text,
   );
 
@@ -331,10 +334,20 @@ void main() {
     expect(find.text('first'), findsOneWidget);
     expect(find.text('second'), findsOneWidget);
     expect(find.text('hidden one'), findsNothing);
-    await t.tap(find.text('All'));
-    await t.pumpAndSettle();
     expect(find.text('3.0'), findsOneWidget);
   });
+
+  Future<void> pick(WidgetTester t, String row, String option) async {
+    await t.tap(find.text(row));
+    await t.pumpAndSettle();
+    await t.tap(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text(option),
+      ),
+    );
+    await t.pumpAndSettle();
+  }
 
   testWidgets('R13 search, year and semester narrow the list and the card', (
     t,
@@ -347,31 +360,118 @@ void main() {
     });
     await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
     await t.pumpAndSettle();
-    await t.tap(find.text('2025-26'));
+    await t.enterText(find.widgetWithText(TextField, 'Year'), '2025');
     await t.pumpAndSettle();
     expect(find.text('Summer rush'), findsNothing);
     expect(find.textContaining('2 of 3 reviews'), findsOneWidget);
-    await t.tap(find.text('Sem 2'));
-    await t.pumpAndSettle();
+    await pick(t, 'Any semester', 'Sem 2');
     expect(find.text('Heavy quizzes'), findsOneWidget);
     expect(find.text('Great labs'), findsNothing);
+    // The card follows: one 2-star review.
+    expect(find.text('2.0'), findsOneWidget);
     await t.enterText(find.widgetWithText(TextField, 'Search reviews'), 'labs');
     await t.pumpAndSettle();
-    expect(find.text('No reviews match.'), findsOneWidget);
+    expect(find.text('No reviews match'), findsOneWidget);
     await t.tap(find.text('Clear filters'));
     await t.pumpAndSettle();
     expect(find.text('Summer rush'), findsOneWidget);
   });
 
-  testWidgets('R7 a Taught by pill filters to that professor', (t) async {
+  testWidgets('a year that is not a year says so and filters nothing', (
+    t,
+  ) async {
+    await courses(t, []);
+    await review('u1', text: 'Great labs');
+    t.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(t.view.resetViewInsets);
+    await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
+    await t.pumpAndSettle();
+    await t.enterText(find.widgetWithText(TextField, 'Year'), '20x');
+    expect(
+      t.getRect(find.widgetWithText(TextField, 'Year')).bottom,
+      lessThanOrEqualTo(2400 - 300),
+    );
+    await t.pumpAndSettle();
+    expect(find.text('Use a year like 2023-24'), findsOneWidget);
+    expect(find.text('Great labs'), findsOneWidget);
+  });
+
+  testWidgets(
+    'grade and marks: on each review, averaged, marks only if shared',
+    (t) async {
+      await courses(t, []);
+      await t.runAsync(() async {
+        await review('u1', text: 'one', grade: 'A', marks: 80);
+        await review('u2', text: 'two', grade: 'ND');
+      });
+      await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
+      await t.pumpAndSettle();
+      expect(find.text('GRADE A'), findsOneWidget);
+      expect(find.text('GRADE NOT DISCLOSED'), findsOneWidget);
+      expect(find.text('MARKS 80'), findsOneWidget);
+      expect(find.textContaining('Average grade A'), findsOneWidget);
+      expect(find.textContaining('Average marks 80 from 1'), findsOneWidget);
+    },
+  );
+
+  testWidgets('no marks anywhere: no marks average', (t) async {
+    await courses(t, []);
+    await review('u1', text: 'one');
+    await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Average marks'), findsNothing);
+    expect(find.textContaining('MARKS'), findsNothing);
+    expect(find.byTooltip('Course resources'), findsOneWidget);
+  });
+
+  testWidgets('R7 the Professor dropdown filters to that professor', (t) async {
     await courses(t, []);
     await threeReviews();
     await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
     await t.pumpAndSettle();
-    await t.tap(find.text('Asha Rao'));
-    await t.pumpAndSettle();
+    await pick(t, 'All professors', 'Asha Rao');
     expect(find.text('first'), findsOneWidget);
     expect(find.text('second'), findsNothing);
+    // Empty is allowed: back to everyone.
+    await pick(t, 'Asha Rao', 'All professors');
+    expect(find.text('second'), findsOneWidget);
+  });
+
+  testWidgets('sort pills: All is the default; Lowest puts 2 stars first', (
+    t,
+  ) async {
+    await courses(t, []);
+    await threeReviews();
+    await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
+    await t.pumpAndSettle();
+    expect(
+      t.widget<PillButton>(find.widgetWithText(PillButton, 'All')).selected,
+      isTrue,
+    );
+    await t.tap(find.widgetWithText(PillButton, 'Lowest'));
+    await t.pumpAndSettle();
+    expect(
+      t.getTopLeft(find.text('second')).dy <
+          t.getTopLeft(find.text('first')).dy,
+      isTrue,
+    );
+  });
+
+  testWidgets('More reviews shows the next 10', (t) async {
+    await courses(t, []);
+    await t.runAsync(() async {
+      for (var i = 0; i < 12; i++) {
+        await review('u$i', text: 'review number $i');
+      }
+    });
+    await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
+    await t.pumpAndSettle();
+    expect(find.byType(ReviewTile), findsNWidgets(10));
+    await t.ensureVisible(find.text('More reviews'));
+    await t.tap(find.text('More reviews'));
+    await t.pumpAndSettle();
+    expect(find.byType(ReviewTile), findsNWidgets(12));
+    expect(find.text('More reviews'), findsNothing);
   });
 
   testWidgets('R8 Helpful counts once in the database; not on my own', (
@@ -473,9 +573,107 @@ void main() {
     await t.tap(find.text('Yes'));
     await t.pump();
     expect(post(), isNotNull);
-    await t.enterText(find.byType(TextField), 'x' * 601);
+    await t.enterText(find.byType(TextField).last, 'x' * 601);
     await t.pump();
     expect(post(), isNull);
+  });
+
+  Future<void> openForm(WidgetTester t, {int grade = -8}) async {
+    await courses(t, [taking(course, grade: grade)]);
+    await professor('pr-a', 'Asha Rao', 'goa');
+    offeringSource = _Offerings(
+      const Offering(
+        courseId: course,
+        campus: 'goa',
+        term: '2024-25-1',
+        components: [],
+        updatedAt: 0,
+        professors: ['pr-a'],
+      ),
+    );
+    await t.pumpWidget(pushed(const ReviewFormPage(courseId: course)));
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+  }
+
+  Future<void> starsAndYes(WidgetTester t) async {
+    await t.tap(
+      find
+          .descendant(
+            of: find.byType(StarPicker),
+            matching: find.byType(InkWell),
+          )
+          .at(3),
+    );
+    await t.tap(find.text('Yes'));
+    await t.pump();
+  }
+
+  VoidCallback? postButton(WidgetTester t) =>
+      t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed;
+
+  testWidgets('form: grade prefilled from my course, changeable', (t) async {
+    await openForm(t, grade: 9);
+    expect(find.text('A-'), findsOneWidget);
+    await starsAndYes(t);
+    expect(postButton(t), isNotNull);
+    await t.tap(find.text('A-'));
+    await t.pumpAndSettle();
+    await t.tap(
+      find.descendant(of: find.byType(BottomSheet), matching: find.text('B')),
+    );
+    await t.pumpAndSettle();
+    expect(find.text('B'), findsOneWidget);
+  });
+
+  testWidgets('form: grade required, Not disclosed allowed, marks optional', (
+    t,
+  ) async {
+    await openForm(t); // still ongoing: the grade starts at Not disclosed
+    expect(find.text('Not disclosed'), findsOneWidget);
+    await starsAndYes(t);
+    expect(postButton(t), isNotNull); // no marks needed
+    final marks = find.widgetWithText(TextField, 'Marks (optional)');
+    await t.enterText(marks, '1500');
+    await t.pump();
+    expect(find.text('Marks are between 0 and 1000'), findsOneWidget);
+    expect(postButton(t), isNull);
+    await t.enterText(marks, '72.5');
+    await t.pump();
+    expect(postButton(t), isNotNull);
+    await t.tap(find.text('Post review'));
+    await t.pumpAndSettle();
+    final mine = (await as('u-me').mine(course))!;
+    expect(mine.grade, 'ND');
+    expect(mine.marks, 72.5);
+  });
+
+  testWidgets('form: editing keeps the grade and marks it has', (t) async {
+    await courses(t, []);
+    await professor('pr-a', 'Asha Rao', 'goa');
+    await review('u-me', prof: 'pr-a', grade: 'C', marks: 55);
+    final mine = (await as('u-me').mine(course))!;
+    await t.pumpWidget(
+      pushed(ReviewFormPage(courseId: course, existing: mine)),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    expect(find.text('C'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '55'), findsOneWidget);
+  });
+
+  testWidgets('form: the marks field stays visible with the keyboard up', (
+    t,
+  ) async {
+    await openForm(t);
+    t.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(t.view.resetViewInsets);
+    final marks = find.widgetWithText(TextField, 'Marks (optional)');
+    await t.ensureVisible(marks);
+    await t.tap(marks);
+    await t.pumpAndSettle();
+    final box = t.getRect(marks);
+    expect(box.bottom, lessThanOrEqualTo(2400 - 300));
   });
 
   Future<Review> reported() async {

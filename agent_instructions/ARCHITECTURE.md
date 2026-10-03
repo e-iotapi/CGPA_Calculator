@@ -163,6 +163,7 @@ document no longer has to carry the catalogue.
 | Professors — create, rename | ✓ | — | ✓ | pick only |
 | Moderate reviews | ✓ | — | ✓ in scope | — |
 | **Read the audit log and the roster** | ✓ | ✓ | ✓ own campus | — |
+| Contribute links (approved within 15 days) | ✓ | ✓ | ✓ | ✓ |
 
 **Admin is deliberately narrow.** It exists so appointments do not queue behind one person,
 and nothing else. An admin cannot publish, cannot appoint another admin and **cannot touch
