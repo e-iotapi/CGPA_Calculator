@@ -4,7 +4,9 @@ import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
+import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
@@ -12,6 +14,7 @@ import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:flutter/material.dart';
 
 /// Opens the add sheet. Resolves to the course to store, or null.
@@ -85,6 +88,32 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
 
   /// Hits follow the search after a pause in typing (UI_OPT O5.2).
   final _typed = Debouncer();
+
+  /// Every course's rating on my campus: the saved copy at once, the fresh
+  /// one when it lands. Null = none yet; never a spinner.
+  Map<String, ReviewStats>? _ratings;
+  bool _ratingsFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final store = reviewStore, campus = myCampus;
+    if (store == null || campus == null) return;
+    _ratings = store.peekIndex(campus);
+    store
+        .index(campus)
+        .then(
+          (m) {
+            if (mounted) setState(() => _ratings = m);
+          },
+          onError: (_) {
+            // A saved copy stays; with none, rows go without stars.
+            if (mounted && _ratings == null) {
+              setState(() => _ratingsFailed = true);
+            }
+          },
+        );
+  }
 
   @override
   void dispose() {
@@ -259,9 +288,17 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               Expanded(
                 child: ListView(
                   children: [
+                    if (_ratingsFailed) ...[
+                      const Notice(
+                        text: TextSpan(text: 'Ratings did not load'),
+                      ),
+                      const SizedBox(height: Space.sm),
+                    ],
                     for (final h in _currentHits) ...[
                       _HitRow(
                         hit: h,
+                        rating: _ratings?[h.id],
+                        rated: _ratings != null,
                         picked: h.id == _picked?.id,
                         discipline: widget.discipline,
                         onTap: h.heldIn == null ? () => _pick(h) : null,
@@ -526,23 +563,6 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
 
   Widget _submit(BuildContext context, Course? course, String sem) {
     final p = AppPalette.of(context);
-    String? change;
-    if (course != null) {
-      final (before, after) = sgpaChange(
-        widget.held,
-        course,
-        sem: widget.sem,
-        discipline: widget.discipline,
-        profile: widget.profile,
-      );
-      String f(double? v) => v == null ? '–' : v.toStringAsFixed(2);
-      if (after != null) {
-        change =
-            before == after
-                ? 'SGPA stays ${f(after)}'
-                : 'SGPA ${f(before)} → ${f(after)}';
-      }
-    }
     return Semantics(
       button: true,
       enabled: course != null,
@@ -557,20 +577,8 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: Space.lg),
               child: Center(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: 'Add to $sem'),
-                      if (change != null)
-                        TextSpan(
-                          text: '  $change',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: p.hero,
-                          ),
-                        ),
-                    ],
-                  ),
+                child: Text(
+                  'Add to $sem',
                   maxLines: 2,
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
@@ -715,8 +723,13 @@ class _HitRow extends StatelessWidget {
     required this.picked,
     required this.discipline,
     required this.onTap,
+    required this.rating,
+    required this.rated,
   });
 
+  /// The course's counters; [rated] is false when no ratings are known.
+  final ReviewStats? rating;
+  final bool rated;
   final CourseHit hit;
   final bool picked;
   final String discipline;
@@ -761,6 +774,7 @@ class _HitRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TypeScale.caption.copyWith(color: p.textMuted),
                 ),
+                if (held == null && rated) _ratingLine(p),
               ],
             ),
           ),
@@ -773,6 +787,31 @@ class _HitRow extends StatelessWidget {
               size: 22,
               color: picked ? p.text : p.textMuted,
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ratingLine(AppPalette p) {
+    final r = rating;
+    final style = TypeScale.caption.copyWith(color: p.textMuted);
+    if (r == null || r.count == 0) return Text('No ratings yet', style: style);
+    final avg = r.average!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          Stars(value: avg.round(), size: 13),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              '${avg.toStringAsFixed(1)} · ${r.count} review'
+              '${r.count == 1 ? '' : 's'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
         ],
       ),
     );

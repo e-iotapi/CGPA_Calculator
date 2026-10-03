@@ -181,6 +181,46 @@ void main() {
     expect(find.text('EEE F211'), findsOneWidget);
   });
 
+  testWidgets('Your reviews: All is the default; Electives narrows it', (
+    t,
+  ) async {
+    await review('u-me');
+    await review('u-me', id: 'EEE F211', stars: 3, take: false);
+    await courses(t, [
+      Course(
+        title: 'x',
+        sem: '2 - 1',
+        id: 'EEE F211',
+        grade1: 9,
+        grade2: -2,
+        discipline: 'A7',
+        credits: 3,
+        elective: 'Open Elective',
+      ),
+    ]);
+    await t.runAsync(() async {
+      final s = await Hive.openBox('settingsBox');
+      await s.put('myReviews', [course, 'EEE F211']);
+    });
+    addTearDown(
+      () => t.runAsync(() => Hive.box('settingsBox').deleteFromDisk()),
+    );
+    await t.pumpWidget(app(const ReviewsHome(yours: true)));
+    await t.pumpAndSettle();
+    expect(find.text('CS F211'), findsOneWidget);
+    expect(find.text('EEE F211'), findsOneWidget);
+    await t.tap(find.text('Electives'));
+    await t.pumpAndSettle();
+    expect(find.text('CS F211'), findsNothing);
+    expect(find.text('EEE F211'), findsOneWidget);
+    await t.tap(find.text('This semester'));
+    await t.pumpAndSettle();
+    expect(find.text('No reviews here'), findsOneWidget);
+    await t.tap(find.text('All'));
+    await t.pumpAndSettle();
+    expect(find.text('CS F211'), findsOneWidget);
+  });
+
   testWidgets('R2 most reviewed on the campus, by count', (t) async {
     await courses(t, []);
     Future<void> stat(String id, int count) =>
