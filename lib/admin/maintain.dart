@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/eval_import.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:cgpa_calculator/core/roles/claim_store.dart';
 import 'package:cgpa_calculator/core/roles/maintain_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -61,6 +62,41 @@ List<Mastercourselist> deptCourses(String dept) =>
         .where((m) => deptOf(m.id) == dept && !catalog.retired.contains(m.id))
         .toList()
       ..sort((a, b) => a.id.compareTo(b.id));
+
+/// [deptCourses] after claims (B2): [dept] also manages the GEN courses it
+/// claimed, and GEN loses them.
+List<Mastercourselist> managedCourses(
+  String dept,
+  Map<String, CourseClaim> claims,
+) =>
+    catalog.master
+        .where(
+          (m) =>
+              managingDept(m.id, claims) == dept &&
+              !catalog.retired.contains(m.id),
+        )
+        .toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+
+/// GEN-prefix core courses of [dept]'s programmes nobody has claimed yet.
+List<Mastercourselist> claimableCourses(
+  String dept,
+  Map<String, CourseClaim> claims,
+) {
+  final progs = departments[dept]?.programmes ?? const <String>[];
+  final ids = {
+    for (final c in [...catalog.chartOld, ...catalog.chartNew])
+      if (progs.contains(c.discipline) &&
+          c.elective.startsWith('CDC') &&
+          deptOf(c.id) == genDept &&
+          !claims.containsKey(c.id))
+        c.id,
+  };
+  return [
+    for (final m in catalog.master)
+      if (ids.contains(m.id) && !catalog.retired.contains(m.id)) m,
+  ]..sort((a, b) => a.id.compareTo(b.id));
+}
 
 /// The catalogue title of course [id], or an empty string when it isn't listed.
 String courseTitle(String id) =>
@@ -109,6 +145,10 @@ typedef DeptHomeData =
       int? profs,
       List<AuditEntry>? audit,
     });
+
+/// What [DeptCourses] shows: offerings, CR emails by course, claims by course.
+typedef DeptCoursesData =
+    (Map<String, Offering>, Map<String, String>, Map<String, CourseClaim>);
 
 /// Board `DeptHome`: a president's department on their campus.
 class DeptHome extends StatelessWidget {
@@ -334,10 +374,11 @@ class DeptHome extends StatelessWidget {
             ),
             const SizedBox(height: Space.sm),
             GateSwitchRow(campus: campus, dept: dept),
-            // A secretary never hands over.
-            if (!myRoles.value.presidencies.any(
-              (g) => g.campus == campus && g.scope == dept && g.secretary,
-            )) ...[
+            // A secretary never hands over, nor does Electives (B2).
+            if (dept != genDept &&
+                !myRoles.value.presidencies.any(
+                  (g) => g.campus == campus && g.scope == dept && g.secretary,
+                )) ...[
               const SizedBox(height: Space.sm),
               AppCard(
                 padding: EdgeInsets.zero,
@@ -409,13 +450,16 @@ class DeptCourses extends StatefulWidget {
   static String cacheKey(String campus, String dept) =>
       'dept-courses|$campus|$dept';
 
-  /// This term's offerings and each course's CR, read together.
-  static Future<(Map<String, Offering>, Map<String, String>)> load(
-    String campus,
-    String dept,
-  ) async {
+  /// This term's offerings, each course's CR and the department's claims.
+  static Future<DeptCoursesData> load(String campus, String dept) async {
+    final claims =
+        await _maybe(ClaimStore(roleStore!).claims(campus)) ?? const {};
     final (offerings, grants) = await (
-      _store.offerings(deptCourses(dept).map((c) => c.id), campus, maintainedTerm),
+      _store.offerings(
+        managedCourses(dept, claims).map((c) => c.id),
+        campus,
+        maintainedTerm,
+      ),
       _maybe(roleStore!.roster(campus: campus)),
     ).wait;
     return (
@@ -424,27 +468,28 @@ class DeptCourses extends StatefulWidget {
         for (final g in grants ?? const <Grant>[])
           if (g.active && g.role == GrantRole.course) g.scope: g.email,
       },
+      claims,
     );
   }
 
   /// [load] from the saved copies; null if any part is not saved.
-  static (Map<String, Offering>, Map<String, String>)? peek(
-    String campus,
-    String dept,
-  ) {
+  static DeptCoursesData? peek(String campus, String dept) {
+    final claims = ClaimStore(roleStore!).peekClaims(campus);
+    final grants = roleStore!.peekRoster(campus: campus);
+    if (claims == null || grants == null) return null;
     final offerings = _store.peekOfferings(
-      deptCourses(dept).map((c) => c.id),
+      managedCourses(dept, claims).map((c) => c.id),
       campus,
       maintainedTerm,
     );
-    final grants = roleStore!.peekRoster(campus: campus);
-    if (offerings == null || grants == null) return null;
+    if (offerings == null) return null;
     return (
       offerings,
       {
         for (final g in grants)
           if (g.active && g.role == GrantRole.course) g.scope: g.email,
       },
+      claims,
     );
   }
 
@@ -465,6 +510,29 @@ class _DeptCoursesState extends State<DeptCourses> {
     _typed.dispose();
     _search.dispose();
     super.dispose();
+  }
+
+  Future<void> _claim(Mastercourselist c, VoidCallback reload) async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Claim ${c.id}?',
+      body:
+          '${c.title} moves from Electives to your department. Its '
+          'resources, reviews and structure are yours to manage.',
+      action: 'Claim',
+    );
+    if (!ok || !mounted) return;
+    try {
+      await ClaimStore(roleStore!).claim(widget.campus, c.id, widget.dept);
+    } on Object catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(problem(e))));
+      }
+      return;
+    }
+    reload();
   }
 
   Future<void> _upload(String? source) async {
@@ -513,22 +581,36 @@ class _DeptCoursesState extends State<DeptCourses> {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final courses = deptCourses(widget.dept);
-    return Loaded<(Map<String, Offering>, Map<String, String>)>(
+    return Loaded<DeptCoursesData>(
       key: ValueKey(_loads),
       cacheKey: DeptCourses.cacheKey(widget.campus, widget.dept),
       load: () => DeptCourses.load(widget.campus, widget.dept),
       peek: () => DeptCourses.peek(widget.campus, widget.dept),
       builder: (context, data, reload) {
-        final (offerings, crs) = data;
+        final (offerings, crs, claims) = data;
+        final courses = managedCourses(widget.dept, claims);
         final q = _search.text.trim().toLowerCase();
+        bool matches(Mastercourselist c) =>
+            q.isEmpty ||
+            c.id.toLowerCase().contains(q) ||
+            c.title.toLowerCase().contains(q);
         final shown = [
           for (final c in courses)
-            if ((q.isEmpty ||
-                    c.id.toLowerCase().contains(q) ||
-                    c.title.toLowerCase().contains(q)) &&
+            if (matches(c) &&
                 (!_missingOnly || !(offerings[c.id]?.hasScheme ?? false)))
               c,
+        ];
+        // Presidents only, never a secretary (B2).
+        final canClaim = myRoles.value.presidencies.any(
+          (g) =>
+              g.campus == widget.campus &&
+              g.scope == widget.dept &&
+              !g.secretary,
+        );
+        final claimable = [
+          if (canClaim)
+            for (final c in claimableCourses(widget.dept, claims))
+              if (matches(c)) c,
         ];
         return PageFrame(
           header: PageHeader(
@@ -575,6 +657,7 @@ class _DeptCoursesState extends State<DeptCourses> {
                     title: '${c.id} · ${c.title}',
                     o: offerings[c.id],
                     cr: crs[c.id],
+                    claimed: claims.containsKey(c.id),
                     onTap: () async {
                       final existing = await freshOffering(
                         c.id,
@@ -598,7 +681,26 @@ class _DeptCoursesState extends State<DeptCourses> {
                   );
                 },
               ),
-            if (shown.isEmpty) const Note('No course matches.'),
+            if (shown.isEmpty && claimable.isEmpty)
+              const Note('No course matches.'),
+            if (claimable.isNotEmpty) ...[
+              const SizedBox(height: Space.sm),
+              const SectionLabel('Core courses the Electives department holds'),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final (i, c) in claimable.indexed) ...[
+                      if (i > 0) const CardDivider(),
+                      _ClaimRow(
+                        title: '${c.id} · ${c.title}',
+                        onClaim: () => _claim(c, reload),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: Space.sm),
             Text(
               'You are editing this term\'s offering. Course titles, codes '
@@ -622,10 +724,12 @@ class _CourseRow extends StatelessWidget {
     required this.o,
     required this.cr,
     required this.onTap,
+    this.claimed = false,
   });
   final String title;
   final Offering? o;
   final String? cr;
+  final bool claimed;
   final VoidCallback onTap;
 
   @override
@@ -656,6 +760,7 @@ class _CourseRow extends StatelessWidget {
         ),
       );
     }
+    if (claimed) chips.add(const MiniChip('Claimed from Electives'));
     chips.add(
       cr == null
           ? const MiniChip('No CR', dashed: true)
@@ -694,6 +799,38 @@ class _CourseRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A GEN-prefix core course the president may claim.
+class _ClaimRow extends StatelessWidget {
+  const _ClaimRow({required this.title, required this.onClaim});
+  final String title;
+  final VoidCallback onClaim;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 58),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(15, 8, 12, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TypeScale.body.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: Space.sm),
+          PillButton(label: 'Claim', onPressed: onClaim),
+        ],
+      ),
+    ),
+  );
 }
 
 /// The dashed mint drop zone: upload many courses' schemes as JSON.

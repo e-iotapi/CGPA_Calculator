@@ -398,6 +398,7 @@ List<String> departmentsAt(String campus) {
 /// ("A3"), else the department's one branch ("A7" for CS), else [dept].
 String branchCode(String dept, [String? programme]) =>
     programme ??
+    (dept == genDept ? 'Electives' : null) ??
     switch (departments[dept]?.programmes) {
       [final only] => only,
       _ => dept,
