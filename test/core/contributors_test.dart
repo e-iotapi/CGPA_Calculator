@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/contrib/contributor_store.dart';
 import 'package:cgpa_calculator/core/contrib/leaderboard_store.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
@@ -107,6 +108,24 @@ void main() {
         (await db.doc('grants/${g.id}').get()).data()!['active'],
         false,
       );
+    });
+
+    test('revoke withdraws the approved request, so the person can apply again',
+        () async {
+      await student.apply('goa', 'ELEC');
+      await president.approve((await president.requests('goa', 'ELEC')).single);
+      final g = Grant.fromMap(
+        (await db.doc('grants/contributor|goa|goa|$_stu').get()).data()!,
+      );
+      expect(g.dept, 'ELEC');
+      await president.revoke(g);
+      expect((await db.doc('grants/${g.id}').get()).data()!['active'], false);
+      expect(
+        (await db.doc('contributorRequests/goa|ELEC|$_stu').get())
+            .data()!['status'],
+        'withdrawn',
+      );
+      await student.apply('goa', 'ELEC');
     });
 
     test('claim a username: bad, free, then taken', () async {
@@ -224,6 +243,56 @@ void main() {
       expect((await db.doc('leaderboard/goa').get()).data()!['p'], {'cee': 8});
       expect(await approver.pending('goa', 'ELEC'), isEmpty);
       expect((await LeaderboardStore(db).of('goa')).single.points, 8);
+    });
+
+    test('a contributor submission leaves cached own reviews alone', () async {
+      await openSharedCache();
+      await sharedCacheBox!.clear();
+      await contributor.addAsContributor(_link('Notes'));
+      await contributor.mine('goa');
+      expect(contributor.peekMine('goa'), isNotNull);
+      // ReviewStore's own-review key shares the old 'rmine|' prefix.
+      await sharedCacheBox!.put('rmine|EEE F111|x', '{"v":[]}');
+      await contributor.addAsContributor(_link('More', url: 'https://a.example.com/9'));
+      expect(sharedCacheBox!.containsKey('rmine|EEE F111|x'), isTrue);
+      expect(contributor.peekMine('goa'), isNull);
+    });
+
+    test('editing a rejected link never re-queues it', () async {
+      await contributor.addAsContributor(_link('Notes'));
+      await approver.reject(
+        (await approver.pending('goa', 'ELEC')).single,
+        reason: 'duplicate',
+      );
+      final mine = (await contributor.mine('goa')).single;
+      expect(mine.removed, isTrue);
+      await contributor.updateOwn(mine.copyWith(title: 'Again'));
+      expect(await approver.pending('goa', 'ELEC'), isEmpty);
+    });
+
+    test('approve: a link past its 15 days is refused, the rest of the batch goes on',
+        () async {
+      await contributor.addBatchAsContributor([
+        _link('Old', url: 'https://a.example.com/1'),
+        _link('New', url: 'https://a.example.com/2'),
+      ]);
+      final b = (await approver.pending('goa', 'ELEC')).single;
+      final old = b.links.firstWhere((l) => l.title == 'Old');
+      await db.doc('resources/${old.id}').update({
+        'publishedAt': Timestamp.fromDate(
+          DateTime.now().subtract(const Duration(days: 16)),
+        ),
+      });
+      expect(
+        () => approver.approve(b, linkIds: [old.id]),
+        throwsA(isA<LinkExpired>()),
+      );
+      // The other link still approves, with the expired one left queued.
+      final fresh = b.links.firstWhere((l) => l.title == 'New');
+      await approver.approve(b, linkIds: [fresh.id]);
+      expect((await db.doc('resources/${fresh.id}').get()).data()!['approved'], true);
+      expect((await db.doc('resources/${old.id}').get()).data()!['approved'], false);
+      expect((await db.doc('contributors/$_stu').get()).data()!['points'], 4);
     });
 
     test('approve without a username creates contributors; no board', () async {

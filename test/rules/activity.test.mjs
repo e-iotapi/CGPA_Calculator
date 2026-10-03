@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { Timestamp, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { ADMIN, PRES, STUDENT, as, useEmulator } from './helpers.mjs';
+import { ADMIN, PRES, STUDENT, as, seed, useEmulator } from './helpers.mjs';
 
 useEmulator();
 
@@ -27,4 +27,14 @@ test('students, client times, unhinted keys and extra fields are denied', async 
     dept: { ELEC: serverTimestamp(), CS: serverTimestamp() }, c: '', d: 'ELEC',
   }, { merge: true }));
   await assertFails(touch(as(PRES), { dept: 'ELEC', extra: { note: 'x' } }));
+});
+
+test('a course is stamped only with its own department (a claimed GEN course: the claimant)', async () => {
+  await assertFails(touch(as(PRES), { course: 'EEE F111', dept: 'CS' }));
+  await assertFails(touch(as(PRES), { course: 'EEE F111' }));
+  await assertSucceeds(touch(as(PRES), { course: 'ECE F111', dept: 'ELEC' }));
+  await assertFails(touch(as(PRES), { course: 'HSS F222', dept: 'ELEC' }));
+  await seed((db) => setDoc(doc(db, 'courseClaims', 'goa|HSS F222'), { campus: 'goa', courseId: 'HSS F222', dept: 'ELEC' }));
+  await assertSucceeds(touch(as(PRES), { course: 'HSS F222', dept: 'ELEC' }));
+  await assertSucceeds(touch(as(PRES), { course: 'HSS F222', dept: 'GEN' }));
 });
