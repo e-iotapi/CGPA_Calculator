@@ -192,9 +192,11 @@ void main() {
   });
 
   testWidgets('Leaderboard: empty, then ranked with my place', (t) async {
-    await open(t, As.student, const LeaderboardPage());
+    // Hyderabad has no board.
+    await open(t, As.admin, const LeaderboardPage());
     expect(find.text('Contributor Leaderboard'), findsOneWidget);
     expect(find.text('No contributors yet'), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
     await t.runAsync(() async {
       await sharedDb.collection('leaderboard').doc('goa').set({
         'p': {'ann': 12, 'bob': 8, 'quiet_owl': 4},
@@ -203,14 +205,7 @@ void main() {
         'username': 'quiet_owl',
       }, SetOptions(merge: true));
     });
-    await t.pumpWidget(const SizedBox());
-    await t.pumpWidget(
-      MaterialApp(
-        theme: AppPalette.light.materialTheme,
-        home: const LeaderboardPage(),
-      ),
-    );
-    await settle(t);
+    await open(t, As.student, const LeaderboardPage());
     expect(find.textContaining('ann'), findsOneWidget);
     expect(find.textContaining('quiet_owl'), findsOneWidget);
   });
