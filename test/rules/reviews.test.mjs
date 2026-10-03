@@ -125,6 +125,11 @@ describe('reviews', () => {
     await assertSucceeds(post(as(STUDENT), STUDENT, { professorId: null }));
   });
 
+  test('no offering for the term: a review with no professor is allowed, one naming a professor is not', async () => {
+    await assertFails(post(as(STUDENT), STUDENT));
+    await assertSucceeds(post(as(STUDENT), STUDENT, { professorId: null }));
+  });
+
   test('the campus index moves with the course counter, never alone', async () => {
     await offering();
     await assertSucceeds(post(as(STUDENT), STUDENT));

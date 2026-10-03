@@ -1139,11 +1139,14 @@ service cloud.firestore {
              && d.marks >= 0 && d.marks <= 1000));
     }
 
-    // Taking a course is self-declared (fix 5): the term must have an
-    // offering on the writer's campus, and the professor must be on it.
+    // Taking a course is self-declared (fix 5): a professor named must be on
+    // the term's offering on the writer's campus. A term with no offering yet
+    // (an elective the review gate asks for) takes a review with no professor.
     function offeringOk(c, d) {
-      let o = get(/databases/$(db)/documents/courses/$(c)/offerings/$(d.campus + '_' + d.term)).data;
-      return d.professorId == null ? o.professors.size() == 0 : d.professorId in o.professors;
+      let p = /databases/$(db)/documents/courses/$(c)/offerings/$(d.campus + '_' + d.term);
+      return !exists(p) ? d.professorId == null
+        : d.professorId == null ? get(p).data.get('professors', []).size() == 0
+        : d.professorId in get(p).data.get('professors', []);
     }
 
     // Moderators read through the staff index; writes check the grant.
