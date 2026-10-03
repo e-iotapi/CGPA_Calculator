@@ -32,6 +32,7 @@ class SettingsView extends StatelessWidget {
     this.onGithub,
     this.workingAs,
     this.onWorkingAs,
+    this.onContribute,
     this.contactSummary,
     this.onContact,
     this.onControls,
@@ -85,6 +86,9 @@ class SettingsView extends StatelessWidget {
   /// as".
   final String? workingAs;
   final VoidCallback? onWorkingAs;
+
+  /// "Become a contributor": null while applied or approved.
+  final VoidCallback? onContribute;
 
   /// "Email, WhatsApp": what RepProfile holds.
   final String? contactSummary;
@@ -156,6 +160,16 @@ class SettingsView extends StatelessWidget {
                         icon: Icons.admin_panel_settings_outlined,
                         onTap: onControls,
                       ),
+                  ]),
+                ],
+                if (onContribute != null) ...[
+                  _SectionLabel('COMMUNITY'),
+                  _Group([
+                    _Item(
+                      label: 'Become a contributor',
+                      icon: Icons.volunteer_activism_outlined,
+                      onTap: onContribute,
+                    ),
                   ]),
                 ],
                 _SectionLabel('ACADEMICS'),

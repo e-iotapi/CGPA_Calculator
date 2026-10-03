@@ -8,6 +8,11 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/contribute/add_page.dart';
+import 'package:cgpa_calculator/features/contribute/apply_page.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_page.dart';
+import 'package:cgpa_calculator/features/contribute/edit_page.dart';
+import 'package:cgpa_calculator/features/contribute/leaderboard_page.dart';
 import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
@@ -104,6 +109,19 @@ final List<RouteBase> appRoutes = [
         ],
       ),
       GoRoute(path: 'more', builder: (_, _) => const MorePage()),
+      GoRoute(path: 'leaderboard', builder: (_, _) => const LeaderboardPage()),
+      GoRoute(
+        path: 'contribute',
+        builder: (_, _) => const ContributePage(),
+        routes: [
+          GoRoute(path: 'apply', builder: (_, _) => const ApplyPage()),
+          GoRoute(path: 'add', builder: (_, _) => const AddPage()),
+          GoRoute(
+            path: 'edit/:id',
+            builder: (_, s) => EditPage(id: s.pathParameters['id']!),
+          ),
+        ],
+      ),
       GoRoute(
         path: 'representatives',
         builder: (_, _) => const RepresentativesPage(),
@@ -209,6 +227,7 @@ final List<RouteBase> appRoutes = [
           _admin('open-as/course', () => admin.ViewAsCoursePage(), _ownerOnly),
           _admin('open-as', () => admin.OpenAsPage(), _ownerOnly),
           _admin('publish', () => admin.PublishPage(), _ownerOnly),
+          _admin('approvals', () => admin.Approvals(), _adminOnly),
           _admin('professors/merge', () => admin.ProfessorMerge(), _staff),
         ],
       ),
@@ -236,6 +255,16 @@ final List<RouteBase> appRoutes = [
               ),
             ),
         routes: [
+          GoRoute(
+            path: 'approvals',
+            builder:
+                (_, s) => _deferred(
+                  () => admin.Approvals(
+                    campus: s.pathParameters['campus']!,
+                    dept: s.pathParameters['dept']!,
+                  ),
+                ),
+          ),
           GoRoute(
             path: 'professors',
             builder:

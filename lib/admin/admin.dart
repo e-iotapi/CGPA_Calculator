@@ -2,6 +2,7 @@
 /// one deferred library, so the student download does not grow.
 library;
 
+export 'package:cgpa_calculator/admin/approvals.dart';
 export 'package:cgpa_calculator/admin/admin_home.dart';
 export 'package:cgpa_calculator/admin/config_pages.dart';
 export 'package:cgpa_calculator/admin/dept_resources.dart';
