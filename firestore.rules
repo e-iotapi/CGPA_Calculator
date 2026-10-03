@@ -857,7 +857,6 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['courseId', 'department', 'stars',
              'recommend', 'text', 'campus', 'term', 'professorId', 'hidden',
              'helpful', 'reports', 'createdAt', 'updatedAt', 'grade', 'marks'])
-        && 'grade' in request.resource.data
         && reviewOk(request.resource.data)
         && request.resource.data.courseId == c
         && request.resource.data.department == deptOf(c)

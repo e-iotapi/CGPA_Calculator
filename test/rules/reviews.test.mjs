@@ -45,7 +45,7 @@ function post(db, who, extra = {}, { dc = 1, ds, dr, m = {} } = {}) {
   const id = hash(who, C);
   const d = {
     courseId: C, department: 'ELEC', stars: 4, recommend: true, text: 'Good', campus: 'goa', term: '2025-26-2',
-    grade: 'B', professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     ...extra,
   };
   for (const k in d) if (d[k] === undefined) delete d[k];
@@ -54,7 +54,7 @@ function post(db, who, extra = {}, { dc = 1, ds, dr, m = {} } = {}) {
   count(b, db, id, d, dc, ds ?? d.stars, dr ?? (d.recommend ? 1 : 0));
   if (m) {
     const { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt, grade, marks } = d;
-    const g = { grade, ...(marks === undefined ? {} : { marks }) };
+    const g = { ...(grade === undefined ? {} : { grade }), ...(marks === undefined ? {} : { marks }) };
     mirror(b, db, id, { stars, recommend, text, term, professorId, helpful, createdAt, updatedAt, ...g, ...m });
   }
   return b.commit();
@@ -73,11 +73,21 @@ describe('reviews', () => {
     if (s.data().count !== 1 || s.data().starSum !== 4) throw new Error('bad counter');
   });
 
-  test('grade is required on create, from the list; ND is valid', async () => {
+  test('grade is optional on create, but from the list when given; ND is valid', async () => {
     await offering();
-    await assertFails(post(as(STUDENT), STUDENT, { grade: undefined }, { m: null }));
     await assertFails(post(as(STUDENT), STUDENT, { grade: 'F' }));
     await assertFails(post(as(STUDENT), STUDENT, { grade: 5 }));
+    await assertSucceeds(post(as(STUDENT), STUDENT, { grade: undefined }));
+    await assertFails(post(as(STUDENT), STUDENT, { grade: 'B' }));
+  });
+
+  test('review without grade still allowed', async () => {
+    await offering();
+    await assertSucceeds(post(as(STUDENT), STUDENT));
+  });
+
+  test('grade ND', async () => {
+    await offering();
     await assertSucceeds(post(as(STUDENT), STUDENT, { grade: 'ND' }));
   });
 
@@ -134,7 +144,7 @@ describe('reviews', () => {
     const b = writeBatch(db);
     const d = {
       courseId: C, department: 'ELEC', stars: 4, recommend: true, campus: 'goa', term: '2025-26-2',
-      grade: 'B', professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      professorId: 'p1', hidden: false, helpful: 0, reports: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     };
     b.set(doc(db, 'reviews', C, 'entries', id), d);
     count(b, db, id, d, 1, 4, 1, false);
