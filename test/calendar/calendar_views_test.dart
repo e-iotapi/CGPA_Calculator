@@ -3,11 +3,15 @@ import 'dart:io';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
+import 'package:cgpa_calculator/core/timetable/timetable.dart';
 import 'package:cgpa_calculator/features/calendar/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_time.dart';
 import 'package:cgpa_calculator/features/calendar/week_view.dart';
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/sync.dart';
@@ -238,6 +242,38 @@ void main() {
       expect(find.text('9:00–10:00'), findsNWidgets(3));
     });
 
+    testWidgets('Section switch moves every lecture to the other section', (
+      t,
+    ) async {
+      final j = store.t!.toJson();
+      final sec = (((j['courses'] as Map)[_aaa] as Map)['sec'] as List);
+      sec.add({
+        'ty': 'L',
+        'no': 2,
+        'prof': ['B Teacher'],
+        'room': 'F202',
+        'slots': [
+          {'d': 2, 's': 660, 'e': 720},
+          {'d': 4, 's': 660, 'e': 720},
+        ],
+      });
+      store.t = Timetable.fromJson(j);
+      await pump(t);
+      await tab(t, 'Week');
+      await t.tap(find.text(_aaa).first);
+      await t.pumpAndSettle();
+      // Only the lecture has a second section: one Section list, the tutorial is not offered.
+      expect(find.text('Section'), findsOneWidget);
+      await t.tap(find.textContaining('Lecture 2'));
+      await t.pumpAndSettle();
+      expect(cal.state.picks[_aaa], ['$_aaa|L2', '$_aaa|T1']);
+      expect(find.text('9:00–10:00'), findsNothing); // no L1 left
+      expect(
+        find.text('11:00–12:00'),
+        findsNWidgets(3),
+      ); // L2 Tue and Thu, T1 Thu
+    });
+
     testWidgets('a bad time says so and saves nothing', (t) async {
       await pump(t);
       await tab(t, 'Week');
@@ -456,6 +492,137 @@ void main() {
         if (ex != null) debugPrint(ex.toString());
         expect(ex, isNull, reason: '$v 200%');
       }
+    });
+
+    group('first load puts the courses in', () {
+      late CalendarStore fresh;
+      late MemBox prefs;
+      const notice =
+          'We added your courses from the timetable. You can add or remove '
+          'courses, or switch sections.';
+
+      setUp(() {
+        fresh = CalendarStore(MemBox(), profile: 2);
+        prefs = MemBox();
+      });
+
+      Course mine(
+        String id,
+        int grade,
+        String elective, {
+        String sem = '3 - 1',
+      }) => Course(
+        title: 'T $id',
+        id: id,
+        credits: 3,
+        grade1: grade,
+        grade2: -2,
+        discipline: 'A7',
+        sem: sem,
+        elective: elective,
+      );
+
+      Future<void> have(WidgetTester t, List<Course> cs) =>
+          t.runAsync(() => Hive.box<Course>(coursesBoxName).addAll(cs));
+
+      Widget page() => CalendarPage(
+        today: _now,
+        timetables: store,
+        campus: 'goa',
+        calendar: fresh,
+        prefs: prefs,
+      );
+
+      testWidgets(
+        'ongoing courses of the term go in, first section of each type; others are skipped',
+        (t) async {
+          await have(t, [
+            mine(_aaa, GradeCode.ongoing, Elective.open.tag),
+            mine(
+              'ZZZ F999',
+              GradeCode.clr,
+              Elective.cdc1.tag,
+            ), // not in the timetable
+            mine('CCC F311', 9, Elective.cdc1.tag), // graded: not taking
+            mine(
+              'OLD F101',
+              GradeCode.ongoing,
+              Elective.cdc1.tag,
+              sem: '2 - 1',
+            ), // last year
+          ]);
+          await pump(t, home: page());
+          expect(fresh.state.picks, {
+            _aaa: ['$_aaa|L1', '$_aaa|T1'],
+          });
+          expect(find.text(notice), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'with nothing ongoing, the discipline\'s CDCs for the term go in',
+        (t) async {
+          await have(t, [
+            mine(_aaa, 9, Elective.cdc1.tag),
+            mine('CCC F311', 9, Elective.humanity.tag),
+            mine('DDD F101', 9, Elective.cdc2.tag, sem: '2 - 1'),
+          ]);
+          await pump(t, home: page());
+          expect(fresh.state.picks.keys, [_aaa]);
+          expect(find.text(notice), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'it does not run again once picks exist or were all removed',
+        (t) async {
+          await have(t, [mine(_aaa, GradeCode.ongoing, Elective.open.tag)]);
+          await pump(t, home: page());
+          expect(fresh.state.picks.keys, [_aaa]);
+          await fresh.removeCourse(_aaa);
+          await pump(t, home: page());
+          expect(fresh.state.picks, isEmpty);
+          // And a student who picked their own keeps exactly those.
+          final own = CalendarStore(MemBox(), profile: 3);
+          await own.adopt('goa', '2026-1');
+          await own.addCourse(store.t!.courses['CCC F311']!, ['CCC F311|L1']);
+          await pump(
+            t,
+            home: CalendarPage(
+              today: _now,
+              timetables: store,
+              campus: 'goa',
+              calendar: own,
+              prefs: prefs,
+            ),
+          );
+          expect(own.state.picks.keys, ['CCC F311']);
+        },
+      );
+
+      testWidgets(
+        'the note shows once, Got it closes it, and it never comes back',
+        (t) async {
+          await have(t, [mine(_aaa, GradeCode.ongoing, Elective.open.tag)]);
+          await pump(t, home: page());
+          expect(find.text(notice), findsOneWidget);
+          expect(prefs.get('calendar_autofill_seen'), true);
+          await t.tap(find.text('Got it'));
+          await t.pumpAndSettle();
+          expect(find.text(notice), findsNothing);
+          // A new student on this device (another profile) is not told again.
+          fresh = CalendarStore(MemBox(), profile: 4);
+          await pump(t, home: KeyedSubtree(key: UniqueKey(), child: page()));
+          expect(fresh.state.picks.keys, [_aaa]);
+          expect(find.text(notice), findsNothing);
+        },
+      );
+
+      testWidgets('nothing to add: no picks and no note', (t) async {
+        await pump(t, home: page());
+        expect(fresh.state.picks, isEmpty);
+        expect(find.text(notice), findsNothing);
+      });
     });
   });
 }

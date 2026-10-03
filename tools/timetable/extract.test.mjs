@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { toSchema, matchProfessors, normName, packChunks, parseArgs, profIndex, summarize, unknownCourseIds } from './extract.mjs';
+import { makePlan, normName, packChunks, parseArgs, summarize, toSchema, unknownCourseIds } from './extract.mjs';
 
 const course = (...names) => ({ title: 'T', sections: [{ type: 'L', no: 1, instructors: names.map((name) => ({ name, ic: false })), slots: [] }] });
 
@@ -10,21 +10,6 @@ test('normName ignores case, titles, dots and word order', () => {
   assert.equal(normName('Dr. Alder  QUILL'), normName('quill alder'));
   assert.equal(normName('Prof. B. Moss'), normName('Moss B'));
   assert.notEqual(normName('Birch Moss'), normName('Birch Mossy'));
-});
-
-test('matchProfessors: by name or alias, per campus, survivors of merges, unmatched listed once', () => {
-  const idx = profIndex([
-    { id: 'p1', name: 'Dr. Alder Quill', campus: 'goa' },
-    { id: 'p2', name: 'Birch Moss', aliases: ['Moss B'], campus: 'goa' },
-    { id: 'p3', name: 'Prof. Birch Moss', campus: 'goa', mergedInto: 'p2' },
-    { id: 'p4', name: 'Cedar Vale', campus: 'pilani' },
-  ], 'goa');
-  const courses = { 'ZZZ F1': course('ALDER QUILL', 'Cedar Vale'), 'ZZZ F2': course('moss birch', 'Cedar Vale', 'Dune Ash') };
-  const unmatched = matchProfessors(courses, idx);
-  assert.deepEqual(unmatched, ['Cedar Vale', 'Dune Ash']);
-  assert.equal(courses['ZZZ F1'].sections[0].instructors[0].prof, 'p1');
-  assert.equal(courses['ZZZ F2'].sections[0].instructors[0].prof, 'p2');
-  assert.equal(courses['ZZZ F1'].sections[0].instructors[1].prof, undefined);
 });
 
 test('unknownCourseIds checks the bundled catalogue lists', () => {
@@ -59,17 +44,24 @@ test('parseArgs: required options, commit needs a project, unknown flags refused
   assert.equal(parseArgs(['t.pdf', '--campus', 'goa', '--sem', '2026-1', '--project', 'staging', '--key', 'k.json', '--commit']).key, 'k.json');
 });
 
-test('summarize: counts, page and line of unparsed rows, and the not-checked note', () => {
-  const result = {
-    campus: 'goa', sem: '2026-1', courses: { 'ZZZ F1': course('A B') }, events: [{}, {}], conflicts: [],
-    unparsed: [{ page: 7, line: 12, why: 'no STAT/SEC' }],
+test('parseArgs: --report and --answers are taken, --report refuses --commit', () => {
+  const a = parseArgs(['t.pdf', '--campus', 'goa', '--sem', '2026-1', '--report', 'r.md', '--answers', 'a.json']);
+  assert.deepEqual([a.report, a.answers], ['r.md', 'a.json']);
+  assert.throws(() => parseArgs(['t.pdf', '--campus', 'goa', '--sem', '2026-1', '--project', 'x', '--commit', '--report', 'r.md']), /dry run/);
+});
+
+test('summarize: counts, page and line of unparsed rows, and the headline numbers', () => {
+  const out = {
+    campus: 'goa', sem: '2026-1', courses: { 'ZZZ F1': course('Zed Quux') }, events: [{}, {}], conflicts: [], hours: { periods: {}, compre: {} },
+    unparsed: [{ page: 7, line: 12, why: 'bad row' }],
   };
-  const text = summarize(result, { chunks: 1, unmatched: null, unknown: ['ZZZ F1'] });
+  const text = summarize(out, makePlan({ campus: 'goa', sem: '2026-1', input: 't' }, out, null, {}, { version: 1, schema: 1, master: [], chartOld: [], chartNew: [], retired: [] }));
   assert.match(text, /courses: 1\n/);
   assert.match(text, /events: 2/);
-  assert.match(text, /page 7 line 12: no STAT\/SEC/);
-  assert.match(text, /not checked/);
-  assert.match(text, /unknown course ids: 1\n  ZZZ F1/);
+  assert.match(text, /page 7 line 12: bad row/);
+  assert.match(text, /new courses \(not in the catalogue\): 1\n  ZZZ F1 /);
+  assert.match(text, /new professors: 1\n  Zed Quux \(GEN\)/);
+  assert.match(text, /unsure matches, need your answer: 0/);
 });
 
 test('toSchema: day numbers, minutes, L/T/P only, profIds parallel, sem events only', () => {

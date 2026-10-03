@@ -4,12 +4,15 @@ import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
 import 'package:cgpa_calculator/core/timetable/occurrences.dart';
 import 'package:cgpa_calculator/core/timetable/timetable.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_time.dart';
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
 import 'package:flutter/material.dart';
 
-/// What the student chose in the sheet; the Calendar page does it.
+/// What the student chose in the sheet; the Calendar page does it. Picking another
+/// section pops the new section's key (a String) instead.
 enum ClassAct {
   open,
   changeTime,
@@ -68,6 +71,10 @@ class ClassSheet extends StatelessWidget {
     final until = isClass
         ? state.repeatUntil[o.courseId] ?? timetable?.lastClassworkDay()
         : null;
+    final course = timetable?.courses[o.courseId];
+    final others = isClass && sec != null && course != null
+        ? course.sections.where((s) => s.ty == sec.ty).toList()
+        : const <TtSection>[];
     final sub = [
       if (o.courseId.isNotEmpty) o.courseId,
       if (sec != null) '${typeWord(sec.ty)} ${sec.no}',
@@ -147,6 +154,33 @@ class ClassSheet extends StatelessWidget {
                       label: 'Open course',
                       onPressed: () => Navigator.pop(context, ClassAct.open),
                     ),
+                  if (others.length > 1) ...[
+                    Text('Section', style: TypeScale.label.copyWith(color: p.textMuted)),
+                    const SizedBox(height: Space.xs),
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (final s in others)
+                            CardRow(
+                              title: '${typeWord(s.ty)} ${s.no}${s.prof.isEmpty ? '' : ' · ${s.prof.join(', ')}'}',
+                              subtitle: [
+                                for (final sl in s.slots) '${dayShort(sl.d)} ${clockShort(sl.s)}-${clockShort(sl.e)}',
+                                if (s.room != null && s.room!.isNotEmpty) s.room!,
+                              ].join(' · '),
+                              titleLines: 2,
+                              trailing: Icon(
+                                s == sec ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                                size: 20,
+                                color: p.text,
+                              ),
+                              onTap: s == sec ? null : () => Navigator.pop(context, s.key(course!.id)),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: Space.sm),
+                  ],
                   if (isClass) ...[
                     const SizedBox(height: Space.sm),
                     PrimaryButton(
