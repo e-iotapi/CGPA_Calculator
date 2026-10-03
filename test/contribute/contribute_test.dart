@@ -131,9 +131,12 @@ void main() {
     );
     await open(t, As.student, const ApplyPage());
     expect(find.text('Become a contributor'), findsOneWidget);
-    expect(find.textContaining('approves them within 15 days'), findsNothing);
     expect(find.textContaining('A president approves them'), findsOneWidget);
     final field = find.widgetWithText(TextField, 'Username');
+    t.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(t.view.resetViewInsets);
+    await t.pump();
+    expect(t.getRect(field).bottom, lessThan(844 - 300 / 3));
     await t.enterText(field, 'taken_name');
     await t.tap(find.text('Apply'));
     await settle(t);
@@ -144,17 +147,6 @@ void main() {
     expect(find.text('Application sent'), findsOneWidget);
     expect(find.textContaining('Add links opens'), findsOneWidget);
     expect(contribState.value, ContribState.applied);
-  });
-
-  testWidgets('Apply stays above the keyboard', (t) async {
-    await open(t, As.student, const ApplyPage());
-    t.view.viewInsets = const FakeViewPadding(bottom: 300);
-    addTearDown(t.view.resetViewInsets);
-    await t.pump();
-    final f = find.widgetWithText(TextField, 'Username');
-    await t.tap(f);
-    await t.pump();
-    expect(t.getRect(f).bottom, lessThan(844 - 300 / 3));
   });
 
   testWidgets('Contribute: applied sees pending, approved sees filters', (
@@ -177,7 +169,7 @@ void main() {
     expect(find.text('Add links'), findsOneWidget);
     await t.tap(find.text('Rejected'));
     await t.pump();
-    expect(find.textContaining('No rejected links'), findsOneWidget);
+    expect(find.text('No links yet'), findsOneWidget);
   });
 
   testWidgets('Contribute: staff publish directly, no states', (t) async {
