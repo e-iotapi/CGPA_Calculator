@@ -79,12 +79,14 @@ export function toSchema(out, { marker, publishedAt }) {
   const courses = {};
   for (const [id, c] of Object.entries(out.courses)) {
     const sec = c.sections.filter((x) => 'LTP'.includes(x.type)).map((x) => {
+      // Only the instructor-in-charge is published; assistants are never listed.
+      const ic = x.instructors.filter((i) => i.ic);
       const o = {
         ty: x.type, no: x.no,
-        prof: x.instructors.map((i) => i.name),
+        prof: ic.map((i) => i.name),
         slots: x.slots.map((sl) => ({ d: DAYNO[sl.day], s: mins(sl.start), e: mins(sl.end) })),
       };
-      if (x.instructors.some((i) => i.prof)) o.profIds = x.instructors.map((i) => i.prof ?? '');
+      if (ic.some((i) => i.prof)) o.profIds = ic.map((i) => i.prof ?? '');
       if (x.room) o.room = x.room;
       return o;
     });

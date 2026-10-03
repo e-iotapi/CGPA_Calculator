@@ -87,7 +87,7 @@ export const auditOp = (id, summary, path, campus, after) => ({
  *  - exact match on name or alias (case, titles, dots, word order ignored) -> linked;
  *  - an answer in `answers` ({"PDF name": "<profId>" | "new"}) -> alias of that professor, or new;
  *  - a close match (likelySame) with no answer -> unsure: not linked, not created, listed;
- *  - nothing close -> new professor (dept from the first course they teach).
+ *  - nothing close -> new professor (dept: their most common branch dept, else GEN).
  *  Instructors-in-charge only: assistants are never professors.
  * Sets `prof` on every instructor it settles. Returns {entries, newProfs, aliasOps, warnings}.
  */
@@ -114,6 +114,14 @@ export function resolveProfessors(courses, profs, answers, newId) {
         ent.set(k, e);
       }
     }
+  }
+
+  // A branch department beats GEN: the most common non-GEN department of the
+  // courses they lead, else GEN (owner, 2026-10-04).
+  for (const e of ent.values()) {
+    const n = new Map();
+    for (const cid of e.courses) { const d = deptOf(cid); if (d !== 'GEN') n.set(d, (n.get(d) ?? 0) + 1); }
+    e.dept = [...n].sort((x, y) => y[1] - x[1])[0]?.[0] ?? 'GEN';
   }
 
   const warnings = [];
