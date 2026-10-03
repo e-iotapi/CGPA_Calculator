@@ -46,6 +46,8 @@ abstract final class Routes {
       '/maintain/$campus/$dept/courses';
   static String deptProfessors(String campus, String dept) =>
       '/maintain/$campus/$dept/professors';
+  static String deptProfessorsAdd(String campus, String dept) =>
+      '/maintain/$campus/$dept/professors/add';
   static String deptResources(String campus, String dept) =>
       '/maintain/$campus/$dept/resources';
   static String deptReviews(String campus, String dept) =>
