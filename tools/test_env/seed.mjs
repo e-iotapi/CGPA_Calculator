@@ -100,7 +100,12 @@ async function main() {
   await seedOfferings(db, byKey, professorIds);
   await seedReviews(db, byKey, professorIds);
   await seedResources(db, byKey);
+  await seedContributors(db, byKey);
+  await seedPending(db, byKey);
+  await seedGateAndClaims(db, byKey);
+  await seedActivity(db);
   await bumpMarkers(db);
+  await seedTimetable(db);
 
   console.log(`Done. Catalogue published at version ${catalogVersion}.`);
   process.exit(0);
@@ -108,12 +113,20 @@ async function main() {
 
 // The seed rewrites data behind the heads' markers, so a phone would keep its
 // saved copy as current. One step on every marker makes each re-read once.
+// The marker keys the stores read (lib/core/heads/paths.dart) that an empty
+// head does not hold yet; timetable moves in seedTimetable.
+const NEW_MARKERS = [
+  'reviewGate', 'leaderboard', 'grants', 'courseClaims', 'pending/ELEC',
+  'professors/ELEC', 'contributorRequests/ELEC',
+];
+
 async function bumpMarkers(db) {
   const batch = db.batch();
   for (const campus of ['goa', 'pilani', 'hyderabad', 'dubai']) {
     const head = (await db.doc(`heads/${campus}`).get()).data() ?? {};
-    const step = (m) => Object.fromEntries(Object.keys(m ?? {}).map((k) => [k, FieldValue.increment(1)]));
-    batch.set(db.doc(`heads/${campus}`), { v: step(head.v), offerings: step(head.offerings) }, { merge: true });
+    const step = (m, extra = []) =>
+      Object.fromEntries([...Object.keys(m ?? {}), ...extra].map((k) => [k, FieldValue.increment(1)]));
+    batch.set(db.doc(`heads/${campus}`), { v: step(head.v, NEW_MARKERS), offerings: step(head.offerings) }, { merge: true });
   }
   await batch.commit();
 }
@@ -132,6 +145,7 @@ const SEEDED_COLLECTIONS = [
   'owners', 'grants', 'staff', 'audit', 'staffContacts', 'directory',
   'volunteers', 'people', 'professors', 'resources', 'resourceVersions',
   'users', 'reviewIndex', 'repIndex',
+  'contributors', 'usernames', 'contributorRequests', 'courseClaims', 'reviewGate',
 ];
 const SEEDED_COLLECTION_GROUPS = [
   'offerings', 'entries', 'votes', 'reports', 'stats', 'campus',
@@ -151,6 +165,16 @@ async function wipeStaging(db, accounts) {
   await people.commit();
   for (const id of ['grantTerms', 'public']) {
     await db.doc(`config/${id}`).delete().catch(() => {});
+  }
+  // Docs whose rules allow only their own keys carry no `seed` flag; they
+  // are wiped by their known ids.
+  // The timetable is wiped only when it is this seed's own: the owner may
+  // have published the real one to staging (B8a), under the same sem id.
+  const tt = (await isSeededTimetable(db))
+    ? ['timetable/goa|current', 'timetable/goa|2026-1', 'timetable/goa|2026-1|0']
+    : [];
+  for (const p of ['pending/goa|ELEC', 'leaderboard/goa', 'activity/goa', ...tt]) {
+    await db.doc(p).delete().catch(() => {});
   }
   await db.doc('catalog/marker').delete().catch(() => {});
   const versions = await db.collection('catalog').listDocuments();
@@ -570,6 +594,8 @@ async function seedProfessors(db, byKey) {
     // Merge pair: "Prof. K. Rao" gets absorbed into "Dr. K. Rao" below.
     { name: 'Dr. K. Rao', campus: 'goa', department: 'ELEC' },
     { name: 'Prof. K. Rao', campus: 'goa', department: 'ELEC' },
+    // Soft-removed below: kept so reviews stay named, hidden from pickers.
+    { name: 'Dr. T. Nair', campus: 'goa', department: 'ELEC' },
   ];
   const ids = [];
   const batch = db.batch();
@@ -596,7 +622,12 @@ async function seedProfessors(db, byKey) {
   }
   await batch.commit();
 
-  const [menon, kulkarni, iyer, keepRao, absorbedRao] = ids;
+  const [menon, kulkarni, iyer, keepRao, absorbedRao, removedNair] = ids;
+  await db.doc(`professors/${removedNair}`).update({
+    removed: true,
+    removedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
+    removedAt: FieldValue.serverTimestamp(),
+  });
   const mergeBatch = db.batch();
   const mergeAuditId = audit(mergeBatch, {
     action: 'merge professor',
@@ -707,6 +738,8 @@ async function seedReviews(db, byKey, professorIds) {
         stars,
         recommend: stars >= 3,
         text: `Review ${i + 1} for ${courseId}.`,
+        grade: ['E', 'C', 'B', 'A-', 'A'][i],
+        ...(i >= 2 ? { marks: 500 + i * 100 } : {}),
         campus: 'goa',
         term,
         professorId: professorIds.menon,
@@ -743,6 +776,7 @@ async function seedReviews(db, byKey, professorIds) {
     stars: 4,
     recommend: true,
     text: 'Solid course.',
+    grade: 'ND',
     campus: 'hyderabad',
     term,
     professorId: professorIds.iyer,
@@ -792,6 +826,7 @@ async function seedReviewCopies(db) {
     const m = (mirrors[`${e.courseId}|${e.campus}`] ??= {});
     m[d.id] = {
       stars: e.stars, recommend: e.recommend, text: e.text ?? null, term: e.term,
+      ...(e.grade != null ? { grade: e.grade } : {}), ...(e.marks != null ? { marks: e.marks } : {}),
       professorId: e.professorId ?? null, helpful: e.helpful ?? 0,
       createdAt: e.createdAt, updatedAt: e.updatedAt,
     };
@@ -880,6 +915,193 @@ async function seedResources(db, byKey) {
     lastAt: FieldValue.serverTimestamp(),
   }));
   await reportBatch.commit();
+}
+
+// ---- contributors (B7) ----------------------------------------------------
+
+const daysAgo = (n) => Timestamp.fromMillis(seededAt - n * 864e5);
+const SEED_CONTRIBUTORS = Array.from({ length: 12 }, (_, i) => ({
+  email: `f202591${String(i).padStart(2, '0')}@goa.bits-pilani.ac.in`,
+  username: `seeduser${i + 1}`,
+  points: 4 * (12 - Math.floor(i / 2)), // ties in pairs: 48, 48, 44, 44, ...
+}));
+
+// Grants (live, until revoked), requests, usernames, contributors and the
+// mirrored leaderboard; shapes as ContributorStore and LeaderboardStore read.
+async function seedContributors(db, byKey) {
+  const campus = 'goa';
+  const me = byKey.contributor;
+  const until = Timestamp.fromDate(new Date(Date.UTC(2100, 0, 1)));
+  const b = db.batch();
+  const gid = `contributor|${campus}|${campus}|${me.email}`;
+  const auditId = audit(b, { action: 'appoint contributor', path: `grants/${gid}`, campus,
+                             after: { active: true } });
+  b.set(db.doc(`grants/${gid}`), s({
+    role: 'contributor', email: me.email, name: personName(me), campus, scope: campus,
+    dept: me.contributor.dept, active: true, expiresAt: until,
+    grantedBy: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
+    grantedAt: FieldValue.serverTimestamp(), auditId,
+  }));
+  b.set(db.doc(`contributorRequests/${campus}|${me.contributor.dept}|${me.email}`), s({
+    name: personName(me), email: me.email, campus, dept: me.contributor.dept,
+    status: 'approved', createdAt: daysAgo(30), decidedBy: byKey.president.email,
+    decidedAt: daysAgo(29),
+  }));
+  const ap = byKey.applicant;
+  b.set(db.doc(`contributorRequests/${campus}|${ap.applicant.dept}|${ap.email}`), s({
+    name: personName(ap), email: ap.email, campus, dept: ap.applicant.dept,
+    status: 'pending', createdAt: daysAgo(2),
+  }));
+
+  const rows = [
+    { email: me.email, username: me.contributor.username, points: me.contributor.points, tag: 'A3' },
+    ...SEED_CONTRIBUTORS.map((c, i) => ({ ...c, tag: i < 2 ? 'A7' : undefined })),
+  ];
+  const p = {}, tags = {};
+  for (const r of rows) {
+    b.set(db.doc(`contributors/${r.email}`), s({ username: r.username, campus, points: r.points }));
+    b.set(db.doc(`usernames/${campus}|${r.username}`), s({ email: r.email, claimedAt: daysAgo(20) }));
+    p[r.username] = r.points;
+    if (r.tag) tags[r.username] = r.tag;
+  }
+  // No `seed` flag: the rules allow only p, tags and k, so it would refuse
+  // every later leaderboard write.
+  b.set(db.doc(`leaderboard/${campus}`), { p, tags, k: me.contributor.username });
+  await b.commit();
+}
+
+// Two unapproved batches in ELEC: 3 links (ctest, fresh) and 1 link (14 days
+// old, a day from hiding). Each link is a live unapproved resource, its
+// mirror in resourceVersions and its entry in pending/<campus>|<dept>.
+async function seedPending(db, byKey) {
+  const campus = 'goa', dept = 'ELEC';
+  const me = byKey.contributor;
+  const batches = [
+    { email: me.email, username: me.contributor.username, ageDays: 1, links: [
+      ['Lecture notes drive', 'https://drive.google.com/drive/folders/1pend1', 'folder'],
+      ['Tutorial videos', 'https://youtube.com/playlist?list=pend2', 'video'],
+      ['Formula cheat sheet', 'https://docs.google.com/document/d/1pend3', 'doc'],
+    ] },
+    { email: SEED_CONTRIBUTORS[0].email, username: SEED_CONTRIBUTORS[0].username, ageDays: 14, links: [
+      ['Old papers archive', 'https://github.com/example/pend4', 'link'],
+    ] },
+  ];
+  const pending = {}, mirror = {};
+  const b = db.batch();
+  for (const bt of batches) {
+    const bid = db.collection('resources').doc().id;
+    const at = daysAgo(bt.ageDays);
+    pending[bid] = { email: bt.email, username: bt.username, at, links: {} };
+    for (const [title, url, kind] of bt.links) {
+      const ref = db.collection('resources').doc();
+      const host = new URL(url).host;
+      const addedBy = { email: bt.email, name: bt.username };
+      const auditId = audit(b, { action: 'submit resource', path: `resources/${ref.id}`, campus,
+                                 actor: { ...addedBy, role: 'contributor' } });
+      b.set(ref, s({
+        title, url, host, kind, campus, department: dept, scope: 'department', courseIds: [],
+        pinnedToDepartment: true, addedBy, addedAt: at, removed: false, approved: false,
+        publishedAt: at, batchId: bid, auditId, actingFor: '',
+      }));
+      pending[bid].links[ref.id] = { title, url };
+      mirror[ref.id] = {
+        title, url, host, kind, department: dept, scope: 'department', courseIds: [],
+        pinnedToDepartment: true, addedBy, addedAt: at.toMillis(), approved: false,
+        publishedAt: at.toMillis(),
+      };
+    }
+  }
+  // Overwrites pending/<campus>|<dept> whole; no `seed` (rules allow batches, b, k).
+  b.set(db.doc(`pending/${campus}|${dept}`), { batches: pending });
+  await b.commit();
+  await db.doc(`resourceVersions/${campus}`).set(
+    { v: FieldValue.increment(1), links: mirror }, { merge: true });
+}
+
+// reviewGate on for Goa, and one GEN-prefix course claimed by ELEC (the
+// president claimed it); HSS F266 stays unclaimed as the claim target.
+async function seedGateAndClaims(db, byKey) {
+  const campus = 'goa';
+  const pres = byKey.president;
+  const by = { email: pres.email, name: personName(pres) };
+  const b = db.batch();
+  const gateAudit = audit(b, { action: 'Turned the review gate on', path: `reviewGate/${campus}`, campus });
+  b.set(db.doc(`reviewGate/${campus}`), s({
+    on: true, by: { email: OWNER_ACTOR.email, name: OWNER_ACTOR.name },
+    at: FieldValue.serverTimestamp(), auditId: gateAudit,
+  }));
+  const course = 'HSS F219';
+  const claimAudit = audit(b, { actor: { ...by, role: 'dept' }, action: `Claimed ${course} for ELEC`,
+                                path: `courseClaims/${campus}|${course}`, campus, course, after: 'ELEC' });
+  b.set(db.doc(`courseClaims/${campus}|${course}`), s({
+    campus, courseId: course, dept: 'ELEC', by, at: daysAgo(10), auditId: claimAudit,
+  }));
+  await b.commit();
+}
+
+// When staff last edited (Last updated): fresh and stale (4 semesters back).
+async function seedActivity(db) {
+  // No `seed` flag: the rules allow only course, dept, c and d.
+  await db.doc('activity/goa').set({
+    course: { 'EEE F311': daysAgo(3), 'EEE F313': daysAgo(20), 'EEE F211': daysAgo(500) },
+    dept: { ELEC: daysAgo(3), CS: daysAgo(600) },
+    c: '', d: '',
+  });
+}
+
+// ---- timetable (B8b) --------------------------------------------------------
+
+// Invented courses only (never the published PDF). Moves the timetable
+// marker by one and writes the same number into the docs.
+/// True when goa has no timetable yet, or the one it has is this seed's
+/// (its chunk holds the invented `AAA F111`).
+async function isSeededTimetable(db) {
+  if (!(await db.doc('timetable/goa|current').get()).exists) return true;
+  const chunk = (await db.doc('timetable/goa|2026-1|0').get()).data();
+  return Boolean(chunk?.courses?.['AAA F111']);
+}
+
+async function seedTimetable(db) {
+  // Never overwrite a real published timetable (see wipeStaging).
+  if (!(await isSeededTimetable(db))) {
+    console.log('Timetable: a real one is published on goa; left as is.');
+    return;
+  }
+  const campus = 'goa', sem = '2026-1';
+  const head = (await db.doc(`heads/${campus}`).get()).data() ?? {};
+  const marker = (head.v?.timetable ?? 0) + 1;
+  const sec = (ty, no, room, slots, prof = ['A Teacher']) =>
+    ({ ty, no, prof, room, slots: slots.map(([d, st, e]) => ({ d, s: st, e })) });
+  const courses = {
+    'AAA F111': { t: 'Intro Widgets', cr: 4,
+      sec: [sec('L', 1, 'F101', [[1, 540, 600], [3, 540, 600], [5, 540, 600]]),
+            sec('T', 1, 'F102', [[4, 660, 720]], [])],
+      mid: { d: '2026-10-12', s: 570, e: 660 }, compre: { d: '2026-12-10', slot: 'FN', s: 570, e: 750 } },
+    'BBB F211': { t: 'Applied Gadgets', cr: 3,
+      sec: [sec('L', 1, 'G12', [[2, 840, 900], [4, 840, 900]]), sec('L', 2, 'G13', [[2, 900, 960], [4, 900, 960]])],
+      mid: { d: '2026-10-14', s: 570, e: 660 }, compre: { d: '2026-12-12', slot: 'AN', s: 840, e: 1020 } },
+    'CCC F311': { t: 'Gadget Design', cr: 3,
+      sec: [sec('L', 1, 'H21', [[1, 600, 660], [3, 600, 660]]), sec('P', 1, 'LAB1', [[5, 840, 1020]], [])],
+      compre: { d: '2026-12-14', slot: 'FN', s: 570, e: 750 } },
+  };
+  const events = [
+    { from: '2026-08-03', title: 'Instruction begins', kind: 'term' },
+    { from: '2026-09-22', title: 'Fees due', kind: 'deadline' },
+    { from: '2026-09-24', to: '2026-09-25', title: 'Founders day', kind: 'holiday' },
+    { from: '2026-10-12', to: '2026-10-17', title: 'Midsem exams', kind: 'exam' },
+    { from: '2026-11-28', title: 'Last day of classes', kind: 'term' },
+  ];
+  const b = db.batch();
+  const auditId = audit(b, { action: 'publish timetable', path: `timetable/${campus}|${sem}`, campus });
+  b.set(db.doc(`timetable/${campus}|${sem}|0`), s({ n: 0, courses }));
+  b.set(db.doc(`timetable/${campus}|${sem}`), s({
+    v: 1, sem, campus, hours: { 1: [480, 540], 2: [540, 600] }, examSlots: { FN: [570, 750], AN: [840, 1020] },
+    events, chunks: 1, publishedAt: FieldValue.serverTimestamp(), marker, auditId,
+  }));
+  // The rules allow only sem and marker here, so no `seed` flag.
+  b.set(db.doc(`timetable/${campus}|current`), { sem, marker });
+  b.set(db.doc(`heads/${campus}`), { v: { timetable: marker } }, { merge: true });
+  await b.commit();
 }
 
 await main();
