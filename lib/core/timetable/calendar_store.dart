@@ -63,8 +63,13 @@ class CalendarState {
     this.removed = const {},
     this.examsOff = const {},
     this.custom = const [],
+    this.autoFilled = false,
   });
   final String campus, sem;
+
+  /// The student's courses were put in once for this sem; removing them all
+  /// later does not bring them back.
+  final bool autoFilled;
 
   /// Course id -> section keys attended.
   final Map<String, List<String>> picks;
@@ -88,6 +93,7 @@ class CalendarState {
     Set<String>? removed,
     Set<String>? examsOff,
     List<CalendarCustom>? custom,
+    bool? autoFilled,
   }) => CalendarState(
     campus: campus ?? this.campus,
     sem: sem ?? this.sem,
@@ -97,6 +103,7 @@ class CalendarState {
     removed: removed ?? this.removed,
     examsOff: examsOff ?? this.examsOff,
     custom: custom ?? this.custom,
+    autoFilled: autoFilled ?? this.autoFilled,
   );
 
   static CalendarState fromJson(Map m) => CalendarState(
@@ -130,6 +137,7 @@ class CalendarState {
       for (final c in (m['custom'] as List?) ?? const [])
         CalendarCustom.fromJson(c as Map),
     ],
+    autoFilled: m['autoFilled'] == true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -145,6 +153,7 @@ class CalendarState {
     'removed': {for (final k in removed) k: true},
     'examsOff': {for (final k in examsOff) k: true},
     'custom': [for (final c in custom) c.toJson()],
+    if (autoFilled) 'autoFilled': true,
   };
 }
 
@@ -192,6 +201,35 @@ class CalendarStore {
       removed: _state.removed.where((k) => !_of(c.id, k)).toSet(),
     ),
   );
+
+  /// Moves every class of [oldKey]'s type in [courseId] to [newKey] (same type): the
+  /// pick changes, the old section's own edits and hidden days go with it.
+  Future<void> setSection(String courseId, String oldKey, String newKey) => _save(
+    _state.copy(
+      picks: {
+        ..._state.picks,
+        courseId: [for (final k in _state.picks[courseId] ?? const <String>[]) k == oldKey ? newKey : k],
+      },
+      slotOverrides: {
+        for (final e in _state.slotOverrides.entries)
+          if (!e.key.startsWith('$oldKey|')) e.key: e.value,
+      },
+      removed: _state.removed.where((k) => !k.startsWith('$oldKey|')).toSet(),
+    ),
+  );
+
+  /// The first load of a sem: puts [picks] in (course id -> section keys),
+  /// once. A student who already has picks keeps them; either way it does not
+  /// run again, so removing every course later leaves the calendar empty.
+  Future<void> autoFill(Map<String, List<String>> picks) =>
+      _state.autoFilled
+          ? Future.value()
+          : _save(
+            _state.copy(
+              picks: _state.picks.isEmpty ? picks : _state.picks,
+              autoFilled: true,
+            ),
+          );
 
   Future<void> removeCourse(String courseId) => _save(
     _state.copy(

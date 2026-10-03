@@ -134,15 +134,33 @@ test('table: unreadable rows are reported with page and line, the rest still par
       row('XXX F100', { title: 'OK', stat: 'L', sec: 1, instr: 'Pine Ash', sched: 'M1', room: 'A101', compre: '14/12/26 (FN)' }),
       row('XXX F101', { title: 'BAD COMPRE', stat: 'L', sec: 1, instr: 'Pine Ash', sched: 'M1', compre: 'someday' }),
       row('XXX F102', { title: 'BAD SCHED', stat: 'L', sec: 1, instr: 'Pine Ash', sched: 'M 4 junk' }),
-      row('XXX F103', { title: 'NO STAT', instr: 'Pine Ash' }),
     ),
   ].join('\f');
   const { rows, unparsed } = parseTable(text);
   assert.deepEqual(rows.map((r) => r.id), ['XXX F100']);
-  assert.deepEqual(unparsed.map((u) => [u.page, u.line]), [[1, 6], [1, 7], [1, 8]]);
+  assert.deepEqual(unparsed.map((u) => [u.page, u.line]), [[1, 6], [1, 7]]);
   assert.match(unparsed[0].why, /compre/);
   assert.match(unparsed[1].why, /schedule/);
-  assert.match(unparsed[2].why, /STAT/);
+});
+
+test('table: no STAT/SEC is section 1 (L); a type alone, or "P P", keeps the type', () => {
+  const text = page(
+    row('XXX F103', { title: 'NO STAT', instr: 'Pine Ash', sched: 'M1' }),
+    row('XXX F103', { title: 'NO STAT', stat: 'P', sec: 'P', instr: 'Pine Ash' }),
+    row('XXX F104', { title: 'TYPE ONLY', stat: 'T', instr: 'Pine Ash' }),
+  );
+  const { rows, unparsed } = parseTable(text);
+  assert.deepEqual(unparsed, []);
+  assert.deepEqual(rows.map((r) => [r.type, r.no]), [['L', 1], ['P', 1], ['T', 1]]);
+});
+
+test('table: credits come from LPU (the last of three digits, or the lone number), none when blank', () => {
+  const { rows } = parseTable(page(
+    row('XXX F201', { title: 'THREE DIGITS', lpu: '303', stat: 'L', sec: 1, instr: 'Pine Ash' }),
+    row('XXX F202', { title: 'ONE NUMBER', lpu: '4', stat: 'L', sec: 1, instr: 'Pine Ash' }),
+    row('XXX F203', { title: 'BLANK', stat: 'L', sec: 1, instr: 'Pine Ash' }),
+  ));
+  assert.deepEqual(rows.map((r) => [r.credits, r.lpu3]), [[3, true], [4, false], [undefined, false]]);
 });
 
 // Two columns split at "Second Semester"; invented dates and titles.
@@ -218,4 +236,5 @@ test('courses: a second line for the same section joins it, with its own room', 
   assert.deepEqual(secs[0].slots, [{ day: 'M', start: '09:00', end: '11:00' }, { day: 'F', start: '09:00', end: '11:00', room: 'WS' }]);
   assert.equal(secs[0].room, 'CC 219');
   assert.deepEqual(conflicts.map((c) => c.field), ['compre']);
+  assert.equal(courses['WWW U103'].compre.date, '2026-12-15'); // the first value stays
 });
