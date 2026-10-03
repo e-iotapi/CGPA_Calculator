@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cgpa_calculator/core/roles/activity_store.dart';
 import 'dart:convert';
 
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
@@ -254,6 +255,8 @@ class ResourceStore {
       }, ref.id),
       ref.id,
     );
+    ActivityStore.touch(b, _db, r.campus,
+        courseId: r.fromCourse, dept: r.department);
     await b.commit();
     LiveHeads.poke(Paths.resources);
     await _dropLocal(r.campus);
@@ -319,6 +322,8 @@ class ResourceStore {
       });
     }
     _bump(b, next.campus, next);
+    ActivityStore.touch(b, _db, next.campus,
+        courseId: next.fromCourse, dept: next.department);
     await b.commit();
     LiveHeads.poke(Paths.resources);
     await _dropLocal(next.campus);

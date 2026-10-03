@@ -1,4 +1,6 @@
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/roles/activity_store.dart';
 import 'package:cgpa_calculator/core/grading/eval_import.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
@@ -154,6 +156,8 @@ class MaintainStore {
     final b = _db.batch();
     _put(b, o, summary);
     bumpOfferings(b, _db, o.campus, o.term, [o.courseId]);
+    ActivityStore.touch(b, _db, o.campus,
+        courseId: o.courseId, dept: deptOf(o.courseId));
     await b.commit();
     await _forget([o.campus]);
   }
