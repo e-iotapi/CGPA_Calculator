@@ -92,7 +92,11 @@ class Grant {
     this.handedTo,
     this.expiresBefore,
     this.secretary = false,
+    this.dept,
   });
+
+  /// Contributor grants only: the department whose president approved it.
+  final String? dept;
 
   /// The kind of grant.
   final GrantRole role;
@@ -141,6 +145,7 @@ class Grant {
     active: active ?? this.active,
     expiresAt: expiresAt ?? this.expiresAt,
     secretary: secretary,
+    dept: dept,
   );
 
   /// Whether the grant is active and unexpired at [now].
@@ -171,6 +176,7 @@ class Grant {
     handedTo: m['handedTo'] as String?,
     expiresBefore: asDate(m['expiresBefore']),
     secretary: m['secretary'] as bool? ?? false,
+    dept: m['dept'] as String?,
   );
 
   /// JSON-safe, for `cacheFirst`: [fromMap] reads it back (dates as millis).
@@ -188,6 +194,7 @@ class Grant {
     'handedTo': handedTo,
     'expiresBefore': expiresBefore?.millisecondsSinceEpoch,
     'secretary': secretary,
+    'dept': dept,
   };
 }
 

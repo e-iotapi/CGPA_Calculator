@@ -18,6 +18,12 @@ abstract final class Routes {
   static const compulsoryReviews = '/reviews/compulsory';
   static const more = '/more';
   static const representatives = '/representatives';
+  static const leaderboard = '/leaderboard';
+  static const contribute = '/contribute';
+  static const contributeApply = '/contribute/apply';
+  static const contributeAdd = '/contribute/add';
+  static String contributeEdit(String id) =>
+      '/contribute/edit/${Uri.encodeComponent(id)}';
   static String courseReviews(String id, {String? professor}) =>
       '/reviews/${Uri.encodeComponent(id)}'
       '${professor == null ? '' : '?professor=${Uri.encodeQueryComponent(professor)}'}';
@@ -42,6 +48,7 @@ abstract final class Routes {
   static const adminPublish = '/admin/publish';
   static const adminAnalytics = '/admin/analytics';
   static const adminMerge = '/admin/professors/merge';
+  static const adminApprovals = '/admin/approvals';
   static const openAs = '/admin/open-as';
   static const openAsDept = '/admin/open-as/department';
   static const openAsCourse = '/admin/open-as/course';
@@ -56,6 +63,8 @@ abstract final class Routes {
       '/maintain/$campus/$dept/professors/add';
   static String deptResources(String campus, String dept) =>
       '/maintain/$campus/$dept/resources';
+  static String deptApprovals(String campus, String dept) =>
+      '/maintain/$campus/$dept/approvals';
   static String deptReviews(String campus, String dept) =>
       '/maintain/$campus/$dept/reviews';
   static String deptSuccession(String campus, String dept) =>

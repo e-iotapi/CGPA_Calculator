@@ -270,6 +270,13 @@ class DeptHome extends StatelessWidget {
             onTap: () => context.push(Routes.deptProfessors(campus, dept)),
           ),
           CardRow(
+            leading: IconTile(Icons.volunteer_activism_outlined),
+            title: 'Contributor approvals',
+            subtitle: 'Applications and student links',
+            minHeight: 58,
+            onTap: () => context.push(Routes.deptApprovals(campus, dept)),
+          ),
+          CardRow(
             leading: IconTile(Icons.badge_outlined),
             title: 'People',
             subtitle: 'Presidents and CRs on your campus',
