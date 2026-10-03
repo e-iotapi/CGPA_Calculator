@@ -558,6 +558,26 @@ service cloud.firestore {
     // create and leaves beside its approval or rejection.
     function pendingId(id, i) { return id.split('[|]')[i]; }
 
+    // activity/{campus}: { course: {<id>: ts}, dept: {<dept>: ts}, c, d }:
+    // when staff last made a meaningful edit (Last updated, B4). `c` and `d`
+    // name the one course and department the write touched; each moves to
+    // request.time. Not a marker; read with a plain age.
+    match /activity/{campus} {
+      allow get: if mayUse();
+      allow create, update: if privileged()
+        && request.resource.data.keys().hasOnly(['course', 'dept', 'c', 'd'])
+        && touchedNow('course', request.resource.data.c)
+        && touchedNow('dept', request.resource.data.d);
+      allow delete: if false;
+    }
+
+    function touchedNow(field, key) {
+      let was = resource == null ? {} : resource.data.get(field, {});
+      let now = request.resource.data.get(field, {});
+      return key is string && now.diff(was).affectedKeys().hasOnly([key])
+        && (key == '' || now[key] == request.time);
+    }
+
     match /pending/{id} {
       allow get: if mayUse() && approves(pendingId(id, 0), pendingId(id, 1));
       allow create, update: if mayUse()

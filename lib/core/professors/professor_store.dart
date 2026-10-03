@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/roles/activity_store.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/live/live_heads.dart';
@@ -223,6 +224,7 @@ class ProfessorStore {
       ..._stamp(r, audit),
     });
     bumpPath(b, db, campus, Paths.professors(department));
+    ActivityStore.touch(b, db, campus, dept: department);
     await b.commit();
     LiveHeads.poke(Paths.professors(department));
     await _forget(campus);
@@ -257,6 +259,7 @@ class ProfessorStore {
       ..._stamp(r, audit),
     });
     bumpPath(b, db, p.campus, Paths.professors(p.department));
+    ActivityStore.touch(b, db, p.campus, dept: p.department);
     await b.commit();
     LiveHeads.poke(Paths.professors(p.department));
     await _forget(p.campus);
@@ -300,6 +303,7 @@ class ProfessorStore {
     }) {
       bumpPath(b, db, p.$1, Paths.professors(p.$2));
     }
+    ActivityStore.touch(b, db, keep.campus, dept: keep.department);
     await b.commit();
     LiveHeads.poke(Paths.professors(keep.department));
     LiveHeads.poke(Paths.professors(absorbed.department));
@@ -334,6 +338,7 @@ class ProfessorStore {
       ..._stamp(r, audit),
     });
     bumpPath(b, db, p.campus, Paths.professors(p.department));
+    ActivityStore.touch(b, db, p.campus, dept: p.department);
     await b.commit();
     LiveHeads.poke(Paths.professors(p.department));
     await _forget(p.campus);
