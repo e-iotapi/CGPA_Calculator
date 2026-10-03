@@ -23,6 +23,10 @@ class PrefsStore {
   final FirebaseFirestore db;
   final String uid;
 
+  /// True once the server answered [pull] (with prefs or without), so a flag
+  /// that is still unset really is unset. The first-sign-in tour waits on it.
+  final pulled = ValueNotifier<bool>(false);
+
   Box? get _box =>
       Hive.isBoxOpen(deviceBoxName) ? Hive.box(deviceBoxName) : null;
 
@@ -68,11 +72,15 @@ class PrefsStore {
     try {
       final s = await db.collection('users').doc(uid).get();
       final p = s.data()?['prefs'];
-      if (p is! Map) return;
+      if (p is! Map) {
+        pulled.value = true;
+        return;
+      }
       for (final k in [_kOffshoot, _kTour]) {
         if (p[k] is bool) await _box?.put('pref.$k', p[k]);
       }
       offshootHiddenNow.value = offshootHidden;
+      pulled.value = true;
     } on FirebaseException {
       // unavailable, or not signed in yet: keep what the device has.
     }

@@ -47,6 +47,19 @@ void main() {
     },
   );
 
+  test('pulled turns true once the server answered, with or without prefs',
+      () async {
+    final s = PrefsStore(db, uid: 'u1');
+    expect(s.pulled.value, false);
+    await s.pull(); // no doc
+    expect(s.pulled.value, true);
+    final t = PrefsStore(db, uid: 'u2');
+    await db.doc('users/u2').set({'rev': 1, 'prefs': {'tourSeen': true}});
+    await t.pull();
+    expect(t.pulled.value, true);
+    expect(t.tourSeen, true);
+  });
+
   test('pull takes the server flags into the device box', () async {
     await db.doc('users/u1').set({
       'rev': 1,
