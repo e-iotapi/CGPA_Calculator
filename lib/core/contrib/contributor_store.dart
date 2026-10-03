@@ -308,10 +308,19 @@ class ContributorStore {
       'auditId': audit,
     });
     bumpPath(b, _db, g.campus, Paths.grants);
+    // The approved request moves to withdrawn, so the person can apply again.
+    final dept = g.dept ?? '';
+    final ref = dept.isEmpty ? null : _request(g.campus, dept, g.email);
+    final approved = ref != null && (await ref.get()).data()?['status'] == 'approved';
+    if (approved) {
+      b.update(ref, {'status': 'withdrawn'});
+      bumpPath(b, _db, g.campus, Paths.contribRequests(dept));
+    }
     await b.commit();
     LiveHeads.poke(Paths.grants);
     await forget('roster|');
     await forget('me-ct|');
+    if (approved) await _changed(dept);
   }
 
   /// Whether I hold a grant, my username and points.

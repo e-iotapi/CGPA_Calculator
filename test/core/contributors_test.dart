@@ -109,6 +109,24 @@ void main() {
       );
     });
 
+    test('revoke withdraws the approved request, so the person can apply again',
+        () async {
+      await student.apply('goa', 'ELEC');
+      await president.approve((await president.requests('goa', 'ELEC')).single);
+      final g = Grant.fromMap(
+        (await db.doc('grants/contributor|goa|goa|$_stu').get()).data()!,
+      );
+      expect(g.dept, 'ELEC');
+      await president.revoke(g);
+      expect((await db.doc('grants/${g.id}').get()).data()!['active'], false);
+      expect(
+        (await db.doc('contributorRequests/goa|ELEC|$_stu').get())
+            .data()!['status'],
+        'withdrawn',
+      );
+      await student.apply('goa', 'ELEC');
+    });
+
     test('claim a username: bad, free, then taken', () async {
       expect(
         () => student.claimUsername('goa', 'no'),
