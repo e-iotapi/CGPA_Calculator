@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/contrib/contributor_store.dart';
 import 'package:cgpa_calculator/core/contrib/leaderboard_store.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
@@ -242,6 +243,19 @@ void main() {
       expect((await db.doc('leaderboard/goa').get()).data()!['p'], {'cee': 8});
       expect(await approver.pending('goa', 'ELEC'), isEmpty);
       expect((await LeaderboardStore(db).of('goa')).single.points, 8);
+    });
+
+    test('a contributor submission leaves cached own reviews alone', () async {
+      await openSharedCache();
+      await sharedCacheBox!.clear();
+      await contributor.addAsContributor(_link('Notes'));
+      await contributor.mine('goa');
+      expect(contributor.peekMine('goa'), isNotNull);
+      // ReviewStore's own-review key shares the old 'rmine|' prefix.
+      await sharedCacheBox!.put('rmine|EEE F111|x', '{"v":[]}');
+      await contributor.addAsContributor(_link('More', url: 'https://a.example.com/9'));
+      expect(sharedCacheBox!.containsKey('rmine|EEE F111|x'), isTrue);
+      expect(contributor.peekMine('goa'), isNull);
     });
 
     test('editing a rejected link never re-queues it', () async {
