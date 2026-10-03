@@ -79,3 +79,7 @@ tools/perf_out/
 # QA notes and trackers (Tester); never committed.
 bug_*.md
 bugs/
+.superpowers/
+
+# Timetable and other PDFs dropped at the root: never commit
+/*.pdf
