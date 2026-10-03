@@ -14,6 +14,8 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/flaky_firestore.dart';
+
 const pres = 'f20230802@goa.bits-pilani.ac.in';
 const course = 'BITS F225'; // a core course of the electronics programme AA
 
@@ -186,6 +188,26 @@ void main() {
       await openCourses(t, grant());
       expect(find.text('Claim'), findsWidgets);
       expect(find.textContaining('$course ·'), findsOneWidget);
+    });
+
+    testWidgets('a failed Claim says why and moves nothing', (t) async {
+      await openCourses(t, grant());
+      final flaky = FlakyFirestore()..down = true;
+      roleStore = RoleStore(flaky, me: pres, myName: 'Meera Iyer');
+      final pill = find.widgetWithText(PillButton, 'Claim').first;
+      await t.ensureVisible(pill);
+      await t.tap(pill);
+      await t.pumpAndSettle();
+      await t.tap(
+        find.descendant(
+          of: find.byType(ConfirmDialog),
+          matching: find.text('Claim'),
+        ),
+      );
+      await t.pumpAndSettle();
+      expect(find.text('No connection. Nothing was changed.'), findsOneWidget);
+      expect(find.widgetWithText(PillButton, 'Claim'), findsWidgets);
+      expect(await db.collection('courseClaims').get().then((s) => s.size), 0);
     });
 
     testWidgets('a secretary does not', (t) async {
