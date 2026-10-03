@@ -101,3 +101,9 @@ String updatedLabel(int? tsMs, DateTime now) {
   final d = DateTime.fromMillisecondsSinceEpoch(tsMs);
   return 'Updated ${_months[d.month - 1]} ${d.year}';
 }
+
+/// "Aug 2026": the month a course or department was last updated.
+String monthYear(int tsMs) {
+  final d = DateTime.fromMillisecondsSinceEpoch(tsMs);
+  return '${_months[d.month - 1]} ${d.year}';
+}

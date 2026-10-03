@@ -218,8 +218,9 @@ class RoleStore {
     Object? before,
     Object? after,
     String? uploadId,
+    String? auditId,
   }) {
-    final ref = db.collection('audit').doc();
+    final ref = db.collection('audit').doc(auditId);
     final acting = actingAs?.call();
     b.set(ref, {
       'actor': {'email': me, 'name': myName, 'role': acting?.role ?? 'owner'},
