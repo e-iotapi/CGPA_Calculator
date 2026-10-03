@@ -256,6 +256,31 @@ void main() {
       expect(await approver.pending('goa', 'ELEC'), isEmpty);
     });
 
+    test('approve: a link past its 15 days is refused, the rest of the batch goes on',
+        () async {
+      await contributor.addBatchAsContributor([
+        _link('Old', url: 'https://a.example.com/1'),
+        _link('New', url: 'https://a.example.com/2'),
+      ]);
+      final b = (await approver.pending('goa', 'ELEC')).single;
+      final old = b.links.firstWhere((l) => l.title == 'Old');
+      await db.doc('resources/${old.id}').update({
+        'publishedAt': Timestamp.fromDate(
+          DateTime.now().subtract(const Duration(days: 16)),
+        ),
+      });
+      expect(
+        () => approver.approve(b, linkIds: [old.id]),
+        throwsA(isA<LinkExpired>()),
+      );
+      // The other link still approves, with the expired one left queued.
+      final fresh = b.links.firstWhere((l) => l.title == 'New');
+      await approver.approve(b, linkIds: [fresh.id]);
+      expect((await db.doc('resources/${fresh.id}').get()).data()!['approved'], true);
+      expect((await db.doc('resources/${old.id}').get()).data()!['approved'], false);
+      expect((await db.doc('contributors/$_stu').get()).data()!['points'], 4);
+    });
+
     test('approve without a username creates contributors; no board', () async {
       await contributor.addAsContributor(_link('Notes'));
       await approver.approve((await approver.pending('goa', 'ELEC')).single);
