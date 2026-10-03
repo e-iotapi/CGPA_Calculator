@@ -2,16 +2,25 @@
 // Timetable extractor (B8a), owner-run like the seed script.
 //
 //   node tools/timetable/extract.mjs <timetable.pdf|.txt> --campus goa --sem 2026-1
-//        [--professors professors.json] [--out result.json]
-//        [--project staging --key /path/to/key.json [--commit]]
+//        [--project staging --key /path/to/key.json]
+//        [--report plan.md] [--answers answers.json] [--professors professors.json] [--out result.json]
+//        [--commit]
 //
-// Dry run by default: parses, prints counts, rows it could not read (page and
-// line), professors that match nothing and course ids the catalogue does not
-// know. --commit writes timetable/<campus>|<sem> (meta), the chunk docs
-// timetable/<campus>|<sem>|<n>, one audit doc and the heads/<campus> bump, in
-// one batch, replacing whatever that campus and sem had before.
-// Names come from Firestore (--project) or a JSON list (--professors); with
-// neither, matching is skipped and the report says so. The key is only ever a
+// Dry run by default: parses, prints what a commit would add, writes nothing.
+//   --report <file.md>   the same as a Markdown report (every doc, field, before and after).
+//   --project/--key      read the live data (read only) for an exact diff; without them the
+//                        run compares against assets/catalog.json and an empty set of docs.
+//   --answers <file>     {"R. Aduri": "<professor id>" | "new"}: your answer for each name the
+//                        report lists under "Needs your answer". A link is saved as an alias.
+// --commit (needs --project) only ever adds, in this order, each batch atomic:
+//   professors   new ones (src "timetable") and confirmed aliases;
+//   offerings    `professors` of courses/<id>/offerings/<campus>_<term>, only where the field
+//                is missing or empty (never over a staff or CR edit);
+//   catalogue    catalog/v<n+1> = the current catalogue + the courses it lacks, then the marker
+//                and every campus head, as the seed script does;
+//   timetable    meta, chunks and the current pointer of that campus and sem.
+// Names with an exact match (case, titles, dots, word order ignored) link by themselves; a close
+// match is never applied without an answer. Re-running does nothing more. The key is only ever a
 // path handed to firebase-admin; this script never opens it.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -20,6 +29,10 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { parseTimetable } from './parse.mjs';
+import { buildBatches, planCatalog, planOfferings, planTimetable, resolveProfessors, termOf } from './plan.mjs';
+import { renderReport } from './report.mjs';
+
+export { normName } from './plan.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PROD_PROJECT_ID = 'cgpa-calculator-fb90c';
@@ -33,7 +46,7 @@ export function parseArgs(argv) {
     const a = argv[i];
     if (a === '--commit') out.commit = true;
     else if (a === '--allow-prod') out.allowProd = true;
-    else if (['--campus', '--sem', '--project', '--key', '--professors', '--out'].includes(a)) out[a.slice(2)] = argv[++i];
+    else if (['--campus', '--sem', '--project', '--key', '--professors', '--out', '--report', '--answers'].includes(a)) out[a.slice(2)] = argv[++i];
     else if (a.startsWith('--')) throw new Error(`Unknown option ${a}`);
     else rest.push(a);
   }
@@ -41,44 +54,12 @@ export function parseArgs(argv) {
   if (!out.input) throw new Error('Usage: extract.mjs <timetable.pdf|.txt> --campus goa --sem 2026-1 [--commit]');
   if (!CAMPUSES.includes(out.campus)) throw new Error(`--campus must be one of ${CAMPUSES.join(', ')}`);
   if (!/^\d{4}-[12]$/.test(out.sem ?? '')) throw new Error('--sem must look like 2026-1');
+  if (out.commit && out.report) throw new Error('--report is for the dry run: drop --commit, or drop --report.');
   if (out.commit && !out.project) throw new Error('--commit needs --project (an alias from .firebaserc, or a project id)');
   return out;
 }
 
-// ---- professors ------------------------------------------------------------
-
-const TITLES = new Set(['dr', 'prof', 'professor', 'mr', 'mrs', 'ms', 'shri', 'smt']);
-
-/** "Dr. R. Menon" -> "menon r": lowercase, no titles or dots, words sorted so order does not matter. */
-export function normName(name) {
-  return name.toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter((w) => w && !TITLES.has(w)).sort().join(' ');
-}
-
-/** Index of normalised name -> professor id from `professors` docs ({id, name, aliases?, campus, mergedInto?}). */
-export function profIndex(docs, campus) {
-  const idx = new Map();
-  for (const d of docs) {
-    // A merged-away doc's names live on as aliases of the survivor.
-    if (d.campus !== campus || d.mergedInto) continue;
-    for (const n of [d.name, ...(d.aliases ?? [])]) idx.set(normName(n), d.id);
-  }
-  return idx;
-}
-
-/** Sets `prof` on each matched instructor; returns the sorted unique names that matched nothing. */
-export function matchProfessors(courses, idx) {
-  const unmatched = new Set();
-  for (const c of Object.values(courses)) {
-    for (const s of c.sections) {
-      for (const i of s.instructors) {
-        const id = idx.get(normName(i.name));
-        if (id) i.prof = id;
-        else unmatched.add(i.name);
-      }
-    }
-  }
-  return [...unmatched].sort((a, b) => a.localeCompare(b));
-}
+// ---- catalogue check ---------------------------------------------------------
 
 /** Course ids the bundled catalogue has never heard of. */
 export function unknownCourseIds(courses, catalog) {
@@ -156,30 +137,36 @@ export function packChunks(courses, maxBytes = CHUNK_BYTES) {
   return chunks;
 }
 
-// ---- report ---------------------------------------------------------------
+// ---- console summary ---------------------------------------------------------
 
-const list = (xs, n = 40) => (xs.length > n ? [...xs.slice(0, n), `... and ${xs.length - n} more (see --out)`] : xs);
+const list = (xs, n = 40) => (xs.length > n ? [...xs.slice(0, n), `... and ${xs.length - n} more (see --report)`] : xs);
 
-export function summarize(result, extra) {
+export function summarize(result, plan) {
   const courses = Object.values(result.courses);
-  const lines = [
-    `campus ${result.campus}, sem ${result.sem}`,
+  const res = plan.res;
+  const unsure = res.entries.filter((e) => e.status === 'unsure');
+  const fill = plan.offerings.ops.filter((o) => o.action !== 'unchanged');
+  return [
+    `campus ${result.campus}, sem ${result.sem} (offering term ${plan.term})`,
+    plan.live ? `compared with live data in ${plan.args.project}` : 'compared with assets/catalog.json and no existing professors or offerings (give --project for an exact diff)',
     `courses: ${courses.length}`,
     `sections: ${courses.reduce((n, c) => n + c.sections.length, 0)}`,
     `events: ${result.events.length}`,
-    `chunks: ${extra.chunks}`,
+    `chunks: ${plan.chunks.length}${plan.timetable.changed ? '' : ' (timetable already published as is)'}`,
     `unparsed rows: ${result.unparsed.length}`,
     ...list(result.unparsed.map((u) => `  page ${u.page} line ${u.line}: ${u.why}`)),
     `compre/midsem disagreements between sections of one course (first kept): ${result.conflicts.length}`,
     ...list(result.conflicts.map((c) => `  ${c.id} ${c.field} (page ${c.page} line ${c.line})`)),
-    extra.unmatched
-      ? `unmatched professors: ${extra.unmatched.length}`
-      : 'unmatched professors: not checked (give --professors or --project)',
-    ...list(extra.unmatched ?? []).map((n) => `  ${n}`),
-    `unknown course ids: ${extra.unknown.length}`,
-    ...list(extra.unknown).map((id) => `  ${id}`),
-  ];
-  return lines.join('\n');
+    `new courses (not in the catalogue): ${plan.catalog.adds.length}`,
+    ...list(plan.catalog.adds.map((a) => `  ${a.id} ${a.title} (${a.creditsKnown ? a.credits : '?'} credits)`)),
+    `new professors: ${res.newProfs.length}`,
+    ...list(res.newProfs.map((p) => `  ${p.name} (${p.dept})`)),
+    `professors linked by exact match: ${res.entries.filter((e) => e.status === 'linked').length}`,
+    `unsure matches, need your answer: ${unsure.length}`,
+    ...list(unsure.map((e) => `  ${e.pdfNames[0]} ~ ${e.candidates.map((c) => `${c.name} (${c.id})`).join(' / ')}`)),
+    `offerings it would fill: ${fill.length} (${plan.offerings.kept.length} left alone: staff already set them)`,
+    ...res.warnings.map((w) => `warning: ${w}`),
+  ].join('\n');
 }
 
 // ---- Firestore ------------------------------------------------------------
@@ -194,7 +181,7 @@ function firebase(mod) {
   }
 }
 
-function connect(args) {
+export function connect(args) {
   const aliases = JSON.parse(readFileSync(path.join(root, '.firebaserc'), 'utf8')).projects ?? {};
   const project = aliases[args.project] ?? args.project;
   if (project === PROD_PROJECT_ID && !args.allowProd) {
@@ -212,42 +199,91 @@ function connect(args) {
   return firebase('firebase-admin/firestore');
 }
 
-async function readProfessors(fs, campus) {
-  const snap = await fs.getFirestore().collection('professors').where('campus', '==', campus).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+/** Everything the plan compares against, read only: professors, catalogue, head, timetable docs, offerings. */
+export async function readLive(fs, args, courseIds, term) {
+  const db = fs.getFirestore();
+  const { campus, sem } = args;
+  const data = async (p) => {
+    const d = await db.doc(p).get();
+    return d.exists ? d.data() : null;
+  };
+  const profs = (await db.collection('professors').where('campus', '==', campus).get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+  const marker = await data('catalog/marker');
+  const bundle = marker ? await data(`catalog/v${marker.version}`) : null;
+  const base = `${campus}|${sem}`;
+  const meta = await data(`timetable/${base}`);
+  const chunks = new Map();
+  const snap = await db.collection('timetable')
+    .where(fs.FieldPath.documentId(), '>=', `${base}|`).where(fs.FieldPath.documentId(), '<', `${base}|`).get();
+  for (const d of snap.docs) chunks.set(Number(d.id.split('|')[2]), d.data());
+  const refs = courseIds.map((id) => db.doc(`courses/${id}/offerings/${campus}_${term}`));
+  const offerings = new Map();
+  for (let i = 0; i < refs.length; i += 300) {
+    const got = await db.getAll(...refs.slice(i, i + 300));
+    got.forEach((d, k) => { if (d.exists) offerings.set(courseIds[i + k], d.data()); });
+  }
+  return {
+    profs, marker, catalog: bundle ? JSON.parse(bundle.json) : null,
+    head: await data(`heads/${campus}`),
+    tt: { meta, chunks, current: await data(`timetable/${campus}|current`) },
+    offerings,
+    newId: (kind) => db.collection(kind === 'professor' ? 'professors' : 'audit').doc().id,
+  };
 }
 
-const ACTOR = { email: 'timetable-script@pointer.local', name: 'Timetable extractor', role: 'owner' };
+const isFv = (v) => v && typeof v === 'object' && ('$ts' in v || '$inc' in v);
 
-async function commit(fs, doc, chunks) {
+/** Plan values ({$ts}, {$inc}) become the SDK's server values. */
+function fv(fs, v) {
+  if (isFv(v)) return '$ts' in v ? fs.FieldValue.serverTimestamp() : fs.FieldValue.increment(v.$inc);
+  if (Array.isArray(v)) return v.map((x) => fv(fs, x));
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fv(fs, x)]));
+  return v;
+}
+
+export async function apply(fs, batches, log = () => {}) {
   const db = fs.getFirestore();
-  const { FieldValue, FieldPath } = fs;
-  const base = `${doc.campus}|${doc.sem}`;
-  const batch = db.batch();
-  // Replace, not merge: chunk docs a shorter run no longer fills are removed.
-  const old = await db.collection('timetable')
-    .where(FieldPath.documentId(), '>=', `${base}|`).where(FieldPath.documentId(), '<', `${base}|\uf8ff`).get();
-  old.docs.filter((d) => Number(d.id.split('|')[2]) >= chunks.length).forEach((d) => batch.delete(d.ref));
-  chunks.forEach((courses, n) => batch.set(db.doc(`timetable/${base}|${n}`), { n, courses }));
-  const audit = db.collection('audit').doc();
-  const nSections = Object.values(doc.courses).reduce((n, c) => n + c.sec.length, 0);
-  batch.set(audit, {
-    actor: ACTOR,
-    action: 'publish timetable',
-    summary: 'publish timetable',
-    path: `timetable/${base}`,
-    campus: doc.campus,
-    before: null,
-    after: { sem: doc.sem, courses: Object.keys(doc.courses).length, sections: nSections, chunks: chunks.length },
-    at: FieldValue.serverTimestamp(),
-  });
-  batch.set(db.doc(`timetable/${base}`), {
-    v: 1, sem: doc.sem, campus: doc.campus, hours: doc.hours, examSlots: doc.examSlots, events: doc.events,
-    chunks: chunks.length, publishedAt: FieldValue.serverTimestamp(), marker: doc.marker, auditId: audit.id,
-  });
-  batch.set(db.doc(`timetable/${doc.campus}|current`), { sem: doc.sem, marker: doc.marker });
-  batch.set(db.doc(`heads/${doc.campus}`), { v: { timetable: FieldValue.increment(1) } }, { merge: true });
-  await batch.commit();
+  for (const b of batches) {
+    const w = db.batch();
+    for (const o of b.ops) {
+      const ref = db.doc(o.path);
+      if (o.action === 'delete') w.delete(ref);
+      else if (o.merge) w.set(ref, fv(fs, o.merge), { merge: true });
+      else w.set(ref, fv(fs, o.set));
+    }
+    await w.commit();
+    log(`  ${b.label}: ${b.ops.length} writes`);
+  }
+}
+
+// ---- the plan -------------------------------------------------------------
+
+/**
+ * Everything one run would do. `live` is null for a run with no project: the catalogue is the
+ * bundled asset and there are no professors, offerings or timetable docs yet.
+ */
+export function makePlan(args, out, live, answers, asset, extraProfs = []) {
+  let n = 0;
+  const newId = live?.newId ?? ((kind) => `new-${kind}-${++n}`);
+  const profs = live?.profs ?? extraProfs;
+  const term = termOf(args.sem);
+  const res = resolveProfessors(out.courses, profs, answers, newId);
+  const profById = new Map(profs.map((p) => [p.id, p]));
+  const names = new Map([...profs.map((p) => [p.id, p.name]), ...res.newProfs.map((p) => [p.id, p.name])]);
+
+  const baseCat = live?.catalog ?? asset;
+  const catalog = { ...planCatalog(out.courses, baseCat, live?.marker?.version ?? 0), base: baseCat.version, marker: live?.marker ?? null, hadMarker: !!live?.marker };
+  const offerings = planOfferings(out.courses, live?.offerings ?? new Map(), profById, term, args.campus, newId);
+
+  const doc = toSchema(out, { marker: Number(live?.head?.v?.timetable ?? 0) + 1, publishedAt: 0 });
+  const chunks = packChunks(doc.courses);
+  const timetable = planTimetable(doc, chunks, live?.tt ?? null, Number(live?.head?.v?.timetable ?? 0), newId);
+  const batches = buildBatches({ campus: args.campus, term, res, offerings, catalog, catalogAdds: catalog.adds, timetable, newId, profById });
+  return {
+    args, live: !!live, liveHead: live?.head ?? null, term, res, offerings, catalog, timetable, doc, chunks, batches,
+    parsed: { unparsed: out.unparsed, conflicts: out.conflicts },
+    nameOf: (id) => names.get(id) ?? id,
+  };
 }
 
 // ---- main -----------------------------------------------------------------
@@ -258,31 +294,43 @@ export function loadText(file) {
     : execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 });
 }
 
+export function readAnswers(file) {
+  if (!file) return {};
+  const a = JSON.parse(readFileSync(file, 'utf8'));
+  if (!a || typeof a !== 'object' || Array.isArray(a) || Object.values(a).some((v) => typeof v !== 'string')) {
+    throw new Error('--answers must be a JSON object of {"PDF name": "<professor id>" | "new"}');
+  }
+  return a;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const parsed = parseTimetable(loadText(args.input), args.sem);
   const out = { sem: args.sem, campus: args.campus, ...parsed };
+  const answers = readAnswers(args.answers);
+  const asset = JSON.parse(readFileSync(path.join(root, 'assets', 'catalog.json'), 'utf8'));
+  const term = termOf(args.sem);
 
   const fs = args.project ? connect(args) : null;
-  let docs = null;
-  if (args.professors) docs = JSON.parse(readFileSync(args.professors, 'utf8'));
-  else if (fs) docs = await readProfessors(fs, args.campus);
-  const unmatched = docs ? matchProfessors(out.courses, profIndex(docs, args.campus)) : null;
-  out.unmatchedProfessors = unmatched;
-  out.unknownCourseIds = unknownCourseIds(out.courses, JSON.parse(readFileSync(path.join(root, 'assets', 'catalog.json'), 'utf8')));
-
-  // The marker this publish will leave on the head (read now, bumped in the batch).
-  const head = fs ? (await fs.getFirestore().doc(`heads/${args.campus}`).get()).data() : null;
-  const doc = toSchema(out, { marker: Number(head?.v?.timetable ?? 0) + 1, publishedAt: Date.now() });
-  const chunks = packChunks(doc.courses);
-  if (args.out) writeFileSync(args.out, JSON.stringify({ ...out, published: doc }, null, 1));
-  console.log(summarize(out, { chunks: chunks.length, unmatched, unknown: out.unknownCourseIds }));
+  const live = fs ? await readLive(fs, args, Object.keys(out.courses), term) : null;
+  const extra = !live && args.professors ? JSON.parse(readFileSync(args.professors, 'utf8')).filter((p) => p.campus === args.campus) : [];
+  const plan = makePlan(args, out, live, answers, asset, extra);
+  if (args.out) writeFileSync(args.out, JSON.stringify({ ...out, published: plan.doc }, null, 1));
+  console.log(summarize(out, plan));
+  if (args.report) {
+    writeFileSync(args.report, renderReport(plan));
+    console.log(`\nReport written to ${args.report}`);
+  }
   if (!args.commit) {
     console.log('\nDry run: nothing written. Add --commit to publish.');
     return;
   }
-  await commit(fs, doc, chunks);
-  console.log(`\nPublished timetable/${args.campus}|${args.sem} (${chunks.length} chunks).`);
+  if (!plan.batches.length) {
+    console.log('\nNothing to write: everything is already there.');
+    return;
+  }
+  await apply(fs, plan.batches, console.log);
+  console.log(`\nDone: ${plan.batches.length} batch${plan.batches.length === 1 ? '' : 'es'} written for ${args.campus} ${args.sem}.`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

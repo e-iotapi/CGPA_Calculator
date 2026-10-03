@@ -154,6 +154,15 @@ test('table: no STAT/SEC is section 1 (L); a type alone, or "P P", keeps the typ
   assert.deepEqual(rows.map((r) => [r.type, r.no]), [['L', 1], ['P', 1], ['T', 1]]);
 });
 
+test('table: credits come from LPU (the last of three digits, or the lone number), none when blank', () => {
+  const { rows } = parseTable(page(
+    row('XXX F201', { title: 'THREE DIGITS', lpu: '303', stat: 'L', sec: 1, instr: 'Pine Ash' }),
+    row('XXX F202', { title: 'ONE NUMBER', lpu: '4', stat: 'L', sec: 1, instr: 'Pine Ash' }),
+    row('XXX F203', { title: 'BLANK', stat: 'L', sec: 1, instr: 'Pine Ash' }),
+  ));
+  assert.deepEqual(rows.map((r) => [r.credits, r.lpu3]), [[3, true], [4, false], [undefined, false]]);
+});
+
 // Two columns split at "Second Semester"; invented dates and titles.
 const CAL = [
   'First Semester 2026-2027'.padEnd(69) + 'Second Semester 2026-2027',
