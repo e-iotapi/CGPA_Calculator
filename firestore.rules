@@ -702,6 +702,19 @@ service cloud.firestore {
         && getAfter(afterPath(a.path)).data.mergedInto == id;
     }
 
+    // Soft delete: a removed doc is frozen (like a merged one) until restored;
+    // the flip itself changes only the removal fields and names its actor.
+    function removalOk() {
+      let was = resource.data.get('removed', false);
+      let now = request.resource.data.get('removed', false);
+      let flip = request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['removed', 'removedBy', 'removedAt', 'updatedBy', 'updatedAt', 'auditId']);
+      return was == now
+        ? !was && !('removedAt' in request.resource.data.diff(resource.data).affectedKeys())
+        : flip && (!now || (request.resource.data.removedBy.email == me()
+                            && request.resource.data.removedAt == request.time));
+    }
+
     match /professors/{id} {
       // A review's counters can name a professor who is gone (a deleted or
       // reseeded doc). The Reviews screen reads each named professor; a
@@ -717,6 +730,7 @@ service cloud.firestore {
         && editsProfessors(request.resource.data.campus, request.resource.data.department)
         && request.resource.data.mergedIds.size() == 0
         && !('mergedInto' in request.resource.data)
+        && request.resource.data.get('removed', false) == false
         && stamped()
         && audited('professors/' + id)
         && pathBumped(request.resource.data.campus, 'professors/' + request.resource.data.department);
@@ -725,6 +739,7 @@ service cloud.firestore {
         && request.resource.data.campus == resource.data.campus
         && request.resource.data.department == resource.data.department
         && !('mergedInto' in resource.data)
+        && removalOk()
         && editsProfessors(resource.data.campus, resource.data.department)
         && stamped()
         && (audited('professors/' + id) || mergedHere(id))

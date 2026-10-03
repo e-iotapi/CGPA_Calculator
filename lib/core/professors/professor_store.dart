@@ -25,7 +25,8 @@ class ProfessorStore {
 
   static final _names = <String, Professor>{};
 
-  /// A department's professors on a campus, merged ones hidden.
+  /// A department's professors on a campus, merged ones hidden; removed ones
+  /// are kept for the UI to group.
   Future<List<Professor>> department(String campus, String department) async =>
       cacheFirst<List<Professor>>(
         key: 'prof|$campus|$department',
@@ -84,13 +85,20 @@ class ProfessorStore {
     for (final p in all) {
       _names[p.id] = p;
     }
-    return all.where((p) => !p.merged && p.matches(query)).toList()
+    return all
+        .where((p) => !p.merged && !p.removed && p.matches(query))
+        .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
   }
 
   /// Every course [p] (and anyone merged into them) is recorded as teaching
   /// on [campus], with its terms, newest first.
-  Future<Map<String, List<String>>> taught(Professor p, String campus) =>
+  Future<Map<String, List<String>>> taught(Professor p, String campus) async {
+    if (p.removed) return const {};
+    return _taught(p, campus);
+  }
+
+  Future<Map<String, List<String>>> _taught(Professor p, String campus) =>
       cacheFirst<Map<String, List<String>>>(
         key: 'taught|$campus|${p.id}',
         maxAge: reviewIndexMaxAge,
@@ -300,4 +308,43 @@ class ProfessorStore {
       ..remove(keep.id)
       ..remove(absorbed.id);
   }
+
+  /// Soft-deletes [p]: reviews keep naming them, search and pickers skip
+  /// them. One audited batch.
+  Future<void> remove(Professor p) => _setRemoved(p, true);
+
+  /// Undoes [remove].
+  Future<void> restore(Professor p) => _setRemoved(p, false);
+
+  Future<void> _setRemoved(Professor p, bool removed) async {
+    if (p.merged) throw ProfessorError('merged');
+    final r = roles!;
+    final b = db.batch();
+    final audit = r.logInto(
+      b,
+      path: 'professors/${p.id}',
+      summary: '${removed ? 'Removed' : 'Restored'} professor ${p.name}',
+      campus: p.campus,
+    );
+    b.update(_col.doc(p.id), {
+      'removed': removed,
+      'removedBy':
+          removed ? {'email': r.me, 'name': r.myName} : FieldValue.delete(),
+      'removedAt': removed ? FieldValue.serverTimestamp() : FieldValue.delete(),
+      ..._stamp(r, audit),
+    });
+    bumpPath(b, db, p.campus, Paths.professors(p.department));
+    await b.commit();
+    LiveHeads.poke(Paths.professors(p.department));
+    await _forget(p.campus);
+    _names.remove(p.id);
+  }
+}
+
+/// A professor write refused before it was sent; [code] says why.
+class ProfessorError implements Exception {
+  ProfessorError(this.code);
+  final String code;
+  @override
+  String toString() => 'ProfessorError($code)';
 }
