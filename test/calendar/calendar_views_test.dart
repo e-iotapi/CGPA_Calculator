@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
+import 'package:cgpa_calculator/core/timetable/timetable.dart';
 import 'package:cgpa_calculator/features/calendar/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_time.dart';
@@ -236,6 +237,38 @@ void main() {
       await t.pumpAndSettle();
       expect(cal.state.slotOverrides, isEmpty);
       expect(find.text('9:00–10:00'), findsNWidgets(3));
+    });
+
+    testWidgets('Section switch moves every lecture to the other section', (
+      t,
+    ) async {
+      final j = store.t!.toJson();
+      final sec = (((j['courses'] as Map)[_aaa] as Map)['sec'] as List);
+      sec.add({
+        'ty': 'L',
+        'no': 2,
+        'prof': ['B Teacher'],
+        'room': 'F202',
+        'slots': [
+          {'d': 2, 's': 660, 'e': 720},
+          {'d': 4, 's': 660, 'e': 720},
+        ],
+      });
+      store.t = Timetable.fromJson(j);
+      await pump(t);
+      await tab(t, 'Week');
+      await t.tap(find.text(_aaa).first);
+      await t.pumpAndSettle();
+      // Only the lecture has a second section: one Section list, the tutorial is not offered.
+      expect(find.text('Section'), findsOneWidget);
+      await t.tap(find.textContaining('Lecture 2'));
+      await t.pumpAndSettle();
+      expect(cal.state.picks[_aaa], ['$_aaa|L2', '$_aaa|T1']);
+      expect(find.text('9:00–10:00'), findsNothing); // no L1 left
+      expect(
+        find.text('11:00–12:00'),
+        findsNWidgets(3),
+      ); // L2 Tue and Thu, T1 Thu
     });
 
     testWidgets('a bad time says so and saves nothing', (t) async {

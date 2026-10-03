@@ -195,6 +195,19 @@ void main() {
       await expectLater(st.setSlotOverride('q', d: 1, s: 60, e: 60), throwsStateError);
     });
 
+    test('setSection swaps the pick and drops the old section\'s edits', () async {
+      final c = tt().courses['AAA F111']!;
+      final st = CalendarStore(box, profile: 2);
+      await st.addCourse(c, ['AAA F111|L1', 'AAA F111|T1']);
+      await st.setSlotOverride('AAA F111|L1|1-540', d: 2, s: 600, e: 660);
+      await st.setSlotOverride('AAA F111|T1|4-600', d: 2, s: 600, e: 660);
+      await st.removeOccurrence('AAA F111|L1|1-540', '2026-08-10');
+      await st.setSection('AAA F111', 'AAA F111|L1', 'AAA F111|L2');
+      expect(st.state.picks['AAA F111'], ['AAA F111|L2', 'AAA F111|T1']);
+      expect(st.state.slotOverrides.keys, ['AAA F111|T1|4-600']);
+      expect(st.state.removed, isEmpty);
+    });
+
     test('adding a course clears its stale edits; removing drops everything', () async {
       final c = tt().courses['AAA F111']!;
       final st = CalendarStore(box, profile: 1);

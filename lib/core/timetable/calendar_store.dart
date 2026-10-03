@@ -193,6 +193,22 @@ class CalendarStore {
     ),
   );
 
+  /// Moves every class of [oldKey]'s type in [courseId] to [newKey] (same type): the
+  /// pick changes, the old section's own edits and hidden days go with it.
+  Future<void> setSection(String courseId, String oldKey, String newKey) => _save(
+    _state.copy(
+      picks: {
+        ..._state.picks,
+        courseId: [for (final k in _state.picks[courseId] ?? const <String>[]) k == oldKey ? newKey : k],
+      },
+      slotOverrides: {
+        for (final e in _state.slotOverrides.entries)
+          if (!e.key.startsWith('$oldKey|')) e.key: e.value,
+      },
+      removed: _state.removed.where((k) => !k.startsWith('$oldKey|')).toSet(),
+    ),
+  );
+
   Future<void> removeCourse(String courseId) => _save(
     _state.copy(
       picks: {..._state.picks}..remove(courseId),
