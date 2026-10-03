@@ -25,4 +25,13 @@ abstract final class Paths {
 
   /// The broadcast timetable's publish counter (B8b).
   static const timetable = 'timetable';
+
+  /// A campus's unapproved contributor links, per department (B7).
+  static String pending(String dept) => 'pending/$dept';
+
+  /// The contributor leaderboard (B7).
+  static const leaderboard = 'leaderboard';
+
+  /// Contributor requests, per department (B7).
+  static String contribRequests(String dept) => 'contributorRequests/$dept';
 }
