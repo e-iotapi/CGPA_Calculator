@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/minor_progress.dart';
 import 'package:cgpa_calculator/core/models/minors.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
@@ -400,24 +401,27 @@ class _OffshootTabState extends State<OffshootTab> {
           Space.gutter,
           Space.sm,
         ),
-        child: Row(
-          children: [
-            for (final minor in [false, true]) ...[
-              if (minor) const SizedBox(width: 7),
-              Expanded(
-                child: PillButton(
-                  label: minor ? 'Minor' : 'Offshoot',
-                  selected: _minor == minor,
-                  onPressed: () {
-                    setState(() => _minor = minor);
-                    widget.onShowMinor(minor);
-                  },
-                  height: 38,
-                  expand: true,
+        child: KeyedSubtree(
+          key: tourKey('offshoot.minor'),
+          child: Row(
+            children: [
+              for (final minor in [false, true]) ...[
+                if (minor) const SizedBox(width: 7),
+                Expanded(
+                  child: PillButton(
+                    label: minor ? 'Minor' : 'Offshoot',
+                    selected: _minor == minor,
+                    onPressed: () {
+                      setState(() => _minor = minor);
+                      widget.onShowMinor(minor);
+                    },
+                    height: 38,
+                    expand: true,
+                  ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
       Expanded(child: _minor ? widget.minor : widget.offshoot),
