@@ -77,7 +77,7 @@ test('toSchema: day numbers, minutes, L/T/P only, ICs only with profIds parallel
       compre: { date: '2026-12-10', session: 'FN', start: '10:00', end: '13:00' },
       midsem: { date: '2026-10-12', note: 'Forenoon' },
       sections: [
-        { type: 'L', no: 1, room: 'F101', instructors: [{ name: 'A', prof: 'p1', ic: true }, { name: 'B', ic: true }, { name: 'Assistant' }], slots: [{ day: 'TH', start: '09:00', end: '10:30' }] },
+        { type: 'L', no: 1, room: 'F101', instructors: [{ name: 'A', prof: 'p1', ic: true }, { name: 'BEE CEE', ic: true }, { name: 'Assistant' }], slots: [{ day: 'TH', start: '09:00', end: '10:30' }] },
         { type: 'I', no: 1, instructors: [], slots: [] },
       ],
     } },
@@ -87,7 +87,7 @@ test('toSchema: day numbers, minutes, L/T/P only, ICs only with profIds parallel
   assert.deepEqual(t.examSlots, { FN: [600, 780] });
   assert.deepEqual(t.events, [{ from: '2026-08-03', title: 'Begins', kind: 'term' }]);
   const c = t.courses['ZZZ F1'];
-  assert.deepEqual(c.sec, [{ ty: 'L', no: 1, prof: ['A', 'B'], slots: [{ d: 4, s: 540, e: 630 }], profIds: ['p1', ''], room: 'F101' }]);
+  assert.deepEqual(c.sec, [{ ty: 'L', no: 1, prof: ['A', 'Bee Cee'], slots: [{ d: 4, s: 540, e: 630 }], profIds: ['p1', ''], room: 'F101' }]);
   assert.deepEqual(c.compre, { d: '2026-12-10', slot: 'FN', s: 600, e: 780 });
   assert.equal(c.mid, undefined);
   assert.equal(t.marker, 3);
