@@ -1,4 +1,4 @@
-import 'package:cgpa_calculator/admin/widgets.dart' show ago;
+import 'package:cgpa_calculator/admin/widgets.dart' show ago, problem;
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
@@ -24,22 +24,36 @@ import 'package:cgpa_calculator/features/marks/widgets/divergence.dart';
 import 'package:cgpa_calculator/features/marks/widgets/taken_by.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/marks/widgets/evaluative_card.dart';
+import 'package:cgpa_calculator/features/semester/add_course_controller.dart'
+    show semLabel;
+import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/retired_tag.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// One course's marks: the running total, each evaluative, and the class
 /// comparison when the user has entered one.
 class MarksPage extends StatefulWidget {
-  const MarksPage({super.key, required this.course, this.onEditCourse});
+  const MarksPage({
+    super.key,
+    required this.course,
+    this.onEditCourse,
+    this.remove = removeCourse,
+  });
 
   final Course course;
 
-  /// Opens the old course card (grades, credits, delete). Null hides it.
+  /// Opens the old course card (grades, credits). Null hides it.
   final VoidCallback? onEditCourse;
+
+  /// Removes the course from storage (a seam for widget tests: Hive writes
+  /// stall under fake time).
+  final Future<void> Function(Course) remove;
 
   @override
   State<MarksPage> createState() => _MarksPageState();
@@ -100,6 +114,35 @@ class _MarksPageState extends State<MarksPage> {
     }
     await saveConfig(config);
     if (mounted) setState(() {});
+  }
+
+  /// Asks, removes the course, and goes Home. No spinner: the removal is a
+  /// local write; a failure leaves the page and says so.
+  Future<void> _delete() async {
+    final c = widget.course;
+    final ok = await confirmDialog(
+      context,
+      title: 'Remove this course?',
+      body: '${c.id} leaves ${semLabel(c.sem)}, with its grades.',
+      cancel: 'Keep',
+      action: 'Delete',
+      danger: true,
+    );
+    if (!ok || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.remove(c);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(problem(e))));
+      return;
+    }
+    if (!mounted) return;
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      router.go(Routes.home);
+    } else {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+    }
   }
 
   Future<void> _open(Widget page) async {
@@ -227,6 +270,12 @@ class _MarksPageState extends State<MarksPage> {
                             },
                   ),
                 ),
+            size: 42,
+          ),
+          CircleIconButton(
+            icon: Icons.delete_outline,
+            tooltip: 'Delete course',
+            onPressed: _delete,
             size: 42,
           ),
         ],
