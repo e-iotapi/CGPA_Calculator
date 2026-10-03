@@ -8,12 +8,11 @@ import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
-import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 
-/// What the edit sheet asks for: the course to store, or its removal.
-typedef CourseEdit = ({Course? saved, bool removed});
+/// What the edit sheet asks for: the course to store.
+typedef CourseEdit = ({Course saved});
 
 /// Opens the edit sheet for [course]. [profile] is the grade being edited;
 /// null (Compare, Offshoot) leaves grades alone.
@@ -44,26 +43,28 @@ Future<CourseEdit?> showEditCourseSheet(
 
 /// Applies an edit to storage, under the key the course was read from.
 Future<void> applyCourseEdit(Course course, CourseEdit edit) async {
-  if (edit.removed) {
-    if (course.isInBox) {
-      await course.delete();
-    } else {
-      await Hive.box<Course>(coursesBoxName).delete(course.id);
-    }
-  } else if (edit.saved case final saved?) {
-    // A category changed here is set by hand, as on the Degree page.
-    if (saved.elective != course.elective) await pinCategory(course.id);
-    // Under the key read (§14.6): a dual's two PS II rows share an id, so
-    // matching on id and semester would overwrite the other after a move.
-    if (course.isInBox) {
-      await course.box!.put(course.key, saved);
-    } else {
-      await saveCourse(saved);
-    }
+  final saved = edit.saved;
+  // A category changed here is set by hand, as on the Degree page.
+  if (saved.elective != course.elective) await pinCategory(course.id);
+  // Under the key read (§14.6): a dual's two PS II rows share an id, so
+  // matching on id and semester would overwrite the other after a move.
+  if (course.isInBox) {
+    await course.box!.put(course.key, saved);
+  } else {
+    await saveCourse(saved);
   }
 }
 
-/// The sheet that edits or removes one course in a semester.
+/// Removes [course] from its semester, under the key it was read from.
+Future<void> removeCourse(Course course) async {
+  if (course.isInBox) {
+    await course.delete();
+  } else {
+    await Hive.box<Course>(coursesBoxName).delete(course.id);
+  }
+}
+
+/// The sheet that edits one course in a semester.
 class EditCourseSheet extends StatefulWidget {
   const EditCourseSheet({
     super.key,
@@ -90,22 +91,6 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
   Course get _edited {
     final c = widget.course.copyWith(elective: _category);
     return widget.profile == null ? c : c.withGrade(widget.profile!.id, _grade);
-  }
-
-  Future<void> _remove() async {
-    final ok = await confirmDialog(
-      context,
-      title: 'Remove this course?',
-      body:
-          '${widget.course.id} leaves ${semLabel(widget.course.sem)}, '
-          'with its grades.',
-      cancel: 'Keep',
-      action: 'Remove',
-      danger: true,
-    );
-    if (ok && mounted) {
-      Navigator.pop(context, (saved: null, removed: true));
-    }
   }
 
   @override
@@ -195,29 +180,11 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
               ),
             ),
             const SizedBox(height: Space.sm),
-            Row(
-              spacing: Space.sm,
-              children: [
-                _Pill(
-                  label: 'Remove',
-                  onTap: _remove,
-                  fill: Colors.transparent,
-                  text: p.behind,
-                  border: p.outline,
-                ),
-                Expanded(
-                  child: _Pill(
-                    label: 'Save',
-                    onTap:
-                        () => Navigator.pop(context, (
-                          saved: _edited,
-                          removed: false,
-                        )),
-                    fill: p.inverse,
-                    text: p.onInverse,
-                  ),
-                ),
-              ],
+            _Pill(
+              label: 'Save',
+              onTap: () => Navigator.pop(context, (saved: _edited)),
+              fill: p.inverse,
+              text: p.onInverse,
             ),
           ],
         ),
@@ -226,27 +193,23 @@ class _EditCourseSheetState extends State<EditCourseSheet> {
   }
 }
 
-/// A 54 px stadium: ink Save, or outlined Remove in the `behind` colour.
+/// A 54 px ink stadium.
 class _Pill extends StatelessWidget {
   const _Pill({
     required this.label,
     required this.onTap,
     required this.fill,
     required this.text,
-    this.border,
   });
 
   final String label;
   final VoidCallback onTap;
   final Color fill, text;
-  final Color? border;
 
   @override
   Widget build(BuildContext context) => Material(
     color: fill,
-    shape: StadiumBorder(
-      side: border == null ? BorderSide.none : BorderSide(color: border!),
-    ),
+    shape: const StadiumBorder(),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: onTap,
