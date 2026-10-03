@@ -220,6 +220,19 @@ final List<RouteBase> appRoutes = [
                     dept: s.pathParameters['dept']!,
                   ),
                 ),
+            routes: [
+              GoRoute(
+                path: 'add',
+                builder:
+                    (_, s) => _deferred(
+                      () => admin.ProfessorAdd(
+                        campus: s.pathParameters['campus']!,
+                        dept: s.pathParameters['dept']!,
+                        initial: s.uri.queryParameters['name'] ?? '',
+                      ),
+                    ),
+              ),
+            ],
           ),
           GoRoute(
             path: 'succession',

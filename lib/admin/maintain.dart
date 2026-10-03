@@ -150,7 +150,7 @@ class DeptHome extends StatelessWidget {
       links: links == null ? null : departmentList(links).length,
       flagged: flags.length,
       reported: reported?.length,
-      profs: profs?.length,
+      profs: profs?.where((x) => !x.removed).length,
       audit: audit,
     );
   }
@@ -174,7 +174,7 @@ class DeptHome extends StatelessWidget {
       links: links == null ? null : departmentList(links).length,
       flagged: null,
       reported: null,
-      profs: profs?.length,
+      profs: profs?.where((x) => !x.removed).length,
       audit: roleStore!.peekAudit(campus: campus, limit: 200),
     );
   }
@@ -1150,5 +1150,6 @@ void prefetchDeptScreens(Iterable<Grant> presidencies) {
         () => DeptCourses.load(g.campus, g.scope),
       ),
     );
+    unawaited(DeptProfessors.prefetch(g.campus, g.scope));
   }
 }
