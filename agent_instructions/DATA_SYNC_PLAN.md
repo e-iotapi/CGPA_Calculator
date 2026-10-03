@@ -96,6 +96,8 @@ Spike: ~3,000 students × ~15 review pages ≈ 45k reads against 50k/day.
 
 ## Stage 5 — Server parts of the proposed features
 
+**Status (2026-10-03):** built on `pointer-rebuild`: §5.1 review gate (switch only, enforced in the app; ruling R-A in `BUILDOUT_PLAN.md`), §5.2 contributors (approve/reject one link per batch; contributor grants have no staff entry), §5.3 professor soft delete, §5.4 broadcast timetable + `.ics` (Worker deployed to staging). Not yet: §5.5 import script, §5.6 GEN. Shapes: `BUILDOUT_CONTRACTS.md`.
+
 See `PROPOSED_FEATURES.md` for the features themselves; this section is only what they need
 from Firestore, rules and Cloudflare.
 
