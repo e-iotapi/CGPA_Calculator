@@ -38,6 +38,7 @@ List<PrefetchLevel> prefetchLevels() {
       _job(() async {
         await g.of(campus);
         await recoverMyReviews(campus);
+        return null;
       }),
     );
   }
