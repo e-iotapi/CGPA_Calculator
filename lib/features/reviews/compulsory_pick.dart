@@ -32,7 +32,9 @@ class _Draft {
           _ => '',
         },
       ),
-      term = tookIt(course.id)?.term;
+      // A graded elective was taken whatever its row's term says; its review
+      // still counts when the course is offered again.
+      term = tookIt(course.id)?.term ?? currentTerm(DateTime.now());
 
   final Course course;
   final String? term;
@@ -83,7 +85,7 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
     final done = myReviewedCourses().toSet();
     final pool = [
       for (final c in electivesTaken())
-        if (!done.contains(c.id) && tookIt(c.id) != null) c,
+        if (!done.contains(c.id)) c,
     ];
     int at(Course c) => baseSemesters.indexOf(c.sem);
     final last = pool.fold<int>(-1, (m, c) => at(c) > m ? at(c) : m);

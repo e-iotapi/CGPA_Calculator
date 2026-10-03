@@ -173,6 +173,22 @@ void main() {
     await settle(t);
   });
 
+  testWidgets('a graded elective whose term is ahead is still listed', (
+    t,
+  ) async {
+    await locked(t);
+    await t.runAsync(
+      () => Hive.box<Course>(coursesBoxName).add(
+        _c('HSS F301', Elective.humanity.tag, sem: '4 - 2'),
+      ),
+    );
+    await t.pumpWidget(app(const CompulsoryPickPage()));
+    await t.pumpAndSettle();
+    expect(find.textContaining('HSS F301'), findsWidgets);
+    await t.pumpWidget(const SizedBox());
+    await settle(t);
+  });
+
   // Last: its saves leave the shared cache busy for any test after it.
   testWidgets('CompulsoryPick posts the ticked electives and unlocks', (
     t,
