@@ -91,7 +91,7 @@ export function renderReport(plan) {
 
   // 3: needs an answer comes first, it blocks a good commit.
   L.push('## Needs your answer', '');
-  if (!unsure.length) L.push('Nothing.', '');
+  if (!unsure.length) L.push('No professor names to confirm.', '');
   else {
     L.push('Close to an existing professor but not the same spelling. Nothing is linked or created for these until you answer in a JSON file passed as `--answers <file>`: `{"PDF name": "<professor id>"}` to link (the PDF spelling is saved as an alias) or `{"PDF name": "new"}` to add a new professor.', '',
       '| PDF name | Candidate (id, dept) | Appears in |', '|---|---|---|');
@@ -99,6 +99,14 @@ export function renderReport(plan) {
       L.push(`| ${cell(e.pdfNames.join(' / '))} | ${cell(e.candidates.map((x) => `${x.name} (${x.id}, ${x.dept})`).join('; '))} | ${cell(e.courses.join(', '))} |`);
     }
     L.push('', 'Example answers file:', '```json', JSON.stringify(Object.fromEntries(unsure.map((e) => [e.pdfNames[0], e.candidates[0].id])), null, 2), '```', '');
+  }
+
+  const need = plan.catalog.needCredits ?? [];
+  if (need.length) {
+    L.push('### Credits', '', `${need.length} new courses whose credits the PDF does not state (first-year U courses list credit hours, not credits). They are not added until you give them in a JSON file passed as \`--credits <file>\`; the same file can correct any other course's credits.`, '',
+      '| Course | Title |', '|---|---|');
+    for (const a of need) L.push(`| ${a.id} | ${cell(a.title)} |`);
+    L.push('', 'Credits file to fill in:', '```json', JSON.stringify(Object.fromEntries(need.map((a) => [a.id, 0])), null, 2), '```', '');
   }
 
   L.push('## Timetable', '');
@@ -141,7 +149,7 @@ export function renderReport(plan) {
   else {
     L.push(`**catalog/v${cat.next.version}** (create): the current catalogue (v${cat.base}) plus ${cat.adds.length} course${cat.adds.length === 1 ? '' : 's'}, src \`timetable\`. Fields: version, schema ${cat.next.schema}, json (${kb(cat.next)}).`, '',
       '| Course | Title | Credits |', '|---|---|---:|');
-    for (const a of cat.adds) L.push(`| ${a.id} | ${cell(a.title)} | ${a.creditsKnown ? a.credits : '0 (not in the PDF)'} |`);
+    for (const a of cat.adds) L.push(`| ${a.id} | ${cell(a.title)} | ${a.credits} |`);
     L.push('', `**catalog/marker** (${cat.hadMarker ? 'update' : 'create'}): ${cat.marker ? `version ${cat.marker.version} → ${cat.next.version}` : `version ${cat.next.version}`}, schema ${cat.next.schema}, auditId (new).`, '',
       'Every campus head then gets `catalog` and `catalogSchema` set to the same version (see Heads).', '');
   }
