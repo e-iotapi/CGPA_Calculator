@@ -7,8 +7,10 @@ import { ADMIN, OWNER, PRES, STUDENT, appoint, as, bump, name, seed, useEmulator
 useEmulator();
 
 const GEN = { role: 'dept', campus: 'goa', scope: 'GEN', email: STUDENT };
+const GENSTAFF = { presidentOf: ['GEN'] };
 const COURSE = 'BITS F225';
 const cid = `goa|${COURSE}`;
+const AT = Date.now() - 100000; // when the seeded claim was made
 
 const claim = (db, actor, { dept = 'ELEC', course = COURSE, audit = true, marker = true } = {}) => {
   const b = writeBatch(db);
@@ -29,14 +31,13 @@ const claim = (db, actor, { dept = 'ELEC', course = COURSE, audit = true, marker
 
 const unclaim = async (db, actor, { marker = true } = {}) => {
   const b = writeBatch(db);
-  const at = Date.now() - 1000;
-  b.set(doc(db, 'audit', `del|${cid}|${at}`), {
+  b.set(doc(db, 'audit', `del|${cid}|${AT}`), {
     actor: { email: actor, name: name(actor), role: 'test' }, action: 'unclaim',
     path: `courseClaims/${cid}`, campus: 'goa', before: 'ELEC', after: null, at: serverTimestamp(),
   });
   b.delete(doc(db, 'courseClaims', cid));
   if (marker) bump(b, db, 'goa', 'courseClaims');
-  return { b, at };
+  return { b };
 };
 
 const seedClaim = (dept = 'ELEC') =>
@@ -46,17 +47,17 @@ const seedClaim = (dept = 'ELEC') =>
   }));
 
 test('owner and admin appoint an Elective Contributor; a president or student cannot', async () => {
-  await assertSucceeds(appoint(as(OWNER), OWNER, GEN, {}));
-  await assertFails(appoint(as(PRES), PRES, GEN, {}));
-  await assertFails(appoint(as(STUDENT), STUDENT, GEN, {}));
+  await assertSucceeds(appoint(as(OWNER), OWNER, GEN, GENSTAFF));
+  await assertFails(appoint(as(PRES), PRES, GEN, GENSTAFF));
+  await assertFails(appoint(as(STUDENT), STUDENT, GEN, GENSTAFF));
 });
 
 test('an admin appoints an Elective Contributor too', async () => {
-  await assertSucceeds(appoint(as(ADMIN), ADMIN, GEN, {}));
+  await assertSucceeds(appoint(as(ADMIN), ADMIN, GEN, GENSTAFF));
 });
 
 test('a GEN grant takes no programme', async () => {
-  await assertFails(appoint(as(OWNER), OWNER, { ...GEN, programme: 'A3' }, {}));
+  await assertFails(appoint(as(OWNER), OWNER, { ...GEN, programme: 'A3' }, GENSTAFF));
 });
 
 test('a department president claims a GEN course, audited and marked', async () => {
@@ -73,7 +74,7 @@ test('claims need the audit, the marker, a GEN-prefix course and a real departme
 
 test('students and a GEN contributor cannot claim', async () => {
   await assertFails(claim(as(STUDENT), STUDENT));
-  await appoint(as(OWNER), OWNER, GEN, {});
+  await appoint(as(OWNER), OWNER, GEN, GENSTAFF);
   await assertFails(claim(as(STUDENT), STUDENT, { dept: 'GEN' }));
 });
 
@@ -86,7 +87,7 @@ test('a claim is read by signed-in people, never edited', async () => {
 test('the claiming department unclaims with a derived audit id', async () => {
   await seed((db) => setDoc(doc(db, 'courseClaims', cid), {
     campus: 'goa', courseId: COURSE, dept: 'ELEC', by: { email: PRES, name: name(PRES) },
-    at: new Date(Date.now() - 1000), auditId: 'x',
+    at: new Date(AT), auditId: 'x',
   }));
   const { b } = await unclaim(as(PRES), PRES);
   await assertSucceeds(b.commit());
@@ -95,7 +96,7 @@ test('the claiming department unclaims with a derived audit id', async () => {
 test('unclaim needs the marker; another department cannot unclaim', async () => {
   await seed((db) => setDoc(doc(db, 'courseClaims', cid), {
     campus: 'goa', courseId: COURSE, dept: 'ELEC', by: { email: PRES, name: name(PRES) },
-    at: new Date(Date.now() - 1000), auditId: 'x',
+    at: new Date(AT), auditId: 'x',
   }));
   await assertFails((await unclaim(as(PRES), PRES, { marker: false })).b.commit());
   await assertFails((await unclaim(as(STUDENT), STUDENT)).b.commit());
@@ -104,7 +105,8 @@ test('unclaim needs the marker; another department cannot unclaim', async () => 
 test('the claimant, not GEN, manages the claimed course', async () => {
   // A president of the claimant may now appoint a CR for it; before, only GEN.
   const cr = { role: 'course', campus: 'goa', scope: COURSE, email: STUDENT };
-  await assertFails(appoint(as(PRES), PRES, cr, {}));
+  const staff = { courses: [COURSE] };
+  await assertFails(appoint(as(PRES), PRES, cr, staff));
   await seedClaim('ELEC');
-  await assertSucceeds(appoint(as(PRES), PRES, cr, {}));
+  await assertSucceeds(appoint(as(PRES), PRES, cr, staff));
 });
