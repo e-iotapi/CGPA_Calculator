@@ -208,9 +208,27 @@ class ResourceStore {
 
   /// Adds [r] (its id is ignored). [actingFor] is the course a CR adds it
   /// for; presidents and owners leave it null.
+  ///
+  /// Staff links publish approved and earn their author +4 in the same
+  /// batch (R-C). The points are optional: if the rules refuse them, the
+  /// link is added without, exactly as before.
   Future<String> add(Resource r, {String? actingFor}) async {
+    try {
+      return await _add(r, actingFor: actingFor, points: true);
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') rethrow;
+      return _add(r, actingFor: actingFor, points: false);
+    }
+  }
+
+  Future<String> _add(
+    Resource r, {
+    String? actingFor,
+    required bool points,
+  }) async {
     final ref = _resources.doc();
     final b = _db.batch();
+    if (points) await _award(b, r.campus, ref.id);
     final audit = roles.logInto(
       b,
       path: 'resources/${ref.id}',
@@ -240,6 +258,27 @@ class ResourceStore {
     LiveHeads.poke(Paths.resources);
     await _dropLocal(r.campus);
     return ref.id;
+  }
+
+  /// Writes +4 for my own approved [linkId] into [b]: the contributors
+  /// doc, and the leaderboard once I have a username.
+  Future<void> _award(WriteBatch b, String campus, String linkId) async {
+    final ref = _db.collection('contributors').doc(roles.me);
+    final c = (await ref.get()).data();
+    final points = ((c?['points'] as num?)?.toInt() ?? 0) + 4;
+    final username = c?['username'] as String? ?? '';
+    if (c == null) {
+      b.set(ref, {'campus': campus, 'points': points, 'lastLink': linkId});
+    } else {
+      b.update(ref, {'points': points, 'lastLink': linkId});
+    }
+    if (username.isNotEmpty) {
+      b.set(_db.collection('leaderboard').doc(campus), {
+        'p': {username: points},
+        'k': username,
+      }, SetOptions(merge: true));
+      bumpPath(b, _db, campus, Paths.leaderboard);
+    }
   }
 
   /// Saves [next] over [before], logged as [summary]. Closes the link's
