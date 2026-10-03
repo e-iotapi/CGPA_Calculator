@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 
 String mineKey(String campus) => 'rmine-ui|$campus|${roleStore?.me}';
 
-/// My links, shown when no filter is on or [f] matches.
+/// My links, shown when no filter is on or `f` matches.
 enum ContribFilter { all, awaiting, approved, rejected }
 
 bool _matches(ContribFilter f, LinkState s) => switch (f) {
