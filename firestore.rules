@@ -557,6 +557,15 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
         && request.resource.data.status == 'withdrawn'
         && pathBumped(resource.data.campus, 'contributorRequests/' + resource.data.dept);
+      // A revoked contributor may apply again: the revoke batch (grant
+      // active:false, audited there) moves the request approved to withdrawn.
+      allow update: if mayUse() && approves(resource.data.campus, resource.data.dept)
+        && resource.data.status == 'approved'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'withdrawn'
+        && getAfter(grantPath('contributor', resource.data.campus, resource.data.campus,
+             resource.data.email)).data.active == false
+        && pathBumped(resource.data.campus, 'contributorRequests/' + resource.data.dept);
       // Decided by an approver; approval comes with the grant, same batch.
       allow update: if mayUse() && approves(resource.data.campus, resource.data.dept)
         && resource.data.status == 'pending'
@@ -616,7 +625,13 @@ service cloud.firestore {
       allow create, update: if privileged()
         && request.resource.data.keys().hasOnly(['course', 'dept', 'c', 'd'])
         && touchedNow('course', request.resource.data.c)
-        && touchedNow('dept', request.resource.data.d);
+        && touchedNow('dept', request.resource.data.d)
+        // A stamped course belongs to the stamped department (B4). Not tied to
+        // a resource/structure/professor write in the same batch: rules cannot
+        // tell which of those documents the batch touched.
+        && (request.resource.data.c == ''
+            || request.resource.data.d == deptOf(request.resource.data.c)
+            || request.resource.data.d == managingDept(campus, request.resource.data.c));
       allow delete: if false;
     }
 
@@ -1406,6 +1421,7 @@ service cloud.firestore {
       // (an edited approved link stays approved, no new points), never removed.
       allow update: if mayUse()
         && resourceOk(request.resource.data)
+        && resource.data.removed == false
         && resource.data.addedBy.email == me()
         && holds('contributor', resource.data.campus, resource.data.campus)
         && request.resource.data.diff(resource.data).unchangedKeys()

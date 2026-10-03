@@ -254,7 +254,7 @@ Future<List<PendingBatch>> pending(String campus, String dept);          // cach
 List<PendingBatch>? peekPending(String campus, String dept);
 Future<void> approve(PendingBatch b, {Iterable<String>? linkIds});       // default all links; +4 each; stops and rethrows on first failure
 Future<void> reject(PendingBatch b, {Iterable<String>? linkIds, required String reason});
-Future<List<Resource>> mine(String campus);                              // contributor's own links incl. pending/rejected, cacheFirst 'rmine|$campus|$email'
+Future<List<Resource>> mine(String campus);                              // contributor's own links incl. pending/rejected, cacheFirst 'cmine|$campus|$email'
 List<Resource>? peekMine(String campus);
 class PendingBatch { final String id, campus, dept, email, username; final int at; final List<({String id,String title,String url})> links; }
 ```

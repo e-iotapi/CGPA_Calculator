@@ -9,6 +9,7 @@ import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:cgpa_calculator/core/roles/store_error.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
@@ -22,6 +23,11 @@ Future<void> openResources() => Hive.openBox(resourcesBoxName);
 
 Box? get _cache =>
     Hive.isBoxOpen(resourcesBoxName) ? Hive.box(resourcesBoxName) : null;
+
+/// The link is past its 15 days: it can no longer be approved, only rejected.
+class LinkExpired extends StoreError {
+  const LinkExpired() : super('expired');
+}
 
 /// `sha256(uid + id)` as lowercase hex: one report per person per link,
 /// with nothing that links a person's reports together (§16.3 fix 3).
@@ -341,7 +347,7 @@ class ResourceStore {
     LiveHeads.poke(Paths.pending(dept));
     await _dropLocal(campus);
     await forget('pend|');
-    await forget('rmine|');
+    await forget('cmine|');
   }
 
   Future<String> _usernameOf() async =>
@@ -430,7 +436,8 @@ class ResourceStore {
   }
 
   /// A contributor edits their own link: approval and window stay (an edited
-  /// approved link stays approved, audited, no new points).
+  /// approved link stays approved, audited, no new points). A removed link
+  /// is refused by the rules and never re-queued.
   Future<void> updateOwn(Resource r) async {
     final b = _db.batch();
     final audit = roles.logInto(
@@ -453,7 +460,7 @@ class ResourceStore {
     });
     _bump(b, r.campus, r);
     // Still awaiting approval: the approvers' queue shows the new title/url.
-    final queued = !r.approved && r.batchId.isNotEmpty;
+    final queued = !r.approved && !r.removed && r.batchId.isNotEmpty;
     if (queued) {
       b.set(_pendingDoc(r.campus, r.department), {
         'batches': {
@@ -471,7 +478,7 @@ class ResourceStore {
     await b.commit();
     LiveHeads.poke(Paths.resources);
     await _dropLocal(r.campus);
-    await forget('rmine|');
+    await forget('cmine|');
     if (queued) await _afterPendingWrite(r.campus, r.department);
   }
 
@@ -525,11 +532,16 @@ class ResourceStore {
 
   /// Approves [linkIds] (default every link) of [b]: one commit per link
   /// (the rules' access limit, K1), +4 to the contributor each. Stops and
-  /// rethrows at the first failure.
+  /// rethrows at the first failure; throws [LinkExpired] for a link past
+  /// [contributorWindow] (the rules refuse it).
   Future<void> approve(PendingBatch b, {Iterable<String>? linkIds}) async {
     final ids = linkIds?.toSet() ?? {for (final l in b.links) l.id};
     var left = b.links.length;
     for (final l in b.links.where((l) => ids.contains(l.id))) {
+      final doc = (await _resources.doc(l.id).get()).data();
+      if (doc != null && Resource.fromMap(doc, l.id).hiddenAt(DateTime.now())) {
+        throw const LinkExpired();
+      }
       final ref = _db.collection('contributors').doc(b.email);
       final c = (await ref.get()).data();
       final points = ((c?['points'] as num?)?.toInt() ?? 0) + 4;
@@ -625,7 +637,7 @@ class ResourceStore {
   /// The contributor's own links on [campus], pending, approved and
   /// rejected ones included.
   Future<List<Resource>> mine(String campus) => cacheFirst<List<Resource>>(
-    key: 'rmine|$campus|${roles.me}',
+    key: 'cmine|$campus|${roles.me}',
     maxAge: const Duration(minutes: 5),
     fetch: () async {
       final q =
@@ -646,7 +658,7 @@ class ResourceStore {
 
   /// The saved [mine], read synchronously; null when none is saved.
   List<Resource>? peekMine(String campus) =>
-      peekCache('rmine|$campus|${roles.me}', _decodeMine);
+      peekCache('cmine|$campus|${roles.me}', _decodeMine);
 
   /// Reports [r]. False when this person already reported it.
   Future<bool> report(Resource r, ReportReason reason, {String? note}) async {

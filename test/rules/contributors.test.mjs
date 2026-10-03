@@ -224,6 +224,28 @@ describe('requests', () => {
     await assertSucceeds(b.commit());
   });
 
+  test('revoke moves the approved request to withdrawn; apply again; other moves denied', async () => {
+    await apply(as(STUDENT), STUDENT);
+    await decide(as(PRES), PRES, STUDENT, 'approved');
+    const withdraw = (db, actor, { grant = true } = {}) => {
+      const b = writeBatch(db);
+      if (grant) {
+        const auditId = audit(b, db, actor, `grants/${gid(STUDENT)}`);
+        b.update(doc(db, 'grants', gid(STUDENT)), {
+          active: false, auditId, grantedBy: { email: actor, name: name(actor) }, grantedAt: serverTimestamp(), name: name(STUDENT),
+        });
+      }
+      b.update(doc(db, 'contributorRequests', reqId(STUDENT)), { status: 'withdrawn' });
+      bumps(b, db, grant ? ['grants', 'contributorRequests/ELEC'] : ['contributorRequests/ELEC']);
+      return b.commit();
+    };
+    // Not without the revoke, and not by the student.
+    await assertFails(withdraw(as(PRES), PRES, { grant: false }));
+    await assertFails(withdraw(as(STUDENT), STUDENT));
+    await assertSucceeds(withdraw(as(PRES), PRES));
+    await assertSucceeds(apply(as(STUDENT), STUDENT));
+  });
+
   test('revoke by the contributor themselves is denied', async () => {
     await seedContributor(STUDENT);
     const db = as(STUDENT);
@@ -295,6 +317,13 @@ describe('links', () => {
     await assertFails(edit(as(C), C, { removed: true }));
     await assertFails(edit(as(C), C, { publishedAt: serverTimestamp() }));
     await assertFails(edit(as(C2), C2, { title: 'Hijack' }));
+  });
+
+  test('edit own: a rejected (removed) link cannot be edited', async () => {
+    await seedContributor();
+    await seedPending('r1');
+    await seed((db) => setDoc(doc(db, 'resources', 'r1'), { removed: true, rejectedReason: 'no' }, { merge: true }));
+    await assertFails(edit(as(C), C, { title: 'Again' }));
   });
 
   // The edit also refreshes the link's title/url in the approvers' queue.

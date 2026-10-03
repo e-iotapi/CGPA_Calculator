@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/contrib/contributor_store.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
+import 'package:cgpa_calculator/core/resources/resource_store.dart' show LinkExpired;
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart'
@@ -125,6 +126,7 @@ class _ApprovalsState extends State<Approvals> {
   int _loads = 0, _done = 0, _total = 0;
   bool _busy = false;
   String? _error;
+  final _failed = <String>[];
 
   String? get _campus => widget.campus ?? viewCampus();
 
@@ -176,10 +178,15 @@ class _ApprovalsState extends State<Approvals> {
       _total = total;
       _done = 0;
       _error = null;
+      _failed.clear();
     });
     try {
       await f();
-      if (mounted) _say(done);
+      if (_failed.isNotEmpty) {
+        if (mounted) setState(() => _error = 'Not approved: ${_failed.join('; ')}.');
+      } else if (mounted) {
+        _say(done);
+      }
     } catch (e) {
       if (mounted) setState(() => _error = problem(e));
     }
@@ -191,12 +198,21 @@ class _ApprovalsState extends State<Approvals> {
     }
   }
 
-  /// Approves every link of [b], one at a time so progress shows.
+  /// Approves every link of [b], one at a time so progress shows. A link
+  /// that cannot be approved (past its 15 days, or refused) is noted in
+  /// [_failed] and the rest go on.
   Future<void> _approveBatch(PendingBatch b) async {
-    var rest = b.links;
-    while (rest.isNotEmpty) {
-      await resourceStore!.approve(_with(b, rest), linkIds: {rest.first.id});
-      rest = rest.sublist(1);
+    var queued = b.links;
+    for (final l in b.links) {
+      try {
+        await resourceStore!.approve(_with(b, queued), linkIds: {l.id});
+        queued = [for (final q in queued) if (q.id != l.id) q];
+      } on LinkExpired {
+        _failed.add('${l.title} (expired, reject it)');
+      } catch (e) {
+        debugPrint('$e');
+        _failed.add(l.title);
+      }
       if (mounted) setState(() => _done++);
     }
   }
