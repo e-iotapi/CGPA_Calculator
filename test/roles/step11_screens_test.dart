@@ -1221,6 +1221,7 @@ void main() {
 
   testWidgets('president sees their campus', (t) async {
     signIn(pres, roles: MyRoles(email: pres, grants: [presidency()]));
+    final hourAgo = DateTime.now().subtract(const Duration(hours: 1));
     for (final (campus, what) in [
       ('goa', 'Changed the Midsem weight in EEE F211'),
       ('hyderabad', 'Added a link to CS F211'),
@@ -1231,19 +1232,22 @@ void main() {
         'campus': campus,
         'before': '30%',
         'after': '35%',
-        'at': Timestamp.fromDate(
-          DateTime.now().subtract(const Duration(hours: 1)),
-        ),
+        'at': Timestamp.fromDate(hourAgo),
       });
     }
     await t.pumpWidget(app(const AuditLogPage()));
     await t.pumpAndSettle();
     expect(find.text('Changed the Midsem weight in EEE F211'), findsOneWidget);
     expect(find.text('Added a link to CS F211'), findsNothing);
-    expect(find.text('1 hour ago'), findsOneWidget);
+    // An hour ago reads "1 hour ago", or "Yesterday, hh:mm" just after
+    // midnight, and groups under TODAY or YESTERDAY to match.
+    expect(
+      find.text(
+        hourAgo.day == DateTime.now().day ? '1 hour ago' : ago(hourAgo),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('30%'), findsOneWidget);
-    // Grouped by day: an hour ago is today, or yesterday just after midnight.
-    final hourAgo = DateTime.now().subtract(const Duration(hours: 1));
     final label = hourAgo.day == DateTime.now().day ? 'TODAY' : 'YESTERDAY';
     expect(find.text(label), findsOneWidget);
   });
