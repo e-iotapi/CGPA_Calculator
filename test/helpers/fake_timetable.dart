@@ -31,8 +31,9 @@ class FakeTimetableStore implements TimetableStore {
   @override
   Future<Timetable?> current(String campus) async {
     loads++;
-    if (fail)
+    if (fail) {
       throw FirebaseException(plugin: 'cloud_firestore', code: 'unavailable');
+    }
     return t;
   }
 
