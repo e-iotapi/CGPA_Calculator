@@ -430,7 +430,8 @@ class ResourceStore {
   }
 
   /// A contributor edits their own link: approval and window stay (an edited
-  /// approved link stays approved, audited, no new points).
+  /// approved link stays approved, audited, no new points). A removed link
+  /// is refused by the rules and never re-queued.
   Future<void> updateOwn(Resource r) async {
     final b = _db.batch();
     final audit = roles.logInto(
@@ -453,7 +454,7 @@ class ResourceStore {
     });
     _bump(b, r.campus, r);
     // Still awaiting approval: the approvers' queue shows the new title/url.
-    final queued = !r.approved && r.batchId.isNotEmpty;
+    final queued = !r.approved && !r.removed && r.batchId.isNotEmpty;
     if (queued) {
       b.set(_pendingDoc(r.campus, r.department), {
         'batches': {

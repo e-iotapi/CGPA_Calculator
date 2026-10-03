@@ -319,6 +319,13 @@ describe('links', () => {
     await assertFails(edit(as(C2), C2, { title: 'Hijack' }));
   });
 
+  test('edit own: a rejected (removed) link cannot be edited', async () => {
+    await seedContributor();
+    await seedPending('r1');
+    await seed((db) => setDoc(doc(db, 'resources', 'r1'), { removed: true, rejectedReason: 'no' }, { merge: true }));
+    await assertFails(edit(as(C), C, { title: 'Again' }));
+  });
+
   // The edit also refreshes the link's title/url in the approvers' queue.
   const editQueued = async (db, actor, title, { qTitle = title, extra = {} } = {}) => {
     const b = writeBatch(db);

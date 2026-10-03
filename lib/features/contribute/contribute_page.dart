@@ -167,14 +167,18 @@ class _MyLink extends StatelessWidget {
       label: '${r.title}, $where, ${state.name}',
       excludeSemantics: true,
       child: InkWell(
-        onTap: () async {
-          await openRoute(
-            context,
-            Routes.contributeEdit(r.id),
-            () => EditPage(id: r.id),
-          );
-          onChanged?.call();
-        },
+        // A removed (rejected) link is not edited: the rules refuse it.
+        onTap:
+            r.removed
+                ? null
+                : () async {
+                  await openRoute(
+                    context,
+                    Routes.contributeEdit(r.id),
+                    () => EditPage(id: r.id),
+                  );
+                  onChanged?.call();
+                },
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 56),
           child: Padding(

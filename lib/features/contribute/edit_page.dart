@@ -69,7 +69,7 @@ class _EditPageState extends State<EditPage> {
       peek: () => store.peekMine(campus),
       builder: (context, all, _) {
         final r = all.where((x) => x.id == widget.id).firstOrNull;
-        if (r == null) {
+        if (r == null || r.removed) {
           return const PageFrame(
             header: header,
             children: [Note('This link is no longer yours to edit.')],
