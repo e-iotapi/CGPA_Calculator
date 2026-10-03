@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/features/reviews/pick_sheet.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
@@ -34,12 +35,31 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
   late int _stars = widget.existing?.stars ?? 0;
   late bool? _recommend = widget.existing?.recommend;
   late final _text = TextEditingController(text: widget.existing?.text);
+
+  /// Prefilled from the review being edited, else from the student's own
+  /// course; null until chosen, and Post waits for it. `ND` is a choice.
+  late String? _grade = widget.existing?.grade ?? ownGrade(widget.courseId);
+  late final _marks = TextEditingController(
+    text: switch (widget.existing?.marks ?? ownMarks(widget.courseId)) {
+      final m? => marksText(m),
+      _ => '',
+    },
+  );
+
+  /// The marks typed: null when empty or not 0 to 1000 ([_marksBad]).
+  num? get _marksValue {
+    final m = num.tryParse(_marks.text.trim());
+    return m != null && m >= 0 && m <= 1000 ? m : null;
+  }
+
+  bool get _marksBad => _marks.text.trim().isNotEmpty && _marksValue == null;
   String? _professorId;
   bool _busy = false;
 
   @override
   void dispose() {
     _text.dispose();
+    _marks.dispose();
     super.dispose();
   }
 
@@ -117,8 +137,8 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
         professorId: _professorId,
         stars: _stars,
         recommend: _recommend!,
-        grade: widget.existing?.grade ?? 'ND',
-        marks: widget.existing?.marks,
+        grade: _grade!,
+        marks: _marksValue,
         text: _text.text,
         before: widget.existing,
       );
@@ -193,6 +213,8 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
                   _busy ||
                           _stars == 0 ||
                           _recommend == null ||
+                          _grade == null ||
+                          _marksBad ||
                           _text.text.length > reviewTextLimit
                       ? null
                       : () => _save(t),
@@ -267,6 +289,46 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
                         ),
                       ],
                     ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('GRADE YOU GOT', style: label),
+                  const SizedBox(height: Space.sm),
+                  SelectRow(
+                    text:
+                        _grade == null ? 'Choose a grade' : gradeName(_grade!),
+                    placeholder: _grade == null,
+                    onTap: () async {
+                      final v = await pickSheet<String>(
+                        context,
+                        title: 'Grade',
+                        selected: _grade,
+                        options: [
+                          for (final g in reviewGrades) (g, gradeName(g)),
+                        ],
+                      );
+                      if (v != null) setState(() => _grade = v.value);
+                    },
+                  ),
+                  const SizedBox(height: Space.md),
+                  AppTextField(
+                    controller: _marks,
+                    label: 'Marks (optional)',
+                    number: true,
+                    error: _marksBad ? 'Marks are between 0 and 1000' : null,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: Space.sm),
+                  Text(
+                    'Shown on your review, still without your name. Pick '
+                    'Not disclosed to keep the grade private.',
+                    style: caption,
                   ),
                 ],
               ),
