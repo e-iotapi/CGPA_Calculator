@@ -142,7 +142,7 @@ String? validYear(String input);   // accepts '2023-24' or '2023' (-> '2023-24')
 
 ## B6 Review gate
 
-**Doc** `reviewGate/<campus> = { on: bool, by: {email,name}, at: timestamp, auditId: string }`. Read: any `mayUse()` on that campus (get, one doc). Write (create/update): owner/admin any campus; president or secretary on their own campus (any dept); `at == request.time`, `audited('reviewGate/'+campus)`. Markers: `Paths.reviewGate` (1). Turning off is a write with `on:false`. Missing doc == off.
+**Doc** `reviewGate/<campus> = { on: bool, by: {email,name}, at: timestamp, auditId: string, dept?: string }`. Read: any `mayUse()` on that campus (get, one doc). Write (create/update): owner/admin any campus; president or secretary (a dept grant, checked with `isPresident(campus, dept)`) on their own campus, writing the `dept` they hold (owner/admin omit it); `at == request.time`, `audited('reviewGate/'+campus)`. Markers: `Paths.reviewGate` (1). Turning off is a write with `on:false`. Missing doc == off.
 
 `lib/core/reviews/gate_store.dart`
 ```dart
@@ -150,7 +150,7 @@ class GateStore {
   GateStore(this.roles);
   Future<bool> of(String campus);      // cacheFirst key 'gate|$campus', version markerOf(Paths.reviewGate), maxAge 1h
   bool? peekOf(String campus);
-  Future<void> set(String campus, bool on);   // throws on permission-denied
+  Future<void> set(String campus, bool on, {String? dept});   // throws on permission-denied
 }
 ```
 Pure (`lib/core/reviews/gate.dart`):
