@@ -113,3 +113,91 @@ describe('the seed leaves room for the app\'s own writes', () => {
     });
   });
 });
+
+describe('build-out seed (B9) matches the shapes the stores read', () => {
+  const owner = () => as('owner');
+  const data = async (path) => (await getDoc(doc(owner(), path))).data();
+
+  test('contributor holds a live grant, a username and 8 points', async () => {
+    const c = byKey.contributor;
+    const g = await data(`grants/contributor|goa|goa|${c.email}`);
+    assert.equal(g.active, true);
+    assert.equal(g.expiresAt.toDate().getUTCFullYear(), 2100);
+    const me = await data(`contributors/${c.email}`);
+    assert.deepEqual([me.username, me.points], ['ctest', 8]);
+    assert.equal((await data('usernames/goa|ctest')).email, c.email);
+  });
+
+  test('the leaderboard has >= 12 rows, each mirrored by a contributors doc', async () => {
+    const lb = await data('leaderboard/goa');
+    const names = Object.keys(lb.p);
+    assert.ok(names.length >= 12);
+    for (const u of names) {
+      const un = await data(`usernames/goa|${u}`);
+      assert.equal((await data(`contributors/${un.email}`)).points, lb.p[u], u);
+    }
+  });
+
+  test('the applicant has a pending request, the elective lead a GEN grant', async () => {
+    const a = byKey.applicant, e = byKey.electiveContributor;
+    assert.equal((await data(`contributorRequests/goa|ELEC|${a.email}`)).status, 'pending');
+    assert.equal((await data(`grants/dept|goa|GEN|${e.email}`)).active, true);
+  });
+
+  test('pending/goa|ELEC has a 3-link and a 1-link batch, the older 14 days old, all backed by unapproved links', async () => {
+    const { batches } = await data('pending/goa|ELEC');
+    const list = Object.entries(batches).sort((x, y) => x[1].at.toMillis() - y[1].at.toMillis());
+    assert.deepEqual(list.map(([, b]) => Object.keys(b.links).length), [1, 3]);
+    const age = (Date.now() - list[0][1].at.toMillis()) / 864e5;
+    assert.ok(age > 13.9 && age < 14.5, `age ${age}`);
+    for (const [bid, b] of list) {
+      for (const id of Object.keys(b.links)) {
+        const r = await data(`resources/${id}`);
+        assert.equal(r.approved, false);
+        assert.equal(r.batchId, bid);
+      }
+    }
+  });
+
+  test('gate on, one course claim, fresh and stale activity, one removed professor', async () => {
+    assert.equal((await data('reviewGate/goa')).on, true);
+    // courseClaims rules land with B2 (branch bo-u12), so read it unguarded.
+    let claim;
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      claim = (await getDoc(doc(ctx.firestore(), 'courseClaims/goa|HSS F219'))).data();
+    });
+    assert.equal(claim.dept, 'ELEC');
+    assert.equal(claim.by.email, byKey.president.email);
+    const act = await data('activity/goa');
+    assert.ok(Date.now() - act.course['EEE F311'].toMillis() < 30 * 864e5);
+    assert.ok(Date.now() - act.course['EEE F211'].toMillis() > 400 * 864e5);
+    const profs = await getDocs(collection(owner(), 'professors'));
+    assert.equal(profs.docs.filter((d) => d.data().removed === true).length, 1);
+  });
+
+  test('reviews carry grade, and marks on some', async () => {
+    const entries = await getDocs(collection(owner(), 'reviews/EEE F311/entries'));
+    const rows = entries.docs.map((d) => d.data());
+    assert.ok(rows.every((r) => typeof r.grade === 'string'));
+    assert.ok(rows.some((r) => typeof r.marks === 'number'));
+  });
+
+  test('the timetable has 3 courses of 2 sections, events, exams and a current pointer', async () => {
+    const cur = await data('timetable/goa|current');
+    const meta = await data(`timetable/goa|${cur.sem}`);
+    assert.equal(meta.marker, cur.marker);
+    assert.ok(meta.events.length > 0);
+    const chunk = await data(`timetable/goa|${cur.sem}|0`);
+    const cs = Object.values(chunk.courses);
+    assert.equal(cs.length, 3);
+    assert.ok(cs.every((c) => c.sec.length === 2));
+    assert.ok(cs.some((c) => c.mid) && cs.every((c) => c.compre || c.mid));
+  });
+
+  test('the heads carry the new markers', async () => {
+    const v = (await data('heads/goa')).v;
+    for (const k of ['reviewGate', 'timetable', 'leaderboard', 'pending/ELEC', 'courseClaims']) {
+      assert.ok(v[k] >= 1, k);
+    }
+  });
+});
