@@ -29,7 +29,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { parseTimetable } from './parse.mjs';
-import { buildBatches, planCatalog, planOfferings, planTimetable, resolveProfessors, termOf } from './plan.mjs';
+import { buildBatches, planCatalog, planOfferings, planTimetable, resolveProfessors, termOf, titleCase } from './plan.mjs';
 import { renderReport } from './report.mjs';
 
 export { normName } from './plan.mjs';
@@ -83,7 +83,8 @@ export function toSchema(out, { marker, publishedAt }) {
       const ic = x.instructors.filter((i) => i.ic);
       const o = {
         ty: x.type, no: x.no,
-        prof: ic.map((i) => i.name),
+        // The PDF prints the IC in capitals: show it as a name.
+        prof: ic.map((i) => (/[a-z]/.test(i.name) ? i.name : titleCase(i.name))),
         slots: x.slots.map((sl) => ({ d: DAYNO[sl.day], s: mins(sl.start), e: mins(sl.end) })),
       };
       if (ic.some((i) => i.prof)) o.profIds = ic.map((i) => i.prof ?? '');
