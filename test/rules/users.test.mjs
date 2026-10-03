@@ -5,7 +5,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
-  collection, doc, getDocs, query, setDoc, updateDoc, where,
+  collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { STUDENT, OTHER, env, useEmulator } from './helpers.mjs';
 
@@ -40,5 +40,47 @@ describe('users', () => {
       where('uid', '==', 'uid-student'),
       where('rev', '>', 0),
     )));
+  });
+  // B1: prefs ride on the sync doc; owner-only, two bool flags, no rev needed.
+  describe('prefs', () => {
+    const seedDoc = (extra = {}) => assertSucceeds(
+      setDoc(doc(me(), 'users/uid-student'), { rev: 1, data: '{}', uid: 'uid-student', ...extra }));
+
+    test('the owner sets the flags with a prefs-only update', async () => {
+      await seedDoc();
+      const ref = doc(me(), 'users/uid-student');
+      await assertSucceeds(updateDoc(ref, { 'prefs.offshootHidden': true }));
+      await assertSucceeds(updateDoc(ref, { 'prefs.tourSeen': false }));
+      await assertSucceeds(updateDoc(ref, { prefs: { offshootHidden: false, tourSeen: true } }));
+    });
+
+    test('another uid cannot write them', async () => {
+      await seedDoc();
+      await assertFails(updateDoc(doc(other(), 'users/uid-student'), { 'prefs.offshootHidden': true }));
+    });
+
+    test('an unknown key or a non-bool value is refused', async () => {
+      await seedDoc();
+      const ref = doc(me(), 'users/uid-student');
+      await assertFails(updateDoc(ref, { 'prefs.theme': true }));
+      await assertFails(updateDoc(ref, { 'prefs.offshootHidden': 'yes' }));
+      await assertFails(updateDoc(ref, { prefs: 'x' }));
+    });
+
+    test('prefs with data but no rev bump is refused; a rev + 1 push may carry them', async () => {
+      await seedDoc();
+      const ref = doc(me(), 'users/uid-student');
+      await assertFails(updateDoc(ref, { 'prefs.tourSeen': true, data: '{"a":1}' }));
+      await assertSucceeds(updateDoc(ref, { 'prefs.tourSeen': true }));
+      await assertSucceeds(updateDoc(ref, { rev: 2, data: '{"a":1}' }));
+      assert.equal((await assertSucceeds(getDoc(ref))).data().prefs.tourSeen, true);
+    });
+
+    test('a doc that carries prefs still takes normal pushes and still needs rev + 1', async () => {
+      await seedDoc({ prefs: { offshootHidden: true } });
+      const ref = doc(me(), 'users/uid-student');
+      await assertSucceeds(updateDoc(ref, { rev: 2, data: '{"a":1}' }));
+      await assertFails(updateDoc(ref, { rev: 2, data: '{"a":2}' }));
+    });
   });
 });

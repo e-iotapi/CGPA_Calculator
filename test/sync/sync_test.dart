@@ -47,6 +47,24 @@ void main() {
     expect(Sync.hasUnsynced, isFalse);
   });
 
+  test('a push keeps the prefs on the doc (B1)', () async {
+    await Sync.init('u1');
+    await db.doc('users/u1').set({
+      'prefs': {'offshootHidden': true},
+    });
+    await Hive.box('settingsBox').put('batch', 24);
+    await Sync.push(); // the transaction path
+    var d = (await db.doc('users/u1').get()).data()!;
+    expect(d['prefs'], {'offshootHidden': true});
+    expect(d['rev'], 2);
+    await Hive.box('settingsBox').put('batch', 25);
+    await Future<void>.delayed(Duration.zero);
+    await Sync.push(); // the plain update path
+    d = (await db.doc('users/u1').get()).data()!;
+    expect(d['prefs'], {'offshootHidden': true});
+    expect(d['rev'], 3);
+  });
+
   test(
     'the pull check applies a newer copy and ignores an unchanged one',
     () async {

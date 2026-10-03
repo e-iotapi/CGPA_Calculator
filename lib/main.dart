@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
@@ -141,6 +142,10 @@ Future<void> startApp(User user) async {
     () => Future.wait([openDeviceBox(), openResources(), openReviews()]),
   );
   myUid = user.uid;
+  // Prefs (B1): the device copy is read at once; the server's follows after
+  // the first frame.
+  final prefs = prefsStore = PrefsStore(FirebaseFirestore.instance, uid: user.uid);
+  WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(prefs.pull()));
   stripNavigate = appRouter.go;
   restoreMyRoles(email: user.email);
   final email = user.email;

@@ -1115,6 +1115,14 @@ service cloud.firestore {
       allow get, delete: if mayUse() && request.auth.uid == uid;
       // The pull check: where uid == me and rev > mine (§A.4).
       allow list: if mayUse() && resource.data.uid == request.auth.uid;
+      // Prefs (B1): an owner's update that touches only `prefs`, whose keys
+      // are the two known flags and whose values are bool, needs no rev/data.
+      allow update: if mayUse() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['prefs'])
+        && request.resource.data.prefs is map
+        && request.resource.data.prefs.keys().hasOnly(['offshootHidden', 'tourSeen'])
+        && request.resource.data.prefs.get('offshootHidden', false) is bool
+        && request.resource.data.prefs.get('tourSeen', false) is bool;
       // rev moves by exactly one per push, so a plain update is safe without
       // a transaction read: another device's push makes this one fail, and
       // the app pulls (PERF_TEST_PLAN.md §A.4).
