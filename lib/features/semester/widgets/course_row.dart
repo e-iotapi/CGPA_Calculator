@@ -27,6 +27,7 @@ class CourseRow extends StatelessWidget {
     this.classDelta,
     this.compared = (1, 2),
     this.onCompareGradePicked,
+    this.chipKey,
   });
 
   final Course course;
@@ -44,6 +45,9 @@ class CourseRow extends StatelessWidget {
 
   /// Called with a profile id and its new grade from a Compare chip.
   final void Function(int profile, int grade)? onCompareGradePicked;
+
+  /// The guided tour's key for the (first) grade chip, when it tours it.
+  final Key? chipKey;
 
   @override
   Widget build(BuildContext context) {
@@ -105,11 +109,14 @@ class CourseRow extends StatelessWidget {
           Expanded(child: titles),
           const SizedBox(width: Space.md),
           if (compare) ...[
-            SizedBox(width: compareGradeWidth, child: _scrubber(compared.$1)),
+            SizedBox(
+              width: compareGradeWidth,
+              child: _scrubber(compared.$1, chipKey),
+            ),
             const SizedBox(width: Space.sm),
             SizedBox(width: compareGradeWidth, child: _scrubber(compared.$2)),
           ] else
-            _scrubber(null),
+            _scrubber(null, chipKey),
         ],
       ),
     );
@@ -120,7 +127,7 @@ class CourseRow extends StatelessWidget {
 
   /// The grade chip, editable by drag or tap. [profile] is a Compare column;
   /// null is the tab's own profile.
-  Widget _scrubber(int? profile) {
+  Widget _scrubber(int? profile, [Key? tourKey]) {
     final grade = profile == null ? _grade : course.gradeFor(profile);
     final ValueChanged<int>? picked =
         profile == null
@@ -128,7 +135,7 @@ class CourseRow extends StatelessWidget {
             : onCompareGradePicked == null
             ? null
             : (g) => onCompareGradePicked!(profile, g);
-    return GradeScrubber(
+    final scrubber = GradeScrubber(
       grade: grade,
       onPicked: (g) => picked?.call(g),
       onTap:
@@ -144,6 +151,9 @@ class CourseRow extends StatelessWidget {
               },
       child: _chip(grade),
     );
+    return tourKey == null
+        ? scrubber
+        : KeyedSubtree(key: tourKey, child: scrubber);
   }
 
   static Widget _chip(int grade) {

@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/short_email.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:flutter/material.dart';
 
 /// Settings, board `Settings`. Stateless: the page owns every action.
@@ -38,6 +39,7 @@ class SettingsView extends StatelessWidget {
     this.onControls,
     this.showOffshoot = true,
     this.onShowOffshoot,
+    this.onReplayTour,
   });
 
   final String name;
@@ -101,6 +103,9 @@ class SettingsView extends StatelessWidget {
   final bool showOffshoot;
   final ValueChanged<bool>? onShowOffshoot;
 
+  /// "Replay the tour" (U8): null for roles and owners, who never get it.
+  final VoidCallback? onReplayTour;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -116,23 +121,26 @@ class SettingsView extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(18, Space.lg, 18, Space.xxl),
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Semantics(
-                        header: true,
-                        child: Text(
-                          'Settings',
-                          style: TypeScale.title.copyWith(color: p.text),
+                KeyedSubtree(
+                  key: tourKey('page.settings'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          header: true,
+                          child: Text(
+                            'Settings',
+                            style: TypeScale.title.copyWith(color: p.text),
+                          ),
                         ),
                       ),
-                    ),
-                    CircleIconButton(
-                      icon: Icons.close_rounded,
-                      tooltip: 'Close',
-                      onPressed: onClose,
-                    ),
-                  ],
+                      CircleIconButton(
+                        icon: Icons.close_rounded,
+                        tooltip: 'Close',
+                        onPressed: onClose,
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: Space.md),
                 _account(p),
@@ -205,61 +213,84 @@ class SettingsView extends StatelessWidget {
                   ),
                 ),
                 _SectionLabel('APPEARANCE'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _Choice(
-                        icon: Icons.light_mode_outlined,
-                        label: 'Light',
-                        on: !isDark,
-                        onTap: () => onTheme(false),
+                KeyedSubtree(
+                  key: tourKey('set.appearance'),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _Choice(
+                              icon: Icons.light_mode_outlined,
+                              label: 'Light',
+                              on: !isDark,
+                              onTap: () => onTheme(false),
+                            ),
+                          ),
+                          const SizedBox(width: Space.sm),
+                          Expanded(
+                            child: _Choice(
+                              icon: Icons.dark_mode_outlined,
+                              label: 'Dark',
+                              on: isDark,
+                              onTap: () => onTheme(true),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: Space.sm),
-                    Expanded(
-                      child: _Choice(
-                        icon: Icons.dark_mode_outlined,
-                        label: 'Dark',
-                        on: isDark,
-                        onTap: () => onTheme(true),
-                      ),
-                    ),
-                  ],
+                      if (onShowOffshoot != null) ...[
+                        const SizedBox(height: Space.sm),
+                        _Group([
+                          _SwitchItem(
+                            label: 'Show Offshoot tab',
+                            value: showOffshoot,
+                            onChanged: onShowOffshoot!,
+                          ),
+                        ]),
+                      ],
+                    ],
+                  ),
                 ),
-                if (onShowOffshoot != null) ...[
-                  const SizedBox(height: Space.sm),
-                  _Group([
-                    _SwitchItem(
-                      label: 'Show Offshoot tab',
-                      value: showOffshoot,
-                      onChanged: onShowOffshoot!,
-                    ),
-                  ]),
-                ],
                 _SectionLabel('GRADE PROFILES'),
-                _Group([
-                  for (final (i, name) in profiles.indexed)
-                    _Item(
-                      swatch: switch (i) {
-                        0 => p.hero,
-                        1 => p.gradeTone('B-').fill,
-                        _ => p.outline,
-                      },
-                      label: i < 2 ? 'Profile ${i + 1}' : 'Compare only',
-                      value: name,
-                      strong: true,
-                      onTap: () => onRenameProfile(i + 1),
-                    ),
-                ]),
-                if (onInstall != null) ...[
+                KeyedSubtree(
+                  key: tourKey('set.profiles'),
+                  child: _Group([
+                    for (final (i, name) in profiles.indexed)
+                      _Item(
+                        swatch: switch (i) {
+                          0 => p.hero,
+                          1 => p.gradeTone('B-').fill,
+                          _ => p.outline,
+                        },
+                        label: i < 2 ? 'Profile ${i + 1}' : 'Compare only',
+                        value: name,
+                        strong: true,
+                        onTap: () => onRenameProfile(i + 1),
+                      ),
+                  ]),
+                ),
+                if (onInstall != null || onReplayTour != null) ...[
                   _SectionLabel('APP'),
                   _Group([
-                    _Item(
-                      icon: Icons.install_mobile_rounded,
-                      label: 'Install app',
-                      value: installed ? 'Installed' : 'Home screen',
-                      onTap: onInstall!,
-                    ),
+                    if (onInstall != null)
+                      KeyedSubtree(
+                        key: tourKey('set.install'),
+                        child: _Item(
+                          icon: Icons.install_mobile_rounded,
+                          label: 'Install app',
+                          value: installed ? 'Installed' : 'Home screen',
+                          onTap: onInstall!,
+                        ),
+                      ),
+                    if (onReplayTour != null)
+                      KeyedSubtree(
+                        key: tourKey('set.replay'),
+                        child: _Item(
+                          icon: Icons.play_circle_outline_rounded,
+                          label: 'Replay the tour',
+                          onTap: onReplayTour!,
+                        ),
+                      ),
                   ]),
                 ],
                 _SectionLabel('YOUR DATA'),
@@ -272,12 +303,15 @@ class SettingsView extends StatelessWidget {
                     onTap: onExport,
                   ),
                   if (onImportErp != null)
-                    _Item(
-                      icon: Icons.school_outlined,
-                      label: 'Import grades from ERP',
-                      value: '.pdf',
-                      chevron: false,
-                      onTap: onImportErp!,
+                    KeyedSubtree(
+                      key: tourKey('set.erp'),
+                      child: _Item(
+                        icon: Icons.school_outlined,
+                        label: 'Import grades from ERP',
+                        value: '.pdf',
+                        chevron: false,
+                        onTap: onImportErp!,
+                      ),
                     ),
                   _Item(
                     icon: Icons.content_paste_rounded,

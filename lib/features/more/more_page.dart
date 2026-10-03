@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/features/more/representatives_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/script.dart' as app;
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
@@ -83,37 +84,49 @@ class _MorePageState extends State<MorePage> {
         ],
       ),
       children: [
-        _MoreCard(
-          icon: Icons.groups_outlined,
-          title: 'Representatives',
-          subtitle: 'Your department president and the CR for each course',
-          onTap:
-              () => openRoute(
-                context,
-                Routes.representatives,
-                () => const RepresentativesPage(),
-              ),
+        KeyedSubtree(
+          key: tourKey('more.reps'),
+          child: _MoreCard(
+            icon: Icons.groups_outlined,
+            title: 'Representatives',
+            subtitle: 'Your department president and the CR for each course',
+            onTap:
+                () => openRoute(
+                  context,
+                  Routes.representatives,
+                  () => const RepresentativesPage(),
+                ),
+          ),
         ),
         const SizedBox(height: 9),
-        _MoreCard(
-          icon: Icons.rate_review_outlined,
-          title: 'Course reviews',
-          subtitle: 'Search any course, filter by the professor teaching it',
-          onTap:
-              () =>
-                  openRoute(context, Routes.reviews, () => const ReviewsHome()),
+        KeyedSubtree(
+          key: tourKey('more.reviews'),
+          child: _MoreCard(
+            icon: Icons.rate_review_outlined,
+            title: 'Course reviews',
+            subtitle: 'Search any course, filter by the professor teaching it',
+            onTap:
+                () => openRoute(
+                  context,
+                  Routes.reviews,
+                  () => const ReviewsHome(),
+                ),
+          ),
         ),
         const SizedBox(height: 9),
-        _MoreCard(
-          icon: Icons.link_rounded,
-          title: 'Resources',
-          subtitle: 'Drive links, notes and papers, by degree',
-          onTap:
-              () => openRoute(
-                context,
-                Routes.resources,
-                () => const ResourcesPage(),
-              ),
+        KeyedSubtree(
+          key: tourKey('more.resources'),
+          child: _MoreCard(
+            icon: Icons.link_rounded,
+            title: 'Resources',
+            subtitle: 'Drive links, notes and papers, by degree',
+            onTap:
+                () => openRoute(
+                  context,
+                  Routes.resources,
+                  () => const ResourcesPage(),
+                ),
+          ),
         ),
         ValueListenableBuilder<ContribState>(
           valueListenable: contribState,
@@ -141,7 +154,10 @@ class _MorePageState extends State<MorePage> {
           },
         ),
         const SizedBox(height: 9),
-        const LeaderboardCard(),
+        KeyedSubtree(
+          key: tourKey('more.leaderboard'),
+          child: const LeaderboardCard(),
+        ),
         if (campus != null) ...[
           const SizedBox(height: 13),
           Text.rich(

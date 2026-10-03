@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_row.dart';
 import 'package:cgpa_calculator/features/semester/widgets/semester_pills.dart';
 import 'package:cgpa_calculator/shared/layout/breakpoints.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
@@ -102,6 +103,11 @@ class _SemesterViewState extends State<SemesterView> {
   }
 
   SemesterData get d => widget.data;
+
+  /// Marks [w] for the guided tour. Keys are per profile: the outgoing and
+  /// incoming pages of a profile switch are mounted together.
+  Widget _t(String id, Widget w) =>
+      KeyedSubtree(key: tourKey(id, d.mode.index + 1), child: w);
 
   bool get _single =>
       d.mode == SemesterMode.actual || d.mode == SemesterMode.expected;
@@ -262,6 +268,9 @@ class _SemesterViewState extends State<SemesterView> {
                       child: _draggable(
                         i,
                         CourseRow(
+                          key: i == 0 ? tourKey('row', d.mode.index + 1) : null,
+                          chipKey:
+                              i == 0 ? tourKey('chip', d.mode.index + 1) : null,
                           course: d.courses[i],
                           mode: d.mode,
                           classDelta: widget.classDeltas[d.courses[i].id],
@@ -383,18 +392,24 @@ class _SemesterViewState extends State<SemesterView> {
           ),
         ),
         const SizedBox(width: Space.md),
-        CircleIconButton(
-          icon: Icons.calendar_today_outlined,
-          tooltip: 'Calendar',
-          onPressed: widget.onOpenCalendar,
-          size: btn,
+        _t(
+          'calendar',
+          CircleIconButton(
+            icon: Icons.calendar_today_outlined,
+            tooltip: 'Calendar',
+            onPressed: widget.onOpenCalendar,
+            size: btn,
+          ),
         ),
         const SizedBox(width: Space.sm),
-        CircleIconButton(
-          icon: Icons.show_chart_rounded,
-          tooltip: 'Stats',
-          onPressed: widget.onOpenAnalytics,
-          size: btn,
+        _t(
+          'statsbtn',
+          CircleIconButton(
+            icon: Icons.show_chart_rounded,
+            tooltip: 'Stats',
+            onPressed: widget.onOpenAnalytics,
+            size: btn,
+          ),
         ),
         const SizedBox(width: Space.sm),
         CircleIconButton(
@@ -404,11 +419,14 @@ class _SemesterViewState extends State<SemesterView> {
           size: btn,
         ),
         const SizedBox(width: Space.sm),
-        CircleIconButton(
-          icon: Icons.settings_outlined,
-          tooltip: 'Settings',
-          onPressed: widget.onOpenSettings,
-          size: btn,
+        _t(
+          'settingsbtn',
+          CircleIconButton(
+            icon: Icons.settings_outlined,
+            tooltip: 'Settings',
+            onPressed: widget.onOpenSettings,
+            size: btn,
+          ),
         ),
       ],
     );
@@ -436,7 +454,9 @@ class _SemesterViewState extends State<SemesterView> {
     );
   }
 
-  Widget _stats(bool stacked) {
+  Widget _stats(bool stacked) => _t('summary', _statsBody(stacked));
+
+  Widget _statsBody(bool stacked) {
     final List<Widget> cards;
     if (d.mode == SemesterMode.compare) {
       StatCard card(int slot) {
@@ -545,13 +565,18 @@ class _SemesterViewState extends State<SemesterView> {
     }
   }
 
-  Widget _semesterPills() => SemesterPills(
-    semesters: d.semesters,
-    selected: d.sem,
-    onSelected: widget.onSemesterSelected,
+  Widget _semesterPills() => _t(
+    'pills',
+    SemesterPills(
+      semesters: d.semesters,
+      selected: d.sem,
+      onSelected: widget.onSemesterSelected,
+    ),
   );
 
-  Widget _sectionHeader() {
+  Widget _sectionHeader() => _t('section', _sectionHeaderBody());
+
+  Widget _sectionHeaderBody() {
     final p = AppPalette.of(context);
     final n = d.courses.length;
     final title = Expanded(
@@ -604,39 +629,48 @@ class _SemesterViewState extends State<SemesterView> {
           runSpacing: Space.sm,
           children: [
             if (_single)
-              PillButton(
-                label: 'Add',
-                icon: Icons.add_rounded,
-                selected: true,
-                height: Sizes.pillSmall,
-                padding: 13,
-                onPressed: widget.onAddCourse,
+              _t(
+                'add',
+                PillButton(
+                  label: 'Add',
+                  icon: Icons.add_rounded,
+                  selected: true,
+                  height: Sizes.pillSmall,
+                  padding: 13,
+                  onPressed: widget.onAddCourse,
+                ),
               ),
-            MenuAnchor(
-              menuChildren: [
-                for (final s in CourseSort.values)
-                  MenuItemButton(
-                    onPressed: () => widget.onSortSelected(s),
-                    leadingIcon: Icon(
-                      s == d.sort ? Icons.check_rounded : null,
-                      size: 18,
+            _t(
+              'sort',
+              MenuAnchor(
+                menuChildren: [
+                  for (final s in CourseSort.values)
+                    MenuItemButton(
+                      onPressed: () => widget.onSortSelected(s),
+                      leadingIcon: Icon(
+                        s == d.sort ? Icons.check_rounded : null,
+                        size: 18,
+                      ),
+                      child: Text(s.label, style: TypeScale.button),
                     ),
-                    child: Text(s.label, style: TypeScale.button),
-                  ),
-              ],
-              builder:
-                  (_, menu, _) => PillButton(
-                    label: d.sort.label,
-                    icon: Icons.sort_rounded,
-                    height: Sizes.pillSmall,
-                    padding: 13,
-                    onPressed: () => menu.isOpen ? menu.close() : menu.open(),
-                  ),
+                ],
+                builder:
+                    (_, menu, _) => PillButton(
+                      label: d.sort.label,
+                      icon: Icons.sort_rounded,
+                      height: Sizes.pillSmall,
+                      padding: 13,
+                      onPressed: () => menu.isOpen ? menu.close() : menu.open(),
+                    ),
+              ),
             ),
-            PillButton.icon(
-              icon: Icons.download_rounded,
-              semanticLabel: 'Export gradesheet',
-              onPressed: widget.onExport,
+            _t(
+              'export',
+              PillButton.icon(
+                icon: Icons.download_rounded,
+                semanticLabel: 'Export gradesheet',
+                onPressed: widget.onExport,
+              ),
             ),
           ],
         ),

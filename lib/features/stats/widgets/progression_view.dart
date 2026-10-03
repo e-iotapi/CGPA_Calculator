@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
@@ -91,63 +92,69 @@ class ProgressionView extends StatelessWidget {
                 ),
       ),
       children: [
-        AppCard(
-          radius: Radii.card,
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                spacing: Space.md,
-                runSpacing: Space.xs,
-                children: [
-                  Text(
-                    'CGPA by semester',
-                    style: TypeScale.body.copyWith(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: p.text,
+        KeyedSubtree(
+          key: tourKey('page.stats'),
+          child: AppCard(
+            radius: Radii.card,
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: Space.md,
+                  runSpacing: Space.xs,
+                  children: [
+                    Text(
+                      'CGPA by semester',
+                      style: TypeScale.body.copyWith(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: p.text,
+                      ),
                     ),
-                  ),
-                  Wrap(
-                    spacing: 10,
-                    children: [
-                      _key('Actual', p.text, muted),
-                      _key('Forecast', CgpaChart.forecastColor(p), muted),
-                      _key('Target', p.behind, muted),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              CgpaChart(
-                actual: data.actual,
-                forecast: data.forecast,
-                target: data.target,
-              ),
-            ],
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        _key('Actual', p.text, muted),
+                        _key('Forecast', CgpaChart.forecastColor(p), muted),
+                        _key('Target', p.behind, muted),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                CgpaChart(
+                  actual: data.actual,
+                  forecast: data.forecast,
+                  target: data.target,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 14),
-        _ask(p),
+        KeyedSubtree(key: tourKey('stats.target'), child: _ask(p)),
         if (data.planned.isNotEmpty) ...[
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Plan the rest',
-                  style: TypeScale.section.copyWith(color: p.text),
+          KeyedSubtree(
+            key: tourKey('stats.plan'),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Plan the rest',
+                    style: TypeScale.section.copyWith(color: p.text),
+                  ),
                 ),
-              ),
-              Text(
-                onIncludeChanged == null
-                    ? 'drag to adjust'
-                    : 'Tick what to forecast',
-                style: muted,
-              ),
-            ],
+                Text(
+                  onIncludeChanged == null
+                      ? 'drag to adjust'
+                      : 'Tick what to forecast',
+                  style: muted,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: Space.sm),
           for (final s in data.planned) ...[
