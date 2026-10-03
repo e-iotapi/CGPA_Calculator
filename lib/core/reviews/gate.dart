@@ -16,7 +16,9 @@ bool pastTwoOne(String? currentsem) {
 /// Reviews a student must write to unlock: min(electives taken, 5).
 int required(int electivesTaken) => electivesTaken.clamp(0, 5);
 
-/// The gate state. [myReviewCount] counts the caller's own non-imported
+/// The gate state. A student's own reviews are never imported and always
+/// carry stars and a would-take answer, so the caller counts all of them.
+/// [myReviewCount] counts the caller's own non-imported
 /// reviews that have stars and a would-take answer (text optional).
 GateState gateState({
   required bool on,

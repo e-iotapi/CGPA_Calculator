@@ -599,8 +599,11 @@ service cloud.firestore {
     // anyone on it. The unlock count is enforced in the app only.
     match /reviewGate/{campus} {
       allow read: if mayUse();
-      allow create, update: if (isOwner() || isAdmin() || isPresidentOn(campus))
-        && request.resource.data.keys().hasOnly(['on', 'by', 'at', 'auditId'])
+      // A president or secretary (a dept grant; holds() covers both) names the
+      // dept whose grant authorises the write; owners and admins need none.
+      allow create, update: if (isOwner() || isAdmin()
+          || isPresident(campus, request.resource.data.get('dept', '')))
+        && request.resource.data.keys().hasOnly(['on', 'by', 'at', 'auditId', 'dept'])
         && request.resource.data.on is bool
         && request.resource.data.by.email == me()
         && request.resource.data.at == request.time

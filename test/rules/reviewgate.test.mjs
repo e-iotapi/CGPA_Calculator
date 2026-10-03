@@ -7,11 +7,11 @@ import { ADMIN, OTHER, OWNER, PRES, STUDENT, as, bump, name, useEmulator } from 
 
 useEmulator();
 
-function setGate(db, actor, campus, on, { audit = true, marker = true, byEmail = actor } = {}) {
+function setGate(db, actor, campus, on, { audit = true, marker = true, byEmail = actor, dept } = {}) {
   const b = writeBatch(db);
   const a = doc(collection(db, 'audit'));
   b.set(a, { actor: { email: actor, name: name(actor), role: 'test' }, action: 'gate', path: audit ? `reviewGate/${campus}` : 'x', campus, at: serverTimestamp() });
-  b.set(doc(db, 'reviewGate', campus), { on, by: { email: byEmail, name: name(actor) }, at: serverTimestamp(), auditId: a.id });
+  b.set(doc(db, 'reviewGate', campus), { on, by: { email: byEmail, name: name(actor) }, at: serverTimestamp(), auditId: a.id, ...(dept ? { dept } : {}) });
   if (marker) bump(b, db, campus, 'reviewGate');
   return b.commit();
 }
@@ -25,8 +25,10 @@ describe('reviewGate', () => {
   });
 
   test('president on own campus only; students never', async () => {
-    await assertSucceeds(setGate(as(PRES), PRES, 'goa', true));
-    await assertFails(setGate(as(PRES), PRES, 'pilani', true));
+    await assertSucceeds(setGate(as(PRES), PRES, 'goa', true, { dept: 'ELEC' }));
+    await assertFails(setGate(as(PRES), PRES, 'pilani', true, { dept: 'ELEC' }));
+    await assertFails(setGate(as(PRES), PRES, 'goa', true, { dept: 'CS' }));
+    await assertFails(setGate(as(PRES), PRES, 'goa', true));
     await assertFails(setGate(as(STUDENT), STUDENT, 'goa', true));
     await assertFails(setGate(as(OTHER), OTHER, 'hyderabad', true));
   });
