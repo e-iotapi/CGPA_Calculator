@@ -186,7 +186,8 @@ service cloud.firestore {
 
     // Counted from today; a grant can end sooner, never later.
     function expiryOk(d) {
-      return d.expiresAt is timestamp && d.expiresAt > request.time
+      return d.role == 'contributor' ? d.expiresAt == timestamp.date(2100, 1, 1)
+        : d.expiresAt is timestamp && d.expiresAt > request.time
         && d.expiresAt <= request.time + duration.value(termDays(d.role), 'd');
     }
 
@@ -208,6 +209,12 @@ service cloud.firestore {
         : d.role == 'course'
           ? (isOwner() || isAdmin() || isPresident(d.campus, deptOf(d.scope)))
             && isStudent(d.email) && campusOf(d.email) == d.campus
+        // B7: campus-wide, no expiry; `dept` names the president (or
+        // secretary) whose request it answers. isPresident covers both.
+        : d.role == 'contributor'
+          ? d.scope == d.campus && isStudent(d.email) && campusOf(d.email) == d.campus
+            && (isOwner() || isAdmin()
+                || (d.get('dept', null) is string && isPresident(d.campus, d.dept)))
         : false;
     }
 
@@ -240,6 +247,10 @@ service cloud.firestore {
 
     // The staff index is written in the same batch and agrees with the grant.
     function staffAgrees(id, d) {
+      return d.role == 'contributor' || staffListed(id, d);
+    }
+
+    function staffListed(id, d) {
       let s = getAfter(staffPath(d.email)).data;
       return s.lastGrant == id
         && (d.role == 'admin' ? s.admin == d.active
@@ -270,6 +281,7 @@ service cloud.firestore {
         && request.resource.data.grantedBy.email == me()
         && request.resource.data.grantedAt == request.time
         && staffAgrees(id, request.resource.data)
+        && (request.resource.data.role != 'contributor' || contributorApproved(request.resource.data))
         && audited('grants/' + id)
         && pathBumped(markerCampus(request.resource.data.campus), 'grants');
       // Revoke (active false) or renew (a new expiry); who and what are fixed,
@@ -484,6 +496,200 @@ service cloud.firestore {
         && ((signedIn() && resource.data.email == me()) || readsOffers(resource.data))
         && pathBumped(resource.data.campus, 'volunteers/' + resource.data.dept);
       allow delete: if false;
+    }
+
+    // ---- Contributors (B7, DATA_SYNC_PLAN 5.2) ------------------------------
+
+    function contribDoc(p) { return afterPath(p); }
+
+    function contributorApproved(d) {
+      return getAfter(contribDoc('contributorRequests/' + d.campus + '|' + d.dept
+        + '|' + d.email)).data.status == 'approved';
+    }
+
+    // Owner, admin, or the dept's president or secretary (holds() covers both).
+    function approves(campus, dept) {
+      return isOwner() || isAdmin() || isPresident(campus, dept);
+    }
+
+    // volunteers pattern: id campus|dept|email.
+    match /contributorRequests/{id} {
+      allow get: if (signedIn() && resource.data.email == me())
+        || approves(resource.data.campus, resource.data.dept);
+      allow list: if approves(resource.data.campus, resource.data.dept);
+      // Apply, or apply again after a decline or a withdrawal.
+      allow create, update: if isStudent(me())
+        && id == request.resource.data.campus + '|' + request.resource.data.dept + '|' + me()
+        && request.resource.data.keys().hasOnly(
+             ['name', 'email', 'campus', 'dept', 'status', 'createdAt'])
+        && request.resource.data.email == me()
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.dept is string
+        && request.resource.data.dept.size() > 0 && request.resource.data.dept.size() <= 8
+        && nameOk(request.resource.data.name)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && (resource == null || resource.data.status in ['declined', 'withdrawn'])
+        && pathBumped(request.resource.data.campus, 'contributorRequests/' + request.resource.data.dept);
+      allow update: if signedIn() && resource.data.email == me()
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'withdrawn'
+        && pathBumped(resource.data.campus, 'contributorRequests/' + resource.data.dept);
+      // Decided by an approver; approval comes with the grant, same batch.
+      allow update: if mayUse() && approves(resource.data.campus, resource.data.dept)
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'decidedBy', 'decidedAt', 'reason', 'auditId'])
+        && request.resource.data.status in ['approved', 'declined']
+        && request.resource.data.decidedBy == me()
+        && request.resource.data.decidedAt == request.time
+        && request.resource.data.get('reason', '').size() <= 200
+        && (request.resource.data.status == 'declined'
+            || getAfter(grantPath('contributor', resource.data.campus, resource.data.campus,
+                 resource.data.email)).data.active == true)
+        && audited('contributorRequests/' + id)
+        && pathBumped(resource.data.campus, 'contributorRequests/' + resource.data.dept);
+      allow delete: if false;
+    }
+
+    // pending/{campus|dept}: { batches: { <batchId>: { email, username, at,
+    // links: { <resourceId>: {title, url} } } } }. A link enters beside its
+    // create and leaves beside its approval or rejection.
+    function pendingId(id, i) { return id.split('[|]')[i]; }
+
+    match /pending/{id} {
+      allow get: if mayUse() && approves(pendingId(id, 0), pendingId(id, 1));
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['batches', 'b', 'k'])
+        && pendingMoved(id, resource == null ? {} : resource.data.get('batches', {}))
+        && pathBumped(pendingId(id, 0), 'pending/' + pendingId(id, 1));
+      allow delete: if false;
+    }
+
+    // `b` and `k` name the one batch and link that moved (rules cannot list a
+    // diff's keys, as with resourceVersions.k).
+    function pendingMoved(id, was) {
+      let now = request.resource.data.batches;
+      let b = request.resource.data.b;
+      let k = request.resource.data.k;
+      let wasL = b in was ? was[b].links : {};
+      let nowL = b in now ? now[b].links : {};
+      let r = getAfter(contribDoc('resources/' + k)).data;
+      return now.diff(was).affectedKeys().hasOnly([b])
+        && nowL.diff(wasL).affectedKeys().hasOnly([k])
+        && (b in now ? nowL.size() > 0 : wasL.size() == 1)
+        && (!(k in wasL) && k in nowL
+            // Added beside the contributor's own unapproved create.
+            ? !exists(contribDoc('resources/' + k))
+              && now[b].email == me() && r.addedBy.email == me()
+              && r.batchId == b && r.get('approved', true) == false
+              && r.campus == pendingId(id, 0) && r.department == pendingId(id, 1)
+              && nowL[k].title == r.title && nowL[k].url == r.url
+            // Dropped beside its approval or rejection.
+            : k in wasL && !(k in nowL)
+              && approves(pendingId(id, 0), pendingId(id, 1))
+              && (r.get('approved', true) == true || r.get('removed', false) == true));
+    }
+
+    // +4 is earned in the batch where a link turns approved (false to true,
+    // inside its 15 days), or is created approved by its own staff author.
+    function pointsMoved(email, campus) {
+      let p = contribDoc('resources/' + request.resource.data.lastLink);
+      let a = getAfter(p).data;
+      return request.resource.data.points is int
+        && a.addedBy.email == email && a.campus == campus
+        && (exists(p)
+            ? get(p).data.get('approved', true) == false && a.get('approved', true) == true
+              && request.time < get(p).data.publishedAt + duration.value(15, 'd')
+            : email == me() && a.get('approved', true) == true);
+    }
+
+    function nameFree(campus, u) {
+      let p = contribDoc('usernames/' + campus + '|' + u);
+      return u.matches('^[a-z0-9_]{3,20}$') && existsAfter(p) && !exists(p)
+        && getAfter(p).data.email == me();
+    }
+
+    // contributors/{email}: { username?, campus, points }. Self writes the
+    // username once; points move only by +4 beside a link's approval.
+    match /contributors/{email} {
+      allow get: if resource == null ? mayUse()
+        : (signedIn() && email == me()) || readsRoster(resource.data.campus);
+      allow create: if isBits() && email == me()
+        && request.resource.data.keys().hasOnly(['username', 'campus', 'points'])
+        && request.resource.data.points == 0
+        && request.resource.data.campus == campusOf(me())
+        && nameFree(request.resource.data.campus, request.resource.data.username);
+      allow create: if mayUse()
+        && request.resource.data.keys().hasOnly(['campus', 'points', 'lastLink'])
+        && request.resource.data.points == 4
+        && request.resource.data.campus is string
+        && pointsMoved(email, request.resource.data.campus);
+      allow update: if isBits() && email == me()
+        && resource.data.get('username', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username'])
+        && nameFree(resource.data.campus, request.resource.data.username);
+      allow update: if mayUse()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'lastLink'])
+        && request.resource.data.points == resource.data.points + 4
+        && pointsMoved(email, resource.data.campus);
+      // A president clears an offensive username (audited, points stay).
+      allow update: if mayUse() && resource.data.get('username', null) != null
+        && (isOwner() || isAdmin() || isPresidentOn(resource.data.campus))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'auditId'])
+        && !('username' in request.resource.data)
+        && audited('contributors/' + email);
+      allow delete: if false;
+    }
+
+    // usernames/{campus|name}: unique, created beside the claimant's own
+    // contributors doc, deleted only by a president clearing it.
+    match /usernames/{id} {
+      allow get: if mayUse()
+        && (resource == null || resource.data.email == me() || readsRoster(pendingId(id, 0)));
+      allow create: if isBits() && pendingId(id, 0) == campusOf(me())
+        && pendingId(id, 1).matches('^[a-z0-9_]{3,20}$')
+        && request.resource.data.keys().hasOnly(['email', 'claimedAt'])
+        && request.resource.data.email == me()
+        && request.resource.data.claimedAt == request.time
+        && getAfter(contribDoc('contributors/' + me())).data.get('username', null)
+             == pendingId(id, 1);
+      allow delete: if mayUse()
+        && (isOwner() || isAdmin() || isPresidentOn(pendingId(id, 0)))
+        && getAfter(contribDoc('contributors/' + resource.data.email)).data
+             .get('username', null) != pendingId(id, 1);
+      allow update: if false;
+    }
+
+    // leaderboard/{campus}: { p: {username: points}, tags: {username: branch} }.
+    // `k` names the one username that moved; its points must equal the
+    // contributors doc after the batch.
+    match /leaderboard/{campus} {
+      allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['p', 'tags', 'k'])
+        && boardMirrors(campus, resource == null ? {} : resource.data.get('p', {}),
+                        resource == null ? {} : resource.data.get('tags', {}))
+        && pathBumped(campus, 'leaderboard');
+      allow delete: if false;
+    }
+
+    function boardMirrors(campus, was, tagsWas) {
+      let now = request.resource.data.get('p', {});
+      let tags = request.resource.data.get('tags', {});
+      let k = request.resource.data.k;
+      let u = contribDoc('usernames/' + campus + '|' + k);
+      return now.diff(was).affectedKeys().hasOnly([k])
+        && (k in now
+            ? now[k] is int
+              && getAfter(contribDoc('contributors/' + get(u).data.email)).data.username == k
+              && getAfter(contribDoc('contributors/' + get(u).data.email)).data.points == now[k]
+              && (tags.diff(tagsWas).affectedKeys().size() == 0
+                  || (tags.diff(tagsWas).affectedKeys().hasOnly([k])
+                      && get(u).data.email == me() && privileged()
+                      && tags[k] is string && tags[k].size() <= 8))
+            : !existsAfter(u) && tags.diff(tagsWas).affectedKeys().hasOnly([k]));
     }
 
     // ---- Configuration (§4, §10.5) -----------------------------------------
@@ -1046,7 +1252,8 @@ service cloud.firestore {
     match /resources/{id} {
       allow read: if mayUse()
         && (resource.data.campus == campusOf(me()) || isOwner());
-      allow create: if mayUse()
+      allow create: if request.resource.data.get('approved', true) == true
+        && mayUse()
         && resourceOk(request.resource.data)
         && (isOwner() || request.resource.data.campus == campusOf(me()))
         && (isOwner()
@@ -1060,7 +1267,51 @@ service cloud.firestore {
         && audited('resources/' + id)
         && versionBumped(request.resource.data.campus)
         && pathBumped(request.resource.data.campus, 'resources');
-      allow update: if mayUse()
+      // A contributor's link is live but unapproved (B7), listed in pending.
+      allow create: if request.resource.data.get('approved', true) == false
+        && mayUse()
+        && resourceOk(request.resource.data)
+        && request.resource.data.removed == false
+        && request.resource.data.campus == campusOf(me())
+        && holds('contributor', request.resource.data.campus, request.resource.data.campus)
+        && request.resource.data.publishedAt == request.time
+        && request.resource.data.batchId is string
+        && getAfter(contribDoc('pending/' + request.resource.data.campus + '|'
+             + request.resource.data.department)).data.k == id
+        && request.resource.data.addedBy.email == me()
+        && request.resource.data.addedAt == request.time
+        && audited('resources/' + id)
+        && versionBumped(request.resource.data.campus)
+        && pathBumped(request.resource.data.campus, 'resources');
+      // Approve: false to true inside the 15 days, +4 to the author beside it.
+      allow update: if resource.data.get('approved', true) == false
+        && request.resource.data.get('approved', true) == true
+        && mayUse()
+        && approves(resource.data.campus, resource.data.department)
+        && resource.data.removed == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'auditId'])
+        && resource.data.publishedAt + duration.value(15, 'd') > request.time
+        && getAfter(contribDoc('contributors/' + resource.data.addedBy.email)).data.points
+             == (exists(contribDoc('contributors/' + resource.data.addedBy.email))
+                 ? get(contribDoc('contributors/' + resource.data.addedBy.email)).data.points : 0) + 4
+        && audited('resources/' + id)
+        && versionBumped(resource.data.campus)
+        && pathBumped(resource.data.campus, 'resources');
+      // Reject (an admin; owners and presidents may already remove).
+      allow update: if resource.data.get('approved', true) == false
+        && request.resource.data.removed == true
+        && mayUse()
+        && approves(resource.data.campus, resource.data.department)
+        && request.resource.data.rejectedReason is string
+        && request.resource.data.rejectedReason.size() > 0
+        && request.resource.data.rejectedReason.size() <= 200
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['removed', 'rejectedReason', 'auditId'])
+        && audited('resources/' + id)
+        && versionBumped(resource.data.campus)
+        && pathBumped(resource.data.campus, 'resources');
+      allow update: if request.resource.data.get('approved', true) == resource.data.get('approved', true)
+        && mayUse()
         && resourceOk(request.resource.data)
         && request.resource.data.diff(resource.data).unchangedKeys()
              .hasAll(['campus', 'department', 'scope', 'addedBy', 'addedAt'])
@@ -1071,6 +1322,21 @@ service cloud.firestore {
                      && resource.data.courseIds[0] == request.resource.data.actingFor)
                     || request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['courseIds', 'actingFor', 'auditId']))))
+        && audited('resources/' + id)
+        && versionBumped(resource.data.campus)
+        && pathBumped(resource.data.campus, 'resources');
+      // A contributor edits their own link: approval and window untouched
+      // (an edited approved link stays approved, no new points), never removed.
+      allow update: if mayUse()
+        && resourceOk(request.resource.data)
+        && resource.data.addedBy.email == me()
+        && holds('contributor', resource.data.campus, resource.data.campus)
+        && request.resource.data.diff(resource.data).unchangedKeys()
+             .hasAll(['campus', 'department', 'scope', 'addedBy', 'addedAt', 'removed',
+                      'approved', 'publishedAt', 'batchId'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['title', 'url', 'host', 'kind', 'courseIds', 'pinnedToDepartment',
+                       'actingFor', 'auditId'])
         && audited('resources/' + id)
         && versionBumped(resource.data.campus)
         && pathBumped(resource.data.campus, 'resources');
@@ -1106,7 +1372,9 @@ service cloud.firestore {
             : now[k].title == r.title && now[k].url == r.url
               && now[k].department == r.department && now[k].scope == r.scope
               && now[k].courseIds == r.courseIds
-              && now[k].pinnedToDepartment == r.pinnedToDepartment);
+              && now[k].pinnedToDepartment == r.pinnedToDepartment
+              && now[k].get('approved', true) == r.get('approved', true)
+              && now[k].get('publishedAt', null) == r.get('publishedAt', null));
     }
 
     // Reports: one per person per link, id sha256(uid + resourceId), no uid
