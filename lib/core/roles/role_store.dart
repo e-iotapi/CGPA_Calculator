@@ -99,6 +99,7 @@ int termDays(GrantTerms t, GrantRole r) => switch (r) {
   GrantRole.admin => t.adminDays,
   GrantRole.dept => t.presidentDays,
   GrantRole.course => t.crDays,
+  GrantRole.contributor => 36500, // until revoked (ContributorStore)
 };
 
 /// `config/public` (§10.5).
@@ -188,13 +189,19 @@ class RoleStore {
       () => db.collection('grants').where('email', isEqualTo: me).get(),
     );
     final at = now ?? DateTime.now();
+    final live = [
+      for (final d in q.docs)
+        if (Grant.fromMap(d.data()) case final g when g.liveAt(at)) g,
+    ];
+    // A contributor grant is a student right, not a maintainer role (B7).
     return MyRoles(
       email: me,
       owner: owner,
       grants: [
-        for (final d in q.docs)
-          if (Grant.fromMap(d.data()) case final g when g.liveAt(at)) g,
+        for (final g in live)
+          if (g.role != GrantRole.contributor) g,
       ],
+      contributor: live.any((g) => g.role == GrantRole.contributor),
     );
   }
 
@@ -454,6 +461,7 @@ class RoleStore {
         'secretary of ${branchCode(scope, programme)}',
       GrantRole.dept => 'president of ${branchCode(scope, programme)}',
       GrantRole.course => 'CR for $scope',
+      GrantRole.contributor => 'contributor',
     };
     final data = existing.data();
     await _writeGrant(
