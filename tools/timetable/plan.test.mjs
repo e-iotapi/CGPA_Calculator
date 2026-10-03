@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { makePlan, readAnswers } from './extract.mjs';
-import { buildBatches, deptOf, likelySame, nameTokens, termOf, titleCase } from './plan.mjs';
+import { buildBatches, deptOf, likelySame, nameTokens, planOfferings, resolveProfessors, termOf, titleCase } from './plan.mjs';
 import { renderReport } from './report.mjs';
 
 const ARGS = { campus: 'goa', sem: '2026-1', input: 't.pdf' };
 const asset = { version: 4, schema: 1, master: [['AAA F101', 'Alpha', 3]], chartOld: [], chartNew: [], retired: [] };
-const sec = (...names) => ({ type: 'L', no: 1, instructors: names.map((name) => ({ name, ic: false })), slots: [{ day: 'M', start: '09:00', end: '09:50' }] });
+const sec = (...names) => ({ type: 'L', no: 1, instructors: names.map((name) => ({ name, ic: true })), slots: [{ day: 'M', start: '09:00', end: '09:50' }] });
 const mk = () => ({
   sem: '2026-1', campus: 'goa', unparsed: [], conflicts: [{ id: 'AAA F101', field: 'compre', page: 2, line: 3 }], events: [],
   hours: { periods: { 1: ['09:00', '09:50'] }, compre: { FN: ['10:00', '13:00'] } },
@@ -200,4 +200,17 @@ test('readAnswers: an object of strings only', async () => {
   assert.deepEqual(readAnswers(`${dir}/ok.json`), { 'A B': 'new', 'C D': 'p1' });
   assert.deepEqual(readAnswers(undefined), {});
   assert.throws(() => readAnswers(`${dir}/bad.json`), /--answers/);
+});
+
+test('only the instructor-in-charge becomes a professor and fills the offering', () => {
+  const courses = {
+    'AAA F101': { title: 'T', sections: [{ type: 'L', no: 1, slots: [], instructors: [
+      { name: 'Ida Incharge', ic: true }, { name: 'Ash Assistant', ic: false }] }] },
+  };
+  let n = 0;
+  const newId = (k) => `${k}-${++n}`;
+  const res = resolveProfessors(courses, [], {}, newId);
+  assert.deepEqual(res.newProfs.map((p) => p.name), ['Ida Incharge']);
+  const { ops } = planOfferings(courses, new Map(), new Map(), '2026-27-1', 'goa', newId);
+  assert.deepEqual(ops.find((o) => o.coll === 'offerings').set.professors, [res.newProfs[0].id]);
 });

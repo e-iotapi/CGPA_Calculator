@@ -88,6 +88,7 @@ export const auditOp = (id, summary, path, campus, after) => ({
  *  - an answer in `answers` ({"PDF name": "<profId>" | "new"}) -> alias of that professor, or new;
  *  - a close match (likelySame) with no answer -> unsure: not linked, not created, listed;
  *  - nothing close -> new professor (dept from the first course they teach).
+ *  Instructors-in-charge only: assistants are never professors.
  * Sets `prof` on every instructor it settles. Returns {entries, newProfs, aliasOps, warnings}.
  */
 export function resolveProfessors(courses, profs, answers, newId) {
@@ -102,6 +103,9 @@ export function resolveProfessors(courses, profs, answers, newId) {
     for (const s of c.sections) {
       if (!'LTP'.includes(s.type)) continue;
       for (const i of s.instructors) {
+        // Only the instructor-in-charge becomes a professor (owner, 2026-10-04);
+        // assistants stay on the timetable's sections only.
+        if (!i.ic) continue;
         if (/^(tba|tbd|to be announced|-)$/i.test(i.name)) continue;
         const k = normName(i.name);
         const e = ent.get(k) ?? { norm: k, names: new Set(), courses: [], dept: deptOf(cid) };
@@ -203,6 +207,7 @@ export function planOfferings(courses, existing, profById, term, campus, newId) 
     for (const s of c.sections) {
       if (!'LTP'.includes(s.type)) continue;
       for (const i of s.instructors) {
+        if (!i.ic) continue; // see resolveProfessors
         if (i.prof) { if (!ids.includes(i.prof) && !profById.get(i.prof)?.removed) ids.push(i.prof); } else if (!/^(tba|tbd|to be announced|-)$/i.test(i.name)) waiting = true;
       }
     }

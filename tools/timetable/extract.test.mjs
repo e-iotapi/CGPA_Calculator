@@ -4,7 +4,7 @@ import { test } from 'node:test';
 
 import { makePlan, normName, packChunks, parseArgs, summarize, toSchema, unknownCourseIds } from './extract.mjs';
 
-const course = (...names) => ({ title: 'T', sections: [{ type: 'L', no: 1, instructors: names.map((name) => ({ name, ic: false })), slots: [] }] });
+const course = (...names) => ({ title: 'T', sections: [{ type: 'L', no: 1, instructors: names.map((name) => ({ name, ic: true })), slots: [] }] });
 
 test('normName ignores case, titles, dots and word order', () => {
   assert.equal(normName('Dr. Alder  QUILL'), normName('quill alder'));
