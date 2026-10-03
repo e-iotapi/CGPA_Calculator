@@ -5,11 +5,13 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
+import 'package:cgpa_calculator/core/reviews/gate.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
+import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
@@ -84,6 +86,12 @@ class ProfessorReviewsPage extends StatelessWidget {
           else
             const Note('Sign in with your BITS account to read reviews.'),
         ],
+      );
+    }
+    if (myGate(myCampus!) == GateState.locked) {
+      return PageFrame(
+        header: const PageHeader(eyebrow: 'PROFESSOR', title: 'Reviews'),
+        children: [LockedReviews(onBack: () => Navigator.of(context).maybePop())],
       );
     }
     return Loaded<(Professor?, List<_Taught>)>(

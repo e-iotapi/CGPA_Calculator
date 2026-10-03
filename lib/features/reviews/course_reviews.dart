@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
+import 'package:cgpa_calculator/core/reviews/gate.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/reviews/review_filter.dart';
 import 'package:cgpa_calculator/core/reviews/review_stats.dart';
@@ -11,6 +12,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/offerings.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
+import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/features/reviews/pick_sheet.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
@@ -205,6 +207,17 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
     if (saved == true) setState(() => _loads++);
   }
 
+  Widget _resourcesButton() => CircleIconButton(
+    icon: Icons.folder_open_rounded,
+    tooltip: 'Course resources',
+    onPressed:
+        () => openRoute(
+          context,
+          Routes.resourceCourse(widget.courseId),
+          () => ResourceCoursePage(courseId: widget.courseId),
+        ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final title =
@@ -218,6 +231,17 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
           else
             const Note('Sign in with your BITS account to read reviews.'),
         ],
+      );
+    }
+    // Locked: no reviews, no stats; the course's resources stay open.
+    if (myGate(_campus) == GateState.locked) {
+      return PageFrame(
+        header: PageHeader(
+          eyebrow: '${widget.courseId} · ${_campus.toUpperCase()}',
+          title: title ?? widget.courseId,
+          actions: [_resourcesButton()],
+        ),
+        children: [LockedReviews(onBack: () => setState(() => _loads++))],
       );
     }
     return Loaded<_Meta>(
@@ -272,18 +296,7 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
           header: PageHeader(
             eyebrow: '${widget.courseId} · ${_campus.toUpperCase()}',
             title: title ?? widget.courseId,
-            actions: [
-              CircleIconButton(
-                icon: Icons.folder_open_rounded,
-                tooltip: 'Course resources',
-                onPressed:
-                    () => openRoute(
-                      context,
-                      Routes.resourceCourse(widget.courseId),
-                      () => ResourceCoursePage(courseId: widget.courseId),
-                    ),
-              ),
-            ],
+            actions: [_resourcesButton()],
           ),
           children: [
             if (m.taughtBy.isNotEmpty) ...[
