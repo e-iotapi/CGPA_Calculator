@@ -1,5 +1,6 @@
 import { readDoc, type Env } from "./firestore";
 import { verifyIdToken } from "./token";
+import { loadTimetable, toIcs } from "./timetable";
 
 export { CampusHub } from "./hub";
 
@@ -38,11 +39,62 @@ async function liveSocket(campus: string, req: Request, env: Env): Promise<Respo
 const HEAD_MEMO_MS = 60_000;
 export const headMemo = new Map<string, { body: string; at: number }>();
 
+// /timetable/<campus>.json and /calendar/<campus>.ics: built from Firestore, memoized per isolate
+// and cached at the edge, like /heads. 404 (not published) is never cached.
+const BUILT_MEMO_MS = 300_000;
+export const builtMemo = new Map<string, { body: string; at: number; headers: Record<string, string> }>();
+
+async function built(
+  req: Request, env: Env, ctx: ExecutionContext, campus: string, kind: "json" | "ics",
+): Promise<Response> {
+  const path = kind === "json" ? `/timetable/${campus}.json` : `/calendar/${campus}.ics`;
+  const reply = (body: string, headers: Record<string, string>) => {
+    if (headers.etag && req.headers.get("If-None-Match") === headers.etag) {
+      return withCors(new Response(null, { status: 304, headers }), req, env);
+    }
+    return withCors(new Response(body, { headers }), req, env);
+  };
+  const memo = builtMemo.get(path);
+  if (memo && Date.now() - memo.at < BUILT_MEMO_MS) return reply(memo.body, memo.headers);
+  const cache = caches.default;
+  const key = new Request(new URL(req.url).origin + path);
+  const hit = await cache.match(key);
+  if (hit) {
+    const headers = Object.fromEntries(hit.headers);
+    const body = await hit.text();
+    builtMemo.set(path, { body, at: Date.now(), headers });
+    return reply(body, headers);
+  }
+  let tt;
+  try {
+    tt = await loadTimetable(campus, env);
+  } catch {
+    return withCors(new Response("upstream error", { status: 502 }), req, env);
+  }
+  if (!tt) {
+    return withCors(new Response('{"error":"not published"}', { status: 404, headers: { "Content-Type": "application/json" } }), req, env);
+  }
+  const headers: Record<string, string> =
+    kind === "json"
+      ? { "content-type": "application/json", "cache-control": "public, max-age=300", etag: `"${tt.marker}"` }
+      : { "content-type": "text/calendar; charset=utf-8", "cache-control": "public, max-age=3600" };
+  const body = kind === "json" ? JSON.stringify(tt) : await toIcs(tt);
+  builtMemo.set(path, { body, at: Date.now(), headers });
+  ctx.waitUntil(cache.put(key, new Response(body, { headers })));
+  return reply(body, headers);
+}
+
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (req.method === "OPTIONS") return withCors(new Response(null, { status: 204 }), req, env);
     const live = req.method === "GET" ? new URL(req.url).pathname.match(/^\/live\/([^/]+)$/) : null;
     if (live) return liveSocket(live[1], req, env);
+    const b = req.method === "GET" ? new URL(req.url).pathname.match(/^\/(?:timetable\/([^/]+)\.json|calendar\/([^/]+)\.ics)$/) : null;
+    if (b) {
+      const campus = b[1] ?? b[2];
+      if (!CAMPUSES.has(campus)) return withCors(new Response("not found", { status: 404 }), req, env);
+      return built(req, env, ctx, campus, b[1] ? "json" : "ics");
+    }
     const m = req.method === "GET" ? new URL(req.url).pathname.match(/^\/heads\/([^/]+)$/) : null;
     if (!m || !CAMPUSES.has(m[1])) return withCors(new Response("not found", { status: 404 }), req, env);
 
