@@ -575,7 +575,12 @@ class _ProfessorMergeState extends State<ProfessorMerge> {
     final v = await showModalBottomSheet<Branch>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DeptSheet(campus: _campus, selected: _branch),
+      builder:
+          (_) => DeptSheet(
+            campus: _campus,
+            selected: _branch,
+            gen: myRoles.value.owner || myRoles.value.admin,
+          ),
     );
     if (v == null || !mounted) return;
     setState(() {

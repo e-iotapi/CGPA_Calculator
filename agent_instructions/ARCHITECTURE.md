@@ -379,6 +379,13 @@ requirements/{campus}/{programme}          degree structure
 resources/{id}                             one named link (§6)
                                            -> owner, president in scope, CR of the course
 
+courseClaims/{campus}|{course}             a department took over a GEN-prefix course (B2)
+                                           -> owner, admin, president or secretary of the claimant;
+                                              deleted to unclaim. GEN is the electives department:
+                                              `dept` grant, scope GEN, no programme, no handover,
+                                              appointed by owner/admin only. `managingDept` in rules
+                                              replaces `deptOf` wherever a course is managed.
+
 professors/{id}                            -> owner, president in scope
 config/public, config/grantTerms           -> owner, admin (the admin length: owner only)
 ```
