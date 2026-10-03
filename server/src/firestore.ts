@@ -49,7 +49,7 @@ export function decodeDoc(doc: FirestoreDoc): Record<string, unknown> {
 
 export async function readDoc(path: string, env: Env): Promise<Record<string, unknown> | null> {
   const token = await getAccessToken(env.FIREBASE_SA);
-  const url = `https://firestore.googleapis.com/v1/projects/${env.PROJECT_ID}/databases/(default)/documents/${path}`;
+  const url = `https://firestore.googleapis.com/v1/projects/${env.PROJECT_ID}/databases/(default)/documents/${path.split("/").map(encodeURIComponent).join("/")}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`firestore read failed: ${res.status}`);
