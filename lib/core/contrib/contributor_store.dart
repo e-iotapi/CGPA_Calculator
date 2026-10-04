@@ -358,8 +358,14 @@ class ContributorStore {
     try {
       if ((await taken.get()).exists) throw const UsernameTaken();
     } on FirebaseException catch (e) {
-      // A claimed name is unreadable to anyone but its owner and the staff.
-      if (e.code == 'permission-denied') throw const UsernameTaken();
+      // A claimed name is unreadable to anyone but its owner and the staff;
+      // a free one is readable to any BITS account. So a refusal here means
+      // taken only for a BITS sign-in.
+      if (e.code == 'permission-denied') {
+        throw isBitsAddress(roles.me)
+            ? const UsernameTaken()
+            : const ContribError('notBits');
+      }
       rethrow;
     }
     final mine = _db.collection('contributors').doc(roles.me);
@@ -377,7 +383,17 @@ class ContributorStore {
     try {
       await b.commit();
     } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') throw const UsernameTaken();
+      // The name was free a moment ago: a refusal now is a race for it, or
+      // this account may not claim one (not BITS, another campus, a name
+      // already set). Say which, not always "taken".
+      if (e.code == 'permission-denied') {
+        if (!isBitsAddress(roles.me)) throw const ContribError('notBits');
+        if (campusOfAddress(roles.me) != campus) {
+          throw const ContribError('campus');
+        }
+        if (has) throw const ContribError('hasName');
+        throw const UsernameTaken();
+      }
       rethrow;
     }
     await forget('me-ct|');
