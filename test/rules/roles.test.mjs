@@ -5,6 +5,7 @@ import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -101,6 +102,14 @@ describe('grants', () => {
     await assertSucceeds(appoint(as(ADMIN), ADMIN, pres, { presidentOf: ['CS'] }));
     const admin = { role: 'admin', campus: 'all', scope: 'all', email: STUDENT };
     await assertFails(appoint(as(ADMIN), ADMIN, admin, { admin: true }));
+    await assertSucceeds(appoint(as(OWNER), OWNER, admin, { admin: true }));
+  });
+
+  // A fresh project (production, 2026-10-05) had no config/grantTerms and
+  // every appointment was refused.
+  test('with no grant terms saved, the default terms apply', async () => {
+    await seed((db) => deleteDoc(doc(db, 'config', 'grantTerms')));
+    const admin = { role: 'admin', campus: 'all', scope: 'all', email: STUDENT };
     await assertSucceeds(appoint(as(OWNER), OWNER, admin, { admin: true }));
   });
 
