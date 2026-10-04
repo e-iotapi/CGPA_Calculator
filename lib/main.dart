@@ -6,6 +6,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
+import 'package:cgpa_calculator/core/perf/frame_hud.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/core/env/app_env.dart';
 import 'package:cgpa_calculator/core/env/test_sign_in.dart';
@@ -386,8 +387,10 @@ class MyApp extends StatelessWidget {
             themeAnimationDuration: Duration.zero,
             routerConfig: appRouter,
             builder:
-                (_, child) => ThemeReveal.root(
-                  TapOriginTracker(child: RoleStrip(child: child!)),
+                (_, child) => FrameHud(
+                  child: ThemeReveal.root(
+                    TapOriginTracker(child: RoleStrip(child: child!)),
+                  ),
                 ),
           ),
     );

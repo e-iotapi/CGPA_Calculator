@@ -1,5 +1,5 @@
 /// Frame timings for the performance work (UI_OPT.md §3). Compiled in only
-/// with --dart-define=POINTER_FRAMES=1; release builds never carry it.
+/// with --dart-define=POINTER_FRAMES=true; release builds never carry it.
 library;
 
 import 'package:flutter/foundation.dart';
