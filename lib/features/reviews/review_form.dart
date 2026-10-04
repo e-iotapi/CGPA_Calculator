@@ -49,6 +49,22 @@ ReviewProfs _ordered(
   return (list: out.values.toList(), taught: out.keys.firstOrNull);
 }
 
+/// Anyone on the campus whose name matches [q], for a professor picker:
+/// some courses (an SOP, a project) are taught by whoever the student picks.
+/// Each one found is kept in [found], so the picked name can be shown.
+Future<List<(String?, String)>> searchCampusProfessors(
+  String q,
+  Map<String, Professor> found,
+) async {
+  final campus = myCampus;
+  if (campus == null) return const [];
+  final r = await ProfessorStore(roleStore!.db).search(campus, q);
+  for (final x in r) {
+    found[x.id] = x;
+  }
+  return [for (final x in r) (x.id, x.name)];
+}
+
 Future<ReviewProfs> reviewProfessors(
   String courseId,
   String campus,
@@ -333,19 +349,7 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
                             (null, 'Not sure who taught it'),
                             for (final x in t.profs.list) (x.id, x.name),
                           ],
-                          // Anyone on the campus: some courses (an SOP, a
-                          // project) are taught by whoever the student picks.
-                          more: (q) async {
-                            final campus = myCampus;
-                            if (campus == null) return const [];
-                            final found = await ProfessorStore(
-                              roleStore!.db,
-                            ).search(campus, q);
-                            for (final x in found) {
-                              _found[x.id] = x;
-                            }
-                            return [for (final x in found) (x.id, x.name)];
-                          },
+                          more: (q) => searchCampusProfessors(q, _found),
                         );
                         if (v != null) setState(() => _professorId = v.value);
                       },

@@ -38,6 +38,9 @@ class _Draft {
   final Course course;
   final String? term;
   final TextEditingController marks;
+
+  /// Professors picked from the campus search, beyond [profs].
+  final found = <String, Professor>{};
   int stars = 0;
   bool? recommend;
   String grade;
@@ -213,10 +216,7 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
       bottom: BottomAction(
         child: PrimaryButton(
           tall: true,
-          label:
-              _busy
-                  ? 'Posting…'
-                  : 'Review ${chosen.length} selected',
+          label: _busy ? 'Posting…' : 'Review ${chosen.length} selected',
           onPressed:
               _busy || chosen.isEmpty || !chosen.every((d) => d.complete)
                   ? null
@@ -442,7 +442,8 @@ class _Card extends StatelessWidget {
                 ),
               ],
             ),
-            if (d.profs case final profs? when profs.isNotEmpty) ...[
+            // Shown even with none suggested: the search reaches the campus.
+            if (d.profs case final profs?) ...[
               const SizedBox(height: Space.sm),
               SelectRow(
                 text: _name(d) ?? 'Not sure who taught it',
@@ -457,6 +458,7 @@ class _Card extends StatelessWidget {
                       (null, 'Not sure who taught it'),
                       for (final x in profs) (x.id, x.name),
                     ],
+                    more: (q) => searchCampusProfessors(q, d.found),
                   );
                   if (v != null) {
                     d.profId = v.value;
@@ -476,11 +478,11 @@ class _Card extends StatelessWidget {
     child: Text(
       text,
       style: TypeScale.label.copyWith(
-      fontSize: 8.5,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.5,
-      color: p.textMuted,
-    ),
+        fontSize: 8.5,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
+        color: p.textMuted,
+      ),
     ),
   );
 
@@ -542,7 +544,10 @@ class _Card extends StatelessWidget {
           textAlignVertical: TextAlignVertical.center,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => onChanged(),
-          style: TypeScale.body.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+          style: TypeScale.body.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
           decoration: InputDecoration(
             hintText: '—',
             hintStyle: TypeScale.body.copyWith(
@@ -556,10 +561,18 @@ class _Card extends StatelessWidget {
           ),
         ),
       ),
-      if (d.marksBad) Text('0 to 1000', style: TypeScale.caption.copyWith(fontSize: 9, color: p.rejectedTone.text)),
+      if (d.marksBad)
+        Text(
+          '0 to 1000',
+          style: TypeScale.caption.copyWith(
+            fontSize: 9,
+            color: p.rejectedTone.text,
+          ),
+        ),
     ],
   );
 
   String? _name(_Draft d) =>
-      d.profs?.where((x) => x.id == d.profId).firstOrNull?.name;
+      d.profs?.where((x) => x.id == d.profId).firstOrNull?.name ??
+      d.found[d.profId]?.name;
 }
