@@ -1,12 +1,12 @@
 name: deploy-staging
-# Every push to pointer-rebuild redeploys https://pointer-staging.web.app, the
+# Every push to pointer-dev redeploys https://pointer-staging.web.app, the
 # same steps as tools/test_env/staging.sh. The data is reseeded only when the
 # seed changed or on a manual run with "reseed" ticked, so a push never wipes
 # what testers set up. Staging only: the production project is never touched.
 # Put [reseed] in a push's head commit message to reseed anyway.
 on:
   push:
-    branches: [pointer-rebuild]
+    branches: [pointer-dev]
   workflow_dispatch:
     inputs:
       reseed:

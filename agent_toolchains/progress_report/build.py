@@ -43,7 +43,7 @@ li.done b::after{{content:" ✓";color:var(--deep)}}
 .log li{{font-size:12.5px;color:var(--mute)}}.log code{{font:500 12px 'IBM Plex Mono',monospace;color:var(--ink)}}
 </style>
 <main>
-<div><div class="eb">branch pointer-rebuild · updated {now}</div><h1>Pointer rebuild</h1></div>
+<div><div class="eb">branch pointer-dev · updated {now}</div><h1>Pointer rebuild</h1></div>
 <section class="hero"><div class="eb" style="color:#24564A">Complete</div><div class="big">{pct}%</div><div class="bar"><i></i></div>
 <div class="sub">{len(done)} of {len(allc)} cards done · now on {html.escape(s["current"])}</div><div>{html.escape(s["note"])}</div></section>
 <section><div class="eb">By group, in build order</div><ul class="groups" style="margin-top:8px">{rows}</ul></section>

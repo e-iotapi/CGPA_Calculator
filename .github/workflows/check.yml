@@ -1,14 +1,24 @@
 name: check
+# The full checks. They live on pointer-dev only (master and pointer-beta carry
+# no tests): they run on pull requests into pointer-dev, and release.yml calls
+# them before pointer-dev is released to pointer-beta.
 on:
   pull_request:
-  push:
-    branches: [master]
+    branches: [pointer-dev]
+  workflow_call:
+    inputs:
+      ref:
+        description: The branch to check
+        type: string
+        required: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

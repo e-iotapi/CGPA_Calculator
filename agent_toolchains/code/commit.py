@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Commit named files with the trailer, then push. Refuses forbidden files,
+"""Commit named files (no co-author trailer: the owner's rule), then push. Refuses forbidden files,
 files with no change, and (unless --no-verify) a failing verify.py.
 
   python3 agent_toolchains/code/commit.py -m "T7.2: …" lib/a.dart test/b_test.dart
@@ -13,9 +13,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from rules import ALLOWED, FORBIDDEN, TRAILER, changed_files, matches, sh  # noqa: E402
+from rules import ALLOWED, FORBIDDEN, changed_files, matches, sh  # noqa: E402
 
-BRANCH = 'pointer-rebuild'
+BRANCH = 'pointer-dev'
 
 
 def main(argv):
@@ -47,7 +47,7 @@ def main(argv):
             print('REFUSED: verify failed')
             return 1
     sh('git', 'add', '--', *a.files, check=True)
-    r = sh('git', 'commit', '-q', '-m', f'{a.message}\n\n{TRAILER}')
+    r = sh('git', 'commit', '-q', '-m', a.message)
     if r.returncode:
         print(r.stdout + r.stderr)
         return 1

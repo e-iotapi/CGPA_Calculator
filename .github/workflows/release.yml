@@ -1,0 +1,96 @@
+name: release
+# Promotes pointer-dev -> pointer-beta, or pointer-beta -> master
+# (docs/ARCHITECTURE.md §11). The release is one commit on top of the target
+# branch holding the source's files minus the dev-only paths below, opened as
+# a pull request for the owner to merge. The target's history stays one commit
+# per release, and a pull request never shows a dev file.
+#
+# Run it from the Actions tab: "release", Run workflow, pick the target.
+# Needs Settings -> Actions -> General -> "Allow GitHub Actions to create and
+# approve pull requests".
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: Release to
+        type: choice
+        options: [pointer-beta, master]
+        default: pointer-beta
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  # Kept on pointer-dev only.
+  DEV_ONLY: >-
+    test test_env tools agent_instructions agent_toolchains demo
+    docs/DEVELOPMENT.md server/test server/vitest.config.ts
+    .github/workflows/check.yml .github/workflows/e2e.yml
+
+jobs:
+  # The full checks run once, before pointer-dev becomes a beta. A beta is
+  # released to master as it is: it was checked on its way in.
+  check:
+    if: inputs.to == 'pointer-beta'
+    uses: e-iotapi/Pointer/.github/workflows/check.yml@pointer-dev
+    with:
+      ref: pointer-dev
+
+  release:
+    needs: check
+    if: ${{ !cancelled() && needs.check.result != 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build the release commit and open its pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TO: ${{ inputs.to }}
+        run: |
+          set -euo pipefail
+          from=$([ "$TO" = master ] && echo pointer-beta || echo pointer-dev)
+          src=$(git rev-parse "origin/$from")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898728+github-actions[bot]@users.noreply.github.com"
+          exists=$(git rev-parse -q --verify "origin/$TO" >/dev/null && echo yes || echo no)
+          branch="release/$TO-$(date -u +%Y%m%d-%H%M)"
+          if [ "$exists" = yes ]; then
+            git checkout -q -B "$branch" "origin/$TO"
+          else
+            git checkout -q --orphan "$branch"
+          fi
+          # The source's tree exactly, then the dev-only paths out of it.
+          git rm -rq --ignore-unmatch .
+          git checkout "$src" -- .
+          git rm -rq --ignore-unmatch $DEV_ONLY
+          if git diff --cached --quiet; then
+            echo "Nothing to release: $TO already matches $from."
+            exit 0
+          fi
+          title="Release from $from (${src:0:12})"
+          git commit -q -m "$title"
+          if [ "$exists" = no ]; then
+            # The first release creates the branch. A push made with this
+            # token starts no workflow: run "deploy" by hand once.
+            git push -q origin "HEAD:refs/heads/$TO"
+            echo "Created $TO. Run the deploy workflow once to publish it."
+            exit 0
+          fi
+          # What changed since the last release: the source commit the
+          # target's last release came from, to this one.
+          # (Squash merging keeps the title at the front of the subject.)
+          prev=$(git log -1 --format=%s --grep='^Release from ' "origin/$TO" | sed -n 's/^Release from [^ ]* (\([0-9a-f]\{7,\}\)).*/\1/p')
+          range=$src
+          if [ -n "$prev" ] && git cat-file -e "$prev^{commit}" 2>/dev/null; then range="$prev..$src"; fi
+          {
+            echo "From \`$from\` at ${src:0:12}. Dev-only paths are left out."
+            echo
+            echo "### Changes"
+            git log --no-merges -n 200 --format='- %s' "$range"
+          } > "$RUNNER_TEMP/body.md"
+          git push -q origin "$branch"
+          gh pr create --base "$TO" --head "$branch" \
+            --title "$title" --body-file "$RUNNER_TEMP/body.md"

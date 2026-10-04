@@ -32,9 +32,6 @@ KNOWN_ANALYZE = {
 }
 
 # Deprecated (cloud container): a Claude-Session line; local sessions add none.
-TRAILER = 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
-
-
 def matches(path, patterns):
     return any(fnmatch.fnmatch(path, p) for p in patterns)
 
