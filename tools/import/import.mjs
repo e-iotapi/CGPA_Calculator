@@ -105,7 +105,7 @@ export function summarize(p) {
 }
 
 const rebuildSummary = ({ counts: c, batches }) => [
-  `rebuild: ${c.reviews} visible reviews -> ${c.stats} counters (${c.zeroed} zeroed), ${c.mirrors} review copies`,
+  `rebuild: ${c.reviews} visible reviews -> ${c.stats} counters (${c.removed} unbacked removed), ${c.mirrors} review copies`,
   `  resource links ${JSON.stringify(c.links)}, listed reps ${JSON.stringify(c.reps)}; ${batches.length} batches`,
 ].join('\n');
 
