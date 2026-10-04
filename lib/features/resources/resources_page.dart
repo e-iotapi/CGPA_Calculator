@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
+import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -20,7 +21,9 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 
 /// The signed-in user's resource store, or `null` before sign-in.
@@ -699,6 +702,28 @@ class _ResourcesPageState extends State<ResourcesPage> {
               eyebrow: resourcesEyebrow(campus, dual: dual),
               title: 'Resources',
             ),
+            bottom: switch ([
+              for (final d in degrees)
+                if (campus != null &&
+                    myRoles.value.may(
+                      Capability.departmentResources,
+                      campus: campus,
+                      scope: d.dept,
+                    ))
+                  d.dept,
+            ]) {
+              [final dept, ...] => BottomAction(
+                child: PrimaryButton(
+                  label: 'Add a link',
+                  icon: Icons.add_rounded,
+                  onPressed:
+                      () => GoRouter.maybeOf(
+                        context,
+                      )?.push(Routes.deptResources(campus!, dept)),
+                ),
+              ),
+              _ => null,
+            },
             children: [
               if (roleStore == null)
                 const Note('Sign in with your BITS account to see resources.')
@@ -711,11 +736,7 @@ class _ResourcesPageState extends State<ResourcesPage> {
                     code: d.code,
                     second: i > 0,
                     title: programmeName(d.code),
-                    subtitle:
-                        d.links.isEmpty
-                            ? 'No links yet'
-                            : '${departmentList(d.links).length} department '
-                                'links',
+                    subtitle: 'Department links, notes and papers',
                     onTap:
                         () => openRoute(
                           context,
@@ -728,7 +749,7 @@ class _ResourcesPageState extends State<ResourcesPage> {
                 _ResourceCard(
                   icon: Icons.menu_book_outlined,
                   title: 'Course resources',
-                  subtitle: 'Search any course, this semester or all',
+                  subtitle: 'Links for one course, with its CR’s contact',
                   onTap:
                       () => openRoute(
                         context,

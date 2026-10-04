@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/reviews/gate_store.dart';
@@ -9,14 +10,46 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/icon_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 
 const _gateCampuses = ['goa', 'hyderabad', 'pilani', 'dubai'];
 
-/// Board `CompulsorySwitch`: the review gate for a campus, as one row on
-/// DeptHome (that president's campus, their [dept]) and AdminHome (pills
-/// pick the campus, no [dept]). Switching on asks first (`SwitchOn`); off
-/// does not.
+/// Board `CompulsorySwitch`: the review gate's own page, opened from a row
+/// on DeptHome (that president's campus, their [dept]) and AdminHome (pills
+/// pick the campus, no [dept]).
+class GateSwitchPage extends StatelessWidget {
+  const GateSwitchPage({super.key, required this.campus, this.dept});
+  final String campus;
+  final String? dept;
+
+  @override
+  Widget build(BuildContext context) => PageFrame(
+    header: PageHeader(
+      eyebrow: 'AT · ${campus.toUpperCase()}',
+      title: 'Compulsory reviews',
+    ),
+    children: [GateSwitchRow(campus: campus, dept: dept)],
+  );
+}
+
+/// The row that opens [GateSwitchPage] (boards AdminHome, DeptHome).
+CardRow gateSwitchEntry(BuildContext context, String campus, {String? dept}) =>
+    CardRow(
+      leading: IconTile(Icons.visibility_outlined),
+      title: 'Compulsory reviews',
+      subtitle: 'Lock reviews until electives are reviewed',
+      minHeight: 58,
+      onTap:
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => GateSwitchPage(campus: campus, dept: dept),
+            ),
+          ),
+    );
+
+/// The switch for a campus. Switching on asks first (`SwitchOn`); off does
+/// not.
 class GateSwitchRow extends StatefulWidget {
   const GateSwitchRow({super.key, required this.campus, this.dept});
   final String campus;
@@ -94,19 +127,14 @@ class _GateSwitchRowState extends State<GateSwitchRow> {
     if (mounted) setState(() => _busy = false);
   }
 
-  String _subtitle() {
+  String _status() {
     final i = _info;
-    if (i == null) return 'Students must review their electives';
-    if (!i.on) return 'Off · reviews are open to everyone';
     final since =
-        i.at == null
+        i?.at == null || !i!.on
             ? null
             : shortDay(DateTime.fromMillisecondsSinceEpoch(i.at!), year: true);
-    return [
-      'On',
-      if (i.by != null) 'turned on by ${i.by}',
-      if (since != null) 'since $since',
-    ].join(' · ');
+    final by = i != null && i.on ? i.by : null;
+    return 'Turned on by: ${by ?? 'not on yet'} · since: ${since ?? '—'}';
   }
 
   @override
@@ -142,7 +170,9 @@ class _GateSwitchRowState extends State<GateSwitchRow> {
             leading: IconTile(Icons.lock_outline_rounded),
             title: 'Compulsory reviews',
             titleLines: 2,
-            subtitle: _subtitle(),
+            subtitle:
+                'Students from 2-2 on must review their electives before '
+                'reading reviews.',
             minHeight: 58,
             trailing: Semantics(
               label: 'Compulsory reviews',
@@ -153,6 +183,24 @@ class _GateSwitchRowState extends State<GateSwitchRow> {
             ),
           ),
         ),
+        const SizedBox(height: Space.sm),
+        for (final t in [
+          _status(),
+          'Needed per student = the smaller of the electives they have '
+              'taken and 5.',
+        ])
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+            child: Text(
+              t,
+              style: TypeScale.caption.copyWith(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+                height: 1.45,
+                color: AppPalette.of(context).textMuted,
+              ),
+            ),
+          ),
       ],
     );
   }

@@ -288,12 +288,22 @@ class StatsCard extends StatelessWidget {
                 if (summary!.avgGradeLetter != null)
                   'Average grade ${summary!.avgGradeLetter}',
                 if (summary!.avgMarks != null)
-                  'Average marks ${marksText(double.parse(summary!.avgMarks!.toStringAsFixed(1)))}'
-                      ' from ${summary!.marksCount}',
+                  '${summary!.avgGradeLetter == null ? 'Average' : 'average'} '
+                      'marks ${marksText(double.parse(summary!.avgMarks!.toStringAsFixed(1)))}',
               ].join(' · '),
               style: TypeScale.caption.copyWith(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'From reviewers who shared them. Follows the filters above.',
+              style: TypeScale.caption.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                height: 1.45,
+                color: p.textMuted,
               ),
             ),
           ],
