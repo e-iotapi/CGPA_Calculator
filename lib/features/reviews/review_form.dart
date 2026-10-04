@@ -387,16 +387,19 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
                               child: Row(
                                 children: [
                                   Expanded(
-                                    child: Text(
-                                      _grade == null
-                                          ? 'Choose'
-                                          : gradeName(_grade!),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TypeScale.body.copyWith(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: p.text,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        _grade == null
+                                            ? 'Choose'
+                                            : gradeName(_grade!),
+                                        maxLines: 1,
+                                        style: TypeScale.body.copyWith(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: p.text,
+                                        ),
                                       ),
                                     ),
                                   ),
