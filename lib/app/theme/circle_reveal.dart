@@ -240,7 +240,7 @@ class _ThemeRevealState extends State<ThemeReveal>
     vsync: this,
     duration: const Duration(milliseconds: 560),
   );
-  ui.Image? _old;
+  ui.Image? _old, _new;
   Offset _origin = Offset.zero;
 
   ui.Image? _preparedImage;
@@ -337,12 +337,25 @@ class _ThemeRevealState extends State<ThemeReveal>
     await Future<void>.delayed(Duration.zero); // the cover gets to paint
     apply(); // the one rebuild happens under the cover
     await Future<void>.delayed(Duration.zero); // laid out, still hidden
+    // The new screen is captured too and the live app sits out the
+    // animation: on the web every frame replays the whole app's drawing, so
+    // a text-heavy page under the hole ran the reveal at 25 fps on a big
+    // window. Two images per frame keep it smooth (owner, 2026-10-04).
+    await WidgetsBinding.instance.endOfFrame; // the new theme is painted
+    if (!mounted) return image.dispose();
+    final next = await _capture(box);
+    if (!mounted) {
+      next.dispose();
+      return image.dispose();
+    }
+    setState(() => _new = next);
     FrameStats.start('theme');
     await _anim.forward(from: 0); // now only the hole moves
     FrameStats.stop();
     if (!mounted) return;
-    setState(() => _old = null);
+    setState(() => _old = _new = null);
     image.dispose();
+    next.dispose();
   }
 
   @override
@@ -351,7 +364,10 @@ class _ThemeRevealState extends State<ThemeReveal>
     return Stack(
       textDirection: TextDirection.ltr,
       children: [
-        RepaintBoundary(key: _boundary, child: widget.child),
+        Offstage(
+          offstage: _new != null,
+          child: RepaintBoundary(key: _boundary, child: widget.child),
+        ),
         if (old != null)
           Positioned.fill(
             child: IgnorePointer(
@@ -364,6 +380,7 @@ class _ThemeRevealState extends State<ThemeReveal>
                         willChange: true,
                         painter: _HolePainter(
                           old,
+                          _new,
                           _origin,
                           _flipped,
                           Curves.easeInOutCubic.transform(_anim.value),
@@ -381,13 +398,22 @@ class _ThemeRevealState extends State<ThemeReveal>
   }
 }
 
-/// The old screen with a growing circular hole. The hole reaches the farthest
-/// corner exactly at the end, so the old screen stays opaque throughout; a
-/// fade here turned the last corner into a grey blob.
+/// The old screen with a growing circular hole onto the new one ([next]).
+/// The hole reaches the farthest corner exactly at the end, so the old
+/// screen stays opaque throughout; a fade here turned the last corner into a
+/// grey blob.
 class _HolePainter extends CustomPainter {
-  _HolePainter(this.image, this.center, this.flipped, this.t, this.quality);
+  _HolePainter(
+    this.image,
+    this.next,
+    this.center,
+    this.flipped,
+    this.t,
+    this.quality,
+  );
 
   final ui.Image image;
+  final ui.Image? next;
   final Offset center;
   final bool flipped;
   final double t;
@@ -402,21 +428,32 @@ class _HolePainter extends CustomPainter {
           ..addRect(Offset.zero & size)
           ..addOval(Rect.fromCircle(center: center, radius: r));
     canvas.save();
+    if (flipped) {
+      canvas
+        ..translate(0, size.height)
+        ..scale(1, -1);
+    }
+    final paint = Paint()..filterQuality = quality;
+    void draw(ui.Image i) => canvas.drawImageRect(
+      i,
+      Offset.zero & Size(i.width.toDouble(), i.height.toDouble()),
+      Offset.zero & size,
+      paint,
+    );
+    if (next != null) draw(next!);
+    canvas.restore();
+    canvas.save();
     canvas.clipPath(hole);
     if (flipped) {
       canvas
         ..translate(0, size.height)
         ..scale(1, -1);
     }
-    canvas.drawImageRect(
-      image,
-      Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
-      Offset.zero & size,
-      Paint()..filterQuality = quality,
-    );
+    draw(image);
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_HolePainter old) => old.t != t || old.image != image;
+  bool shouldRepaint(_HolePainter old) =>
+      old.t != t || old.image != image || old.next != next;
 }

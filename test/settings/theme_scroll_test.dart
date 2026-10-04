@@ -87,7 +87,8 @@ void main() {
     );
     await t.tap(find.text('open'));
     await t.pumpAndSettle();
-    final list = find.byType(Scrollable).first;
+    // The live page sits offstage while the reveal runs: find it anyway.
+    final list = find.byType(Scrollable, skipOffstage: false).first;
     await t.drag(list, const Offset(0, -250));
     await t.pumpAndSettle();
     double offset() => t.state<ScrollableState>(list).position.pixels;

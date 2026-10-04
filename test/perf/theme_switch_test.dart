@@ -76,7 +76,9 @@ void main() {
       final done = ThemeReveal.run(() {});
       await t.pumpAndSettle();
       await done;
-      expect(ThemeReveal.captures, 1);
+      // The old screen came from the prepared one; the one more is the new
+      // screen the hole opens onto.
+      expect(ThemeReveal.captures, 2);
     });
 
     testWidgets('a warm toggle captures on hover, before the click', (t) async {
@@ -136,6 +138,23 @@ void main() {
     await t.pumpAndSettle();
     await done;
     expect(valueAtApply, 0);
+  });
+
+  testWidgets('the live app sits out the animation, then comes back', (
+    t,
+  ) async {
+    await t.pumpWidget(MaterialApp(home: ThemeReveal.root(_screen())));
+    bool hidden() =>
+        t.widgetList<Offstage>(find.byType(Offstage)).any((o) => o.offstage);
+    final done = ThemeReveal.run(() {});
+    for (var i = 0; i < 20 && (ThemeReveal.debugAnimValue ?? 0) == 0; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+    }
+    expect(ThemeReveal.debugAnimValue, inExclusiveRange(0, 1));
+    expect(hidden(), isTrue);
+    await t.pumpAndSettle();
+    await done;
+    expect(hidden(), isFalse);
   });
 
   testWidgets('O1.6: the reveal overlay has its own repaint boundary', (
