@@ -723,16 +723,20 @@ class SelectRow extends StatelessWidget {
     required this.text,
     required this.onTap,
     this.placeholder = false,
+    this.fill,
   });
   final String text;
   final VoidCallback onTap;
   final bool placeholder;
 
+  /// Overrides the box colour (default: the page background).
+  final Color? fill;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Material(
-      color: p.background,
+      color: fill ?? p.background,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: p.outline),

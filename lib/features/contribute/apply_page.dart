@@ -145,6 +145,7 @@ class _ApplyPageState extends State<ApplyPage> {
               controller: _name,
               label: 'Contributor username',
               labelAbove: true,
+              fill: AppPalette.of(context).surface,
               hint: 'quiet_owl',
               error: _nameError,
               onChanged: (_) => setState(() => _nameError = null),

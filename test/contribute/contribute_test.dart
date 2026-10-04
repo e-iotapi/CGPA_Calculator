@@ -221,13 +221,20 @@ void main() {
   testWidgets('Add links: Department or a course, Another link', (t) async {
     await open(t, As.president2, const AddPage());
     expect(find.text('Another link'), findsOneWidget);
-    expect(find.text('Publish'), findsOneWidget);
+    expect(find.text('Publish 1 link'), findsOneWidget);
     t.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(t.view.resetViewInsets);
     await t.pump();
+    await t.scrollUntilVisible(
+      find.text('Another link'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await t.drag(find.byType(Scrollable).first, const Offset(0, -150));
+    await t.pump();
     await t.tap(find.text('Another link'));
     await t.pump();
-    expect(find.widgetWithText(TextField, 'Name'), findsWidgets);
+    expect(find.text('LINK 2'), findsOneWidget);
   });
 
   testWidgets('Leaderboard: empty, then ranked with my place', (t) async {
