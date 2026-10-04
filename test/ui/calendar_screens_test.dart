@@ -72,7 +72,16 @@ void main() {
 
   Future<void> tab(WidgetTester t, String n) => t.tap(find.text(n));
 
-  testWidgets('cal_month', (t) => run(t, 'cal_month'));
+  testWidgets(
+    'cal_month',
+    (t) => run(
+      t,
+      'cal_month',
+      // An upcoming campus date joins Next up.
+      open: (t) async =>
+          expect(find.text('Founders day'), findsOneWidget),
+    ),
+  );
   testWidgets(
     'cal_unpublished',
     (t) => run(t, 'cal_unpublished', published: false),
