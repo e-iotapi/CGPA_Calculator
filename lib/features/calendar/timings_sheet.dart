@@ -2,8 +2,8 @@ import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
 import 'package:cgpa_calculator/core/timetable/timetable.dart';
+import 'package:cgpa_calculator/features/calendar/cal_sheet.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_time.dart';
-import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
 import 'package:flutter/material.dart';
 
@@ -87,85 +87,141 @@ class _TimingsSheetState extends State<TimingsSheet> {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20, 10, 20, Space.lg + MediaQuery.viewInsetsOf(context).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Change time', style: TypeScale.sheetTitle.copyWith(color: p.text)),
-            Text(
-              'Only on your calendar. The published timetable stays as it is.',
+    final course = widget.sectionKey.split('|').first;
+    return CalSheet(
+      title: 'Change time',
+      subtitle: '$course · only for you',
+      footer: SheetButton('Save', onPressed: _save),
+      children: [
+        for (final r in _rows) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Published ${dayShort(r.slot.d)} ${span(r.slot.s, r.slot.e)}',
+                    style: TypeScale.caption.copyWith(color: p.textMuted),
+                  ),
+                ),
+                if (r.edited) const TagBadge('Your time', tone: TagTone.yours),
+              ],
+            ),
+          ),
+          _field(
+            p,
+            'Day',
+            DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: r.day,
+                isExpanded: true,
+                isDense: true,
+                icon: _chevron(p),
+                dropdownColor: p.surface,
+                style: _ink(p),
+                items: [
+                  for (var d = 1; d <= 6; d++)
+                    DropdownMenuItem(value: d, child: Text(dayNames[d - 1])),
+                ],
+                onChanged: (v) => setState(() => r.day = v ?? r.day),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _field(p, 'Start', _time(p, r.start, 'Start')),
+          const SizedBox(height: 10),
+          _field(p, 'End', _time(p, r.end, 'End')),
+          if (_errors[r.key] case final e?)
+            Padding(
+              padding: const EdgeInsets.only(top: Space.xs),
+              child: Text(e, style: TypeScale.caption.copyWith(color: p.danger)),
+            ),
+          const SizedBox(height: 10),
+        ],
+        if (_gone.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Space.sm),
+            child: Text(
+              'Your time (published time changed). Reset to follow the new timetable.',
               style: TypeScale.caption.copyWith(color: p.textMuted),
             ),
-            const SizedBox(height: Space.md),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final r in _rows) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Published ${dayShort(r.slot.d)} ${span(r.slot.s, r.slot.e)}',
-                            style: TypeScale.caption.copyWith(color: p.textMuted),
-                          ),
-                        ),
-                        if (r.edited) const TagBadge('Your time', tone: TagTone.yours),
-                      ],
+          ),
+        Text(
+          'The published time stays for everyone else. You can reset to it any time.',
+          style: TypeScale.caption.copyWith(fontSize: 10.5, height: 1.45, color: p.textMuted),
+        ),
+        if (_rows.any((r) => r.edited) || _gone.isNotEmpty)
+          Semantics(
+            button: true,
+            child: InkWell(
+              onTap: _restore,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Reset to published',
+                    style: TypeScale.body.copyWith(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: p.accent,
+                      decoration: TextDecoration.underline,
+                      decorationColor: p.accent,
                     ),
-                    const SizedBox(height: Space.xs),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _day(p, r),
-                        const SizedBox(width: Space.sm),
-                        Expanded(child: AppTextField(controller: r.start, label: 'Start', dense: true)),
-                        const SizedBox(width: Space.sm),
-                        Expanded(child: AppTextField(controller: r.end, label: 'End', dense: true)),
-                      ],
-                    ),
-                    if (_errors[r.key] case final e?)
-                      Padding(
-                        padding: const EdgeInsets.only(top: Space.xs),
-                        child: Text(e, style: TypeScale.caption.copyWith(color: p.behind)),
-                      ),
-                    const SizedBox(height: Space.md),
-                  ],
-                ],
-              ),
-            ),
-            if (_gone.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: Space.sm),
-                child: Text(
-                  'Your time (published time changed). Reset to follow the new timetable.',
-                  style: TypeScale.caption.copyWith(color: p.textMuted),
+                  ),
                 ),
               ),
-            PrimaryButton(label: 'Save', onPressed: _save),
-            if (_rows.any((r) => r.edited) || _gone.isNotEmpty)
-              TextButton(
-                onPressed: _restore,
-                child: Text('Reset to published', style: TypeScale.button.copyWith(color: p.text)),
-              ),
-          ],
-        ),
-      ),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _day(AppPalette p, _Row r) => SizedBox(
-    height: Sizes.minTouch + 4,
-    child: DropdownButtonHideUnderline(
-      child: DropdownButton<int>(
-        value: r.day,
-        dropdownColor: p.surface,
-        style: TypeScale.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: p.text),
-        items: [for (var d = 1; d <= 6; d++) DropdownMenuItem(value: d, child: Text(dayShort(d)))],
-        onChanged: (v) => setState(() => r.day = v ?? r.day),
+  TextStyle _ink(AppPalette p) =>
+      TypeScale.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: p.text);
+
+  Widget _chevron(AppPalette p) =>
+      Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: p.textMuted);
+
+  /// The board's field: a small upper-case label over a white 46-tall box.
+  Widget _field(AppPalette p, String label, Widget child) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 5),
+        child: Text(
+          label.toUpperCase(),
+          style: TypeScale.label.copyWith(fontSize: 10.5, letterSpacing: 0.5, color: p.textMuted),
+        ),
+      ),
+      Container(
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: p.outline),
+        ),
+        child: child,
+      ),
+    ],
+  );
+
+  Widget _time(AppPalette p, TextEditingController c, String label) => Semantics(
+    label: label,
+    textField: true,
+    child: TextField(
+      controller: c,
+      style: _ink(p),
+      cursorColor: p.text,
+      decoration: const InputDecoration(
+        isDense: true,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        filled: false,
+        contentPadding: EdgeInsets.zero,
       ),
     ),
   );
