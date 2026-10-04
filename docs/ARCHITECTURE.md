@@ -500,8 +500,8 @@ same setup; the first two rows toggled only that change on one build.
 
 Staging, unlike production, turned Flutter's semantics tree on for every
 load (the E2E finders need it), so every scroll frame also updated the
-hidden accessibility DOM; now only a `?as=` test account run gets it
-(2026-10-04). Touch resampling is off by default since the same day: with
+hidden accessibility DOM; now only the emulator (E2E) build has it by
+default, and `?semantics=1` turns it on elsewhere (2026-10-04). Touch resampling is off by default since the same day: with
 frames on time it only delayed the finger and leapt on lift (`?resample=1`
 turns it on). The WebAssembly renderer, single- and multi-threaded, was no
 better than the JS build on iPhone.
