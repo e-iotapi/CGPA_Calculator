@@ -612,6 +612,25 @@ void main() {
   VoidCallback? postButton(WidgetTester t) =>
       t.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed;
 
+  testWidgets('form: no offering for the term, any department professor', (
+    t,
+  ) async {
+    await courses(t, [taking(course, grade: 9)]);
+    await professor('pr-a', 'Asha Rao', 'goa');
+    offeringSource = _Offerings(null);
+    await t.pumpWidget(pushed(const ReviewFormPage(courseId: course)));
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    expect(find.text('Not sure who taught it'), findsOneWidget);
+    await t.tap(find.text('Not sure who taught it'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Asha Rao'));
+    await t.pumpAndSettle();
+    expect(find.text('Asha Rao'), findsOneWidget);
+    await starsAndYes(t);
+    expect(postButton(t), isNotNull);
+  });
+
   testWidgets('form: grade prefilled from my course, changeable', (t) async {
     await openForm(t, grade: 9);
     expect(find.text('A-'), findsOneWidget);

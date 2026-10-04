@@ -16,6 +16,7 @@ import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/reviews/compulsory_pick.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
+import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/script.dart' as script;
@@ -109,6 +110,11 @@ void main() {
     ]);
     await db.collection('reviewGate').doc('goa').set({'on': on});
     await GateStore(roleStore!).of('goa');
+    // Who each can name, saved here: a read from the page under fake time
+    // would leave its cache write stuck.
+    for (final c in ['HSS F101', 'BITS F201', 'EEE F111', 'HSS F301']) {
+      await reviewProfessors(c, 'goa', '2024-25-1');
+    }
   });
 
   testWidgets('locked: no search, no rows, the way out', (t) async {

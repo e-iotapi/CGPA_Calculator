@@ -1,7 +1,9 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
-import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/core/models/offering.dart' show termLabel;
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
@@ -17,10 +19,93 @@ import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 
-typedef _Took = ({String term, Offering? offering, List<Professor> professors});
+typedef _Took = ({String term, ReviewProfs profs});
+
+/// Who a review can name: the course's department on a campus, the term's
+/// offering's professors first. A review is of the course under a
+/// professor; the term (or whether it was offered) only orders the list.
+typedef ReviewProfs = ({List<Professor> list, String? taught});
+
+ReviewProfs _ordered(
+  List<String> offered,
+  List<Professor> dept,
+  Map<String, Professor> named,
+) {
+  final out = <String, Professor>{};
+  for (final id in offered) {
+    // Kept under the id the offering names, even if merged since.
+    if (named[id] case final p? when !p.removed) {
+      out[id] = Professor(
+        id: id,
+        name: p.name,
+        campus: p.campus,
+        department: p.department,
+      );
+    }
+  }
+  for (final p in dept) {
+    if (!p.removed) out.putIfAbsent(p.id, () => p);
+  }
+  return (list: out.values.toList(), taught: out.keys.firstOrNull);
+}
+
+Future<ReviewProfs> reviewProfessors(
+  String courseId,
+  String campus,
+  String term,
+) async {
+  final store = ProfessorStore(roleStore!.db);
+  var offered = const <String>[];
+  try {
+    offered =
+        (await offeringSource?.get(courseId, campus, term))?.professors ??
+        const <String>[];
+  } catch (_) {
+    // No offering read: the department alone.
+  }
+  final named = <String, Professor>{};
+  for (final id in offered) {
+    if (await store.get(id) case final p?) named[id] = p;
+  }
+  final r = _ordered(
+    offered,
+    await store.department(campus, deptOf(courseId)),
+    named,
+  );
+  return (list: r.list, taught: offered.isEmpty ? null : r.taught);
+}
+
+/// [reviewProfessors] from the saved copies; null if any part is not saved.
+ReviewProfs? peekReviewProfessors(String courseId, String campus, String term) {
+  final store = ProfessorStore(roleStore!.db);
+  final dept = store.peekDepartment(campus, deptOf(courseId));
+  if (dept == null) return null;
+  final offered =
+      cachedOffering(courseId, campus, term)?.professors ?? const <String>[];
+  final named = <String, Professor>{};
+  for (final id in offered) {
+    final p = store.peekResolved(id);
+    if (p == null) {
+      if (store.peekSaved(id)) continue; // gone: skipped, as the load does
+      return null;
+    }
+    named[id] = p;
+  }
+  final r = _ordered(offered, dept, named);
+  return (list: r.list, taught: offered.isEmpty ? null : r.taught);
+}
+
+/// The term a review of [courseId] carries: the one it was taken in, else
+/// (tracked in the grades with no term yet begun) the current one.
+String? reviewTerm(String courseId) =>
+    tookIt(courseId)?.term ??
+    (allCourses().any((c) => c.id == courseId)
+        ? currentTerm(DateTime.now())
+        : null);
 
 /// Boards `ReviewWrite` and `ReviewEdit`: the term and professor come from
-/// the student's grades and that term's offering, never typed (§10.3, fix
+/// the student's grades; the professor is picked from the course's
+/// department, that term's offering's first, never typed (§10.3, fix
 /// 5). Posted without a name or id; editable later, never deleted (fix 6).
 class ReviewFormPage extends StatefulWidget {
   const ReviewFormPage({super.key, required this.courseId, this.existing});
@@ -67,64 +152,48 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
   Future<_Took?> _load() async {
     final e = widget.existing;
     final campus = myCampus;
-    final term = e?.term ?? tookIt(widget.courseId)?.term;
+    final term = e?.term ?? reviewTerm(widget.courseId);
     if (campus == null || term == null) return null;
-    final off = await offeringSource?.get(widget.courseId, campus, term);
-    final ids =
+    final profs =
         e == null
-            ? off?.professors ?? const <String>[]
-            : [if (e.professorId != null) e.professorId!];
-    final store = ProfessorStore(roleStore!.db);
-    final profs = <Professor>[];
-    for (final id in ids) {
-      // Kept under the id the offering names, even if merged since.
-      final p = await store.get(id);
-      if (p != null) {
-        profs.add(
-          Professor(
-            id: id,
-            name: p.name,
-            campus: p.campus,
-            department: p.department,
-          ),
-        );
-      }
-    }
-    _professorId ??= e?.professorId ?? profs.firstOrNull?.id;
-    return (term: term, offering: off, professors: profs);
+            ? await reviewProfessors(widget.courseId, campus, term)
+            : await _theirs(e);
+    _professorId ??= e?.professorId ?? profs.taught;
+    return (term: term, profs: profs);
+  }
+
+  /// An edit keeps the professor posted (rules: never changed).
+  Future<ReviewProfs> _theirs(Review e) async {
+    final id = e.professorId;
+    final p = id == null ? null : await ProfessorStore(roleStore!.db).get(id);
+    return _ordered([if (id != null) id], const [], {if (p != null) id!: p});
   }
 
   /// [_load] from the saved copies; null if any part is not saved.
   _Took? _peek() {
     final e = widget.existing;
     final campus = myCampus;
-    final term = e?.term ?? tookIt(widget.courseId)?.term;
+    final term = e?.term ?? reviewTerm(widget.courseId);
     if (campus == null || term == null) return null;
-    final off = cachedOffering(widget.courseId, campus, term);
-    if (e == null && off == null) return null;
-    final ids =
-        e == null
-            ? off?.professors ?? const <String>[]
-            : [if (e.professorId != null) e.professorId!];
-    final store = ProfessorStore(roleStore!.db);
-    final profs = <Professor>[];
-    for (final id in ids) {
-      final p = store.peekResolved(id);
-      if (p == null) {
-        if (store.peekSaved(id)) continue; // gone: skipped, as _load does
-        return null;
-      }
-      profs.add(
-        Professor(
-          id: id,
-          name: p.name,
-          campus: p.campus,
-          department: p.department,
-        ),
-      );
+    final ReviewProfs? profs;
+    if (e == null) {
+      profs = peekReviewProfessors(widget.courseId, campus, term);
+    } else {
+      final id = e.professorId;
+      final p =
+          id == null ? null : ProfessorStore(roleStore!.db).peekResolved(id);
+      profs =
+          id != null && p == null
+              ? null
+              : _ordered(
+                [if (id != null) id],
+                const [],
+                {if (p != null) id!: p},
+              );
     }
-    _professorId ??= e?.professorId ?? profs.firstOrNull?.id;
-    return (term: term, offering: off, professors: profs);
+    if (profs == null) return null;
+    _professorId ??= e?.professorId ?? profs.taught;
+    return (term: term, profs: profs);
   }
 
   Future<void> _save(_Took t) async {
@@ -180,23 +249,8 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
             ],
           );
         }
-        if (!editing && t.offering == null) {
-          return PageFrame(
-            header: header,
-            children: [
-              Note(
-                'Nothing is recorded for ${termLabel(t.term)} yet. Reviews '
-                'open once the course\'s CR or department sets that term up.',
-              ),
-            ],
-          );
-        }
-        // A saved offering may name someone no longer on it.
-        if (!editing && !t.professors.any((x) => x.id == _professorId)) {
-          _professorId = t.professors.firstOrNull?.id;
-        }
         final prof =
-            t.professors.where((x) => x.id == _professorId).firstOrNull;
+            t.profs.list.where((x) => x.id == _professorId).firstOrNull;
         final label = TypeScale.label.copyWith(color: p.textMuted);
         final e = widget.existing;
         return PageFrame(
@@ -233,28 +287,35 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
                     runSpacing: 6,
                     children: [
                       ScopeChip(termLabel(t.term).toUpperCase(), muted: true),
-                      if (prof != null && (t.professors.length < 2 || editing))
-                        ScopeChip(prof.name),
+                      if (prof != null && editing) ScopeChip(prof.name),
                     ],
                   ),
-                  if (t.professors.length > 1 && !editing) ...[
+                  if (!editing) ...[
                     const SizedBox(height: Space.sm),
-                    ChoicePills<String>(
-                      values: [for (final x in t.professors) x.id],
-                      selected: _professorId,
-                      label:
-                          (id) =>
-                              t.professors.firstWhere((x) => x.id == id).name,
-                      onSelected: (id) => setState(() => _professorId = id),
+                    SelectRow(
+                      text: prof?.name ?? 'Not sure who taught it',
+                      placeholder: prof == null,
+                      onTap: () async {
+                        final v = await pickSheet<String?>(
+                          context,
+                          title: 'Professor',
+                          selected: _professorId,
+                          searchHint: 'Search professors',
+                          options: [
+                            (null, 'Not sure who taught it'),
+                            for (final x in t.profs.list) (x.id, x.name),
+                          ],
+                        );
+                        if (v != null) setState(() => _professorId = v.value);
+                      },
                     ),
                   ],
                   const SizedBox(height: Space.sm),
                   Text(
                     prof == null
-                        ? 'From your grades. With no professor recorded, it '
+                        ? 'From your grades. With no professor picked, it '
                             'counts toward the course only.'
-                        : 'From your grades and that term\'s professor. Your '
-                            'review counts toward ${prof.name}, not the '
+                        : 'Your review counts toward ${prof.name}, not the '
                             'course as a whole.',
                     style: caption,
                   ),

@@ -14,8 +14,11 @@ const C = 'EEE F211';
 const S2 = 'f20230999@goa.bits-pilani.ac.in';
 const hash = (uid, key) => createHash('sha256').update(uid + key).digest('hex');
 
-async function offering(professors = ['p1']) {
-  await seed((db) => setDoc(doc(db, 'courses', C, 'offerings', 'goa_2025-26-2'), { professors }));
+// Professors on a campus; a review can name any of them, whatever the term.
+async function professors(ids = ['p1'], campus = 'goa') {
+  await seed(async (db) => {
+    for (const p of ids) await setDoc(doc(db, 'professors', p), { name: p, campus, department: 'ELEC' });
+  });
 }
 
 function count(b, db, reviewId, d, dc, ds, dr, ix = true) {
@@ -61,11 +64,10 @@ function post(db, who, extra = {}, { dc = 1, ds, dr, m = {} } = {}) {
 }
 
 describe('reviews', () => {
-  test('one per person, on a real offering, counters moved exactly', async () => {
-    await offering();
+  test('one per person, naming a real professor, counters moved exactly', async () => {
+    await professors();
     await assertFails(post(as(STUDENT), STUDENT, {}, { ds: 5 }));
     await assertFails(post(as(STUDENT), STUDENT, { professorId: 'p9' }));
-    await assertFails(post(as(STUDENT), STUDENT, { term: '2024-25-1' }));
     await assertFails(post(as(OTHER), OTHER, { campus: 'goa' }));
     await assertSucceeds(post(as(STUDENT), STUDENT));
     await assertFails(post(as(STUDENT), STUDENT));
@@ -74,7 +76,7 @@ describe('reviews', () => {
   });
 
   test('grade is optional on create, but from the list when given; ND is valid', async () => {
-    await offering();
+    await professors();
     await assertFails(post(as(STUDENT), STUDENT, { grade: 'F' }));
     await assertFails(post(as(STUDENT), STUDENT, { grade: 5 }));
     await assertSucceeds(post(as(STUDENT), STUDENT, { grade: undefined }));
@@ -82,17 +84,17 @@ describe('reviews', () => {
   });
 
   test('review without grade still allowed', async () => {
-    await offering();
+    await professors();
     await assertSucceeds(post(as(STUDENT), STUDENT));
   });
 
   test('grade ND', async () => {
-    await offering();
+    await professors();
     await assertSucceeds(post(as(STUDENT), STUDENT, { grade: 'ND' }));
   });
 
   test('marks are optional, 0 to 1000, and mirrored with the grade', async () => {
-    await offering();
+    await professors();
     await assertFails(post(as(STUDENT), STUDENT, { marks: -1 }));
     await assertFails(post(as(STUDENT), STUDENT, { marks: 1001 }));
     await assertFails(post(as(STUDENT), STUDENT, { marks: '80' }));
@@ -104,7 +106,7 @@ describe('reviews', () => {
   });
 
   test('an old review without a grade can be edited, and gain one', async () => {
-    await offering();
+    await professors();
     const id = hash(STUDENT, C);
     await seed(async (db) => {
       await setDoc(doc(db, 'reviews', C, 'entries', id), {
@@ -119,19 +121,21 @@ describe('reviews', () => {
     await assertSucceeds(b.commit());
   });
 
-  test('no professor on the offering: null, counted for the course only', async () => {
-    await offering([]);
+  test('no professor named: null, counted for the course only', async () => {
+    await professors([]);
     await assertFails(post(as(STUDENT), STUDENT));
     await assertSucceeds(post(as(STUDENT), STUDENT, { professorId: null }));
   });
 
-  test('no offering for the term: a review with no professor is allowed, one naming a professor is not', async () => {
-    await assertFails(post(as(STUDENT), STUDENT));
-    await assertSucceeds(post(as(STUDENT), STUDENT, { professorId: null }));
+  test('any term, offered or not, names any professor on the campus', async () => {
+    await professors(['p1']);
+    await professors(['p2'], 'pilani');
+    await assertFails(post(as(STUDENT), STUDENT, { professorId: 'p2', term: '2019-20-1' }));
+    await assertSucceeds(post(as(STUDENT), STUDENT, { term: '2019-20-1' }));
   });
 
   test('the campus index moves with the course counter, never alone', async () => {
-    await offering();
+    await professors();
     await assertSucceeds(post(as(STUDENT), STUDENT));
     const ix = await getDoc(doc(as(STUDENT), 'reviewIndex', 'goa'));
     if (ix.data().c[C].count !== 1 || ix.data().c[C].starSum !== 4) throw new Error('bad index');
@@ -143,7 +147,7 @@ describe('reviews', () => {
   });
 
   test('the index entry must match its own course', async () => {
-    await offering();
+    await professors();
     const db = as(STUDENT);
     const id = hash(STUDENT, C);
     const b = writeBatch(db);
@@ -158,7 +162,7 @@ describe('reviews', () => {
   });
 
   test('the campus copy mirrors the review exactly, only there', async () => {
-    await offering();
+    await professors();
     await assertFails(post(as(STUDENT), STUDENT, {}, { m: { stars: 5 } }));
     await assertFails(post(as(STUDENT), STUDENT, {}, { m: { helpful: 3 } }));
     await assertSucceeds(post(as(STUDENT), STUDENT));
@@ -177,7 +181,7 @@ describe('reviews', () => {
   });
 
   test('edit by difference; nobody deletes, the author included', async () => {
-    await offering();
+    await professors();
     await post(as(STUDENT), STUDENT);
     const db = as(STUDENT);
     const id = hash(STUDENT, C);
@@ -200,7 +204,7 @@ describe('reviews', () => {
   });
 
   test('helpful once per person; hidden reviews stay hidden from students', async () => {
-    await offering();
+    await professors();
     await post(as(STUDENT), STUDENT);
     const id = hash(STUDENT, C);
     const vote = (who, by = 1) => {
@@ -222,7 +226,7 @@ describe('reviews', () => {
   });
 
   test('a president in scope hides with a reason, logged; counters come off', async () => {
-    await offering();
+    await professors();
     await post(as(STUDENT), STUDENT);
     const id = hash(STUDENT, C);
     const hide = (who, { reason = 'Names a person', dc = -1 } = {}) => {
