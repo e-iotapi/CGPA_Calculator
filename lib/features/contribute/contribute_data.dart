@@ -104,4 +104,4 @@ LinkState? linkStateOf(Resource r, DateTime now) {
 
 /// Whether the student may add links (a grant), or is staff (who publish
 /// at once).
-bool get contributesDirectly => myRoles.value.privileged;
+bool get contributesDirectly => myRoles.value.staff;

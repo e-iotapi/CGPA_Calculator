@@ -178,11 +178,9 @@ class _RepresentativesPageState extends State<RepresentativesPage> {
           branches.addAll(
             listed.where((b) => own.isEmpty || own.contains(b) || b == d),
           );
-          missing.addAll(
-            own.isEmpty
-                ? (listed.isEmpty ? all : const [])
-                : own.where((b) => !listed.contains(b)),
-          );
+          // Only the student's own branches: a course from another
+          // department never reports its missing president.
+          missing.addAll(own.where((b) => !listed.contains(b)));
         }
         return PageFrame(
           header: header,

@@ -12,6 +12,24 @@ const _kTour = 'tourSeen';
 /// [PrefsStore] only; read straight from deviceBox when the store is built.
 final offshootHiddenNow = ValueNotifier<bool>(false);
 
+/// Courses starred on Course resources, on this device only.
+// ponytail: device-local; sync via `prefs` (rules allow-list) if asked.
+Set<String> starredCourses() => {
+  ...?(Hive.isBoxOpen(deviceBoxName)
+          ? Hive.box(deviceBoxName).get('pref.starred') as List?
+          : null)
+      ?.cast<String>(),
+};
+
+/// Stars or unstars [id]. The box updates in memory at once; the disk write
+/// is not awaited (UI path).
+void toggleStar(String id) {
+  if (!Hive.isBoxOpen(deviceBoxName)) return;
+  final s = starredCourses();
+  if (!s.remove(id)) s.add(id);
+  Hive.box(deviceBoxName).put('pref.starred', s.toList()..sort());
+}
+
 /// The signed-in user's store; set in `startApp`, null before.
 PrefsStore? prefsStore;
 

@@ -137,6 +137,11 @@ void main() {
     ) async {
       final calls = <bool>[];
       await t.pumpWidget(view(change: calls.add));
+      await t.scrollUntilVisible(
+        find.text('Show Offshoot tab'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(calls, isEmpty);
       expect(t.widget<Switch>(find.byType(Switch)).value, true);
       await t.tap(find.text('Show Offshoot tab'));

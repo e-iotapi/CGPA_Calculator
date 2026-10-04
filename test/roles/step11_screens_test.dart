@@ -384,6 +384,9 @@ void main() {
   });
 
   testWidgets('no president listed shows the public contact', (t) async {
+    // Only the student's own branch reports a missing president (A3).
+    script.selecteddiscipline = '--A3';
+    addTearDown(() => script.selecteddiscipline = '----');
     signIn(student, name: 'Rohan');
     await courses(t, ['EEE F211']);
     await db.collection('config').doc('public').set({

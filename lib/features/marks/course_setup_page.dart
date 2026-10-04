@@ -119,31 +119,7 @@ class _CourseSetupPageState extends State<CourseSetupPage> {
       ),
     );
     Widget field(TextEditingController c, ValueChanged<String> onChanged) =>
-        SizedBox(
-          width: 86,
-          height: 40,
-          child: TextField(
-            controller: c,
-            onChanged: onChanged,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            textAlign: TextAlign.center,
-            style: TypeScale.body.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: p.text,
-            ),
-            decoration: InputDecoration(
-              isDense: true,
-              filled: true,
-              fillColor: p.isDark ? p.surfaceSunken : const Color(0xFFF8F8F5),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-        );
+        PillField(controller: c, onChanged: onChanged);
     final custom = ![100.0, 200.0, 300.0].contains(_outOf) || _customOn;
     final delta = s.classDelta;
 
