@@ -43,6 +43,8 @@ import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
 
 void main() async {
+  // Read before Flutter rewrites the address bar to its own route.
+  startedOnSignInPage = Uri.base.pathSegments.lastOrNull == signInPage;
   // Real paths (/calculator/stats), not #/stats (ARCHITECTURE.md §7).
   usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
@@ -111,7 +113,7 @@ void main() async {
     } else {
       runApp(SignInApp(message: message));
     }
-  } else if (onSignInPage()) {
+  } else if (startedOnSignInPage) {
     replacePage(''); // signed in: back to the isolated app
   } else {
     await startApp(user);
@@ -122,8 +124,9 @@ void main() async {
 /// cross-origin isolation (firebase.json on the wasm preview).
 const signInPage = 'signin';
 
-/// Whether this load is [signInPage].
-bool onSignInPage() => Uri.base.pathSegments.lastOrNull == signInPage;
+/// Whether this load is [signInPage], as it was when the page loaded (the
+/// sign-in screen's own route then shows as `/`).
+bool startedOnSignInPage = false;
 
 /// Pulls the user's data down before basicStartup() reads settings into globals.
 Future<void> startApp(User user) async {
@@ -333,7 +336,7 @@ class _SignInAppState extends State<SignInApp>
         await FirebaseAuth.instance.signOut();
         throw refusal(user, allowed);
       }
-      if (onSignInPage()) {
+      if (startedOnSignInPage) {
         replacePage(''); // the isolated app, signed in
         return;
       }
