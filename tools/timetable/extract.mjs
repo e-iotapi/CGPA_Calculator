@@ -242,7 +242,8 @@ const isFv = (v) => v && typeof v === 'object' && ('$ts' in v || '$inc' in v);
 function fv(fs, v) {
   if (isFv(v)) return '$ts' in v ? fs.FieldValue.serverTimestamp() : fs.FieldValue.increment(v.$inc);
   if (Array.isArray(v)) return v.map((x) => fv(fs, x));
-  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fv(fs, x)]));
+  // Plain maps only: a Timestamp read back from Firestore is written as is.
+  if (v && Object.getPrototypeOf(v) === Object.prototype) return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fv(fs, x)]));
   return v;
 }
 

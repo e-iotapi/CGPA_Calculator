@@ -280,6 +280,22 @@ client can't forge it.
 | `resourceVersions/{campus}.links` | every resource link | Resources |
 | `repIndex/{campus}` | every grant and directory entry | Representatives |
 
+The app reads only the summary: a missing one reads as empty, not as a
+fallback to the source. `node tools/import/import.mjs rebuild` (owner-run, dry
+run by default) recomputes all four, and every review counter, from the
+source docs, then moves the heads markers. It is the backfill for a project
+whose summaries predate the app (production) or have drifted.
+
+**Imported reviews** (`import.mjs reviews`, owner-run once) come from the old
+review site: Goa, ids `imp_<hash>`, the reviewer's own grade, stars and
+recommend derived from their text, professors matched to the timetable's
+names (`tools/course_reviews_out/answers.json`, never committed), and one
+"Handout" link per course. The class averages they reported are saved once on
+the course copy as `base: {term: {g, gn, m, t, mn}}` (grade points, marks out
+of `t`, each over the reviews that gave it). The rules let no client change
+`base`, and the summary card shows it instead of the reviewers' own grades and
+marks (which run high) for the terms its filters keep.
+
 ## 7. Firestore data model
 
 ```mermaid
