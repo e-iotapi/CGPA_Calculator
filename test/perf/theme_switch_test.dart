@@ -157,6 +157,24 @@ void main() {
     expect(hidden(), isFalse);
   });
 
+  testWidgets('the last picture fades out over the live app', (t) async {
+    await t.pumpWidget(MaterialApp(home: ThemeReveal.root(_screen())));
+    bool hidden() =>
+        t.widgetList<Offstage>(find.byType(Offstage)).any((o) => o.offstage);
+    final done = ThemeReveal.run(() {});
+    for (var i = 0; i < 60 && (ThemeReveal.debugFadeValue ?? 0) == 0; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+    }
+    // Mid-fade: the hole is done, the live app is back under the picture.
+    expect(ThemeReveal.debugAnimValue, 1);
+    expect(ThemeReveal.debugFadeValue, inExclusiveRange(0, 1));
+    expect(hidden(), isFalse);
+    expect(find.byType(CustomPaint), findsWidgets);
+    await t.pumpAndSettle();
+    await done;
+    expect(ThemeReveal.debugFadeValue, 0);
+  });
+
   testWidgets('O1.6: the reveal overlay has its own repaint boundary', (
     t,
   ) async {
