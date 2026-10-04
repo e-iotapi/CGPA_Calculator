@@ -683,7 +683,7 @@ class DeptSheet extends StatelessWidget {
     this.gen = false,
   });
 
-  /// Whether to end the list with Electives (GEN, B2) when [only] is null.
+  /// Whether to start the list with Electives (GEN, B2) when [only] is null.
   final bool gen;
 
   /// Whose departments to list ([campusBranches]); null lists them all.
@@ -731,11 +731,14 @@ class DeptSheet extends StatelessWidget {
                 future: campusBranches(campus),
                 initialData: campusBranchesNow(campus),
                 builder: (context, snap) {
+                  // Board DeptSheetAppoint: Electives first.
                   final rows = [
-                    for (final b in snap.data ?? const <Branch>[])
-                      if (only == null || only!.contains(b.dept)) b,
                     if (only?.contains(genDept) ?? gen)
                       (dept: genDept, programme: null),
+                    for (final b in snap.data ?? const <Branch>[])
+                      if (b.dept != genDept &&
+                          (only == null || only!.contains(b.dept)))
+                        b,
                   ];
                   if (!snap.hasData) return const SizedBox(height: 120);
                   if (rows.isEmpty) {
@@ -749,7 +752,10 @@ class DeptSheet extends StatelessWidget {
                           if (i > 0) const CardDivider(),
                           CardRow(
                             title: branchName(b),
-                            subtitle: branchCodes(b),
+                            subtitle:
+                                b.dept == genDept
+                                    ? 'GEN · makes an Elective Contributor'
+                                    : branchCodes(b),
                             titleLines: 2,
                             trailing:
                                 b == selected

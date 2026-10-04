@@ -50,7 +50,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'nav.1',
     'Actual tab',
-    'Your real grades. SGPA and CGPA update as you set them.',
+    'Your real grades. SGPA and CGPA update as you set them',
   ),
   TourStep(
     'swipe',
@@ -58,7 +58,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'summary',
     'Swipe sideways',
-    'Move between Actual, Expected and Compare.',
+    'Move between Actual, Expected and Compare',
   ),
   TourStep(
     'semesters',
@@ -66,7 +66,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'pills',
     'Semester pills',
-    'Pick a semester; the arrows scroll on a computer.',
+    'Pick a semester; the arrows scroll on a computer',
   ),
   TourStep(
     'grade-tap',
@@ -74,7 +74,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'chip',
     'Grade chip, tap',
-    'Tap a grade to change it.',
+    'Tap a grade to change it',
   ),
   TourStep(
     'grade-drag',
@@ -82,7 +82,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'chip',
     'Grade chip, hold and drag',
-    'Hold and drag up or down to scrub through grades.',
+    'Hold and drag up or down to scrub through grades',
   ),
   TourStep(
     'add',
@@ -91,7 +91,7 @@ const tourSteps = <TourStep>[
     'add',
     'Add',
     'Add a course from the catalogue, with its star ratings, or enter one by '
-        'hand.',
+        'hand',
   ),
   TourStep(
     'sort',
@@ -99,7 +99,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'sort',
     'Sort menu and drag handle',
-    'Sort your courses, or drag the handle into your own order.',
+    'Sort your courses, or drag the handle into your own order',
   ),
   TourStep(
     'pull',
@@ -107,7 +107,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'section',
     'Pull down and hold',
-    'Pull down and hold to clear this semester\'s grades.',
+    'Pull down and hold to clear this semester’s grades',
   ),
   TourStep(
     'export',
@@ -115,7 +115,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'export',
     'Export gradesheet',
-    'Save this semester\'s grades as an image.',
+    'Save this semester’s grades as an image',
   ),
   // 2 Grade profiles
   TourStep(
@@ -124,7 +124,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'nav.2',
     'Expected tab',
-    'The grades you expect, to plan the semester.',
+    'The grades you expect, to plan the semester',
     profile: 2,
   ),
   TourStep(
@@ -133,7 +133,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'copy',
     'Copy grades button',
-    'Start Expected from your Actual grades in one tap.',
+    'Start Expected from your Actual grades in one tap',
     profile: 2,
   ),
   TourStep(
@@ -142,7 +142,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'nav.3',
     'Compare tab',
-    'Two profiles side by side; tap a card to pick which.',
+    'Two profiles side by side; tap a card to pick which',
     profile: 3,
   ),
   // 3 Marks tracker (opens the first course; skipped if there is none)
@@ -152,7 +152,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'row',
     'Course row',
-    'Tap a course to track its marks.',
+    'Tap a course to track its marks',
   ),
   TourStep(
     'setup',
@@ -160,7 +160,7 @@ const tourSteps = <TourStep>[
     TourPage.course,
     'marks.total',
     'Course setup chip',
-    'Weighted, each part has a %, or total marks, and what it is out of.',
+    'Weighted, each part has a %, or total marks, and what it is out of',
   ),
   TourStep(
     'add-eval',
@@ -168,7 +168,7 @@ const tourSteps = <TourStep>[
     TourPage.course,
     'marks.add',
     'Add evaluative',
-    'Add each quiz, midsem, lab or compre: weight, your marks, out of, date.',
+    'Add each quiz, midsem, lab or compre: weight, your marks, out of, date',
   ),
   TourStep(
     'parts',
@@ -176,7 +176,7 @@ const tourSteps = <TourStep>[
     TourPage.course,
     'marks.eval',
     'Several parts, best k of n',
-    'Split a component into parts and count only the best k.',
+    'Split a component into parts and count only the best k',
   ),
   TourStep(
     'class-avg',
@@ -185,7 +185,7 @@ const tourSteps = <TourStep>[
     'marks.avg',
     'Class average and Averages row',
     'Add the class average to see where you stand; tap to see where each '
-        'average came from.',
+        'average came from',
   ),
   TourStep(
     'official',
@@ -194,7 +194,7 @@ const tourSteps = <TourStep>[
     'marks.official',
     'Official scheme',
     'When your CR publishes the scheme, weights and averages fill in by '
-        'themselves.',
+        'themselves',
   ),
   TourStep(
     'diverged',
@@ -202,7 +202,7 @@ const tourSteps = <TourStep>[
     TourPage.course,
     'marks.diverged',
     'Divergence card',
-    'Change an official value and we keep yours, and show what changed.',
+    'Change an official value and we keep yours, and show what changed',
   ),
   TourStep(
     'edit-bin',
@@ -210,7 +210,7 @@ const tourSteps = <TourStep>[
     TourPage.course,
     'marks.actions',
     'Edit and bin icons',
-    'Edit the scheme, credits and grade, or delete the course.',
+    'Edit the scheme, credits and grade, or delete the course',
   ),
   TourStep(
     'taken-by',
@@ -218,7 +218,7 @@ const tourSteps = <TourStep>[
     TourPage.course,
     'marks.takenby',
     'Taken by, Reviews',
-    'See who teaches it this term and what past batches said.',
+    'See who teaches it this term and what past batches said',
   ),
   // 4 Offshoot and Minor
   TourStep(
@@ -227,7 +227,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'nav.4',
     'Offshoot tab',
-    'Your offshoot score: best 5 or all 6, tick the courses that count.',
+    'Your offshoot score: best 5 or all 6, tick the courses that count',
     profile: 4,
   ),
   TourStep(
@@ -236,7 +236,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'offshoot.minor',
     'Minor toggle',
-    'Choose a minor and see what it still needs.',
+    'Choose a minor and see what it still needs',
     profile: 4,
   ),
   // 5 Calendar and Stats
@@ -246,7 +246,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'calendar',
     'Calendar icon',
-    'Your evaluatives and the academic calendar, by month.',
+    'Your evaluatives and the academic calendar, by month',
   ),
   TourStep(
     'week',
@@ -254,7 +254,7 @@ const tourSteps = <TourStep>[
     TourPage.calendar,
     'cal.views',
     'Week tab',
-    'Your classes by time; tap one to change its time just for you.',
+    'Your classes by time; tap one to change its time just for you',
   ),
   TourStep(
     'stats',
@@ -262,7 +262,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'statsbtn',
     'Stats icon',
-    'Your CGPA, semester by semester.',
+    'Your CGPA, semester by semester',
   ),
   TourStep(
     'target',
@@ -270,7 +270,7 @@ const tourSteps = <TourStep>[
     TourPage.stats,
     'stats.target',
     'Target CGPA',
-    'Set a target and see the SGPA you need.',
+    'Set a target and see the SGPA you need',
   ),
   TourStep(
     'plan',
@@ -278,7 +278,7 @@ const tourSteps = <TourStep>[
     TourPage.stats,
     'stats.plan',
     'Plan the rest',
-    'Slide each future semester to plan your way there.',
+    'Slide each future semester to plan your way there',
   ),
   TourStep(
     'degree',
@@ -286,7 +286,7 @@ const tourSteps = <TourStep>[
     TourPage.stats,
     'stats.degree',
     'Degree tab',
-    'Credits earned for each requirement; change what a course counts as.',
+    'Credits earned for each requirement; change what a course counts as',
   ),
   // 6 More
   TourStep(
@@ -295,7 +295,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'nav.0',
     'More tab',
-    'Everything beyond your grades.',
+    'Everything beyond your grades',
   ),
   TourStep(
     'reps',
@@ -303,8 +303,8 @@ const tourSteps = <TourStep>[
     TourPage.more,
     'more.reps',
     'Representatives',
-    'Your president and each course\'s CR, with contacts; volunteer to be a '
-        'CR.',
+    'Your president and each course’s CR, with contacts; volunteer to be a '
+        'CR',
   ),
   TourStep(
     'reviews',
@@ -312,7 +312,7 @@ const tourSteps = <TourStep>[
     TourPage.more,
     'more.reviews',
     'Course reviews',
-    'Search a course or professor; filter by professor, year and semester.',
+    'Search a course or professor; filter by professor, year and semester',
   ),
   TourStep(
     'resources',
@@ -320,7 +320,7 @@ const tourSteps = <TourStep>[
     TourPage.more,
     'more.resources',
     'Resources',
-    'Department and course links: notes, papers, handouts.',
+    'Department and course links: notes, papers, handouts',
   ),
   TourStep(
     'leaderboard',
@@ -329,7 +329,7 @@ const tourSteps = <TourStep>[
     'more.leaderboard',
     'Contributor Leaderboard',
     'The top contributors on campus; apply to join from Resources or '
-        'Settings.',
+        'Settings',
   ),
   // 7 Settings
   TourStep(
@@ -338,7 +338,7 @@ const tourSteps = <TourStep>[
     TourPage.home,
     'settingsbtn',
     'Settings icon',
-    'Your degree, grade profiles, data and the app.',
+    'Your degree, grade profiles, data and the app',
   ),
   TourStep(
     'profiles',
@@ -346,7 +346,7 @@ const tourSteps = <TourStep>[
     TourPage.settings,
     'set.profiles',
     'Grade profiles rows',
-    'Rename Actual, Expected and Compare.',
+    'Rename Actual, Expected and Compare',
   ),
   TourStep(
     'erp',
@@ -354,7 +354,7 @@ const tourSteps = <TourStep>[
     TourPage.settings,
     'set.erp',
     'Import grades from ERP',
-    'Fill past semesters from your ERP performance sheet.',
+    'Fill past semesters from your ERP performance sheet',
   ),
   TourStep(
     'appearance',
@@ -362,7 +362,7 @@ const tourSteps = <TourStep>[
     TourPage.settings,
     'set.appearance',
     'Appearance and Show Offshoot tab',
-    'Light or dark, and hide the Offshoot tab if you do not need it.',
+    'Light or dark, and hide the Offshoot tab if you do not need it',
   ),
   TourStep(
     'install',
@@ -370,7 +370,7 @@ const tourSteps = <TourStep>[
     TourPage.settings,
     'set.install',
     'Install app',
-    'Add Pointer to your home screen.',
+    'Add Pointer to your home screen',
   ),
   TourStep(
     'replay',
@@ -378,6 +378,6 @@ const tourSteps = <TourStep>[
     TourPage.settings,
     'set.replay',
     'Replay the tour',
-    'Run this again, or one chapter, any time.',
+    'Run this again, or one chapter, any time',
   ),
 ];

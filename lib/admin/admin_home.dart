@@ -177,12 +177,6 @@ class _AdminHomeState extends State<AdminHome> {
             mint: true,
           ),
           _Row(
-            Icons.volunteer_activism_outlined,
-            'Contributor approvals',
-            'Applications and student links, by department',
-            () => go(Routes.adminApprovals),
-          ),
-          _Row(
             Icons.badge_outlined,
             'Roster',
             'By campus, with volunteers',
@@ -223,14 +217,28 @@ class _AdminHomeState extends State<AdminHome> {
             () => go(Routes.adminMerge),
           ),
           _Row(
+            Icons.check_rounded,
+            'Contributor approvals',
+            'Applications and link requests',
+            () => go(Routes.adminApprovals),
+          ),
+          _Row(
+            Icons.visibility_outlined,
+            'Compulsory reviews',
+            'Lock reviews until electives are reviewed',
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => GateSwitchPage(campus: viewCampus() ?? 'goa'),
+              ),
+            ),
+          ),
+          _Row(
             Icons.notes_rounded,
             'Audit log',
             'Append-only · nothing here can be deleted',
             () => go(Routes.adminAudit),
           ),
         ]),
-        const SectionLabel('Reviews'),
-        GateSwitchRow(campus: viewCampus() ?? 'goa'),
         if (owner) ...[
           const SectionLabel('Owner only'),
           _Rows([

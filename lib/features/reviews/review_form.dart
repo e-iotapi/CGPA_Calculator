@@ -356,42 +356,115 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
               ),
             ),
             const SizedBox(height: 12),
+            // Board ReviewForm: grade and marks side by side.
             AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('GRADE YOU GOT', style: label),
-                  const SizedBox(height: Space.sm),
-                  SelectRow(
-                    text:
-                        _grade == null ? 'Choose a grade' : gradeName(_grade!),
-                    placeholder: _grade == null,
-                    onTap: () async {
-                      final v = await pickSheet<String>(
-                        context,
-                        title: 'Grade',
-                        selected: _grade,
-                        options: [
-                          for (final g in reviewGrades) (g, gradeName(g)),
-                        ],
-                      );
-                      if (v != null) setState(() => _grade = v.value);
-                    },
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 13,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('GRADE', style: label),
+                            const SizedBox(height: 6),
+                            _Field(
+                              onTap: () async {
+                                final v = await pickSheet<String>(
+                                  context,
+                                  title: 'Grade',
+                                  selected: _grade,
+                                  options: [
+                                    for (final g in reviewGrades)
+                                      (g, gradeName(g)),
+                                  ],
+                                );
+                                if (v != null) setState(() => _grade = v.value);
+                              },
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _grade == null
+                                          ? 'Choose'
+                                          : gradeName(_grade!),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TypeScale.body.copyWith(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: p.text,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.expand_more_rounded,
+                                    size: 18,
+                                    color: p.textMuted,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 10,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text('MARKS', style: label),
+                                Text(
+                                  'optional',
+                                  style: TypeScale.caption.copyWith(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w500,
+                                    color: p.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            _Field(
+                              child: TextField(
+                                key: const ValueKey('review-marks'),
+                                controller: _marks,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                onChanged: (_) => setState(() {}),
+                                style: TypeScale.body.copyWith(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: p.text,
+                                ),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  isCollapsed: true,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: Space.md),
-                  AppTextField(
-                    controller: _marks,
-                    label: 'Marks (optional)',
-                    number: true,
-                    error: _marksBad ? 'Marks are between 0 and 1000' : null,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: Space.sm),
-                  Text(
-                    'Shown on your review, still without your name. Pick '
-                    'Not disclosed to keep the grade private.',
-                    style: caption,
-                  ),
+                  if (_marksBad) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Marks are between 0 and 1000',
+                      style: TypeScale.caption.copyWith(color: p.behind),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -455,6 +528,35 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
           ],
         );
       },
+    );
+  }
+}
+
+/// A 40 tall sunken box with an outline, for the grade and marks.
+class _Field extends StatelessWidget {
+  const _Field({required this.child, this.onTap});
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Material(
+      color: p.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: p.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 40,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: child,
+        ),
+      ),
     );
   }
 }

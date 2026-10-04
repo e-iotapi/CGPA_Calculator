@@ -410,7 +410,7 @@ void main() {
       expect(find.text('GRADE NOT DISCLOSED'), findsOneWidget);
       expect(find.text('MARKS 80'), findsOneWidget);
       expect(find.textContaining('Average grade A'), findsOneWidget);
-      expect(find.textContaining('Average marks 80 from 1'), findsOneWidget);
+      expect(find.text('Average grade A · average marks 80'), findsOneWidget);
     },
   );
 
@@ -419,7 +419,7 @@ void main() {
     await review('u1', text: 'one');
     await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
     await t.pumpAndSettle();
-    expect(find.textContaining('Average marks'), findsNothing);
+    expect(find.textContaining('verage marks'), findsNothing);
     expect(find.textContaining('MARKS'), findsNothing);
     expect(find.byTooltip('Course resources'), findsOneWidget);
   });
@@ -652,7 +652,7 @@ void main() {
     expect(find.text('Not disclosed'), findsOneWidget);
     await starsAndYes(t);
     expect(postButton(t), isNotNull); // no marks needed
-    final marks = find.widgetWithText(TextField, 'Marks (optional)');
+    final marks = find.byKey(const ValueKey('review-marks'));
     await t.enterText(marks, '1500');
     await t.pump();
     expect(find.text('Marks are between 0 and 1000'), findsOneWidget);
@@ -687,7 +687,7 @@ void main() {
     await openForm(t);
     t.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(t.view.resetViewInsets);
-    final marks = find.widgetWithText(TextField, 'Marks (optional)');
+    final marks = find.byKey(const ValueKey('review-marks'));
     await t.ensureVisible(marks);
     await t.tap(marks);
     await t.pumpAndSettle();

@@ -226,11 +226,11 @@ class _SchemeEditorPageState extends State<SchemeEditorPage> {
           Container(
             decoration: BoxDecoration(
               color: p.surface,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: CardRow(
               title: 'Credits and grades',
-              subtitle: 'The course card',
+              subtitle: 'Counts as, credits and your grade',
               onTap: () {
                 Navigator.of(context).pop();
                 widget.onEditCourse!();

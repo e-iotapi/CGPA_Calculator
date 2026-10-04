@@ -237,6 +237,8 @@ class SettingsView extends StatelessWidget {
                         _Group([
                           _SwitchItem(
                             label: 'Show Offshoot tab',
+                            subtitle:
+                                'On by default. Off puts More in its place.',
                             value: showOffshoot,
                             onChanged: onShowOffshoot!,
                           ),
@@ -282,6 +284,7 @@ class SettingsView extends StatelessWidget {
                         child: _Item(
                           icon: Icons.play_circle_outline_rounded,
                           label: 'Replay the tour',
+                          subtitle: 'Whole tour or one chapter',
                           onTap: onReplayTour!,
                         ),
                       ),
@@ -524,9 +527,11 @@ class _SwitchItem extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.subtitle,
   });
 
   final String label;
+  final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -543,12 +548,15 @@ class _SwitchItem extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    label,
-                    style: TypeScale.body.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: p.text,
+                  child: _Subtitled(
+                    subtitle,
+                    Text(
+                      label,
+                      style: TypeScale.body.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: p.text,
+                      ),
                     ),
                   ),
                 ),
@@ -558,6 +566,35 @@ class _SwitchItem extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// [child] with a muted line under it, when there is one (Settings board).
+class _Subtitled extends StatelessWidget {
+  const _Subtitled(this.subtitle, this.child);
+  final String? subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = subtitle;
+    if (s == null) return child;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        child,
+        const SizedBox(height: 2),
+        Text(
+          s,
+          style: TypeScale.caption.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: AppPalette.of(context).textMuted,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -572,9 +609,11 @@ class _Item extends StatelessWidget {
     this.icon,
     this.swatch,
     this.chevron = true,
+    this.subtitle,
   });
 
   final String label;
+  final String? subtitle;
   final String? value;
 
   /// The full text, when [value] is shortened (e.g. the discipline code).
@@ -614,11 +653,14 @@ class _Item extends StatelessWidget {
               const SizedBox(width: 10),
             ],
             Expanded(
-              child: _LabelValue(
-                label: label,
-                value: value,
-                valueTooltip: valueTooltip,
-                strong: strong,
+              child: _Subtitled(
+                subtitle,
+                _LabelValue(
+                  label: label,
+                  value: value,
+                  valueTooltip: valueTooltip,
+                  strong: strong,
+                ),
               ),
             ),
             if (chevron && onTap != null) ...[

@@ -311,12 +311,13 @@ class DeptHome extends StatelessWidget {
             onTap: () => context.push(Routes.deptProfessors(campus, dept)),
           ),
           CardRow(
-            leading: IconTile(Icons.volunteer_activism_outlined),
+            leading: IconTile(Icons.check_rounded),
             title: 'Contributor approvals',
-            subtitle: 'Applications and student links',
+            subtitle: 'Applications and link requests',
             minHeight: 58,
             onTap: () => context.push(Routes.deptApprovals(campus, dept)),
           ),
+          gateSwitchEntry(context, campus, dept: dept),
           CardRow(
             leading: IconTile(Icons.badge_outlined),
             title: 'People',
@@ -380,8 +381,6 @@ class DeptHome extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: Space.sm),
-            GateSwitchRow(campus: campus, dept: dept),
             // A secretary never hands over, nor does Electives (B2).
             if (dept != genDept &&
                 !myRoles.value.presidencies.any(

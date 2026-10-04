@@ -75,7 +75,7 @@ void main() {
     roleStore = RoleStore(db, me: 'owner@x.com', myName: 'Owner');
     await t.pumpWidget(app(const Scaffold(body: GateSwitchRow(campus: 'goa'))));
     await t.pumpAndSettle();
-    expect(find.textContaining('Off'), findsOneWidget);
+    expect(find.textContaining('not on yet'), findsOneWidget);
     await t.tap(find.byType(Switch));
     await t.pumpAndSettle();
     expect(find.text('Turn on forced reviews for Goa?'), findsOneWidget);
@@ -85,12 +85,12 @@ void main() {
     await t.tap(find.byType(Switch));
     await t.pumpAndSettle();
     await t.tap(find.text('Turn on'));
-    await until(t, find.textContaining('turned on by Owner'));
+    await until(t, find.textContaining('Turned on by: Owner'));
     expect((await db.collection('reviewGate').doc('goa').get())['on'], isTrue);
-    expect(find.textContaining('turned on by Owner'), findsOneWidget);
+    expect(find.textContaining('Turned on by: Owner'), findsOneWidget);
     // Off: no question.
     await t.tap(find.byType(Switch));
-    await until(t, find.textContaining('Off'));
+    await until(t, find.textContaining('not on yet'));
     expect(find.byType(AlertDialog), findsNothing);
     expect((await db.collection('reviewGate').doc('goa').get())['on'], isFalse);
   });
