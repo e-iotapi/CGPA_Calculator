@@ -39,18 +39,20 @@ test('import: reviews, professors, handouts; a second run adds nothing', () => {
     row({}),
     row({ review_id: 'r2', prof: 'A. Quill', your_grade: '71 ish', advice: 'x' }),
     row({ review_id: 'r3', course_code: '', course_name: '' }),
+    row({ review_id: 'r4', prof: '' }),
   ];
-  const ratings = { r1: { stars: 4, recommend: true }, r2: { stars: 2, recommend: false }, r3: { stars: 3, recommend: true } };
+  const ratings = { r1: { stars: 4, recommend: true }, r2: { stars: 2, recommend: false }, r3: { stars: 3, recommend: true }, r4: { stars: 3, recommend: true } };
   const courses = [{ course_code: 'CS F211', course_handout: 'https://drive.google.com/file/d/x' }];
   const aliases = { 'A. Quill': 'Dr. Alder Quill' };
   const p = planImport({ rows, ratings, courses, idx, live: live(), answers: { aliases }, newId });
-  assert.equal(p.reviews, 2);
+  assert.equal(p.reviews, 3);
   assert.deepEqual(p.skipped.map((s) => s.why), ['no course']);
   assert.equal(p.res.newProfs.length, 1);
   const ops = p.batches.flatMap((b) => b.ops);
   const reviews = ops.filter((o) => /^reviews\/CS F211\/entries\/imp_/.test(o.path));
-  assert.equal(reviews.length, 2);
-  assert.equal(new Set(reviews.map((o) => o.set.professorId)).size, 1);
+  assert.equal(reviews.length, 3);
+  assert.equal(reviews[0].set.professorId, reviews[1].set.professorId);
+  assert.equal(reviews[2].set.professorId, null, 'no professor is null, never an empty id');
   assert.equal(reviews[0].set.grade, 'A-');
   assert.equal(reviews[1].set.grade, undefined);
   assert.equal(reviews[0].set.text, undefined);
@@ -68,7 +70,7 @@ test('import: reviews, professors, handouts; a second run adds nothing', () => {
     }),
   });
   assert.equal(again.reviews, 0);
-  assert.equal(again.kept, 2);
+  assert.equal(again.kept, 3);
   assert.equal(again.handouts, 0);
   assert.equal(again.res.newProfs.length, 0);
 });
@@ -77,7 +79,7 @@ test('rebuild: counters, copies, links and reps from the source docs', () => {
   const ts = { toMillis: () => 5 };
   const e = (id, d) => ({ courseId: 'CS F211', id, d: { campus: 'goa', term: 't', stars: 4, recommend: true, helpful: 1, createdAt: ts, updatedAt: ts, ...d } });
   const plan = planRebuild({
-    entries: [e('a', { professorId: 'p1' }), e('b', { stars: 2, recommend: false }), e('h', { hidden: true })],
+    entries: [e('a', { professorId: 'p1' }), e('b', { stars: 2, recommend: false, professorId: '' }), e('h', { hidden: true })],
     stats: ['courses/CS F211/stats/goa', 'courses/OLD/stats/goa'],
     mirrors: [{ path: 'reviews/CS F211/campus/goa', base: { t: { g: 8, gn: 1 } } }, { path: 'reviews/OLD/campus/goa', base: null }],
     resources: [
@@ -90,7 +92,9 @@ test('rebuild: counters, copies, links and reps from the source docs', () => {
   const ops = Object.fromEntries(plan.batches.flatMap((b) => b.ops).map((o) => [o.path, o.set ?? o.merge]));
   assert.deepEqual(ops['courses/CS F211/stats/goa'], { count: 2, starSum: 6, recommendCount: 1, courseId: 'CS F211', campus: 'goa', scope: 'course', professorId: null });
   assert.equal(ops['courses/CS F211/stats/goa_p1'].count, 1);
-  assert.deepEqual(ops['courses/OLD/stats/goa'], { count: 0, starSum: 0, recommendCount: 0 });
+  assert.equal(ops['courses/OLD/stats/goa'], undefined);
+  assert.equal(plan.batches.flatMap((b) => b.ops).find((o) => o.path === 'courses/OLD/stats/goa').action, 'delete');
+  assert.equal(ops['courses/CS F211/stats/goa_'], undefined, "'' is no professor");
   assert.deepEqual(Object.keys(ops['reviews/CS F211/campus/goa'].r), ['a', 'b']);
   assert.deepEqual(ops['reviews/CS F211/campus/goa'].base, { t: { g: 8, gn: 1 } });
   assert.deepEqual(ops['reviews/OLD/campus/goa'], { k: 'rebuild', r: {} });

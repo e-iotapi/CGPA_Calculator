@@ -207,7 +207,7 @@ export function planImport({ rows, ratings, courses, idx, live, answers = {}, ca
         courseId: cid, department: deptOf(cid), campus, term,
         stars: r.stars, recommend: r.recommend,
         ...(text ? { text } : {}), ...(grade ? { grade } : {}),
-        professorId: (prof && settled.get(normName(prof))) ?? null,
+        professorId: prof ? settled.get(normName(prof)) ?? null : null,
         hidden: false, reason: null, helpful: 0, reports: 0,
         createdAt: { $ts: 1 }, updatedAt: { $ts: 1 },
       },
@@ -278,7 +278,9 @@ export function planRebuild(src, now = Date.now()) {
   const stats = new Map();
   const index = Object.fromEntries(CAMPUSES.map((c) => [c, {}]));
   const mirrors = new Map();
-  for (const { courseId: c, id, d } of src.entries) {
+  for (const { courseId: c, id, d: raw } of src.entries) {
+    // An empty professor id is no professor (an early import wrote '').
+    const d = { ...raw, professorId: raw.professorId || null };
     if (d.hidden || !CAMPUSES.includes(d.campus)) continue;
     for (const p of d.professorId == null ? [null] : [null, d.professorId]) {
       const path = `courses/${c}/stats/${statsId(d.campus, p)}`;
@@ -303,8 +305,8 @@ export function planRebuild(src, now = Date.now()) {
 
   const ops = [];
   for (const [path, t] of stats) ops.push({ path, set: t });
-  // A counter no live review backs any more reads zero.
-  for (const path of src.stats) if (!stats.has(path)) ops.push({ path, merge: { count: 0, starSum: 0, recommendCount: 0 } });
+  // A counter no live review backs any more goes.
+  for (const path of src.stats) if (!stats.has(path)) ops.push({ path, action: 'delete' });
   const bases = new Map(src.mirrors.filter((x) => x.base).map((x) => [x.path, x.base]));
   for (const { path } of src.mirrors) if (!mirrors.has(path)) mirrors.set(path, {});
   const marks = Object.fromEntries(CAMPUSES.map((c) => [c, { reviews: { $inc: 1 }, resources: { $inc: 1 }, reps: { $inc: 1 } }]));
@@ -346,7 +348,7 @@ export function planRebuild(src, now = Date.now()) {
   return {
     batches,
     counts: {
-      stats: stats.size, zeroed: src.stats.filter((p) => !stats.has(p)).length, mirrors: mirrors.size,
+      stats: stats.size, removed: src.stats.filter((p) => !stats.has(p)).length, mirrors: mirrors.size,
       reviews: Object.values(index).reduce((n, c) => n + Object.values(c).reduce((m, t) => m + t.count, 0), 0),
       links: Object.fromEntries(CAMPUSES.map((c) => [c, Object.keys(links[c]).length])),
       reps: Object.fromEntries(CAMPUSES.map((c) => [c, Object.keys(reps[c]).length])),
