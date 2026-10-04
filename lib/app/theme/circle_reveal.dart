@@ -10,28 +10,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-/// The theme snapshot's pixel ratio: the screen's own, so the reveal's
-/// pictures are as sharp as the live app (a lower one showed as a clear
-/// resolution drop, owner 2026-10-04); 1 on a low tier device or on iOS,
-/// where Safari caps canvas memory (UI_OPT O1.3, O8.1). Past
-/// [maxSnapshotPixels] (a 4K screen) it drops to stay within memory.
-double snapshotRatio({
-  required double dpr,
-  required DeviceTier tier,
-  required bool ios,
-  Size? size,
-}) {
-  final r = tier == DeviceTier.low || ios ? 1.0 : dpr;
-  if (size == null || size.isEmpty) return r;
-  return math.min(r, math.sqrt(maxSnapshotPixels / (size.width * size.height)));
-}
-
-/// A 4K screen's worth.
-const double maxSnapshotPixels = 3840 * 2160;
-
-/// Read once: every iOS browser is Safari underneath.
-final bool _onIos = installTarget().device == InstallDevice.ios;
-
 /// Where the last touch or click landed, in global coordinates. Pages and the
 /// theme switch grow their circle from here.
 abstract final class TapOrigin {
@@ -269,15 +247,11 @@ class _ThemeRevealState extends State<ThemeReveal>
   RenderRepaintBoundary? get _box =>
       _boundary.currentContext?.findRenderObject() as RenderRepaintBoundary?;
 
-  /// UI_OPT O1.3: a cheaper snapshot, capped by device tier, tried through
-  /// the synchronous path first.
+  /// A snapshot at the app's own pixel ratio on every device: any lower one
+  /// shows as a clear resolution drop (owner, 2026-10-04). Tried through the
+  /// synchronous path first.
   Future<ui.Image> _capture(RenderRepaintBoundary box) {
-    final r = snapshotRatio(
-      dpr: MediaQuery.devicePixelRatioOf(context),
-      tier: deviceTier,
-      ios: _onIos,
-      size: box.size,
-    );
+    final r = MediaQuery.devicePixelRatioOf(context);
     ThemeReveal.captures++;
     try {
       return Future.value(box.toImageSync(pixelRatio: r));
@@ -319,43 +293,47 @@ class _ThemeRevealState extends State<ThemeReveal>
       apply();
       return;
     }
-    ui.Image image;
-    if (_preparedImage != null) {
-      image = _preparedImage!;
-      _preparedImage = null;
-      _expireTimer?.cancel();
-    } else {
-      image = await _capture(box);
+    ui.Image? image = _preparedImage, next;
+    _preparedImage = null;
+    _expireTimer?.cancel();
+    var applied = false;
+    // Any failure (a snapshot Safari refuses) still switches the theme and
+    // lifts the cover: without this the old picture stayed over the app and
+    // the button looked dead on iPhone (owner, 2026-10-04).
+    try {
+      image ??= await _capture(box);
+      if (!mounted) return;
+      // O1.4: the cover shows, hidden and motionless, before the theme
+      // changes.
+      setState(() {
+        _old = image;
+        _origin = TapOrigin.last ?? box.size.center(Offset.zero);
+        _anim.value = 0;
+      });
+      await Future<void>.delayed(Duration.zero); // the cover gets to paint
+      apply(); // the one rebuild happens under the cover
+      applied = true;
+      await Future<void>.delayed(Duration.zero); // laid out, still hidden
+      // The new screen is captured too and the live app sits out the
+      // animation: on the web every frame replays the whole app's drawing,
+      // so a text-heavy page under the hole ran the reveal at 25 fps on a
+      // big window. Two images per frame keep it smooth (owner, 2026-10-04).
+      await WidgetsBinding.instance.endOfFrame; // the new theme is painted
+      if (!mounted) return;
+      next = await _capture(box);
+      if (!mounted) return;
+      setState(() => _new = next);
+      FrameStats.start('theme');
+      await _anim.forward(from: 0); // now only the hole moves
+      FrameStats.stop();
+    } on Object catch (e) {
+      debugPrint('[Pointer theme] reveal failed: $e');
+      if (!applied) apply();
+    } finally {
+      if (mounted) setState(() => _old = _new = null);
+      image?.dispose();
+      next?.dispose();
     }
-    if (!mounted) return image.dispose();
-    // O1.4: the cover shows, hidden and motionless, before the theme changes.
-    setState(() {
-      _old = image;
-      _origin = TapOrigin.last ?? box.size.center(Offset.zero);
-      _anim.value = 0;
-    });
-    await Future<void>.delayed(Duration.zero); // the cover gets to paint
-    apply(); // the one rebuild happens under the cover
-    await Future<void>.delayed(Duration.zero); // laid out, still hidden
-    // The new screen is captured too and the live app sits out the
-    // animation: on the web every frame replays the whole app's drawing, so
-    // a text-heavy page under the hole ran the reveal at 25 fps on a big
-    // window. Two images per frame keep it smooth (owner, 2026-10-04).
-    await WidgetsBinding.instance.endOfFrame; // the new theme is painted
-    if (!mounted) return image.dispose();
-    final next = await _capture(box);
-    if (!mounted) {
-      next.dispose();
-      return image.dispose();
-    }
-    setState(() => _new = next);
-    FrameStats.start('theme');
-    await _anim.forward(from: 0); // now only the hole moves
-    FrameStats.stop();
-    if (!mounted) return;
-    setState(() => _old = _new = null);
-    image.dispose();
-    next.dispose();
   }
 
   @override
