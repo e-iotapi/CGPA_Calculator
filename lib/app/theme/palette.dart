@@ -124,9 +124,30 @@ class AppPalette extends ThemeExtension<AppPalette> {
           ? const GradeTone(Color(0xFF3B2F16), Color(0xFFF1C77A))
           : const GradeTone(Color(0xFFFAEFD8), Color(0xFF7A5410));
 
+  /// Fill of a small tag chip (a branch beside a name).
+  Color get chipFill => isDark ? surfaceSunken : const Color(0xFFE4E4DC);
+
   /// Tone for a course that exists but does not count (e.g. a dropped
   /// offshoot course).
   GradeTone get mutedTone => (isDark ? _darkTones : _lightTones)['']!;
+
+  /// The Calendar's NOW line and its label (boards FlS_CalendarWeek).
+  Color get nowLine => isDark ? const Color(0xFFE8845A) : const Color(0xFFC8501A);
+
+  /// Hour labels on the week grid, fainter than [textMuted].
+  Color get faint => isDark ? const Color(0xFF8F8F85) : const Color(0xFF84847A);
+
+  /// A destructive action's ink, and the wash behind its icon.
+  Color get danger => isDark ? const Color(0xFFE8928A) : const Color(0xFF9B2C1F);
+  Color get dangerSoft => isDark ? const Color(0xFF3A201C) : const Color(0xFFF3E0DC);
+
+  /// A bottom sheet's or a small dialog's fill (boards PfCalSheet and
+  /// PfCalSheetDark) and the round close button on it.
+  Color get sheetFill => isDark ? const Color(0xFF161614) : const Color(0xFFF6F6F2);
+  Color get closeFill => isDark ? surfaceSunken : const Color(0xFFE8E8E1);
+
+  /// What dims the page behind a sheet or dialog.
+  Color get scrim => isDark ? const Color(0x9E000000) : const Color(0x5717170F);
 
   static final _themes = <String, ThemeData>{};
 

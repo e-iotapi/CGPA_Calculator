@@ -12,6 +12,7 @@ import 'package:cgpa_calculator/core/timetable/timetable.dart';
 import 'package:cgpa_calculator/core/timetable/timetable_store.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/calendar/add_course_sheet.dart';
+import 'package:cgpa_calculator/features/calendar/cal_sheet.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_controller.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_data.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_time.dart';
@@ -27,11 +28,9 @@ import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
-import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/offline_strip.dart';
 import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
-import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
@@ -178,10 +177,10 @@ class _CalendarPageState extends State<CalendarPage> {
 
     final top = <Widget>[
       _header(p),
-      const SizedBox(height: 10),
+      const SizedBox(height: 12),
       KeyedSubtree(
         key: tourKey('cal.views'),
-        child: SegmentedTrack<_View>(
+        child: _Tabs(
           tabs: const [
             (_View.month, 'Month'),
             (_View.week, 'Week'),
@@ -191,7 +190,7 @@ class _CalendarPageState extends State<CalendarPage> {
           onChanged: (v) => setState(() => _view = v),
         ),
       ),
-      const SizedBox(height: 10),
+      if (_view != _View.month) _navRow(p),
       _actions(p),
       ..._notices(p),
     ];
@@ -270,21 +269,32 @@ class _CalendarPageState extends State<CalendarPage> {
                               ],
                             ],
                           )
-                          : Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              18,
-                              Space.lg,
-                              18,
-                              Space.sm,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                ...top,
-                                const SizedBox(height: Space.sm),
-                                Expanded(child: _timeView(all)),
-                              ],
-                            ),
+                          : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  18,
+                                  Space.lg,
+                                  18,
+                                  0,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: top,
+                                ),
+                              ),
+                              const SizedBox(height: Space.sm),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: _timeView(all),
+                                ),
+                              ),
+                            ],
                           ),
                 ),
                 Padding(
@@ -299,20 +309,96 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  /// Today and Add: Today only where a date is in view that can be left.
-  Widget _actions(AppPalette p) => Wrap(
-    spacing: Space.sm,
-    runSpacing: Space.xs,
-    children: [
-      if (_view != _View.month)
-        OutlinedPill(
-          label: 'Today',
-          onPressed: _focus == _todayStr ? null : () => setState(() => _focus = _todayStr),
-        ),
-      if (_tt != null && _cal != null)
-        OutlinedPill(label: 'Add', onPressed: _add),
-    ],
-  );
+  /// Add (the boards leave it out; it keeps its place under the tabs).
+  Widget _actions(AppPalette p) => _tt != null && _cal != null
+      ? Padding(
+          padding: const EdgeInsets.only(top: Space.sm),
+          child: Row(
+            children: [
+              Flexible(child: IntrinsicWidth(child: OutlinedPill(label: 'Add', onPressed: _add))),
+            ],
+          ),
+        )
+      : const SizedBox.shrink();
+
+  /// Week / Day: what is in view, a Today pill and the two chevrons.
+  Widget _navRow(AppPalette p) {
+    final onToday = _focus == _todayStr;
+    final week = _view == _View.week;
+    final a = parseDay(mondayOf(_focus)), b = a.add(const Duration(days: 6));
+    final m = monthNames[b.month - 1].substring(0, 3);
+    final range = a.month == b.month
+        ? '${a.day} – ${b.day} $m'
+        : '${a.day} ${monthNames[a.month - 1].substring(0, 3)} – ${b.day} $m';
+    Widget chevron(IconData i, String tip, VoidCallback f) => CircleIconButton(
+      icon: i,
+      tooltip: tip,
+      onPressed: f,
+      size: 38,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  week ? 'Week of' : 'Showing',
+                  style: TypeScale.caption.copyWith(color: p.textMuted),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    week ? range : dateLabel(_focus),
+                    maxLines: 1,
+                    style: TypeScale.title.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      height: 1.2,
+                      color: p.text,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Semantics(
+            button: true,
+            enabled: !onToday,
+            child: Material(
+              color: Colors.transparent,
+              shape: StadiumBorder(side: BorderSide(color: p.outline)),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onToday ? null : () => setState(() => _focus = _todayStr),
+                child: Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Today',
+                    style: TypeScale.body.copyWith(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: onToday ? p.textMuted : p.text,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          chevron(Icons.chevron_left_rounded, 'Previous $_unit', () => _step(-1)),
+          const SizedBox(width: 8),
+          chevron(Icons.chevron_right_rounded, 'Next $_unit', () => _step(1)),
+        ],
+      ),
+    );
+  }
 
   List<Widget> _notices(AppPalette p) {
     final published = _tt != null;
@@ -369,22 +455,6 @@ class _CalendarPageState extends State<CalendarPage> {
   });
 
   String get _unit => switch (_view) { _View.month => 'month', _View.week => 'week', _View.day => 'day' };
-
-  String get _title {
-    switch (_view) {
-      case _View.month:
-        return '${_months[_month.month - 1]} ${_month.year}';
-      case _View.week:
-        final a = parseDay(mondayOf(_focus)), b = a.add(const Duration(days: 6));
-        final m = monthNames[b.month - 1].substring(0, 3);
-        return a.month == b.month
-            ? '${a.day} – ${b.day} $m ${b.year}'
-            : '${a.day} ${monthNames[a.month - 1].substring(0, 3)} – ${b.day} $m ${b.year}';
-      case _View.day:
-        final d = parseDay(_focus);
-        return '${dateLabel(_focus)} ${d.year}';
-    }
-  }
 
   /// Week (Mon-Sat, Sunday only when it has something) or Day.
   Widget _timeView(List<CalendarEntry> all) {
@@ -499,16 +569,14 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _blockTap(Occurrence o) async {
-    final act = await showModalBottomSheet<Object>(
-      context: context,
-      isScrollControlled: true,
-      builder:
-          (_) => ClassSheet(
-            occ: o,
-            timetable: _tt,
-            state: _state,
-            canOpenCourse: allCourses().any((c) => c.id == o.courseId),
-          ),
+    final act = await showCalSheet<Object>(
+      context,
+      (_) => ClassSheet(
+        occ: o,
+        timetable: _tt,
+        state: _state,
+        canOpenCourse: allCourses().any((c) => c.id == o.courseId),
+      ),
     );
     if (act == null || !mounted) return;
     final sk = o.sectionKey;
@@ -522,10 +590,9 @@ class _CalendarPageState extends State<CalendarPage> {
       case ClassAct.changeTime:
         final sec = sectionOf(_tt, o);
         if (sec == null || sk == null) return;
-        final r = await showModalBottomSheet<TimingsResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => TimingsSheet(sectionKey: sk, section: sec, state: _state),
+        final r = await showCalSheet<TimingsResult>(
+          context,
+          (_) => TimingsSheet(sectionKey: sk, section: sec, state: _state),
         );
         if (r == null) return;
         await _write((c) async {
@@ -551,91 +618,90 @@ class _CalendarPageState extends State<CalendarPage> {
         );
         if (d != null) await _write((c) => c.setRepeatUntil(o.courseId, dayStr(d)));
       case ClassAct.removeOne:
-        if (await confirmDialog(
+        if (await confirmRemove(
           context,
           title: 'Remove this day?',
           body: '${o.courseId} on ${dateLabel(o.date)} leaves your calendar. '
-              'Your marks and grades stay.',
-          action: 'Remove',
-          danger: true,
+              'Your grades stay.',
         )) {
           await _write((c) => c.removeOccurrence(slotOf(o), o.date));
         }
       case ClassAct.removeCourse:
-        if (await confirmDialog(
+        if (await confirmRemove(
           context,
-          title: 'Remove ${o.courseId}?',
-          body: 'Its classes and exams leave your calendar. Your marks and '
-              'grades stay.',
-          action: 'Remove',
-          danger: true,
+          title: 'Remove ${o.courseId} from your timetable?',
+          body: 'This only hides it from the timetable. Your grades stay.',
         )) {
           await _write((c) => c.removeCourse(o.courseId));
         }
       case ClassAct.hideExams:
         await _write((c) => c.setExamsShown(o.courseId, false));
       case ClassAct.removeCustom:
-        if (await confirmDialog(
+        if (await confirmRemove(
           context,
           title: 'Remove this event?',
           body: '${o.title} leaves your calendar.',
-          action: 'Remove',
-          danger: true,
         )) {
           await _write((c) => c.removeCustom(o.id.split('|')[1]));
         }
     }
   }
 
-  Widget _header(AppPalette p) => Row(
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'What is coming',
-              style: TypeScale.caption.copyWith(
-                fontSize: 12,
-                color: p.textMuted,
+  /// The month chevrons only on Month; Week and Day have their own row.
+  Widget _header(AppPalette p) {
+    final f = parseDay(_focus);
+    final title = _view == _View.month
+        ? '${_months[_month.month - 1]} ${_month.year}'
+        : '${_months[f.month - 1]} ${f.year}';
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'What is coming',
+                style: TypeScale.caption.copyWith(fontSize: 12, color: p.textMuted),
               ),
-            ),
-            // Scales down rather than cutting "September 2026" at 320
-            // (T9.1).
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _title,
-                maxLines: 1,
-                style: TypeScale.title.copyWith(fontSize: 24, color: p.text),
+              // Scales down rather than cutting "September 2026" at 320
+              // (T9.1).
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  style: TypeScale.title.copyWith(fontSize: 24, color: p.text),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      CircleIconButton(
-        icon: Icons.chevron_left_rounded,
-        tooltip: 'Previous $_unit',
-        onPressed: () => _step(-1),
-        size: 40,
-      ),
-      const SizedBox(width: 7),
-      CircleIconButton(
-        icon: Icons.chevron_right_rounded,
-        tooltip: 'Next $_unit',
-        onPressed: () => _step(1),
-        size: 40,
-      ),
-      const SizedBox(width: 7),
-      CircleIconButton(
-        icon: Icons.arrow_back_rounded,
-        tooltip: 'Back',
-        onPressed: () => Navigator.of(context).maybePop(),
-        size: 40,
-      ),
-    ],
-  );
+        if (_view == _View.month) ...[
+          CircleIconButton(
+            icon: Icons.chevron_left_rounded,
+            tooltip: 'Previous month',
+            onPressed: () => _step(-1),
+            size: 40,
+          ),
+          const SizedBox(width: 7),
+          CircleIconButton(
+            icon: Icons.chevron_right_rounded,
+            tooltip: 'Next month',
+            onPressed: () => _step(1),
+            size: 40,
+          ),
+          const SizedBox(width: 7),
+        ],
+        CircleIconButton(
+          icon: Icons.arrow_back_rounded,
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+          size: 40,
+        ),
+      ],
+    );
+  }
 
   Widget _grid(AppPalette p, List<CalendarEntry> all) {
     final dated = {for (final e in all) e.date};
@@ -850,6 +916,58 @@ class _CalendarPageState extends State<CalendarPage> {
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: p.textMuted,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The Month / Week / Day track (board FlS_Calendar): 44 tall, ink selected.
+class _Tabs extends StatelessWidget {
+  const _Tabs({required this.tabs, required this.value, required this.onChanged});
+
+  final List<(_View, String)> tabs;
+  final _View value;
+  final ValueChanged<_View> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: p.chipFill,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        spacing: 2,
+        children: [
+          for (final (v, label) in tabs)
+            Expanded(
+              child: Semantics(
+                selected: v == value,
+                button: true,
+                child: Material(
+                  color: v == value ? p.inverse : Colors.transparent,
+                  borderRadius: BorderRadius.circular(19),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(19),
+                    onTap: () => onChanged(v),
+                    child: Center(
+                      child: Text(
+                        label,
+                        style: TypeScale.body.copyWith(
+                          fontSize: 12.5,
+                          fontWeight: v == value ? FontWeight.w700 : FontWeight.w600,
+                          color: v == value ? p.onInverse : p.icon,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
