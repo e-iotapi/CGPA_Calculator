@@ -2,12 +2,12 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/contrib/contributor_store.dart';
-import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:cgpa_calculator/features/contribute/pending_page.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +23,7 @@ class ApplyPage extends StatefulWidget {
 
 class _ApplyPageState extends State<ApplyPage> {
   final _name = TextEditingController();
-  bool _busy = false, _sent = false, _failed = false;
+  bool _busy = false, _sent = false, _failed = false, _ack = false;
   String? _nameError, _error;
 
   @override
@@ -84,10 +84,7 @@ class _ApplyPageState extends State<ApplyPage> {
     if (_sent) return const PendingPage();
     final p = AppPalette.of(context);
     final campus = viewCampus(), dept = myContribDept();
-    const header = PageHeader(
-      eyebrow: 'CONTRIBUTE',
-      title: 'Become a contributor',
-    );
+    const header = PageHeader(eyebrow: 'CONTRIBUTE', title: 'Apply');
     if (roleStore == null || campus == null || dept == null) {
       return PageFrame(
         header: header,
@@ -117,6 +114,18 @@ class _ApplyPageState extends State<ApplyPage> {
         final reason = mine.request?.reason ?? '';
         return PageFrame(
           header: header,
+          bottom: BottomAction(
+            child: PrimaryButton(
+              label:
+                  _busy
+                      ? 'Sending…'
+                      : _failed
+                      ? 'Try again'
+                      : 'Send application',
+              onPressed:
+                  _busy || !_ack ? null : () => _apply(mine, campus, dept),
+            ),
+          ),
           children: [
             if (state == ContribState.declined) ...[
               Notice(
@@ -130,35 +139,13 @@ class _ApplyPageState extends State<ApplyPage> {
               ),
               const SizedBox(height: Space.sm),
             ],
-            Text(
-              'How it works',
-              style: TypeScale.body.copyWith(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: p.text,
-              ),
-            ),
-            const SizedBox(height: Space.xs),
-            for (final line in const [
-              'Your links go live straight away.',
-              'A president approves them within 15 days, or they are hidden.',
-              'Points are counted after approval: 4 for every link.',
-            ])
-              Padding(
-                padding: const EdgeInsets.only(bottom: Space.xs),
-                child: Text(
-                  '·  $line',
-                  style: TypeScale.caption.copyWith(
-                    fontSize: 12,
-                    height: 1.4,
-                    color: p.textMuted,
-                  ),
-                ),
-              ),
+            const _HowItWorks(),
             const SizedBox(height: Space.md),
             AppTextField(
               controller: _name,
-              label: 'Username',
+              label: 'Contributor username',
+              labelAbove: true,
+              fill: AppPalette.of(context).surface,
               hint: 'quiet_owl',
               error: _nameError,
               onChanged: (_) => setState(() => _nameError = null),
@@ -167,35 +154,139 @@ class _ApplyPageState extends State<ApplyPage> {
               padding: const EdgeInsets.only(top: Space.xs),
               child: Text(
                 have == null
-                    ? 'Shown on the leaderboard instead of your name. 3 to 20 '
-                        'letters, numbers or underscores. You cannot change it '
-                        'later.'
+                    ? 'This is the name other students see. It appears on the '
+                        'leaderboard and beside every link you add, instead of '
+                        'your real name or email. Use 3-20 letters or numbers, '
+                        'no spaces. You can\'t change it later.'
                     : 'Your username on the leaderboard.',
                 style: TypeScale.caption.copyWith(color: p.textMuted),
               ),
             ),
-            const SizedBox(height: Space.md),
             if (_error != null) ...[
-              Notice(warning: true, text: TextSpan(text: _error)),
               const SizedBox(height: Space.sm),
+              Notice(warning: true, text: TextSpan(text: _error)),
             ],
-            Text(
-              'You apply to the ${departmentName(dept)} president.',
-              style: TypeScale.caption.copyWith(color: p.textMuted),
-            ),
-            const SizedBox(height: Space.sm),
-            PrimaryButton(
-              label:
-                  _busy
-                      ? 'Sending…'
-                      : _failed
-                      ? 'Try again'
-                      : 'Apply',
-              onPressed: _busy ? null : () => _apply(mine, campus, dept),
+            Semantics(
+              checked: _ack,
+              label: 'I understand how approval and points work',
+              excludeSemantics: true,
+              child: InkWell(
+                onTap: () => setState(() => _ack = !_ack),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: _ack ? p.inverse : Colors.transparent,
+                          borderRadius: BorderRadius.circular(7),
+                          border:
+                              _ack
+                                  ? null
+                                  : Border.all(color: p.outline, width: 1.5),
+                        ),
+                        child:
+                            _ack
+                                ? Icon(
+                                  Icons.check_rounded,
+                                  size: 15,
+                                  color: p.onInverse,
+                                )
+                                : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'I understand how approval and points work',
+                          style: TypeScale.body.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: p.text,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+/// The rules card: what a contributor signs up for.
+class _HowItWorks extends StatelessWidget {
+  const _HowItWorks();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final base = TypeScale.body.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      height: 1.45,
+      color: p.text,
+    );
+    final bold = base.copyWith(fontWeight: FontWeight.w800);
+    final lines = <List<InlineSpan>>[
+      [const TextSpan(text: 'Your links go live at once.')],
+      [
+        const TextSpan(text: 'An approver confirms each link within '),
+        TextSpan(text: '15 days', style: bold),
+        const TextSpan(text: '.'),
+      ],
+      [
+        const TextSpan(text: 'Points (+4 per link) count only '),
+        TextSpan(text: 'after approval', style: bold),
+        const TextSpan(text: '.'),
+      ],
+      [
+        const TextSpan(
+          text:
+              'Not approved in 15 days: the link is hidden from everyone, '
+              'and earns nothing.',
+        ),
+      ],
+      [const TextSpan(text: 'You can edit your links; you can\'t delete them.')],
+    ];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'HOW IT WORKS',
+            style: TypeScale.label.copyWith(color: p.textMuted),
+          ),
+          for (final l in lines)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(Icons.check_rounded, size: 15, color: p.accent),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text.rich(TextSpan(style: base, children: l)),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

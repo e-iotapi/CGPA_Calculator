@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:cgpa_calculator/features/resources/link_sheet.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
@@ -50,6 +51,34 @@ class _AddPageState extends State<AddPage> {
     super.dispose();
   }
 
+  Future<void> _pickDept(List<String> depts) async {
+    final v = await showModalBottomSheet<String>(
+      context: context,
+      builder:
+          (context) => SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final d in depts)
+                  ListTile(
+                    title: Text('$d · ${departmentName(d)}'),
+                    onTap: () => Navigator.of(context).pop(d),
+                  ),
+              ],
+            ),
+          ),
+    );
+    if (v != null && mounted) {
+      setState(() {
+        _dept = v;
+        // The picked course belongs to the old department.
+        if (_course && _courseId != null && deptOf(_courseId!) != v) {
+          _courseId = null;
+        }
+      });
+    }
+  }
+
   Future<void> _publish(String campus, bool direct) async {
     var ok = true;
     final filled = <_Row>[];
@@ -61,8 +90,11 @@ class _AddPageState extends State<AddPage> {
       ok &= r.nameError == null && r.urlError == null;
       filled.add(r);
     }
-    final dept = _course ? (_courseId == null ? null : deptOf(_courseId!)) : _dept;
-    setState(() => _error = dept == null ? 'Choose where these links belong.' : null);
+    final dept =
+        _course ? (_courseId == null ? null : deptOf(_courseId!)) : _dept;
+    setState(
+      () => _error = dept == null ? 'Choose where these links belong.' : null,
+    );
     if (!ok || dept == null || filled.isEmpty) {
       setState(() {});
       return;
@@ -130,7 +162,14 @@ class _AddPageState extends State<AddPage> {
       );
     }
     final depts = departmentsAt(campus);
-    _dept ??= depts.contains(myContribDept()) ? myContribDept() : depts.firstOrNull;
+    final n = _rows
+        .where(
+          (r) => r.name.text.trim().isNotEmpty || r.url.text.trim().isNotEmpty,
+        )
+        .length
+        .clamp(1, 999);
+    _dept ??=
+        depts.contains(myContribDept()) ? myContribDept() : depts.firstOrNull;
     return PageFrame(
       header: header,
       bottom: BottomAction(
@@ -140,61 +179,99 @@ class _AddPageState extends State<AddPage> {
                   ? 'Publishing…'
                   : _error != null && !_error!.startsWith('Choose')
                   ? 'Try again'
-                  : 'Publish',
+                  : 'Publish $n ${n == 1 ? 'link' : 'links'}',
           onPressed: _busy ? null : () => _publish(campus, direct),
         ),
       ),
       children: [
         const OfflineStrip(),
-        SegmentedPair<bool>(
-          a: (false, 'Department'),
-          b: (true, 'A course'),
+        SegmentedTrack<bool>(
+          height: 42,
+          tabs: const [(false, 'Department'), (true, 'A course')],
           value: _course,
           onChanged: (v) => setState(() => _course = v),
         ),
-        const SizedBox(height: Space.sm),
-        if (!_course)
-          DropdownButtonFormField<String>(
-            initialValue: _dept,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Department'),
-            items: [
-              for (final d in depts)
-                DropdownMenuItem(value: d, child: Text(departmentName(d))),
+        const SizedBox(height: Space.xs),
+        _Labelled(
+          'DEPARTMENT · ANY ON CAMPUS',
+          SelectRow(
+            text:
+                _dept == null ? 'Choose' : '$_dept · ${departmentName(_dept!)}',
+            onTap: () => _pickDept(depts),
+            fill: p.surface,
+          ),
+        ),
+        if (_course)
+          _Labelled(
+            'COURSE · ANY ON CAMPUS',
+            _CoursePicker(
+              search: _search,
+              dept: _dept,
+              picked: _courseId,
+              onPick:
+                  (c) => setState(() {
+                    _courseId = c;
+                    if (c != null) _dept = deptOf(c);
+                  }),
+            ),
+          ),
+        const Note(
+          'Pick any department or course on campus. You are not limited to '
+          'your own.',
+        ),
+        const SizedBox(height: Space.xs),
+        AppCard(
+          padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
+          radius: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (i, r) in _rows.indexed) ...[
+                if (i > 0) ...[
+                  const SizedBox(height: 10),
+                  Divider(height: 1, color: p.divider),
+                  const SizedBox(height: 10),
+                ],
+                _Cap('LINK ${i + 1}'),
+                const SizedBox(height: 10),
+                AppTextField(
+                  controller: r.name,
+                  label: 'Title',
+                  hint: 'Lecture notes',
+                  labelAbove: true,
+                  fill: p.surface,
+                  error: r.nameError,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 10),
+                AppTextField(
+                  controller: r.url,
+                  label: 'URL',
+                  hint: 'https://',
+                  labelAbove: true,
+                  fill: p.surface,
+                  error: r.urlError,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ],
             ],
-            onChanged: (v) => setState(() => _dept = v),
-          )
-        else
-          _CoursePicker(
-            search: _search,
-            picked: _courseId,
-            onPick: (c) => setState(() => _courseId = c),
           ),
-        const SizedBox(height: Space.md),
-        for (final (i, r) in _rows.indexed) ...[
-          AppTextField(
-            controller: r.name,
-            label: 'Name',
-            hint: 'Lecture notes',
-            error: r.nameError,
+        ),
+        TextButton.icon(
+          onPressed: () => setState(() => _rows.add(_Row())),
+          style: TextButton.styleFrom(
+            alignment: Alignment.centerLeft,
+            minimumSize: const Size(0, Sizes.minTouch),
+            padding: EdgeInsets.zero,
+            foregroundColor: p.accent,
           ),
-          const SizedBox(height: Space.xs),
-          AppTextField(
-            controller: r.url,
-            label: 'Link',
-            hint: 'https://',
-            error: r.urlError,
-          ),
-          if (i < _rows.length - 1)
-            Divider(height: Space.lg, color: p.divider),
-        ],
-        const SizedBox(height: Space.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
-            onPressed: () => setState(() => _rows.add(_Row())),
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Another link'),
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text(
+            'Another link',
+            style: TypeScale.body.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         if (_error != null) ...[
@@ -212,13 +289,47 @@ class _AddPageState extends State<AddPage> {
   }
 }
 
+/// The small upper-case caption above a field or a card (board `.lbl`).
+class _Cap extends StatelessWidget {
+  const _Cap(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: TypeScale.label.copyWith(
+      fontSize: 10.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+      color: AppPalette.of(context).textMuted,
+    ),
+  );
+}
+
+class _Labelled extends StatelessWidget {
+  const _Labelled(this.label, this.child);
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [_Cap(label), const SizedBox(height: 5), child],
+    ),
+  );
+}
+
 class _CoursePicker extends StatefulWidget {
   const _CoursePicker({
     required this.search,
+    required this.dept,
     required this.picked,
     required this.onPick,
   });
   final TextEditingController search;
+  final String? dept;
   final String? picked;
   final ValueChanged<String?> onPick;
 
@@ -232,34 +343,23 @@ class _CoursePickerState extends State<_CoursePicker> {
     final p = AppPalette.of(context);
     final picked = widget.picked;
     if (picked != null) {
-      return Row(
-        children: [
-          Expanded(
-            child: Text(
-              '$picked · ${courseTitle(picked)}',
-              style: TypeScale.body.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: p.text,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => widget.onPick(null),
-            child: const Text('Change'),
-          ),
-        ],
+      return SelectRow(
+        text: '$picked · ${courseTitle(picked)}',
+        onTap: () => widget.onPick(null),
+        fill: p.surface,
       );
     }
     final q = widget.search.text.trim().toLowerCase();
-    final hits = q.isEmpty
-        ? const <String>[]
-        : [
-          for (final m in catalog.master)
-            if (m.id.toLowerCase().contains(q) ||
-                m.title.toLowerCase().contains(q))
-              m.id,
-        ].take(8).toList();
+    final hits =
+        q.isEmpty
+            ? const <String>[]
+            : [
+              for (final m in catalog.master)
+                if ((widget.dept == null || deptOf(m.id) == widget.dept) &&
+                    (m.id.toLowerCase().contains(q) ||
+                        m.title.toLowerCase().contains(q)))
+                  m.id,
+            ].take(8).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

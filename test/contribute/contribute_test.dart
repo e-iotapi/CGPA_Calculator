@@ -16,7 +16,6 @@ import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
-import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show SetOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -109,9 +108,9 @@ void main() {
       ),
     );
     await t.pumpWidget(view(() {}));
-    expect(find.text('Become a contributor'), findsOneWidget);
+    expect(find.text('Apply now'), findsOneWidget);
     await t.pumpWidget(view(null));
-    expect(find.text('Become a contributor'), findsNothing);
+    expect(find.text('Apply now'), findsNothing);
   });
 
   Future<void> open(WidgetTester t, As who, Widget page) async {
@@ -144,10 +143,10 @@ void main() {
     );
     await settle(t);
     expect(find.text('Not a good fit'), findsOneWidget);
-    expect(find.widgetWithText(PrimaryButton, 'Send'), findsOneWidget);
+    expect(find.text('Send'), findsOneWidget);
     await t.tap(find.text('Not a good fit'));
     await t.pump();
-    await t.tap(find.widgetWithText(PrimaryButton, 'Send'));
+    await t.tap(find.text('Send'));
     await settle(t);
     expect(find.text('Dev Patel'), findsNothing);
     final r = await t.runAsync(
@@ -168,22 +167,26 @@ void main() {
       ).claimUsername('goa', 'taken_name'),
     );
     await open(t, As.student, const ApplyPage());
-    expect(find.text('Become a contributor'), findsOneWidget);
-    expect(find.textContaining('A president approves them'), findsOneWidget);
-    final field = find.widgetWithText(TextField, 'Username');
+    expect(find.text('Apply'), findsOneWidget);
+    expect(find.textContaining('An approver confirms each link'), findsOneWidget);
+    final field = find.byType(TextField);
     t.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(t.view.resetViewInsets);
     await t.pump();
     expect(t.getRect(field).bottom, lessThan(844 - 300 / 3));
     await t.enterText(field, 'taken_name');
-    await t.tap(find.text('Apply'));
+    t.view.resetViewInsets();
+    await t.pump();
+    await t.tap(find.textContaining('I understand how approval'));
+    await t.pump();
+    await t.tap(find.text('Send application'));
     await settle(t);
     expect(find.textContaining('That username is taken'), findsOneWidget);
     await t.enterText(field, 'quiet_owl');
-    await t.tap(find.text('Apply'));
+    await t.tap(find.text('Send application'));
     await settle(t);
     expect(find.text('Application sent'), findsOneWidget);
-    expect(find.textContaining('Add links opens'), findsOneWidget);
+    expect(find.text('Waiting for approval'), findsOneWidget);
     expect(contribState.value, ContribState.applied);
   });
 
@@ -201,39 +204,43 @@ void main() {
       ),
     );
     await settle(t);
-    for (final l in ['All', 'Awaiting', 'Approved', 'Rejected']) {
-      expect(find.text(l), findsWidgets);
-    }
-    expect(find.text('Add links'), findsOneWidget);
-    await t.tap(find.text('Rejected'));
-    await t.pump();
-    expect(find.text('No links yet'), findsOneWidget);
+    // No links yet: the card and its button, no filters.
+    expect(find.text('Your links'), findsOneWidget);
+    expect(find.text('Add your first link'), findsOneWidget);
+    expect(find.text('Add a link'), findsOneWidget);
   });
 
   testWidgets('Contribute: staff publish directly, no states', (t) async {
     await open(t, As.president2, const ContributePage());
-    expect(find.textContaining('go live at once'), findsOneWidget);
-    expect(find.text('Awaiting'), findsNothing);
-    expect(find.text('Add links'), findsOneWidget);
+    expect(find.textContaining('publish at once'), findsOneWidget);
+    expect(find.text('Waiting'), findsNothing);
+    expect(find.byTooltip('Add a link'), findsOneWidget);
   });
 
   testWidgets('Add links: Department or a course, Another link', (t) async {
     await open(t, As.president2, const AddPage());
     expect(find.text('Another link'), findsOneWidget);
-    expect(find.text('Publish'), findsOneWidget);
+    expect(find.text('Publish 1 link'), findsOneWidget);
     t.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(t.view.resetViewInsets);
     await t.pump();
+    await t.scrollUntilVisible(
+      find.text('Another link'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await t.drag(find.byType(Scrollable).first, const Offset(0, -150));
+    await t.pump();
     await t.tap(find.text('Another link'));
     await t.pump();
-    expect(find.widgetWithText(TextField, 'Name'), findsWidgets);
+    expect(find.text('LINK 2'), findsOneWidget);
   });
 
   testWidgets('Leaderboard: empty, then ranked with my place', (t) async {
     // Hyderabad has no board.
     await open(t, As.admin, const LeaderboardPage());
-    expect(find.text('Contributor Leaderboard'), findsOneWidget);
-    expect(find.text('No contributors yet'), findsOneWidget);
+    expect(find.text('Leaderboard'), findsOneWidget);
+    expect(find.text('No one has points yet'), findsOneWidget);
     await t.pumpWidget(const SizedBox());
     await t.runAsync(() async {
       await sharedDb.collection('leaderboard').doc('goa').set({
@@ -244,6 +251,7 @@ void main() {
       }, SetOptions(merge: true));
     });
     await open(t, As.student, const LeaderboardPage());
+    expect(find.text('Leaderboard'), findsOneWidget);
     expect(find.textContaining('ann'), findsOneWidget);
     expect(find.textContaining('quiet_owl'), findsOneWidget);
   });
