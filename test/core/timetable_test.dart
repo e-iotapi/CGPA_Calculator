@@ -111,6 +111,29 @@ void main() {
       expect([for (final x in classes(s)) x.date], ['2026-08-03', '2026-08-05', '2026-08-12']);
     });
 
+    test('no class inside an exam window; the exams themselves stay', () {
+      final m = doc()
+        ..['events'] = [
+          {'from': '2026-08-03', 'title': 'Classwork begins', 'kind': 'term'},
+          {'from': '2026-10-12', 'to': '2026-10-17', 'title': 'Mid-semester Examinations', 'kind': 'exam'},
+          {'from': '2026-11-27', 'title': 'Last date for classwork', 'kind': 'deadline'},
+          {'from': '2026-12-01', 'title': 'Comprehensive examinations begin', 'kind': 'exam'},
+          {'from': '2026-12-16', 'title': 'Comprehensive Examinations end', 'kind': 'exam'},
+          {'from': '2026-12-20', 'to': '2027-01-03', 'title': 'Recess for students', 'kind': 'term'},
+        ];
+      final t = tt(m);
+      expect(t.examWindows(), [('2026-10-12', '2026-10-17'), ('2026-12-01', '2026-12-16')]);
+      expect(t.semStart(), '2026-08-03');
+      expect(t.lastClassworkDay(), '2026-11-27');
+      final dates = [for (final x in classes(picked(), t: t)) x.date];
+      expect(dates, isNot(contains('2026-10-12')));
+      expect(dates, isNot(contains('2026-10-14')));
+      expect(dates, containsAll(['2026-10-07', '2026-10-19']));
+      expect(dates.last, '2026-11-25');
+      final all = expandOccurrences(t, picked(), from: '2026-10-12', to: '2026-10-12');
+      expect(all.map((o) => o.kind), contains(OccKind.midsem));
+    });
+
     test('an unpicked section does not show', () {
       final s = picked(['AAA F111|T1']);
       expect({for (final x in classes(s)) x.sectionKey}, {'AAA F111|T1'});

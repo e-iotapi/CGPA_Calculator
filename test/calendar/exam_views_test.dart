@@ -267,14 +267,15 @@ void main() {
     });
 
     testWidgets(
-      'the campus Midsem exams sheet is campus-wide and lists my own times',
+      'a campus all-day line opens to its whole title in place',
       (t) async {
         await pump(t);
+        Text line() => t.widget<Text>(find.textContaining('Midsem exams').first);
+        expect(line().maxLines, 1);
         await t.tap(find.textContaining('Midsem exams').first);
         await t.pumpAndSettle();
-        expect(find.text('Academic calendar · campus-wide'), findsOneWidget);
-        expect(find.text('$_aaa · Midsem'), findsOneWidget);
-        expect(find.textContaining('9:30 AM'), findsOneWidget);
+        expect(line().maxLines, isNull);
+        expect(find.text('Academic calendar · campus-wide'), findsNothing);
         expect(t.takeException(), isNull);
       },
     );

@@ -150,6 +150,27 @@ void main() {
       expect(find.text('September 2026'), findsOneWidget);
     });
 
+    testWidgets('Month lists my courses\' exams; Events and Evals filter it; '
+        'a campus row opens to its whole title', (t) async {
+      await pump(t);
+      expect(find.text('Midsem'), findsOneWidget);
+      expect(find.text('Founders day'), findsOneWidget);
+      await t.tap(find.text('Evals'));
+      await t.pumpAndSettle();
+      expect(find.text('Midsem'), findsOneWidget);
+      expect(find.text('Compre'), findsOneWidget);
+      expect(find.text('Founders day'), findsNothing);
+      await t.tap(find.text('Events'));
+      await t.pumpAndSettle();
+      expect(find.text('Midsem'), findsNothing);
+      Text row() => t.widget<Text>(find.text('Founders day'));
+      expect(row().maxLines, 1);
+      await t.tap(find.text('Founders day'));
+      await t.pumpAndSettle();
+      expect(row().maxLines, isNull);
+      expect(t.takeException(), isNull);
+    });
+
     testWidgets(
       'Week: Mon to Sun, classes, holiday and dates in the all-day strip',
       (t) async {
