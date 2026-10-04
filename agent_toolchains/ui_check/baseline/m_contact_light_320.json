@@ -1,0 +1,10 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Back\" 42x42",
+  "tap: \"Email\" 81x36",
+  "tap: \"Phone\" 81x36",
+  "tap: \"WhatsApp\" 81x36",
+  "truncated: \"CONFIG · PUBLIC · OWNERS AND ADMINS\""
+ ]
+}

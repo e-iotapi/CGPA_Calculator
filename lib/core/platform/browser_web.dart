@@ -79,6 +79,26 @@ bool isStandalone() {
 
 bool hasTouch() => web.window.navigator.maxTouchPoints > 0;
 
+/// Logical CPU cores, when the browser exposes it.
+int? hardwareConcurrency() {
+  final v =
+      (web.window.navigator as JSObject)
+          .getProperty<JSAny?>('hardwareConcurrency'.toJS)
+          ?.dartify();
+  // The WebAssembly build gets JS numbers back as doubles: `as int?` threw
+  // there and blanked the app after its first frame.
+  return v is num ? v.toInt() : null;
+}
+
+/// Approximate device RAM in GB (Chrome only; null elsewhere).
+double? deviceMemory() {
+  final v =
+      (web.window.navigator as JSObject)
+          .getProperty<JSAny?>('deviceMemory'.toJS)
+          ?.dartify();
+  return v is num ? v.toDouble() : null;
+}
+
 /// Calls window.promptInstall from index.html, which holds the deferred
 /// beforeinstallprompt event.
 bool promptInstall() {
@@ -97,4 +117,36 @@ Future<String?> pickPdfText() async {
           .callMethod<JSPromise<JSString?>>('pickPdfText'.toJS)
           .toDart;
   return result?.toDart;
+}
+
+void onPageHidden(void Function() run) {
+  web.document.addEventListener(
+    'visibilitychange',
+    ((web.Event _) {
+      if (web.document.visibilityState == 'hidden') run();
+    }).toJS,
+  );
+  web.window.addEventListener('pagehide', ((web.Event _) => run()).toJS);
+}
+
+void onDomPointerDown(void Function(double x, double y) run) {
+  web.window.addEventListener(
+    'pointerdown',
+    ((web.PointerEvent e) => run(e.clientX.toDouble(), e.clientY.toDouble()))
+        .toJS,
+    web.AddEventListenerOptions(capture: true, passive: true),
+  );
+}
+
+// IndexedDB runs requests in order, so Firebase's later open waits for this.
+void forgetSavedSignIn() =>
+    web.window.indexedDB.deleteDatabase('firebaseLocalStorageDb');
+
+void openUrl(String url) {
+  final app = RegExp(r'^(mailto|tel|sms):').hasMatch(url);
+  web.window.open(
+    url,
+    app ? '_top' : '_blank',
+    app ? '' : 'noopener,noreferrer',
+  );
 }

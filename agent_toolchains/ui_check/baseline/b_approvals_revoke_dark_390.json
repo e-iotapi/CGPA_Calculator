@@ -1,0 +1,13 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"Applications · 2\" 3.92:1, needs 4.5 (12.5 px)",
+  "contrast: \"Approve all\" 2.94:1, needs 4.5 (13.0 px)",
+  "contrast: \"Approve\" 1.00:1, needs 4.5 (12.5 px)",
+  "contrast: \"Approve\" 3.92:1, needs 4.5 (12.5 px)",
+  "contrast: \"Revoke\" 1.00:1, needs 4.5 (12.0 px)",
+  "contrast: \"approved 3 Aug\" 1.03:1, needs 4.5 (10.5 px)",
+  "contrast: \"ramesh_menon\" 1.77:1, needs 4.5 (13.0 px)",
+  "contrast: \"\" 2.94:1, needs 3.0 (18.0 px)"
+ ]
+}

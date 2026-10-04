@@ -9,7 +9,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/offshoot/offshoot_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 import '../helpers/fonts.dart';
 
@@ -208,6 +208,31 @@ void main() {
       final data = t.getSemantics(find.text('ECON F412')).getSemanticsData();
       expect(data.label, contains('not counted'));
       expect(data.label, contains('grade B-'));
+    });
+
+    testWidgets('a course not in your list ticks, keeps its subtitle, is tappable', (
+      t,
+    ) async {
+      final h = t.ensureSemantics();
+      final toggled = <String>[];
+      final g = {..._grades, 'ECON F412': null};
+      await _pump(
+        t,
+        OffshootScore(_rows(grades: g), 50),
+        size: const Size(768, 1024),
+        onToggle: toggled.add,
+      );
+      expect(find.text('Not in your course list'), findsOneWidget);
+      await t.tap(find.bySemanticsLabel(RegExp('Security Analysis')));
+      expect(toggled, ['ECON F412']);
+      // Unticked: the subtitle does not flip to "Unticked".
+      await _pump(
+        t,
+        OffshootScore(_rows(grades: g, excluded: {'ECON F412'}), 50),
+        size: const Size(768, 1024),
+      );
+      expect(find.text('Not in your course list'), findsOneWidget);
+      h.dispose();
     });
 
     testWidgets('no overflow at 320, 768, 1440 or 200% text', (t) async {

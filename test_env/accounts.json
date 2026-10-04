@@ -1,0 +1,29 @@
+{
+  "password": "pointer-test-only",
+  "accounts": [
+    {"key": "owner", "email": "owner@pointer.test", "name": "Test Owner", "owner": true},
+    {"key": "admin", "email": "f20209991@pilani.bits-pilani.ac.in", "name": "Test Admin",
+     "roles": [{"role": "admin", "campus": "all", "scope": "all"}]},
+    {"key": "president", "email": "f20239992@goa.bits-pilani.ac.in", "name": "Test President",
+     "roles": [{"role": "dept", "campus": "goa", "scope": "ELEC", "programme": "A3"}], "dataset": "student_full",
+     "profile": {"phone": "9000000001", "showEmail": true, "whatsapp": "9000000001"}},
+    {"key": "cr", "email": "f20239993@goa.bits-pilani.ac.in", "name": "Test CR",
+     "roles": [{"role": "course", "campus": "goa", "scope": "EEE F211"}], "dataset": "student_full"},
+    {"key": "student_full", "email": "f20249994@goa.bits-pilani.ac.in", "name": "Test Student",
+     "discipline": "--A3", "batch": 24, "dataset": "student_full"},
+    {"key": "student_dual", "email": "f20229995@goa.bits-pilani.ac.in", "discipline": "B3A7", "batch": 22, "dataset": "student_dual"},
+    {"key": "student_new", "email": "f20269996@goa.bits-pilani.ac.in", "name": "Test Fresher", "dataset": "first_login"},
+    {"key": "student_hyd", "email": "f20249997@hyderabad.bits-pilani.ac.in", "discipline": "--A7", "batch": 24, "dataset": "student_full"},
+    {"key": "president_expired", "email": "f20219998@goa.bits-pilani.ac.in",
+     "roles": [{"role": "dept", "campus": "goa", "scope": "CS", "programme": "A7", "expiresInDays": -5}]},
+    {"key": "faculty", "email": "testfaculty@goa.bits-pilani.ac.in", "dataset": "first_login"},
+    {"key": "contributor", "email": "f20249911@goa.bits-pilani.ac.in", "name": "Test Contributor", "dataset": "student_full",
+     "contributor": {"dept": "ELEC", "username": "ctest", "points": 8}},
+    {"key": "applicant", "email": "f20249912@goa.bits-pilani.ac.in", "name": "Test Applicant", "dataset": "student_full",
+     "applicant": {"dept": "ELEC"}},
+    {"key": "electiveContributor", "email": "f20249913@goa.bits-pilani.ac.in", "name": "Test Electives Lead", "dataset": "student_full",
+     "roles": [{"role": "dept", "campus": "goa", "scope": "GEN"}]},
+    {"key": "gateStudent", "email": "f20249914@goa.bits-pilani.ac.in", "name": "Test Gate Student", "dataset": "gate_student"},
+    {"key": "gateExempt", "email": "f20259915@goa.bits-pilani.ac.in", "name": "Test Gate Exempt", "dataset": "gate_exempt"}
+  ]
+}

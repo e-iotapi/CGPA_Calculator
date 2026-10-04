@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/admin/widgets.dart' show ScopeChip;
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/auth_util.dart';
@@ -5,11 +6,21 @@ import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/storage/seed.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
-import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
+import 'package:cgpa_calculator/features/setup/programme_pick_page.dart'
+    hide CodeBadge;
 import 'package:cgpa_calculator/script.dart' as app;
+import 'package:cgpa_calculator/sync.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart'
+    show PrimaryButton;
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/code_badge.dart';
 import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/short_email.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_ce/hive.dart';
 
 /// What a discipline seeds: core courses, the semesters they span, and
 /// their credits.
@@ -28,8 +39,25 @@ import 'package:flutter/services.dart';
   );
 }
 
+/// Whether [code]'s own core has no chart rows for [year] — a programme
+/// with no catalogue yet for this batch (BUG-08).
+bool _hasNoChart(String code, int year) {
+  final msc = programmeFor(code)?.isMsc ?? false;
+  return seedSummary(msc ? '$code--' : '--$code', year).courses == 0;
+}
+
 /// First run, step 1 of 2: campus and batch from the sign-in address, then
 /// the one question the address cannot answer: what the student reads.
+/// Campus and batch are final once set: shared by owner setup.
+Future<void> saveCampusAndBatch(Campus campus, int year) async {
+  app.campus = campus;
+  app.batch = year % 100;
+  final box = await Hive.openBox('settingsBox');
+  await box.put('campus', campus.name);
+  await box.put('batch', app.batch);
+}
+
+/// The one-time setup: campus, batch and degree, then the starting courses.
 class DegreeSetupPage extends StatefulWidget {
   const DegreeSetupPage({super.key, required this.email, required this.onDone});
 
@@ -57,6 +85,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
   var _dual = false;
   String? _first, _second;
   var _busy = false;
+  var _show2p2Notice = false;
 
   /// Higher degrees and PhDs are never dual.
   bool get _asksDual =>
@@ -91,7 +120,10 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     ];
     final where = _campus?.label.toUpperCase();
     final heading = [
-      !_dual ? 'YOUR PROGRAMME' : (first ? 'FIRST DEGREE' : 'SECOND DEGREE'),
+      // Matches Settings' own "Discipline"/"Dual degree" terms (BUG-08: the
+      // old "FIRST"/"SECOND DEGREE" headings read as if whichever was
+      // picked first is stored first, when the M.Sc. half always is).
+      !_dual ? 'YOUR PROGRAMME' : (first ? 'DUAL DEGREE' : 'DISCIPLINE'),
       if (where != null) where,
     ].join(' · ');
     final elsewhere = [
@@ -112,7 +144,7 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                       p.isMsc ? '${p.code}--' : '--${p.code}',
                       year,
                     ).semesters;
-                return n == 0 ? '' : '$n sem';
+                return n == 0 ? 'No catalogue yet' : '$n sem listed';
               },
               note:
                   _campus == null || elsewhere.isEmpty
@@ -131,14 +163,17 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     final d = _discipline, y = _yearValue;
     if (d == null || y == null || _campus == null) return;
     setState(() => _busy = true);
+    await saveCampusAndBatch(_campus!, y);
     app.selecteddiscipline = d;
-    app.batch = y % 100;
-    app.campus = _campus;
     // A fresh profile has nothing to lose: seed from clean.
     app.erase = 1;
     await app.setdis();
     await app.initializeCourses();
     app.erase = 0;
+    // Push now rather than trust the debounced watcher: Skip finishes in
+    // one tap, and a reload straight after can tear the page down before an
+    // unload-time push completes, losing the whole setup (BUG-43).
+    await Sync.push();
     if (!mounted) return;
     setState(() => _busy = false);
     await Navigator.of(context).push(
@@ -178,7 +213,16 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
     );
 
     final d = _discipline, y = _yearValue;
-    final ready = d != null && y != null && _campus != null;
+    final picked = d != null && y != null && _campus != null;
+    // A picked programme with nothing charted for this batch: setting up
+    // would silently add nothing for it (BUG-08), so warn; setup still runs.
+    final noChart = [
+      if (picked) ...[
+        if (_first != null && _hasNoChart(_first!, y)) _first!,
+        if (_second != null && _hasNoChart(_second!, y)) _second!,
+      ],
+    ];
+    final ready = picked;
     final adds = ready ? seedSummary(d, y) : null;
     final setupName = [
       if (d != null) ...[d.substring(0, 2), d.substring(2)],
@@ -190,246 +234,273 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                Space.gutter,
-                Space.xxl,
-                Space.gutter,
-                Space.xxl,
-              ),
+            child: Stack(
               children: [
-                Text('ONE-TIME SETUP', style: label),
-                const SizedBox(height: 3),
-                Semantics(
-                  header: true,
-                  child: Text(
-                    'Your degree',
-                    style: TypeScale.title.copyWith(
-                      fontSize: 27,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1,
-                      height: 1.05,
-                      color: p.text,
-                    ),
+                ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    Space.gutter,
+                    Space.xxl,
+                    Space.gutter,
+                    BottomAction.heightOf(context, hasCaption: true),
                   ),
-                ),
-                const SizedBox(height: Space.sm),
-                Text(
-                  _asksDual
-                      ? 'Campus and batch come from your BITS address. One '
-                          'question left: what you are reading.'
-                      : 'Campus and batch come from your BITS address. Pick '
-                          'what you are reading.',
-                  style: body,
-                ),
-                const SizedBox(height: Space.md),
-                card([
-                  Text(
-                    _asks ? 'CAMPUS AND BATCH' : 'FROM YOUR SIGN-IN',
-                    style: label,
-                  ),
-                  if (widget.email != null)
-                    Text(
-                      widget.email!,
-                      overflow: TextOverflow.ellipsis,
-                      style: body.copyWith(color: p.text),
-                    ),
-                  const SizedBox(height: Space.sm),
-                  if (!_asks)
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _Chip(_campus!.label),
-                        _Chip('${_yearValue ?? _year.text} batch'),
-                      ],
-                    )
-                  else ...[
-                    if (_campus == null && widget.email != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          'Pointer could not tell your campus from this '
-                          'address. Which is it?',
-                          style: body.copyWith(fontSize: 11.5),
-                        ),
-                      ),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 5,
-                      children: [
-                        for (final c in Campus.values)
-                          _Pill(
-                            c.label,
-                            selected: c == _campus,
-                            onTap:
-                                () => setState(() {
-                                  _campus = c;
-                                  // A programme not run here is not kept.
-                                  final here = programmesAt(
-                                    c,
-                                  ).map((p) => p.code);
-                                  if (!here.contains(_first)) _first = null;
-                                  if (!here.contains(_second)) _second = null;
-                                }),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: 150,
-                      child: TextField(
-                        controller: _year,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(4),
-                        ],
-                        onChanged: (_) => setState(() {}),
-                        style: body.copyWith(color: p.text, fontSize: 13),
-                        decoration: InputDecoration(
-                          labelText: 'Batch year',
-                          hintText: '2023',
-                          isDense: true,
-                          errorText:
-                              _year.text.length == 4 && _yearValue == null
-                                  ? 'Not a batch year'
-                                  : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                  children: [
+                    Text('ONE-TIME SETUP', style: label),
+                    const SizedBox(height: 3),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'Your degree',
+                        style: TypeScale.title.copyWith(
+                          fontSize: 27,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          height: 1.05,
+                          color: p.text,
                         ),
                       ),
                     ),
-                  ],
-                ]),
-                if (_asksDual) ...[
-                  const SizedBox(height: Space.md),
-                  card([
-                    Text('PROGRAMME', style: label),
-                    const SizedBox(height: 9),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 5,
-                      children: [
-                        _Pill(
-                          'Single degree',
-                          selected: !_dual,
-                          onTap:
-                              () => setState(() {
-                                _dual = false;
-                                _second = null;
-                              }),
-                        ),
-                        _Pill(
-                          'Dual degree',
-                          selected: _dual,
-                          onTap:
-                              () => setState(() {
-                                _dual = true;
-                                if (!(programmeFor(_first ?? '')?.isMsc ??
-                                    true)) {
-                                  _first = null;
-                                }
-                              }),
-                        ),
-                        const _Pill('2+2', selected: false, onTap: null),
-                      ],
-                    ),
-                    const SizedBox(height: 9),
+                    const SizedBox(height: Space.sm),
                     Text(
-                      '2+2 programmes are still being built. Pick the degree '
-                      'you are reading and add your courses by hand for now — '
-                      'nothing else about the app changes.',
-                      style: body.copyWith(fontSize: 11, color: p.behind),
+                      _asksDual
+                          ? 'Campus and batch come from your BITS address. One '
+                              'question left: what you are reading.'
+                          : 'Campus and batch come from your BITS address. Pick '
+                              'what you are reading.',
+                      style: body,
                     ),
-                  ]),
-                ],
-                const SizedBox(height: Space.md),
-                Text('WHAT YOU ARE READING', style: label),
-                const SizedBox(height: 7),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Material(
-                    color: p.surface,
-                    child: Column(
-                      children: [
-                        _ProgrammeRow(
-                          heading: _dual ? 'FIRST DEGREE' : 'YOUR PROGRAMME',
-                          code: _first,
-                          tint: true,
-                          onTap: () => _pick(first: true),
+                    const SizedBox(height: Space.md),
+                    card([
+                      Text(
+                        _asks ? 'CAMPUS AND BATCH' : 'FROM YOUR SIGN-IN',
+                        style: label,
+                      ),
+                      if (widget.email != null)
+                        Text(
+                          shortEmail(widget.email!),
+                          overflow: TextOverflow.ellipsis,
+                          style: body.copyWith(color: p.text),
                         ),
-                        if (_dual) ...[
-                          Divider(
-                            height: 1,
-                            indent: 13,
-                            endIndent: 13,
-                            color: p.divider,
+                      const SizedBox(height: Space.sm),
+                      if (!_asks)
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            ScopeChip(
+                              _campus!.label,
+                              icon: Icons.place_outlined,
+                              height: 32,
+                            ),
+                            ScopeChip(
+                              '${_yearValue ?? _year.text} batch',
+                              icon: Icons.calendar_today_rounded,
+                              height: 32,
+                            ),
+                          ],
+                        )
+                      else ...[
+                        if (_campus == null && widget.email != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              'Pointer could not tell your campus from this '
+                              'address. Which is it?',
+                              style: body.copyWith(fontSize: 11.5),
+                            ),
                           ),
-                          _ProgrammeRow(
-                            heading: 'SECOND DEGREE',
-                            code: _second,
-                            onTap: () => _pick(first: false),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (adds != null && adds.courses > 0) ...[
-                  const SizedBox(height: Space.md),
-                  card(color: p.hero, [
-                    Text(
-                      'THIS ADDS',
-                      style: label.copyWith(color: p.onHeroMuted),
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${adds.courses} core courses across '
-                            '${adds.semesters} semesters',
-                            style: body.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: p.onHero,
+                        Wrap(
+                          spacing: 5,
+                          runSpacing: 5,
+                          children: [
+                            for (final c in Campus.values)
+                              _Pill(
+                                c.label,
+                                selected: c == _campus,
+                                onTap:
+                                    () => setState(() {
+                                      _campus = c;
+                                      // A programme not run here is not kept.
+                                      final here = programmesAt(
+                                        c,
+                                      ).map((p) => p.code);
+                                      if (!here.contains(_first)) {
+                                        _first = null;
+                                      }
+                                      if (!here.contains(_second)) {
+                                        _second = null;
+                                      }
+                                    }),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: 150,
+                          child: TextField(
+                            controller: _year,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(4),
+                            ],
+                            onChanged: (_) => setState(() {}),
+                            style: body.copyWith(color: p.text, fontSize: 13),
+                            decoration: InputDecoration(
+                              labelText: 'Batch year',
+                              hintText: '2023',
+                              isDense: true,
+                              errorText:
+                                  _year.text.length == 4 && _yearValue == null
+                                      ? 'Not a batch year'
+                                      : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
-                        Text(
-                          '${_credits(adds.credits)} cr',
-                          style: TypeScale.title.copyWith(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: p.onHero,
-                          ),
-                        ),
                       ],
+                    ]),
+                    if (_asksDual) ...[
+                      const SizedBox(height: Space.md),
+                      card([
+                        Text('PROGRAMME', style: label),
+                        const SizedBox(height: 9),
+                        Wrap(
+                          spacing: 5,
+                          runSpacing: 5,
+                          children: [
+                            PillButton(
+                              label: 'Single degree',
+                              selected: !_dual,
+                              height: 38,
+                              onPressed:
+                                  () => setState(() {
+                                    _dual = false;
+                                    _second = null;
+                                  }),
+                            ),
+                            PillButton(
+                              label: 'Dual degree',
+                              selected: _dual,
+                              height: 38,
+                              onPressed:
+                                  () => setState(() {
+                                    _dual = true;
+                                    if (!(programmeFor(_first ?? '')?.isMsc ??
+                                        true)) {
+                                      _first = null;
+                                    }
+                                  }),
+                            ),
+                            _TwoTwoPill(
+                              onTap:
+                                  () => setState(() => _show2p2Notice = true),
+                            ),
+                          ],
+                        ),
+                        if (_show2p2Notice) ...[
+                          const SizedBox(height: 9),
+                          Notice(
+                            warning: true,
+                            text: const TextSpan(
+                              text:
+                                  '2+2 programmes are still being built. Pick '
+                                  'the degree you are reading and add your '
+                                  'courses by hand for now — nothing else '
+                                  'about the app changes.',
+                            ),
+                          ),
+                        ],
+                      ]),
+                    ],
+                    const SizedBox(height: Space.md),
+                    Text('WHAT YOU ARE READING', style: label),
+                    const SizedBox(height: 7),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Material(
+                        color: p.surface,
+                        child: Column(
+                          children: [
+                            _ProgrammeRow(
+                              heading: _dual ? 'DUAL DEGREE' : 'YOUR PROGRAMME',
+                              code: _first,
+                              first: true,
+                              onTap: () => _pick(first: true),
+                            ),
+                            if (_dual) ...[
+                              Divider(
+                                height: 1,
+                                indent: 13,
+                                endIndent: 13,
+                                color: p.divider,
+                              ),
+                              _ProgrammeRow(
+                                heading: 'DISCIPLINE',
+                                code: _second,
+                                first: false,
+                                onTap: () => _pick(first: false),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
-                  ]),
-                ],
-                const SizedBox(height: Space.lg),
-                FilledButton(
-                  onPressed: ready && !_busy ? _setUp : null,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    backgroundColor: p.inverse,
-                    foregroundColor: p.onInverse,
-                    shape: const StadiumBorder(),
-                  ),
-                  child: Text(
-                    ready ? 'Set up $setupName' : 'Pick what you are reading',
-                    style: TypeScale.button.copyWith(fontSize: 14),
-                  ),
+                    if (noChart.isNotEmpty) ...[
+                      const SizedBox(height: Space.md),
+                      Notice(
+                        warning: true,
+                        text: TextSpan(
+                          text:
+                              '${noChart.join(' and ')} has no course list '
+                              'for the ${_yearValue ?? 0} batch yet, so '
+                              'nothing would be added for it. Add your '
+                              'courses by hand for now.',
+                        ),
+                      ),
+                    ],
+                    if (adds != null && adds.courses > 0) ...[
+                      const SizedBox(height: Space.md),
+                      card(color: p.hero, [
+                        Text(
+                          'THIS ADDS',
+                          style: label.copyWith(color: p.onHeroMuted),
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${adds.courses} core courses across '
+                                '${adds.semesters} semesters',
+                                style: body.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: p.onHero,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${_credits(adds.credits)} cr',
+                              style: TypeScale.title.copyWith(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: p.onHero,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ]),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Changing your first degree later clears your grades.',
-                  textAlign: TextAlign.center,
-                  style: TypeScale.caption.copyWith(
-                    fontSize: 10.5,
-                    color: p.textMuted,
+                BottomAction(
+                  caption:
+                      'Changing your first degree later clears your grades.',
+                  child: PrimaryButton(
+                    tall: true,
+                    label: ready ? 'Set up $setupName' : 'Pick your degree',
+                    onPressed: ready && !_busy ? _setUp : null,
                   ),
                 ),
               ],
@@ -458,32 +529,6 @@ String _count(int n) => n < _numbers.length ? _numbers[n] : '$n programmes';
 
 String _credits(double c) =>
     c == c.roundToDouble() ? c.toInt().toString() : c.toStringAsFixed(1);
-
-class _Chip extends StatelessWidget {
-  const _Chip(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-      decoration: BoxDecoration(
-        color: p.hero,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Text(
-        text,
-        style: TypeScale.caption.copyWith(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: p.onHero,
-        ),
-      ),
-    );
-  }
-}
 
 /// A choice pill; [onTap] null draws it dashed and disabled.
 class _Pill extends StatelessWidget {
@@ -536,17 +581,59 @@ class _Pill extends StatelessWidget {
   }
 }
 
+/// The "2+2" pill: dashed, always tappable, never selectable — tapping it
+/// only reveals the notice that it is still being built.
+class _TwoTwoPill extends StatelessWidget {
+  const _TwoTwoPill({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Semantics(
+      button: true,
+      label: '2+2, not available yet',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(19),
+        ),
+        child: DashedOutline(
+          color: p.outline,
+          radius: 19,
+          child: SizedBox(
+            width: 62,
+            height: 38,
+            child: Center(
+              child: Text(
+                '2+2',
+                style: TypeScale.caption.copyWith(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: p.textMuted,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ProgrammeRow extends StatelessWidget {
   const _ProgrammeRow({
     required this.heading,
     required this.code,
     required this.onTap,
-    this.tint = false,
+    required this.first,
   });
 
   final String heading;
   final String? code;
-  final bool tint;
+  final bool first;
   final VoidCallback onTap;
 
   @override
@@ -564,10 +651,14 @@ class _ProgrammeRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
           child: Row(
             children: [
-              if (code != null) ...[
-                CodeBadge(code!, tint: tint),
-                const SizedBox(width: 11),
-              ],
+              CodeBadge(
+                code ?? '',
+                tone:
+                    code == null
+                        ? CodeTone.empty
+                        : (first ? CodeTone.first : CodeTone.second),
+              ),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

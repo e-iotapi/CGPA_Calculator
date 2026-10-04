@@ -1,0 +1,10 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Back\" 42x42",
+  "tap: \"CR\" 47x36",
+  "tap: \"Earlier date\" 105x36",
+  "tap: \"Full term · 1 semester\" 173x36",
+  "tap: \"Secretary\" 91x36"
+ ]
+}

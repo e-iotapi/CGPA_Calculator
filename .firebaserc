@@ -1,5 +1,16 @@
 {
   "projects": {
-    "default": "cgpa-calculator-fb90c"
-  }
+    "default": "cgpa-calculator-fb90c",
+    "staging": "pointer-staging"
+  },
+  "targets": {
+    "pointer-staging": {
+      "hosting": {
+        "staging": [
+          "pointer-staging"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

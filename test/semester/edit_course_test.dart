@@ -85,28 +85,19 @@ void main() {
       await t.tap(find.text('Save'));
       await t.pumpAndSettle();
       final e = await result();
-      expect(e?.removed, isFalse);
-      expect(e?.saved?.grade1, reversegradecalc('B'));
-      expect(e?.saved?.grade2, 8);
-      expect(e?.saved?.elective, Elective.cdc2.tag);
+      expect(e?.saved.grade1, reversegradecalc('B'));
+      expect(e?.saved.grade2, 8);
+      expect(e?.saved.elective, Elective.cdc2.tag);
     });
   }
 
-  testWidgets('remove asks first', (t) async {
-    final result = await _open(t);
+  testWidgets('no Remove button: delete lives on Marks', (t) async {
+    await _open(t);
     await t.pump();
     await t.tap(find.text('open'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Remove'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Keep'));
-    await t.pumpAndSettle();
+    expect(find.text('Remove'), findsNothing);
     expect(find.text('Save'), findsOneWidget);
-    await t.tap(find.text('Remove'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Remove').last);
-    await t.pumpAndSettle();
-    expect((await result())?.removed, isTrue);
   });
 
   testWidgets('no grade editing in Compare', (t) async {

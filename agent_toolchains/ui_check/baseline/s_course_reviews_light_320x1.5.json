@@ -1,0 +1,11 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"All\" 57x30",
+  "tap: \"Back\" 42x42",
+  "tap: \"Helpful\" 104x30",
+  "tap: \"Recent\" 102x30",
+  "tap: \"Year\" 114x24",
+  "word-break: \"semester\" split across lines in \"Any semester\""
+ ]
+}

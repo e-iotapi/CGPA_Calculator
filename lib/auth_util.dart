@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -10,6 +11,7 @@ final RegExp _bitsEmail = RegExp(
   caseSensitive: false,
 );
 
+/// Whether [email] is a BITS campus address, student or staff.
 bool isBitsEmail(String? email) =>
     email != null && _bitsEmail.hasMatch(email.trim());
 
@@ -29,14 +31,17 @@ Future<bool?> isOwner(User user, {FirebaseFirestore? db}) async {
   }
 }
 
-/// Who may use the app: a BITS campus account, or an owner.
-Future<bool?> mayUseApp(User user) async =>
-    isBitsEmail(user.email) ? true : isOwner(user);
+/// Who may use the app: a BITS student address, or an owner. Faculty and
+/// staff addresses are refused (BUG-33, 43) unless they are owners.
+Future<bool?> mayUseApp(User user, {FirebaseFirestore? db}) async =>
+    isStudentAddress(user.email ?? '') ? true : isOwner(user, db: db);
 
 /// What a BITS address says: f20230802@goa.bits-pilani.ac.in is a first
 /// degree, 2023 batch, at Goa.
 enum DegreeLevel { first, higher, phd }
 
+/// The degree level, batch year and campus a BITS address encodes; each is
+/// `null` when the address does not say.
 typedef BitsAddress = ({DegreeLevel? level, int? year, Campus? campus});
 
 final _address = RegExp(

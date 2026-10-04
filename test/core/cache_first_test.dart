@@ -1,0 +1,204 @@
+import 'dart:io';
+
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_ce/hive.dart';
+
+void main() {
+  group('cacheFirst', () {
+    late Directory dir;
+    late Box box;
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('cache_first');
+      Hive.init(dir.path);
+      box = await Hive.openBox('t');
+    });
+
+    tearDown(() async {
+      await Hive.close();
+      await dir.delete(recursive: true);
+    });
+
+    Future<int> fetchWith(
+      List<int> calls, {
+      String key = 'k',
+      Duration maxAge = const Duration(hours: 1),
+      DateTime? now,
+      Object Function()? failWith,
+    }) => cacheFirst<int>(
+      key: key,
+      maxAge: maxAge,
+      box: box,
+      now: now == null ? null : () => now,
+      fetch: () async {
+        calls.add(calls.length);
+        if (failWith != null) throw failWith();
+        return calls.length;
+      },
+      encode: (v) => v,
+      decode: (v) => v as int,
+    );
+
+    test('no cache → fetches', () async {
+      final calls = <int>[];
+      final v = await fetchWith(calls);
+      expect(v, 1);
+      expect(calls, hasLength(1));
+    });
+
+    test('fresh cache → 0 fetches', () async {
+      final calls = <int>[];
+      final t0 = DateTime(2026, 1, 1);
+      await fetchWith(calls, now: t0);
+      final v = await fetchWith(
+        calls,
+        now: t0.add(const Duration(minutes: 30)),
+      );
+      expect(v, 1);
+      expect(calls, hasLength(1));
+    });
+
+    test(
+      'stale cache → returns the old value at once and 1 background fetch, '
+      'and the next call returns the new value',
+      () async {
+        final calls = <int>[];
+        final t0 = DateTime(2026, 1, 1);
+        await fetchWith(calls, now: t0);
+        expect(calls, hasLength(1));
+
+        final v = await fetchWith(
+          calls,
+          now: t0.add(const Duration(hours: 2)),
+        );
+        // The stale value returns at once; the background fetch is already
+        // triggered (fetch() itself runs synchronously here), but its
+        // caching write hasn't landed yet.
+        expect(v, 1);
+        expect(calls, hasLength(2));
+
+        // Let the background refresh's cache write land.
+        await Future<void>.delayed(Duration.zero);
+
+        final v2 = await fetchWith(
+          calls,
+          now: t0.add(const Duration(hours: 2, minutes: 1)),
+        );
+        expect(v2, 2);
+        expect(calls, hasLength(2));
+      },
+    );
+
+    test('awaitStale: a stale cache waits for the one refresh', () async {
+      final calls = <int>[];
+      final t0 = DateTime(2026, 1, 1);
+      await fetchWith(calls, now: t0);
+      final v = await cacheFirst<int>(
+        key: 'k',
+        maxAge: const Duration(hours: 1),
+        box: box,
+        now: () => t0.add(const Duration(hours: 2)),
+        awaitStale: true,
+        fetch: () async => 42,
+        encode: (v) => v,
+        decode: (v) => v as int,
+      );
+      expect(v, 42);
+    });
+
+    test('concurrent dedupe: two calls with no cache share one fetch', () async {
+      final calls = <int>[];
+      final results = await Future.wait([fetchWith(calls), fetchWith(calls)]);
+      expect(calls, hasLength(1));
+      expect(results, [1, 1]);
+    });
+
+    test('forget drops every entry with the prefix', () async {
+      final calls = <int>[];
+      await fetchWith(calls, key: 'p|a');
+      await fetchWith(calls, key: 'p|b');
+      await fetchWith(calls, key: 'q|c');
+      expect(calls, hasLength(3));
+
+      await forget('p|', box: box);
+
+      await fetchWith(calls, key: 'p|a');
+      await fetchWith(calls, key: 'p|b');
+      await fetchWith(calls, key: 'q|c');
+      expect(calls, hasLength(5)); // p|a and p|b re-fetched; q|c stayed cached
+    });
+
+    test('a fetch that throws with a cache present → returns the cache', () async {
+      final calls = <int>[];
+      final t0 = DateTime(2026, 1, 1);
+      await fetchWith(calls, now: t0);
+      expect(calls, hasLength(1));
+
+      final v = await fetchWith(
+        calls,
+        now: t0.add(const Duration(hours: 2)),
+        failWith: () => StateError('network is down'),
+      );
+      expect(v, 1);
+
+      // The background refresh fails and is swallowed; the cache is
+      // untouched, so the next call still returns the old value.
+      await Future<void>.delayed(Duration.zero);
+      final v2 = await fetchWith(
+        calls,
+        now: t0.add(const Duration(hours: 2, minutes: 1)),
+      );
+      expect(v2, 1);
+    });
+    test('peekCache returns the saved value synchronously', () async {
+      final calls = <int>[];
+      await fetchWith(calls);
+      expect(peekCache<int>('k', (v) => v as int, box: box), 1);
+      expect(peekCache<int>('missing', (v) => v as int, box: box), isNull);
+    });
+
+    test('a matching version is fresh at any age while versions are live',
+        () async {
+      var n = 0;
+      Future<int> get(String? ver, DateTime now) => cacheFirst<int>(
+        key: 'v', maxAge: const Duration(minutes: 1), box: box,
+        now: () => now, version: ver,
+        fetch: () async => ++n, encode: (v) => v, decode: (v) => v as int,
+      );
+      final t0 = DateTime(2026, 10, 1);
+      versionsLive = true;
+      addTearDown(() => versionsLive = false);
+      expect(await get('3', t0), 1);
+      expect(await get('3', t0.add(const Duration(days: 30))), 1);
+      expect(n, 1);
+      // Socket down: the same old entry is past maxAge, so it refreshes.
+      versionsLive = false;
+      expect(await get('3', t0.add(const Duration(days: 30))), 1);
+      await Future<void>.delayed(Duration.zero);
+      expect(n, 2);
+      expect(await get('3', t0.add(const Duration(days: 30, seconds: 5))), 2);
+    });
+
+    test('a moved version refetches', () async {
+      var n = 0;
+      Future<int> get(String ver) => cacheFirst<int>(
+        key: 'v2', maxAge: const Duration(days: 9), box: box, version: ver,
+        fetch: () async => ++n, encode: (v) => v, decode: (v) => v as int,
+      );
+      expect(await get('3'), 1);
+      expect(await get('4'), 2); // waited for, not served stale
+    });
+
+    test('a moved version falls back to the saved value when the fetch fails',
+        () async {
+      Future<int> get(String ver, {bool fail = false}) => cacheFirst<int>(
+        key: 'v3', maxAge: const Duration(days: 9), box: box, version: ver,
+        fetch: () async => fail ? throw StateError('down') : 7,
+        encode: (v) => v, decode: (v) => v as int,
+      );
+      expect(await get('1'), 7);
+      expect(await get('2', fail: true), 7);
+    });
+  });
+}

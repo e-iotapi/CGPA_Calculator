@@ -13,6 +13,8 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/import/performance_sheet.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 
+/// What an ERP import would change: grades to set, courses to add, move or
+/// remove, and the CGPA afterwards.
 class ImportPlan {
   const ImportPlan({
     required this.put,
@@ -67,6 +69,7 @@ class ImportPlan {
   /// Actual CGPA once applied, to hold against the sheet's own.
   final double? cgpaAfter;
 
+  /// Whether the import would change nothing.
   bool get isEmpty => put.isEmpty && add.isEmpty && remove.isEmpty;
 }
 

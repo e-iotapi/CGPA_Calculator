@@ -8,12 +8,17 @@
 /// would pass Firestore's index-entry limit for one document.
 library;
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/perf/perf.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
+/// The Hive box holding the cached catalogue bundle.
 const catalogBoxName = 'catalogBox';
 
 /// The published side, behind an interface so tests need no Firestore.
@@ -25,6 +30,8 @@ abstract interface class CatalogSource {
   Future<String> bundle(int version);
 }
 
+/// A [CatalogSource] that reads the published marker and bundle from
+/// Firestore.
 class FirestoreCatalogSource implements CatalogSource {
   FirestoreCatalogSource([FirebaseFirestore? db])
     : _db = db ?? FirebaseFirestore.instance;
@@ -32,7 +39,10 @@ class FirestoreCatalogSource implements CatalogSource {
 
   @override
   Future<({int version, int schema})?> marker() async {
-    final d = await _db.doc('catalog/marker').get();
+    final d = await Perf.time(
+      'catalog.marker',
+      () => _db.doc('catalog/marker').get(),
+    );
     final m = d.data();
     if (m == null) return null;
     return (version: m['version'] as int, schema: m['schema'] as int);
@@ -40,9 +50,47 @@ class FirestoreCatalogSource implements CatalogSource {
 
   @override
   Future<String> bundle(int version) async {
-    final d = await _db.doc('catalog/v$version').get();
+    final d = await Perf.time(
+      'catalog.bundle',
+      () => _db.doc('catalog/v$version').get(),
+    );
     return d.data()!['json'] as String;
   }
+}
+
+/// A student's source: the campus head carries the published version, so
+/// an app open reads no marker; without a head version the marker is read at
+/// most once a day. Budget: ~0 reads/user/day beyond the head.
+class HeadCatalogSource implements CatalogSource {
+  HeadCatalogSource(this.campus, [FirebaseFirestore? db])
+    : _db = db,
+      _live = FirestoreCatalogSource(db);
+  /// The campus key whose head carries the version.
+  final String campus;
+  final FirebaseFirestore? _db;
+  final FirestoreCatalogSource _live;
+
+  @override
+  Future<({int version, int schema})?> marker() async {
+    final head = await headFor(campus, db: _db, awaitStale: true);
+    if (head?.catalog case final v?) {
+      return (version: v, schema: head!.catalogSchema ?? 1);
+    }
+    return cacheFirst<({int version, int schema})?>(
+      key: 'catalog|marker',
+      maxAge: catalogMaxAge,
+      fetch: _live.marker,
+      encode: (m) => m == null ? null : [m.version, m.schema],
+      decode:
+          (v) =>
+              v == null
+                  ? null
+                  : (version: (v as List)[0] as int, schema: v[1] as int),
+    );
+  }
+
+  @override
+  Future<String> bundle(int version) => _live.bundle(version);
 }
 
 /// Loads the catalogue to boot from: the cached bundle when it is at least as
@@ -51,10 +99,13 @@ Future<Catalog> loadCatalog({
   Box? cache,
   Future<String> Function()? asset,
 }) async {
-  final box = cache ?? await Hive.openBox(catalogBoxName);
-  final fallback = Catalog.fromJson(
-    await (asset ?? () => rootBundle.loadString(catalogAsset))(),
-  );
+  // Started together, not one after the other: the box open and the asset
+  // read don't depend on each other.
+  final boxFuture =
+      cache != null ? Future.value(cache) : Hive.openBox(catalogBoxName);
+  final assetFuture = (asset ?? () => rootBundle.loadString(catalogAsset))();
+  final box = await boxFuture;
+  final fallback = Catalog.fromJson(await assetFuture);
   var use = fallback;
   final cached = box.get('json');
   if (cached is String) {

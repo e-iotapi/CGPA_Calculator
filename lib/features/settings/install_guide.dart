@@ -211,6 +211,7 @@ Future<void> offerInstall(BuildContext context) async {
   await showInstallGuide(context, target);
 }
 
+/// Opens the step-by-step add-to-home-screen guide for [target].
 Future<void> showInstallGuide(BuildContext context, InstallTarget target) {
   return showModalBottomSheet<void>(
     context: context,
@@ -222,6 +223,7 @@ Future<void> showInstallGuide(BuildContext context, InstallTarget target) {
   );
 }
 
+/// The install steps for one browser and device.
 class InstallGuide extends StatelessWidget {
   const InstallGuide({super.key, required this.target});
 

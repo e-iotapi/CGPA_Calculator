@@ -3,10 +3,11 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:flutter/material.dart';
 
-/// Every grade and Ongoing as a six-column grid of pills. Tapping the selected one
-/// clears it back to "not graded yet".
+/// Every grade as a six-column grid of 31 px pills, then Ongoing and Not
+/// yet as two half-width pills. Tapping the selected one clears it.
 class GradeGrid extends StatelessWidget {
   const GradeGrid({super.key, required this.value, required this.onChanged});
 
@@ -14,38 +15,51 @@ class GradeGrid extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   static final _grades = [
-    for (final g in letterGrades) (g.replaceAll('-', '−'), reversegradecalc(g)),
-    for (final (g, _) in specialGrades) (g, reversegradecalc(g)),
-    ('Ongoing', GradeCode.ongoing),
+    for (final g in letterGrades)
+      (g.replaceAll('-', '−'), reversegradecalc(g), false),
+    for (final (g, _) in specialGrades) (g, reversegradecalc(g), true),
   ];
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    Widget pill(String text, int grade) {
+    Widget pill(String text, int grade, {bool quiet = false}) {
       final on = value == grade;
       return Semantics(
         button: true,
         selected: on,
-        child: InkWell(
+        label: 'Grade $text',
+        child: Material(
+          color: on ? p.inverse : p.surface,
           borderRadius: BorderRadius.circular(16),
-          onTap: () => onChanged(on ? GradeCode.clr : grade),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: Sizes.minTouch),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              color: on ? p.inverse : p.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: on ? p.inverse : p.border),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                text,
-                style: TypeScale.caption.copyWith(
-                  fontWeight: on ? FontWeight.w700 : FontWeight.w600,
-                  color: on ? p.onInverse : p.text,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap:
+                () => onChanged(
+                  on && grade != GradeCode.clr ? GradeCode.clr : grade,
+                ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 31),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    text,
+                    textAlign: TextAlign.center,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: on ? FontWeight.w700 : FontWeight.w600,
+                      color:
+                          on
+                              ? p.onInverse
+                              : quiet
+                              ? p.icon
+                              : p.text,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -54,28 +68,87 @@ class GradeGrid extends StatelessWidget {
       );
     }
 
+    Widget row(List<Widget> cells) => Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, c) in cells.indexed) ...[
+              if (i > 0) const SizedBox(width: 5),
+              Expanded(child: c),
+            ],
+          ],
+        ),
+      ),
+    );
+
     return Column(
       children: [
         for (var r = 0; r < _grades.length; r += 6)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 5),
-            child: Row(
-              children: [
-                for (var i = r; i < r + 6; i++) ...[
-                  if (i > r) const SizedBox(width: 5),
-                  Expanded(
-                    child:
-                        i < _grades.length
-                            ? pill(_grades[i].$1, _grades[i].$2)
-                            : const SizedBox(),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          row([
+            for (var i = r; i < r + 6; i++)
+              i < _grades.length
+                  ? pill(_grades[i].$1, _grades[i].$2, quiet: _grades[i].$3)
+                  : const SizedBox(),
+          ]),
+        row([
+          pill('Ongoing', GradeCode.ongoing, quiet: true),
+          pill('Not yet', GradeCode.clr, quiet: true),
+        ]),
       ],
     );
   }
+}
+
+/// "Counts as": a sheet of the discipline's categories plus [value], the
+/// current one ticked.
+Future<String?> pickCategory(
+  BuildContext context, {
+  required String value,
+  required String discipline,
+}) async {
+  final p = AppPalette.of(context);
+  final options = {...categoryOptions(discipline), value};
+  final picked = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: p.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    constraints: const BoxConstraints(maxWidth: 640),
+    builder:
+        (c) => SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+                  child: Text(
+                    'COUNTS AS',
+                    style: TypeScale.label.copyWith(color: p.textMuted),
+                  ),
+                ),
+                for (final t in options)
+                  CardRow(
+                    title: categoryLabel(t, discipline),
+                    minHeight: 48,
+                    trailing:
+                        t == value
+                            ? Icon(Icons.check_rounded, color: p.text)
+                            : const SizedBox.shrink(),
+                    onTap: () => Navigator.pop(c, t),
+                  ),
+              ],
+            ),
+          ),
+        ),
+  );
+  return picked;
 }
 
 /// The "counts as" menu: the discipline's categories plus [value].
@@ -95,41 +168,11 @@ class CategoryDropdown extends StatelessWidget {
   /// Off on a coloured card, where the white field needs no outline.
   final bool bordered;
 
-  /// A menu anchored under the field, as wide as it.
   Future<void> _open(BuildContext context) async {
-    final p = AppPalette.of(context);
-    final box = context.findRenderObject()! as RenderBox;
-    final overlay =
-        Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final topLeft = box.localToGlobal(
-      Offset(0, box.size.height + 4),
-      ancestor: overlay,
-    );
-    final picked = await showMenu<String>(
-      context: context,
-      color: p.surface,
-      constraints: BoxConstraints.tightFor(width: box.size.width),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-      position: RelativeRect.fromRect(
-        topLeft & Size(box.size.width, 0),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        for (final t in {...categoryOptions(discipline), value})
-          PopupMenuItem(
-            value: t,
-            height: 40,
-            child: Text(
-              categoryLabel(t, discipline),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TypeScale.caption.copyWith(
-                color: p.text,
-                fontWeight: t == value ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ),
-      ],
+    final picked = await pickCategory(
+      context,
+      value: value,
+      discipline: discipline,
     );
     if (picked != null) onChanged(picked);
   }
@@ -169,11 +212,7 @@ class CategoryDropdown extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: Space.xs),
-                  Icon(
-                    Icons.expand_more_rounded,
-                    size: 16,
-                    color: p.textMuted,
-                  ),
+                  Icon(Icons.expand_more_rounded, size: 16, color: p.textMuted),
                 ],
               ),
             ),

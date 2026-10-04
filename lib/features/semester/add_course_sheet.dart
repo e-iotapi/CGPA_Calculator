@@ -1,16 +1,20 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
+import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/features/semester/add_course_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_fields.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
-import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:flutter/material.dart';
 
 /// Opens the add sheet. Resolves to the course to store, or null.
@@ -21,11 +25,15 @@ Future<Course?> showAddCourseSheet(
   required String discipline,
   required Profile profile,
 }) {
+  final p = AppPalette.of(context);
   return showModalBottomSheet<Course>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
-    backgroundColor: AppPalette.of(context).background,
+    backgroundColor: p.isDark ? p.surface : p.onInverse,
+    barrierColor: p.inverse.withValues(alpha: 0.34),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+    ),
     constraints: const BoxConstraints(maxWidth: 640),
     builder:
         (_) => FractionallySizedBox(
@@ -40,6 +48,7 @@ Future<Course?> showAddCourseSheet(
   );
 }
 
+/// The sheet that adds a course to a semester, from the catalogue or by hand.
 class AddCourseSheet extends StatefulWidget {
   const AddCourseSheet({
     super.key,
@@ -73,12 +82,42 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
   final _dept = TextEditingController();
   final _number = TextEditingController();
   final _title = TextEditingController();
-  int _credits = 3;
+  double _credits = 3;
   String? _manualCategory;
   int _manualGrade = GradeCode.clr;
 
+  /// Hits follow the search after a pause in typing (UI_OPT O5.2).
+  final _typed = Debouncer();
+
+  /// Every course's rating on my campus: the saved copy at once, the fresh
+  /// one when it lands. Null = none yet; never a spinner.
+  Map<String, ReviewStats>? _ratings;
+  bool _ratingsFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final store = reviewStore, campus = myCampus;
+    if (store == null || campus == null) return;
+    _ratings = store.peekIndex(campus);
+    store
+        .index(campus)
+        .then(
+          (m) {
+            if (mounted) setState(() => _ratings = m);
+          },
+          onError: (_) {
+            // A saved copy stays; with none, rows go without stars.
+            if (mounted && _ratings == null) {
+              setState(() => _ratingsFailed = true);
+            }
+          },
+        );
+  }
+
   @override
   void dispose() {
+    _typed.dispose();
     for (final c in [_query, _dept, _number, _title]) {
       c.dispose();
     }
@@ -104,7 +143,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
       CourseHit(
         id: _manualId,
         title: _title.text.trim(),
-        credits: _credits.toDouble(),
+        credits: _credits,
         category: category,
       ),
       sem: widget.sem,
@@ -115,7 +154,13 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
     );
   }
 
+  // The debounced search (UI_OPT O5.2) means the box can outrun _hits while
+  // typing; track which query _hits answers so a still-pending search can't
+  // leave the previous query's rows on screen and tappable (BUG-17).
+  String _hitsQuery = '';
+
   void _search(String q) => setState(() {
+    _hitsQuery = q;
     _hits = searchCourses(
       q,
       held: widget.held,
@@ -126,6 +171,9 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
       _picked = null;
     }
   });
+
+  List<CourseHit> get _currentHits =>
+      _hitsQuery == _query.text ? _hits : const [];
 
   void _pick(CourseHit h) => setState(() {
     _picked = h;
@@ -155,40 +203,75 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          Space.gutter,
-          0,
-          Space.gutter,
+          20,
+          10,
+          20,
           Space.lg + MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: p.outline,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             if (_manual)
               ..._manualView(context)
             else ...[
-              Text(
-                'Add a course',
-                style: TypeScale.title.copyWith(color: p.text),
-              ),
-              Text(
-                'to semester $sem · $mode',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.caption.copyWith(color: p.textMuted),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Add a course',
+                          style: TypeScale.sheetTitle.copyWith(color: p.text),
+                        ),
+                        Text(
+                          'to semester $sem · $mode',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TypeScale.caption.copyWith(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            color: p.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: Space.sm),
+                  _SheetCircle(
+                    icon: Icons.close_rounded,
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                ],
               ),
               const SizedBox(height: Space.md),
               TextField(
                 controller: _query,
                 autofocus: true,
-                onChanged: _search,
+                onChanged:
+                    (q) => _typed(() {
+                      if (mounted) _search(q);
+                    }),
                 style: TypeScale.body.copyWith(color: p.text),
                 decoration: InputDecoration(
-                  hintText: 'Search by code or name',
+                  hintText: 'Code or name',
                   prefixIcon: Icon(Icons.search_rounded, color: p.icon),
                   suffixText:
                       _query.text.trim().isEmpty
                           ? null
-                          : '${_hits.length} found',
+                          : '${_currentHits.length} found',
                   filled: true,
                   fillColor: p.surface,
                   border: OutlineInputBorder(
@@ -205,9 +288,17 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               Expanded(
                 child: ListView(
                   children: [
-                    for (final h in _hits) ...[
+                    if (_ratingsFailed) ...[
+                      const Notice(
+                        text: TextSpan(text: 'Ratings did not load'),
+                      ),
+                      const SizedBox(height: Space.sm),
+                    ],
+                    for (final h in _currentHits) ...[
                       _HitRow(
                         hit: h,
+                        rating: _ratings?[h.id],
+                        rated: _ratings != null,
                         picked: h.id == _picked?.id,
                         discipline: widget.discipline,
                         onTap: h.heldIn == null ? () => _pick(h) : null,
@@ -253,36 +344,39 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
           widget.discipline,
         );
 
+    // `.fld`: white, no border, radius 15, 46 tall.
     InputDecoration field(String hintText) => InputDecoration(
       hintText: hintText,
       isDense: true,
       counterText: '',
       filled: true,
       fillColor: p.surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: p.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: p.border),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(15),
         borderSide: BorderSide(color: p.text, width: 1.5),
       ),
     );
-    final input = TypeScale.body.copyWith(color: p.text);
+    final input = TypeScale.body.copyWith(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      height: 1.35,
+      color: p.text,
+    );
     void edited(String _) => setState(() {});
 
     Widget section(String name, Widget child, [String? note]) =>
         FieldSection(label: name, note: note, child: child);
 
-    Widget step(IconData icon, String tip, int to) => CircleIconButton(
+    Widget step(IconData icon, String tip, double to) => _StepBox(
       icon: icon,
       tooltip: tip,
-      onPressed: to < 1 || to > 9 ? null : () => setState(() => _credits = to),
+      onPressed:
+          to < 0.5 || to > 20 ? null : () => setState(() => _credits = to),
     );
 
     // The header scrolls with the fields, so large text leaves room.
@@ -292,23 +386,32 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
           children: [
             Row(
               children: [
-                CircleIconButton(
+                _SheetCircle(
                   icon: Icons.arrow_back_rounded,
                   tooltip: 'Back to search',
                   onPressed: () => setState(() => _manual = false),
                 ),
-                const SizedBox(width: Space.md),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Enter it manually',
-                        style: TypeScale.title.copyWith(color: p.text),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TypeScale.sheetTitle.copyWith(
+                          fontSize: 20,
+                          color: p.text,
+                        ),
                       ),
                       Text(
                         'for courses not in the BITS list',
-                        style: TypeScale.caption.copyWith(color: p.textMuted),
+                        style: TypeScale.caption.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: p.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -347,14 +450,17 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               ),
               held != null
                   ? '$_manualId is already in ${semLabel(held)}'
-                  : 'Department, then number, as on your timetable',
+                  : 'Department, then number — like AN and F311.',
             ),
             section(
               'TITLE',
               TextField(
                 controller: _title,
                 minLines: 1,
-                maxLines: null,
+                maxLines: 2,
+                // Unbounded titles made a course card run to ~6 lines
+                // (BUG-30).
+                maxLength: 80,
                 onChanged: edited,
                 textCapitalization: TextCapitalization.words,
                 style: input,
@@ -365,16 +471,36 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
               'CREDITS',
               Row(
                 children: [
-                  step(Icons.remove_rounded, 'Fewer credits', _credits - 1),
-                  SizedBox(
-                    width: 56,
-                    child: Text(
-                      '$_credits',
-                      textAlign: TextAlign.center,
-                      style: TypeScale.title.copyWith(color: p.text),
+                  step(
+                    Icons.remove_rounded,
+                    'Fewer credits',
+                    _credits > 1 ? _credits - 1 : _credits - 0.5,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Container(
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: p.surface,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        formatCredits(_credits),
+                        style: TypeScale.body.copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: p.text,
+                        ),
+                      ),
                     ),
                   ),
-                  step(Icons.add_rounded, 'More credits', _credits + 1),
+                  const SizedBox(width: 6),
+                  step(
+                    Icons.add_rounded,
+                    'More credits',
+                    _credits < 1 ? 1 : _credits + 1,
+                  ),
                 ],
               ),
             ),
@@ -421,52 +547,22 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
     final total = semesterCredits(widget.held, widget.sem) + course.credits;
     if (total > maxSemesterCredits) {
       String f(double v) => v == v.roundToDouble() ? '${v.toInt()}' : '$v';
-      final go = await showDialog<bool>(
-        context: context,
-        builder:
-            (c) => AlertDialog(
-              title: Text('Over ${f(maxSemesterCredits)} credits'),
-              content: Text(
-                'This takes ${semLabel(widget.sem)} to ${f(total)} credits. '
-                'A semester can carry at most ${f(maxSemesterCredits)} unless '
-                'the administration on your campus has approved more.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(c, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(c, true),
-                  child: const Text('I have approval, add it'),
-                ),
-              ],
-            ),
+      final go = await confirmDialog(
+        context,
+        title: 'Over ${f(maxSemesterCredits)} credits',
+        body:
+            'This takes ${semLabel(widget.sem)} to ${f(total)} credits. '
+            'A semester can carry at most ${f(maxSemesterCredits)} unless '
+            'the administration on your campus has approved more.',
+        action: 'I have approval, add it',
       );
-      if (go != true) return;
+      if (!go) return;
     }
     if (context.mounted) Navigator.pop(context, course);
   }
 
   Widget _submit(BuildContext context, Course? course, String sem) {
     final p = AppPalette.of(context);
-    String? change;
-    if (course != null) {
-      final (before, after) = sgpaChange(
-        widget.held,
-        course,
-        sem: widget.sem,
-        discipline: widget.discipline,
-        profile: widget.profile,
-      );
-      String f(double? v) => v == null ? '–' : v.toStringAsFixed(2);
-      if (after != null) {
-        change =
-            before == after
-                ? 'SGPA stays ${f(after)}'
-                : 'SGPA ${f(before)} → ${f(after)}';
-      }
-    }
     return Semantics(
       button: true,
       enabled: course != null,
@@ -481,20 +577,8 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: Space.lg),
               child: Center(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: 'Add to $sem'),
-                      if (change != null)
-                        TextSpan(
-                          text: '  $change',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: p.hero,
-                          ),
-                        ),
-                    ],
-                  ),
+                child: Text(
+                  'Add to $sem',
                   maxLines: 2,
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
@@ -516,6 +600,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
       return Semantics(
         button: true,
         selected: on,
+        label: 'Grade $text',
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () => setState(() => _grade = value),
@@ -587,11 +672,19 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
                 ),
               ),
               const SizedBox(width: Space.sm),
-              Text(
-                '${formatCredits(h.credits)} cr',
-                style: TypeScale.caption.copyWith(
-                  color: p.onHero,
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.onHero.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Text(
+                  '${formatCredits(h.credits)} cr',
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 11,
+                    color: p.onHero,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -630,8 +723,13 @@ class _HitRow extends StatelessWidget {
     required this.picked,
     required this.discipline,
     required this.onTap,
+    required this.rating,
+    required this.rated,
   });
 
+  /// The course's counters; [rated] is false when no ratings are known.
+  final ReviewStats? rating;
+  final bool rated;
   final CourseHit hit;
   final bool picked;
   final String discipline;
@@ -647,47 +745,156 @@ class _HitRow extends StatelessWidget {
             ? '${hit.id} · already in ${semLabel(held)}'
             : '${hit.id} · $cr credit${cr == '1' ? '' : 's'} · '
                 '${categoryLabel(hit.category, discipline)}';
-    return Opacity(
-      opacity: held != null ? 0.55 : 1,
-      child: AppCard(
-        onTap: onTap,
-        radius: 17,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        border: picked ? BorderSide(color: p.text, width: 1.5) : null,
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    hit.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.body.copyWith(
-                      color: p.text,
-                      fontWeight: FontWeight.w700,
-                    ),
+    // Held: a "not counted" card, surface at 55% with muted text (UI.md
+    // §2.1), in colour rather than an Opacity layer (UI_OPT O4.1).
+    return AppCard(
+      onTap: onTap,
+      color: held != null ? p.surface.withValues(alpha: 0.55) : null,
+      radius: 17,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      border: picked ? BorderSide(color: p.text, width: 1.5) : null,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hit.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.body.copyWith(
+                    color: held != null ? p.textMuted : p.text,
+                    fontWeight: FontWeight.w700,
                   ),
-                  Text(
-                    detail,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.caption.copyWith(color: p.textMuted),
-                  ),
-                ],
+                ),
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.caption.copyWith(color: p.textMuted),
+                ),
+                if (held == null && rated) _ratingLine(p),
+              ],
+            ),
+          ),
+          const SizedBox(width: Space.md),
+          if (held != null)
+            Text('ADDED', style: TypeScale.label.copyWith(color: p.textMuted))
+          else
+            Icon(
+              picked ? Icons.check_circle_rounded : Icons.add_rounded,
+              size: 22,
+              color: picked ? p.text : p.textMuted,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ratingLine(AppPalette p) {
+    final r = rating;
+    final style = TypeScale.caption.copyWith(color: p.textMuted);
+    if (r == null || r.count == 0) return Text('No ratings yet', style: style);
+    final avg = r.average!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          Stars(value: avg.round(), size: 13),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              '${avg.toStringAsFixed(1)} · ${r.count} review'
+              '${r.count == 1 ? '' : 's'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A 34 px circle with a 44 px hit area, for the sheet's Close and Back.
+class _SheetCircle extends StatelessWidget {
+  const _SheetCircle({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        excludeSemantics: true,
+        child: InkResponse(
+          onTap: onPressed,
+          radius: 22,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: p.isDark ? p.surfaceSunken : const Color(0xFFE8E8E1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 15, color: p.icon),
               ),
             ),
-            const SizedBox(width: Space.md),
-            if (held != null)
-              Text('ADDED', style: TypeScale.label.copyWith(color: p.textMuted))
-            else
-              Icon(
-                picked ? Icons.check_circle_rounded : Icons.add_rounded,
-                size: 22,
-                color: picked ? p.text : p.textMuted,
-              ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The credits stepper's − and + : 42 px white boxes.
+class _StepBox extends StatelessWidget {
+  const _StepBox({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Icon(
+              icon,
+              size: 19,
+              color: onPressed == null ? p.textMuted : p.icon,
+            ),
+          ),
         ),
       ),
     );

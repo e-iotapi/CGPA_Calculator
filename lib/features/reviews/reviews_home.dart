@@ -7,20 +7,29 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
+import 'package:cgpa_calculator/core/reviews/gate.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/script.dart' show selecteddiscipline;
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
+import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
+import 'package:cgpa_calculator/features/reviews/mine_filter.dart';
+import 'package:cgpa_calculator/features/reviews/pick_sheet.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/search_box.dart';
+import 'package:cgpa_calculator/shared/widgets/segmented.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
-
-String _title(String id) =>
-    catalog.master.where((m) => m.id == id).firstOrNull?.title ?? '';
 
 String _line(ReviewStats s) =>
     s.count == 0
@@ -41,15 +50,29 @@ class ReviewsHome extends StatefulWidget {
 class _ReviewsHomeState extends State<ReviewsHome> {
   late bool _yours = widget.yours;
   final _search = TextEditingController();
+  final _mine = TextEditingController();
   Timer? _debounce;
   Future<List<Professor>>? _profs;
   ReviewOrder _order = ReviewOrder.recent;
+  MineFilter _filter = MineFilter.all;
   int _loads = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // The saved gate draws the first frame; a changed one lands behind it.
+    if (myCampus case final c?) {
+      refreshGate(c).then((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
+    _mine.dispose();
     super.dispose();
   }
 
@@ -76,6 +99,40 @@ class _ReviewsHomeState extends State<ReviewsHome> {
     setState(() => _loads++);
   }
 
+  /// Pick one of the courses the student took, then its review form (an
+  /// existing review of it opens from its course page instead).
+  Future<void> _writeAny() async {
+    final done = myReviewedCourses().toSet();
+    final took =
+        {
+            for (final c in allCourses())
+              if (!done.contains(c.id) && tookIt(c.id) != null) c.id,
+          }.toList()
+          ..sort();
+    if (took.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add the courses you took to your grades first, or you have '
+            'reviewed them all.',
+          ),
+        ),
+      );
+      return;
+    }
+    final v = await pickSheet<String>(
+      context,
+      title: 'Which course?',
+      searchHint: 'Search your courses',
+      options: [for (final id in took) (id, '$id · ${courseTitle(id)}')],
+    );
+    if (v == null || !mounted) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => ReviewFormPage(courseId: v.value)),
+    );
+    if (saved == true) setState(() => _loads++);
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -89,28 +146,54 @@ class _ReviewsHomeState extends State<ReviewsHome> {
     if (store == null || campus == null) {
       return PageFrame(
         header: header,
-        children: const [
-          Note('Sign in with your BITS account to read reviews.'),
+        children: [
+          if (campus == null && store != null)
+            campusPrompt(context)
+          else
+            const Note('Sign in with your BITS account to read reviews.'),
         ],
       );
     }
     final mineCount = myReviewedCourses().length;
-    final tabs = ChoicePills<bool>(
-      values: const [false, true],
-      selected: _yours,
-      label: (v) => v ? 'Your reviews · $mineCount' : 'Courses',
-      onSelected: (v) => setState(() => _yours = v),
+    final tabs = SegmentedTrack<bool>(
+      tabs: [(false, 'Courses'), (true, 'Your reviews · $mineCount')],
+      value: _yours,
+      onChanged: (v) => setState(() => _yours = v),
     );
     if (_yours) {
       return Loaded<List<Review>>(
         key: ValueKey('mine$_loads'),
+        cacheKey: 'reviews-mine|${myReviewedCourses().join(',')}',
         load:
             () async => [
               for (final id in myReviewedCourses())
                 if (await store.mine(id) case final r?) r,
             ],
+        peek: () {
+          final out = <Review>[];
+          for (final id in myReviewedCourses()) {
+            final r = store.peekMine(id);
+            if (r == null) return null;
+            out.add(r);
+          }
+          return out;
+        },
         builder: (context, mine, _) {
-          final sorted = [...mine]..sort(
+          final mq = _mine.text.trim().toLowerCase();
+          final shown = filterMine(
+            mine,
+            _filter,
+            taking: takingNow(),
+            electives: electiveIds(allCourses(), selecteddiscipline),
+          );
+          final sorted = [
+            for (final r in shown)
+              if (mq.isEmpty ||
+                  r.courseId.toLowerCase().contains(mq) ||
+                  courseTitle(r.courseId).toLowerCase().contains(mq) ||
+                  (r.text ?? '').toLowerCase().contains(mq))
+                r,
+          ]..sort(
             (a, b) => switch (_order) {
               ReviewOrder.recent => b.createdAt - a.createdAt,
               ReviewOrder.helpful => b.helpful - a.helpful,
@@ -123,11 +206,29 @@ class _ReviewsHomeState extends State<ReviewsHome> {
             children: [
               tabs,
               const SizedBox(height: Space.sm),
-              ChoicePills<ReviewOrder>(
-                values: ReviewOrder.values,
-                selected: _order,
-                label: (o) => o.label,
-                onSelected: (o) => setState(() => _order = o),
+              SearchBox(
+                controller: _mine,
+                hint: 'Search your reviews',
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: Space.sm),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final f in MineFilter.values)
+                    PillButton(
+                      label: f.label,
+                      height: 30,
+                      selected: _filter == f,
+                      onPressed: () => setState(() => _filter = f),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Space.sm),
+              SortPills(
+                value: _order,
+                onChanged: (o) => setState(() => _order = o),
               ),
               const SizedBox(height: Space.sm),
               for (final r in sorted) ...[
@@ -157,9 +258,11 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                 const SizedBox(height: Space.xs),
               ],
               if (sorted.isEmpty)
-                const Note(
-                  'You have not reviewed anything yet. Open a course you took '
-                  'to add one.',
+                Note(
+                  mine.isEmpty
+                      ? 'You have not reviewed anything yet. Open a course '
+                          'you took to add one.'
+                      : 'No reviews here',
                 ),
             ],
           );
@@ -167,6 +270,17 @@ class _ReviewsHomeState extends State<ReviewsHome> {
       );
     }
 
+    // Board ReviewsLocked: no search, no course rows, only the way out.
+    if (myGate(campus) == GateState.locked) {
+      return PageFrame(
+        header: header,
+        children: [
+          tabs,
+          const SizedBox(height: Space.sm),
+          LockedReviews(onBack: () => setState(() => _loads++)),
+        ],
+      );
+    }
     final q = _search.text.trim().toLowerCase();
     final found =
         q.length < 2
@@ -187,21 +301,40 @@ class _ReviewsHomeState extends State<ReviewsHome> {
       })
     >(
       key: ValueKey('courses$_loads'),
+      // A reopen shows the last numbers at once and refreshes behind them.
+      cacheKey: 'reviews-courses|$campus|${now.join(',')}',
       load:
           () async => (
             now: [for (final id in now) await store.stats(id, campus)],
             top: await store.mostReviewed(campus),
           ),
+      peek: () {
+        final stats = <ReviewStats>[];
+        for (final id in now) {
+          final s = store.peekStats(id, campus);
+          if (s == null) return null;
+          stats.add(s);
+        }
+        final top = store.peekMostReviewed(campus);
+        return top == null ? null : (now: stats, top: top);
+      },
       builder:
           (context, data, _) => PageFrame(
             header: header,
+            bottom: BottomAction(
+              child: PrimaryButton(
+                label: 'Write a review',
+                icon: Icons.rate_review_outlined,
+                tall: true,
+                onPressed: _writeAny,
+              ),
+            ),
             children: [
               tabs,
               const SizedBox(height: Space.sm),
-              AppTextField(
+              SearchBox(
                 controller: _search,
-                label: 'Course or professor',
-                dense: true,
+                hint: 'Course or professor',
                 onChanged: (_) => _searchChanged(campus),
               ),
               const SizedBox(height: Space.sm),
@@ -219,7 +352,7 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                           children: [
                             for (final pr in profs)
                               NavRow(
-                                icon: Icons.school_outlined,
+                                icon: Icons.person_outline,
                                 title: pr.name,
                                 subtitle:
                                     departments[pr.department]?.name ??
@@ -252,41 +385,38 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                       ),
                   ],
                 ),
-              ] else if (q.length < 2) ...[
+              ] else if (q.length >= 2) ...[
+                const SectionLabel('Courses'),
+                AppCard(
+                  child: Text(
+                    'No course code or name matches “${_search.text.trim()}”.',
+                    style: TypeScale.body.copyWith(fontSize: 12.5),
+                  ),
+                ),
+              ] else ...[
                 if (now.isNotEmpty) ...[
                   const SectionLabel('Your courses this semester'),
-                  RowGroup(
-                    children: [
-                      for (final (i, id) in now.indexed)
-                        NavRow(
-                          icon: Icons.menu_book_outlined,
-                          title: '$id · ${_title(id)}',
-                          subtitle: _line(data.now[i]),
-                          onTap: () => _open(id),
-                        ),
-                    ],
-                  ),
+                  _Rows([
+                    for (final (i, id) in now.indexed)
+                      (id, data.now[i], () => _open(id)),
+                  ]),
                 ],
                 if (data.top.isNotEmpty) ...[
                   SectionLabel('Most reviewed at ${campusName(campus)}'),
-                  RowGroup(
-                    children: [
-                      for (final t in data.top)
-                        NavRow(
-                          icon: Icons.trending_up_rounded,
-                          title: '${t.courseId} · ${_title(t.courseId)}',
-                          subtitle: _line(t.stats),
-                          onTap: () => _open(t.courseId),
-                        ),
-                    ],
-                  ),
+                  _Rows([
+                    for (final t in data.top)
+                      (t.courseId, t.stats, () => _open(t.courseId)),
+                  ]),
                 ],
               ],
               const SizedBox(height: Space.sm),
               Text(
-                'Reviews are written per professor and per semester, so a course '
-                'taught by someone new starts a fresh set rather than inheriting '
-                'an old reputation.',
+                q.length >= 2
+                    ? 'One box for both. Any word of a name finds a professor, '
+                        'and their old names too after a merge.'
+                    : 'Reviews are written per professor and per semester, so '
+                        'a course taught by someone new starts a fresh set '
+                        'rather than inheriting an old reputation.',
                 style: TypeScale.caption.copyWith(
                   height: 1.45,
                   color: p.textMuted,
@@ -294,6 +424,80 @@ class _ReviewsHomeState extends State<ReviewsHome> {
               ),
             ],
           ),
+    );
+  }
+}
+
+/// Board rows (§8.4): one-line title, small stars and the take-it line, a
+/// chevron; no leading icon.
+class _Rows extends StatelessWidget {
+  const _Rows(this.rows);
+  final List<(String, ReviewStats, VoidCallback)> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: Column(
+        children: [
+          for (final (i, (id, st, onTap)) in rows.indexed) ...[
+            if (i > 0) Divider(height: 1, color: p.divider),
+            InkWell(
+              onTap: onTap,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 64),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$id · ${courseTitle(id)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TypeScale.body.copyWith(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              if (st.count > 0) ...[
+                                Stars(
+                                  value: (st.average ?? 0).round(),
+                                  size: 11,
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Flexible(
+                                child: Text(
+                                  _line(st),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TypeScale.caption.copyWith(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: p.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, size: 18, color: p.icon),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

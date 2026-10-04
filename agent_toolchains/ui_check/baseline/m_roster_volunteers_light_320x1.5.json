@@ -1,0 +1,12 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Appoint as CR\" 178x36",
+  "tap: \"Back\" 42x42",
+  "tap: \"Dismiss\" 109x36",
+  "tap: \"Maintainers\" 139x34",
+  "tap: \"Volunteers · 2\" 139x34",
+  "truncated: \"f20240101@goa\"",
+  "truncated: \"f20240102@goa\""
+ ]
+}

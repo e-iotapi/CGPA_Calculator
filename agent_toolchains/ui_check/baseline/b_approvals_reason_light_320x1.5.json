@@ -1,0 +1,18 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"Applications · 2\" 1.25:1, needs 3.0 (18.8 px)",
+  "contrast: \"Approve all\" 2.95:1, needs 3.0 (19.5 px)",
+  "contrast: \"Approve\" 1.04:1, needs 3.0 (18.8 px)",
+  "contrast: \"GOA · CS\" 1.30:1, needs 3.0 (16.5 px)",
+  "contrast: \"\" 2.95:1, needs 3.0 (18.0 px)",
+  "tap: \"Needs access\" 147x32",
+  "tap: \"Not useful\" 118x32",
+  "tap: \"Other\" 77x32",
+  "tap: \"Wrong course\" 153x32",
+  "truncated: \"CS Department · 11 days left\"",
+  "truncated: \"CS Department · 2 days left\"",
+  "truncated: \"quietfalcon42 · 3 links\"",
+  "unlabeled: tappable at (256, 35) has no label"
+ ]
+}

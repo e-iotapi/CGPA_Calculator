@@ -1,0 +1,16 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"All\" 52x30",
+  "tap: \"Back\" 42x42",
+  "tap: \"Helpful\" 52x30",
+  "tap: \"Highest\" 52x30",
+  "tap: \"Lowest\" 52x30",
+  "tap: \"Recent\" 52x30",
+  "tap: \"Year\" 114x16",
+  "truncated: \"Helpful\"",
+  "truncated: \"Highest\"",
+  "truncated: \"Lowest\"",
+  "truncated: \"Recent\""
+ ]
+}

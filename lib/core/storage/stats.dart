@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:cgpa_calculator/core/grading/requirements.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 // JSON-safe values only: settingsBox is JSON-encoded by sync (§2.3).
 
@@ -13,6 +13,7 @@ double? get statsTarget {
   return v is num ? v.toDouble() : null;
 }
 
+/// Stores the target CGPA [v].
 Future<void> setStatsTarget(double v) => _settings.put('stats_target', v);
 
 /// Planned SGPA per future semester.
@@ -29,8 +30,24 @@ Map<String, double> get statsPlan {
   }
 }
 
+/// Stores the planned SGPA per future semester.
 Future<void> setStatsPlan(Map<String, double> plan) =>
     _settings.put('stats_plan', jsonEncode(plan));
+
+/// Future semesters left out of the forecast (Stats › Plan the rest).
+Set<String> get statsSkipped {
+  final raw = _settings.get('stats_skipped');
+  if (raw is! String || raw.isEmpty) return {};
+  try {
+    return {for (final s in jsonDecode(raw) as List) s as String};
+  } catch (_) {
+    return {};
+  }
+}
+
+/// Stores the future semesters left out of the forecast.
+Future<void> setStatsSkipped(Set<String> skipped) =>
+    _settings.put('stats_skipped', jsonEncode(skipped.toList()));
 
 /// Elective requirements from the last imported performance sheet.
 DegreeNeeds? get degreeNeeds {
@@ -43,6 +60,7 @@ DegreeNeeds? get degreeNeeds {
   }
 }
 
+/// Stores the needs [n] read from a performance sheet.
 Future<void> setDegreeNeeds(DegreeNeeds n) =>
     _settings.put('degree_needs', jsonEncode(n.toJson()));
 

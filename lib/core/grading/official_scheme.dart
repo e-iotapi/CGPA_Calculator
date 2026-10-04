@@ -15,8 +15,17 @@ import 'package:cgpa_calculator/core/storage/marks.dart' show defaultComponents;
 
 /// Granules (§5). Each can be made the student's on its own.
 String componentGranule(String id) => 'components.$id';
+
+/// The granule of the course average.
 const courseAverageGranule = 'average.course';
+
+/// The student's own "Shown out of", kept against the official scale
+/// (`Offering.outOf`) the way [courseAverageGranule] keeps their average.
+const outOfGranule = 'outof.course';
+/// The granule of component [id]'s average.
 String componentAverageGranule(String id) => 'average.component.$id';
+
+/// The granule of the average of part [i] of component [id].
 String partAverageGranule(String id, int i) => 'average.part.$id.$i';
 
 /// Every granule that belongs to component [id].
@@ -59,6 +68,7 @@ class SchemeUpdate {
 
   /// Published components the student did not have yet.
   final List<Evaluative> add;
+  /// Keys of evaluatives no longer in the published scheme.
   final List<String> delete;
 
   /// The course config after the offering; null when unchanged.
@@ -69,6 +79,7 @@ class SchemeUpdate {
   /// difference is shown until they choose.
   final Map<String, int> detach;
 
+  /// Whether applying the offering changes nothing.
   bool get isEmpty =>
       save.isEmpty &&
       add.isEmpty &&
@@ -179,7 +190,19 @@ SchemeUpdate applyOffering({
       cfg.classAverage = avg;
     }
   }
-  final changed = config == null ? off.hasScheme || avg != null : false;
+  final scale = off.outOf;
+  if (scale != null && off.hasScheme) {
+    if (!seen &&
+        config != null &&
+        was.displayOutOf != 100 &&
+        was.displayOutOf != scale) {
+      detach[outOfGranule] = 0;
+    } else if (!isDetached(outOfGranule)) {
+      cfg.displayOutOf = scale;
+    }
+  }
+  final changed =
+      config == null ? off.hasScheme || avg != null || scale != null : false;
   return SchemeUpdate(
     save: save,
     add: add,

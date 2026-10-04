@@ -1,5 +1,5 @@
 import 'package:cgpa_calculator/course.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// The order a student dragged each semester's courses into, as semester →
 /// course ids. One order for every grade profile: it is a view preference,
@@ -18,6 +18,7 @@ List<String> courseOrderFor(String sem) {
   return ids is List ? [for (final id in ids) '$id'] : const [];
 }
 
+/// Stores the display order of semester [sem]'s course [ids].
 Future<void> setCourseOrder(String sem, List<String> ids) {
   final all = _settings.get(_key);
   return _settings.put(_key, {

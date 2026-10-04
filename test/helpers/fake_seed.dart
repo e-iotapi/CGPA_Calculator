@@ -1,0 +1,683 @@
+// Fake data for every screen: one Goa campus with an owner, an admin, two
+// presidents, two CRs and a student, their grants and contacts, professors,
+// a published offering, reviews (reported and hidden), resources (rolled up
+// and reported), volunteer offers, a publish draft, audit entries, and a
+// student's grades, marks and Offshoot. Screens render from it as they would
+// for a real account, so a test sees them full, not empty (UI.md §14).
+//
+// Everything is written through the app's own stores where one exists, so
+// the shapes match what the screens read. No real people: every address is
+// made up.
+
+import 'package:cgpa_calculator/core/catalog/publish.dart';
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/grading/offshoot.dart';
+import 'package:cgpa_calculator/core/models/marks.dart';
+import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cgpa_calculator/core/professors/professor.dart';
+import 'package:cgpa_calculator/core/resources/resource.dart';
+import 'package:cgpa_calculator/core/resources/resource_store.dart';
+import 'package:cgpa_calculator/core/reviews/review_store.dart';
+import 'package:cgpa_calculator/core/roles/maintain_store.dart';
+import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
+import 'package:cgpa_calculator/core/storage/marks.dart';
+import 'package:cgpa_calculator/core/storage/offerings.dart';
+import 'package:cgpa_calculator/course.dart';
+import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/script.dart' as app;
+import 'package:cgpa_calculator/sync.dart';
+import 'package:cgpa_calculator/core/analytics/analytics_store.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:hive_ce/hive.dart';
+
+// ---- People (made up) -------------------------------------------------------
+
+const ownerEmail = 'f20190001@goa.bits-pilani.ac.in';
+const adminEmail = 'f20200011@hyderabad.bits-pilani.ac.in';
+const presEmail = 'f20230802@goa.bits-pilani.ac.in';
+const pres2Email = 'f20220003@goa.bits-pilani.ac.in';
+const crEmail = 'f20230456@goa.bits-pilani.ac.in';
+const cr2Email = 'f20240009@goa.bits-pilani.ac.in';
+const studentEmail = 'f20230123@goa.bits-pilani.ac.in';
+
+final _far = DateTime.now().add(const Duration(days: 100));
+final _soon = DateTime.now().add(const Duration(days: 4));
+
+Grant _grant(
+  GrantRole role,
+  String email,
+  String name,
+  String scope, {
+  String campus = 'goa',
+  String? programme,
+  DateTime? until,
+}) => Grant(
+  role: role,
+  email: email,
+  name: name,
+  campus: campus,
+  scope: scope,
+  programme: programme,
+  active: true,
+  expiresAt: until ?? _far,
+  grantedByEmail: ownerEmail,
+  grantedByName: 'Owner One',
+  grantedAt: DateTime.now().subtract(const Duration(days: 20)),
+);
+
+final presGrant = _grant(
+  GrantRole.dept,
+  presEmail,
+  'Meera Iyer',
+  'ELEC',
+  programme: 'A3',
+);
+final pres2Grant = _grant(
+  GrantRole.dept,
+  pres2Email,
+  'Rohan Deshpande',
+  'CS',
+  programme: 'A7',
+  until: _soon,
+);
+final crGrant = _grant(GrantRole.course, crEmail, 'Arjun Rao', 'CS F372');
+final cr2Grant = _grant(GrantRole.course, cr2Email, 'Ishita Menon', 'EEE F211');
+final adminGrant = _grant(
+  GrantRole.admin,
+  adminEmail,
+  'Kavya Nair',
+  'all',
+  campus: 'hyderabad',
+);
+
+/// Who a screen is rendered for.
+enum As {
+  owner(ownerEmail, 'Owner One'),
+  admin(adminEmail, 'Kavya Nair'),
+  president(presEmail, 'Meera Iyer'),
+  president2(pres2Email, 'Rohan Deshpande'),
+  cr(crEmail, 'Arjun Rao'),
+  student(studentEmail, 'Priya Sharma');
+
+  const As(this.email, this.name);
+  final String email, name;
+
+  MyRoles get roles => switch (this) {
+    As.owner => MyRoles(email: email, owner: true),
+    As.admin => MyRoles(email: email, grants: [adminGrant]),
+    As.president => MyRoles(email: email, grants: [presGrant]),
+    As.president2 => MyRoles(email: email, grants: [pres2Grant]),
+    As.cr => MyRoles(email: email, grants: [crGrant]),
+    As.student => MyRoles(email: email),
+  };
+}
+
+/// The course a student is taking this term, with a published scheme.
+const takingId = 'CS F372';
+const takingTitle = 'Operating Systems';
+final term = currentTerm(DateTime.now());
+
+// ---- Firestore --------------------------------------------------------------
+
+/// Fills `db` with everything the shared screens read.
+/// "Now" for the analytics seed and its render entry.
+final analyticsNow = DateTime.utc(2026, 9, 29, 12);
+
+Future<void> seedFirestore(FakeFirebaseFirestore db) async {
+  Future<void> grant(Grant g) => db.collection('grants').doc(g.id).set({
+    'role': g.role.key,
+    'email': g.email,
+    'name': g.name,
+    'campus': g.campus,
+    'scope': g.scope,
+    if (g.programme != null) 'programme': g.programme,
+    'active': true,
+    'expiresAt': Timestamp.fromDate(g.expiresAt),
+    'grantedBy': {'email': ownerEmail, 'name': 'Owner One'},
+    'grantedAt': Timestamp.fromDate(g.grantedAt!),
+  });
+  for (final g in [presGrant, pres2Grant, crGrant, cr2Grant, adminGrant]) {
+    await grant(g);
+  }
+  for (final (e, n) in [
+    (ownerEmail, 'Owner One'),
+    ('f20180002@pilani.bits-pilani.ac.in', 'Owner Two'),
+  ]) {
+    await db.collection('owners').doc(e).set({
+      'email': e,
+      'name': n,
+      'active': true,
+      'addedBy': {'email': ownerEmail, 'name': 'Owner One'},
+    });
+  }
+  // A removed owner, for the INACTIVE rows.
+  await db
+      .collection('owners')
+      .doc('f20150003@hyderabad.bits-pilani.ac.in')
+      .set({
+        'email': 'f20150003@hyderabad.bits-pilani.ac.in',
+        'name': 'Owner Three',
+        'active': false,
+        'addedBy': {'email': ownerEmail, 'name': 'Owner One'},
+      });
+  for (final (i, a) in As.values.indexed) {
+    await db.collection('people').doc(a.email).set({
+      'name': a.name,
+      'campus': a == As.admin ? 'hyderabad' : 'goa',
+      // Site analytics counts these, against [analyticsNow].
+      'firstSignIn': analyticsNow.millisecondsSinceEpoch - i * 3 * 86400000,
+      'lastSeen': analyticsNow.millisecondsSinceEpoch - i * 86400000,
+    });
+  }
+  // Sampled day docs for the last week (×20 on screen).
+  for (var i = 0; i < 7; i++) {
+    final day = istDay(analyticsNow.subtract(Duration(days: i)));
+    await db.collection('analytics').doc(day).set({
+      'sample': 20,
+      'goa': {
+        'dau': 30 + 7 * i,
+        'h': {'09': 8 + i, '13': 14, '21': 20 - i},
+      },
+      'hyderabad': {
+        'dau': 22 + i,
+        'h': {'10': 6, '22': 11},
+      },
+    });
+  }
+  // Staff phones, and what students see on Representatives.
+  for (final (e, n, phone) in [
+    (ownerEmail, 'Owner One', '+91 90000 00001'),
+    (adminEmail, 'Kavya Nair', '+91 90000 00102'),
+    (presEmail, 'Meera Iyer', '+91 90000 00203'),
+    (crEmail, 'Arjun Rao', '+91 90000 00304'),
+  ]) {
+    await db.collection('staffContacts').doc(e).set({
+      'name': n,
+      'phone': phone,
+      'email': e,
+    });
+  }
+  Future<void> listed(String e, String n, String role, String scope) async {
+    final entry = {
+      'name': n,
+      'campus': 'goa',
+      'roles': [
+        {'role': role, 'scope': scope, 'until': Timestamp.fromDate(_far)},
+      ],
+      'email': e,
+      'whatsapp': '9876543210',
+    };
+    await db.collection('directory').doc(e).set(entry);
+    await db.collection('repIndex').doc('goa').set({
+      'p': {e: entry},
+    }, SetOptions(merge: true));
+  }
+
+  await listed(presEmail, 'Meera Iyer', 'dept', 'ELEC');
+  await listed(pres2Email, 'Rohan Deshpande', 'dept', 'CS');
+  await listed(crEmail, 'Arjun Rao', 'course', takingId);
+
+  await db.collection('config').doc('public').set({
+    'contactName': 'Owner',
+    'contactMethod': 'whatsapp',
+    'contactTarget': '9000000001',
+    'contactEnabled': true,
+    'updatedBy': {'email': adminEmail, 'name': 'Kavya Nair'},
+    'updatedAt': Timestamp.fromDate(
+      _midnight().subtract(const Duration(days: 2)),
+    ),
+    'auditId': 'contact',
+  });
+  await db.collection('audit').doc('contact').set({
+    'actor': {'email': adminEmail, 'name': 'Kavya Nair', 'role': 'admin'},
+    'summary': 'Set the public contact to Owner (whatsapp)',
+    'path': 'config/public',
+    'campus': 'all',
+    'at': Timestamp.fromDate(_midnight().subtract(const Duration(days: 2))),
+  });
+
+  // Professors: a duplicate pair to merge, and two more.
+  for (final (id, name, dept) in [
+    ('p1', 'Ramesh Menon', 'CS'),
+    ('p2', 'Dr. R. Menon', 'CS'),
+    ('p3', 'S. Bhat', 'CS'),
+    ('p4', 'A. Iyer', 'ELEC'),
+  ]) {
+    await db.collection('professors').doc(id).set({
+      'name': name,
+      'campus': 'goa',
+      'department': dept,
+      'aliases': <String>[],
+      'mergedIds': <String>[],
+      'active': true,
+      'nameTokens': nameTokens(name).toList(),
+    });
+  }
+
+  final roles = RoleStore(db, me: ownerEmail, myName: 'Owner One');
+
+  // The published scheme for the course the student takes, and an ELEC one.
+  final maintain = MaintainStore(roles);
+  await maintain.save(takingOffering(), 'Scheme for $takingId');
+  await maintain.save(
+    Offering(
+      courseId: 'EEE F211',
+      campus: 'goa',
+      term: term,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+      professors: const ['p4'],
+      components: [
+        OfferedComponent(
+          id: 'mid',
+          name: 'Midsem',
+          weight: 35,
+          parts: [OfferedPart(name: 'Midsem', outOf: 35, average: 21)],
+        ),
+        OfferedComponent(
+          id: 'compre',
+          name: 'Compre',
+          weight: 40,
+          parts: [OfferedPart(name: 'Compre', outOf: 40)],
+        ),
+      ],
+    ),
+    'Scheme for EEE F211',
+  );
+
+  // Reviews: several authors, one reported twice, one hidden.
+  final texts = [
+    'Grading was strict but fair, and the handouts matter more than the '
+        'slides. Do the lab sheets before the quiz.',
+    'Heavy, but you come out knowing how an OS schedules.',
+    'Reported as naming an instructor rather than describing the course.',
+    'Good course; the labs are the best part.',
+  ];
+  for (final (i, course)
+      in [
+        takingId,
+        takingId,
+        takingId,
+        'EEE F211',
+        'EEE F211',
+        'EEE F212',
+      ].indexed) {
+    await ReviewStore(db, uid: 'u$i', roles: roles).save(
+      courseId: course,
+      campus: 'goa',
+      term: '2025-26-2',
+      professorId: course == takingId ? 'p1' : 'p4',
+      stars: [4, 5, 2, 4, 3, 5][i],
+      recommend: i != 2,
+      grade: 'B',
+      text: texts[i % texts.length],
+    );
+  }
+  final entries = await db.collectionGroup('entries').get();
+  for (final (i, d) in entries.docs.indexed) {
+    if (i == 2) await d.reference.update({'reports': 2});
+    if (i == 4) await d.reference.update({'reports': 1});
+    if (i == 5) {
+      await d.reference.update({
+        'hidden': true,
+        'hiddenReason': 'Names a person',
+      });
+      await d.reference.parent.parent!.collection('campus').doc('goa').update({
+        'r.${d.id}': FieldValue.delete(),
+      });
+    }
+  }
+
+  // Resources: department links, a course link that rolls up, a reported one.
+  final res = ResourceStore(roles, uid: 'u-owner');
+  final ids = <String>[];
+  for (final r in [
+    Resource(
+      id: '',
+      title: 'ELEC past papers — all years',
+      url: 'https://drive.google.com/drive/folders/elec-papers',
+      campus: 'goa',
+      department: 'ELEC',
+    ),
+    Resource(
+      id: '',
+      title: 'Signals lecture videos',
+      url: 'https://www.youtube.com/playlist?list=signals',
+      campus: 'goa',
+      department: 'ELEC',
+    ),
+    Resource(
+      id: '',
+      title: 'EEE F211 notes and solved tutorials',
+      url: 'https://drive.google.com/drive/folders/eee-f211',
+      campus: 'goa',
+      department: 'ELEC',
+      scope: 'course',
+      courseIds: const ['EEE F211'],
+    ),
+    Resource(
+      id: '',
+      title: 'OS lab sheets',
+      url: 'https://drive.google.com/drive/folders/os-labs',
+      campus: 'goa',
+      department: 'CS',
+      scope: 'course',
+      courseIds: const [takingId],
+    ),
+  ]) {
+    ids.add(await res.add(r));
+  }
+  final reported = (await res.department('goa', 'ELEC')).first;
+  await ResourceStore(
+    roles,
+    uid: 'u-reporter',
+  ).report(reported, ReportReason.broken, note: 'The folder is empty');
+
+  // Two students offer to be CR for a course with none.
+  for (final (e, n) in [
+    ('f20240101@goa.bits-pilani.ac.in', 'Nikhil Bhat'),
+    ('f20240102@goa.bits-pilani.ac.in', 'Sana Kapoor'),
+  ]) {
+    await db.collection('volunteers').doc('goa_EEE F212_$e').set({
+      'name': n,
+      'email': e,
+      'campus': 'goa',
+      'courseId': 'EEE F212',
+      'dept': 'ELEC',
+      'term': term,
+      'open': true,
+      'createdAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  // A publish draft that moves CGPAs, and a cosmetic one; both differ from
+  // assets/catalog.json, so Publish shows a real diff.
+  final catalog = CatalogStore(roles);
+  await catalog.saveDraft(
+    const CourseEdit(id: 'CS F211', credits: 3),
+    campus: 'goa',
+  );
+  await catalog.saveDraft(
+    const CourseEdit(id: 'CS F213', title: 'Object-Oriented Programming'),
+    campus: 'goa',
+  );
+
+  // Audit entries of every kind, oldest last.
+  for (final (i, (who, name, role, what, course))
+      in [
+        (
+          crEmail,
+          'Arjun Rao',
+          'cr',
+          'Changed the Midsem weight in CS F372',
+          takingId,
+        ),
+        (
+          presEmail,
+          'Meera Iyer',
+          'president',
+          'Appointed Ishita Menon CR for EEE F211',
+          'EEE F211',
+        ),
+        (
+          presEmail,
+          'Meera Iyer',
+          'president',
+          'Added a link to EEE F211: notes',
+          'EEE F211',
+        ),
+        (
+          ownerEmail,
+          'Owner One',
+          'owner',
+          'Published 14 changes, including EEE F211',
+          null,
+        ),
+      ].indexed) {
+    await db.collection('audit').add({
+      'actor': {'email': who, 'name': name, 'role': role},
+      'action': what,
+      'summary': what,
+      'campus': 'goa',
+      if (course != null) 'course': course,
+      // A value change, drawn as before → after chips.
+      if (i == 0) ...{'before': '30%', 'after': '35%'},
+      'at': Timestamp.fromDate(
+        // From midnight, so shown times never move with the clock.
+        _midnight().subtract(Duration(hours: [1, 20, 72, 120][i])),
+      ),
+    });
+  }
+}
+
+String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
+
+/// CS F372's published scheme this term: best-of parts, averages, a part
+/// with no average yet, and a professor.
+Offering takingOffering() => Offering(
+  courseId: takingId,
+  campus: 'goa',
+  term: term,
+  updatedAt: DateTime.now().millisecondsSinceEpoch,
+  professors: const ['p1'],
+  courseAverage: 63.5,
+  components: [
+    OfferedComponent(
+      id: 'kernel',
+      name: 'Kernel Assignments',
+      weight: 20,
+      countBest: 2,
+      average: 12.4,
+      parts: [
+        OfferedPart(name: 'CPU Scheduling', outOf: 10, average: 7.2),
+        OfferedPart(name: 'Memory Management', outOf: 10, average: 5.2),
+        OfferedPart(name: 'Concurrency', outOf: 10),
+      ],
+    ),
+    OfferedComponent(
+      id: 'quiz',
+      name: 'In-Lab Quiz',
+      weight: 4,
+      countBest: 4,
+      parts: [
+        for (var i = 1; i <= 6; i++)
+          OfferedPart(
+            name: 'Quiz $i',
+            outOf: 1,
+            date: _iso(DateTime.now().subtract(Duration(days: 60 - 7 * i))),
+          ),
+      ],
+    ),
+    OfferedComponent(
+      id: 'mid',
+      name: 'Mid Semester',
+      weight: 25,
+      parts: [
+        OfferedPart(
+          name: 'Mid Semester',
+          outOf: 25,
+          date: _iso(DateTime.now().add(const Duration(days: 12))),
+        ),
+      ],
+    ),
+    OfferedComponent(
+      id: 'compre',
+      name: 'Compre',
+      weight: 30,
+      parts: [
+        OfferedPart(
+          name: 'Compre',
+          outOf: 30,
+          date: _iso(DateTime.now().add(const Duration(days: 70))),
+        ),
+      ],
+    ),
+  ],
+);
+
+// ---- The student's device (Hive) -------------------------------------------
+
+/// The published offerings, as the app reads them from Firestore.
+OfferingSource publishedOfferings() => _Published();
+
+class _Published implements OfferingSource {
+  @override
+  Future<Offering?> get(String courseId, String campus, String term) async =>
+      courseId == takingId ? takingOffering() : null;
+}
+
+Course _course(
+  String sem,
+  String id,
+  String title,
+  double cr,
+  int g1, {
+  int? g2,
+  String discipline = 'A7',
+  String elective = 'CDC',
+}) => Course(
+  title: title,
+  id: id,
+  credits: cr,
+  grade1: g1,
+  grade2: g2 ?? g1,
+  discipline: discipline,
+  sem: sem,
+  elective: elective,
+);
+
+/// Eight semesters of a B3 A7 dual degree, batch 23, at Goa: graded, NC,
+/// ongoing and this term's courses, with Expected differing from Actual.
+List<Course> studentCourses() => [
+  _course('1 - 1', 'BITS F110', 'Engineering Graphics', 2, 10),
+  _course('1 - 1', 'MATH F111', 'Mathematics I', 3, 9),
+  _course('1 - 1', 'CHEM F111', 'General Chemistry', 3, 8),
+  _course('1 - 2', 'MATH F112', 'Mathematics II', 3, 7),
+  _course('1 - 2', 'BIO F111', 'General Biology', 3, 10),
+  _course(
+    '2 - 1',
+    'ECON F211',
+    'Principles of Economics',
+    3,
+    8,
+    discipline: 'B3',
+  ),
+  _course('2 - 1', 'CS F211', 'Data Structures and Algorithms', 4, 9),
+  _course('2 - 2', 'CS F212', 'Database Systems', 4, 8),
+  _course(
+    '2 - 2',
+    'ECON F212',
+    'Fundamentals of Finance and Accounts',
+    3,
+    9,
+    discipline: 'B3',
+  ),
+  _course(
+    '3 - 1',
+    'CS F301',
+    'Principles of Programming Languages',
+    2,
+    7,
+    g2: 8,
+  ),
+  _course(
+    '3 - 1',
+    'HSS F222',
+    'Linguistics',
+    3,
+    10,
+    elective: 'Humanity Electives',
+  ),
+  _course('3 - 2', 'CS F351', 'Theory of Computation', 3, 8, g2: 9),
+  _course(
+    '3 - 2',
+    'ECON F355',
+    'Business Analysis and Valuation',
+    3,
+    GradeCode.nc,
+    discipline: 'B3',
+    elective: 'Disciplinary Elective1',
+  ),
+  _course('4 - 1', takingId, takingTitle, 4, GradeCode.clr, g2: 9),
+  _course('4 - 1', 'CS F342', 'Computer Architecture', 4, GradeCode.clr, g2: 8),
+  _course('4 - 1', 'BITS F112', 'Technical Report Writing', 2, GradeCode.clr),
+];
+
+/// The student's own marks on [takingId]: official parts with their marks,
+/// one component made their own (detached), class average entered.
+Future<void> seedMarks() async {
+  // Through the offering cache, as the app does, so Marks finds the
+  // professor and the published averages too.
+  await refreshOffering(_Published(), takingId, 'goa', term);
+  final mine = evaluativesFor(takingId);
+  for (final (key, e) in mine) {
+    final filled = switch (e.name) {
+      'Kernel Assignments' => [8.0, 6.0, 3.0],
+      'In-Lab Quiz' => [1.0, 1.0, 0.0, 1.0],
+      _ => const <double>[],
+    };
+    for (final (i, m) in filled.indexed) {
+      if (i < e.parts.length) e.parts[i].marks = m;
+    }
+    await saveEvaluative(e, key: key);
+  }
+  await saveEvaluative(
+    Evaluative(
+      courseId: takingId,
+      name: 'Assignment 0',
+      weight: 6,
+      parts: [
+        EvalPart(name: 'Part A', marks: 3, outOf: 3, average: 2.5),
+        EvalPart(name: 'Part B', marks: 3, outOf: 3, average: 2.6),
+      ],
+    ),
+  );
+  final cfg = configFor(takingId) ?? CourseConfig(courseId: takingId);
+  cfg.classAverage = 9.8;
+  await saveConfig(cfg);
+}
+
+/// The fake Firestore every render reads, filled once by `seedAll`.
+late FakeFirebaseFirestore sharedDb;
+
+DateTime _midnight() {
+  final n = DateTime.now();
+  return DateTime(n.year, n.month, n.day);
+}
+
+/// Opens every Hive box the app uses and fills the student's data, once
+/// Hive is initialised (a temp dir in tests, IndexedDB in the demo).
+Future<void> fillDevice() async {
+  if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(CourseAdapter());
+  registerMarksAdapters();
+  await Sync.openBoxes();
+  if (!Hive.isBoxOpen(marksBoxName)) await Hive.openBox(marksBoxName);
+  for (final b in cacheBoxes) {
+    if (!Hive.isBoxOpen(b)) await Hive.openBox(b);
+  }
+  app.campus = Campus.goa;
+  app.batch = 23;
+  app.selecteddiscipline = 'B3A7';
+  final box = Hive.box<Course>('coursesBox');
+  await box.clear();
+  await box.addAll(studentCourses());
+  final off = Hive.box<Course>('offshootBox');
+  await off.clear();
+  await off.addAll([
+    for (final (i, c) in offshootCourses.take(6).indexed)
+      Course(
+        title: c.title,
+        id: c.id,
+        credits: 3,
+        grade1: const [9, 10, 8, 7, 10, 10][i],
+        grade2: GradeCode.clr,
+        discipline: 'B3',
+        sem: 'Offshoot',
+        elective: 'Offshoot',
+      ),
+  ]);
+  await seedMarks();
+}

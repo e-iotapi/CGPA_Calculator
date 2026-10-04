@@ -1,13 +1,19 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/catalog/publish.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/tag_badge.dart';
 import 'package:flutter/material.dart';
 
 CatalogStore get _store => CatalogStore(roleStore!);
@@ -64,6 +70,23 @@ class _PublishPageState extends State<PublishPage> {
     }
   }
 
+  /// A confirm step before every publish (BUG-48: it used to run at once).
+  Future<void> _confirmAndPublish(
+    Catalog next,
+    CatalogDiff diff,
+    List<CourseEdit> drafts,
+  ) async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Publish v${next.version}?',
+      body:
+          '${diff.count} change${diff.count == 1 ? '' : 's'} go live for '
+          'everyone on their next open.',
+      action: 'Publish',
+    );
+    if (ok && mounted) await _publish(next, diff, drafts);
+  }
+
   Future<void> _draft() async {
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -73,13 +96,26 @@ class _PublishPageState extends State<PublishPage> {
     if (saved == true) setState(() => _loads++);
   }
 
+  String get _draftsKey => 'last|drafts|${roleStore!.me}';
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Loaded<List<CourseEdit>>(
+      cacheKey: 'publish-drafts',
       key: ValueKey(_loads),
-      load: _store.drafts,
-      builder: (context, drafts, reload) {
+      load: remembered(
+        _draftsKey,
+        _store.drafts,
+        (v) => [for (final e in v) e.toMap()],
+      ),
+      peek:
+          () => peekCache<List<CourseEdit>>(
+            _draftsKey,
+            (o) => [for (final m in o as List) CourseEdit.fromMap(m as Map)],
+          ),
+      // Last list: actions wait for the fresh one.
+      gated: (context, drafts, reload, saved) {
         final live = catalog;
         final next = applyEdits(live, drafts);
         final diff = diffCatalog(live, next);
@@ -105,11 +141,25 @@ class _PublishPageState extends State<PublishPage> {
           ),
         );
 
+        final label = TypeScale.label.copyWith(color: p.textMuted);
+        final n = diff.credits.length;
         return PageFrame(
           header: PageHeader(
             eyebrow:
                 'DRAFT → LIVE · ${diff.count} CHANGE${diff.count == 1 ? '' : 'S'}',
             title: 'Publish catalogue',
+          ),
+          bottom: BottomAction(
+            child: PrimaryButton(
+              label:
+                  _busy
+                      ? 'Publishing…'
+                      : 'Publish ${diff.count} change${diff.count == 1 ? '' : 's'}',
+              onPressed:
+                  saved || _busy || diff.isEmpty || (n > 0 && !_read)
+                      ? null
+                      : () => _confirmAndPublish(next, diff, drafts),
+            ),
           ),
           children: [
             Text(
@@ -117,19 +167,24 @@ class _PublishPageState extends State<PublishPage> {
               style: TypeScale.caption.copyWith(color: p.textMuted),
             ),
             const SizedBox(height: Space.sm),
-            if (diff.credits.isNotEmpty) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: SectionLabel('Moves CGPAs · ${diff.credits.length}'),
-                  ),
-                  const TierTag('CONFIRM', strong: true),
-                ],
-              ),
+            if (n > 0) ...[
               AppCard(
+                color: p.noticeTone.fill,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'MOVES CGPAs · $n',
+                            style: label.copyWith(color: p.noticeTone.text),
+                          ),
+                        ),
+                        const TagBadge('CONFIRM', tone: TagTone.confirm),
+                      ],
+                    ),
+                    const SizedBox(height: Space.sm),
                     for (final c in diff.credits)
                       line(
                         '${c.id} · ${c.title}',
@@ -140,13 +195,15 @@ class _PublishPageState extends State<PublishPage> {
                   ],
                 ),
               ),
+              const SizedBox(height: Space.sm),
             ],
             if (diff.retired.isNotEmpty) ...[
-              SectionLabel('Retired · ${diff.retired.length}'),
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text('RETIRED · ${diff.retired.length}', style: label),
+                    const SizedBox(height: Space.sm),
                     for (final c in diff.retired)
                       line(
                         '${c.id} · ${c.title}',
@@ -156,60 +213,89 @@ class _PublishPageState extends State<PublishPage> {
                   ],
                 ),
               ),
-            ],
-            if (diff.cosmetic.isNotEmpty) ...[
               const SizedBox(height: Space.sm),
+            ],
+            if (diff.added.isNotEmpty) ...[
               AppCard(
-                onTap: () => setState(() => _showCosmetic = !_showCosmetic),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    line(
-                      'Titles and default tags · ${diff.cosmetic.length}',
-                      'Cosmetic. A category someone set by hand still wins.',
-                    ),
-                    if (_showCosmetic)
-                      for (final c in diff.cosmetic)
-                        Text('${c.id} · ${c.what}', style: TypeScale.caption),
+                    Text('NEW COURSES · ${diff.added.length}', style: label),
+                    const SizedBox(height: Space.sm),
+                    for (final c in diff.added)
+                      line(
+                        '${c.id} · ${c.title}',
+                        'Joins Add a course and the catalogue Pointer knows.',
+                      ),
                   ],
                 ),
               ),
+              const SizedBox(height: Space.sm),
+            ],
+            if (diff.cosmetic.isNotEmpty) ...[
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CardRow(
+                      title:
+                          'Titles and default tags · ${diff.cosmetic.length}',
+                      subtitle:
+                          'Cosmetic. A category someone set by hand still '
+                          'wins.',
+                      trailing: Icon(
+                        _showCosmetic
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: p.textMuted,
+                      ),
+                      onTap:
+                          () => setState(() => _showCosmetic = !_showCosmetic),
+                    ),
+                    if (_showCosmetic)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final c in diff.cosmetic)
+                              Text(
+                                '${c.id} · ${c.what}',
+                                style: TypeScale.caption,
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Space.sm),
             ],
             if (diff.isEmpty)
-              const Note('Nothing waiting. Draft a change to a course below.'),
+              const Note('Nothing waiting. Draft a change below.'),
             const Note(
               'Pointer names the courses, never a headcount: counting who is '
               'affected would mean reading everyone\'s grades.',
             ),
-            if (diff.credits.isNotEmpty)
-              CheckboxListTile(
+            if (n > 0)
+              _ReadRow(
                 value: _read,
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                onChanged: (v) => setState(() => _read = v ?? false),
-                title: Text(
-                  'I have read the ${diff.credits.length} credit '
-                  'change${diff.credits.length == 1 ? '' : 's'}. They move '
-                  'CGPAs.',
-                  style: TypeScale.body,
-                ),
+                text:
+                    'I have read the $n credit change${n == 1 ? '' : 's'}. '
+                    'They move CGPAs.',
+                onChanged: (v) => setState(() => _read = v),
               ),
             const SizedBox(height: Space.sm),
-            PrimaryButton(
-              label:
-                  _busy
-                      ? 'Publishing…'
-                      : 'Publish ${diff.count} change${diff.count == 1 ? '' : 's'}',
-              onPressed:
-                  _busy || diff.isEmpty || (diff.credits.isNotEmpty && !_read)
-                      ? null
-                      : () => _publish(next, diff, drafts),
-            ),
-            const SizedBox(height: Space.sm),
-            TextButton.icon(
-              onPressed: _draft,
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Draft a change to a course'),
+            // Hugs its label; OutlinedPill itself fills the width it gets.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IntrinsicWidth(
+                child: OutlinedPill(
+                  label: 'Draft a change',
+                  onPressed: saved ? null : _draft,
+                ),
+              ),
             ),
             if (drafts.isNotEmpty) ...[
               const SectionLabel('Drafts'),
@@ -222,6 +308,68 @@ class _PublishPageState extends State<PublishPage> {
           ],
         );
       },
+    );
+  }
+}
+
+/// The confirm row: a 22 px box and the sentence, 44 tall to tap.
+class _ReadRow extends StatelessWidget {
+  const _ReadRow({
+    required this.value,
+    required this.text,
+    required this.onChanged,
+  });
+  final bool value;
+  final String text;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Semantics(
+      checked: value,
+      label: text,
+      excludeSemantics: true,
+      onTap: () => onChanged(!value),
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        borderRadius: BorderRadius.circular(Radii.check),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: value ? p.inverse : null,
+                  borderRadius: BorderRadius.circular(Radii.check),
+                  border:
+                      value ? null : Border.all(color: p.textMuted, width: 1.5),
+                ),
+                child:
+                    value
+                        ? Icon(
+                          Icons.check_rounded,
+                          size: 15,
+                          color: p.onInverse,
+                        )
+                        : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -270,6 +418,10 @@ class _DraftSheetState extends State<_DraftSheet> {
     if (_code.isEmpty) return setState(() => _error = 'Type a course code.');
     if (m == null && (title.isEmpty || credits == null)) {
       return setState(() => _error = 'A new course needs a title and credits.');
+    }
+    if (m == null) {
+      final err = newCourseError(_code, credits!, catalog);
+      if (err != null) return setState(() => _error = err);
     }
     final e = CourseEdit(
       id: _code,

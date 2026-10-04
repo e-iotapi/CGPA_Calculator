@@ -7,7 +7,11 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -32,8 +36,18 @@ class GrantTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final left = g.expiresAt.difference(DateTime.now()).inDays;
-    final soon = g.active && left >= 0 && left <= 14;
+    final now = DateTime.now();
+    final left = g.expiresAt.difference(now).inDays;
+    final soon = expiresSoon(g);
+    final live = g.liveAt(now);
+    final right = TypeScale.label.copyWith(
+      color:
+          !live
+              ? p.behind
+              : soon
+              ? p.noticeTone.text
+              : p.textMuted,
+    );
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -42,51 +56,48 @@ class GrantTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TierTag.of(g.role),
-                if (g.role != GrantRole.admin) ...[
-                  ScopeChip(campusName(g.campus), icon: Icons.place_outlined),
-                  ScopeChip(
-                    g.role == GrantRole.dept && g.programme != null
-                        ? '${g.scope} · for ${g.programme}'
-                        : g.scope,
-                    muted: true,
+                Expanded(
+                  flex: 2,
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      TierTag.of(g.role),
+                      if (g.role != GrantRole.admin) ...[
+                        ScopeChip(
+                          campusName(g.campus),
+                          icon: Icons.place_outlined,
+                        ),
+                        ScopeChip(g.scopeLabel, muted: true),
+                      ],
+                    ],
                   ),
-                ],
-                if (!g.active)
-                  Text(
-                    'REVOKED',
-                    style: TypeScale.label.copyWith(color: p.behind),
-                  )
-                else if (soon)
-                  Text(
-                    'EXPIRES IN $left DAYS',
-                    style: TypeScale.label.copyWith(color: p.noticeTone.text),
+                ),
+                const SizedBox(width: 8),
+                // At most a third of the row, wrapping, so large text never
+                // pushes it off the edge.
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Text(
+                      !live
+                          ? (g.active ? 'EXPIRED' : 'REVOKED')
+                          : soon
+                          ? 'EXPIRES IN $left DAY${left == 1 ? '' : 'S'}'
+                          : shortDay(g.expiresAt, year: true),
+                      textAlign: TextAlign.end,
+                      style: right,
+                    ),
                   ),
+                ),
               ],
             ),
             const SizedBox(height: 7),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: g.name,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  TextSpan(
-                    text: '  ${g.email}',
-                    style: TextStyle(fontSize: 11, color: p.textMuted),
-                  ),
-                ],
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TypeScale.body.copyWith(fontSize: 13),
-            ),
+            NameEmail(g.name, g.email),
             const SizedBox(height: 2),
             Row(
               children: [
@@ -96,7 +107,7 @@ class GrantTile extends StatelessWidget {
                         [
                           if (g.grantedByName.isNotEmpty)
                             'Appointed by ${g.grantedByName}',
-                          g.active
+                          live
                               ? 'until ${shortDay(g.expiresAt, year: true)}'
                               : 'ended',
                         ].join(' · '),
@@ -108,10 +119,13 @@ class GrantTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (showPhone && g.active) ...[
+                if (showPhone && live) ...[
                   const SizedBox(width: 8),
-                  Icon(Icons.call_outlined, size: 12, color: p.textMuted),
-                  const SizedBox(width: 4),
+                  // No icon for a number that is not there.
+                  if (phone != null) ...[
+                    Icon(Icons.call_outlined, size: 12, color: p.textMuted),
+                    const SizedBox(width: 4),
+                  ],
                   SelectableText(
                     phone ?? 'No phone yet',
                     style: TypeScale.caption.copyWith(
@@ -124,12 +138,35 @@ class GrantTile extends StatelessWidget {
                 ],
               ],
             ),
+            if (soon) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Renewing is deliberate. Do nothing and the grant lapses on '
+                'its own.',
+                style: TypeScale.caption.copyWith(
+                  fontSize: 10.5,
+                  height: 1.4,
+                  color: p.noticeTone.text,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+/// A live grant with at most 7 days left (§10.3): drawn amber.
+bool expiresSoon(Grant g, [DateTime? now]) {
+  final left = g.expiresAt.difference(now ?? DateTime.now()).inDays;
+  return g.active && left >= 0 && left <= 7;
+}
+
+List<Grant> _byRole(List<Grant> all) => all..sort((a, b) {
+  final r = a.role.index.compareTo(b.role.index);
+  return r != 0 ? r : a.name.compareTo(b.name);
+});
 
 /// Board `AdminPeople`: every grant, filtered by campus or expiring soon;
 /// tap one for that person's recent edits and the revoke button.
@@ -145,63 +182,77 @@ class _AdminPeopleState extends State<AdminPeople> {
 
   bool _shows(Grant g) => switch (_filter) {
     'All' => true,
-    'Expiring' =>
-      g.active && g.expiresAt.difference(DateTime.now()).inDays <= 14,
+    'Expiring' => expiresSoon(g),
     _ => campusName(g.campus) == _filter || g.campus == 'all',
   };
 
   @override
   Widget build(BuildContext context) => Loaded<List<Grant>>(
-    load: () async {
-      final all = await roleStore!.roster();
-      return all..sort((a, b) {
-        final r = a.role.index.compareTo(b.role.index);
-        return r != 0 ? r : a.name.compareTo(b.name);
-      });
+    cacheKey: 'people-roster',
+    load: () async => _byRole(await roleStore!.roster()),
+    peek: () => switch (roleStore!.peekRoster()) {
+      final all? => _byRole(all),
+      _ => null,
     },
     builder: (context, grants, reload) {
       final shown = grants.where(_shows).toList();
-      final people = {for (final g in grants) g.email}.length;
+      final now = DateTime.now();
+      final people =
+          {
+            for (final g in grants)
+              if (g.liveAt(now)) g.email,
+          }.length;
       return PageFrame(
         header: PageHeader(eyebrow: '$people PEOPLE', title: 'Maintainers'),
-        children: [
-          ChoicePills<String>(
-            values: const ['All', 'Goa', 'Hyderabad', 'Pilani', 'Expiring'],
-            selected: _filter,
-            label: (v) => v == 'Hyderabad' ? 'Hyd' : v,
-            onSelected: (v) => setState(() => _filter = v),
-          ),
-          const SizedBox(height: Space.md),
-          if (shown.isEmpty)
-            const Note('Nobody here yet.')
-          else
-            RowGroup(
-              children: [
-                for (final g in shown)
-                  GrantTile(
-                    g: g,
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => PersonPage(grant: g)),
-                      );
-                      reload();
-                    },
-                  ),
-              ],
-            ),
-          const Note(
-            'Names and emails are always shown. Tap anyone to see what they '
-            'have changed, and revoke from that same screen — removing '
-            'someone does not undo their edits.',
-          ),
-          const SizedBox(height: Space.lg),
-          PrimaryButton(
+        bottom: BottomAction(
+          child: PrimaryButton(
             label: 'Appoint someone',
             icon: Icons.add_rounded,
             onPressed: () async {
               await context.push(Routes.adminGrant);
               reload();
             },
+          ),
+        ),
+        children: [
+          ChoicePills<String>(
+            values: const [
+              'All',
+              'Goa',
+              'Hyderabad',
+              'Pilani',
+              'Dubai',
+              'Expiring',
+            ],
+            selected: _filter,
+            label: (v) => v == 'Hyderabad' ? 'Hyd' : v,
+            equal: true,
+            onSelected: (v) => setState(() => _filter = v),
+          ),
+          const SizedBox(height: Space.md),
+          if (shown.isEmpty)
+            const Note('Nobody here yet.')
+          else
+            // Lazy: a campus roster runs to hundreds (UI_OPT O5.1).
+            SliverRowGroup(
+              count: shown.length,
+              row: (context, i) {
+                final g = shown[i];
+                return GrantTile(
+                  g: g,
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => PersonPage(grant: g)),
+                    );
+                    reload();
+                  },
+                );
+              },
+            ),
+          const Note(
+            'Names and emails are always shown. Tap anyone to see what they '
+            'have changed, and revoke from that same screen — removing '
+            'someone does not undo their edits.',
           ),
         ],
       );
@@ -224,27 +275,15 @@ class _PersonPageState extends State<PersonPage> {
   late Grant _g = widget.grant;
 
   Future<void> _revoke() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder:
-          (c) => AlertDialog(
-            title: Text('Revoke ${_g.name}?'),
-            content: Text(
-              'Their ${_g.role.label.toLowerCase()} access for ${_g.scopeLabel} '
-              'ends now. What they changed stays; revert a bad edit '
-              'separately.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('Keep'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: const Text('Revoke'),
-              ),
-            ],
-          ),
+    final ok = await confirmDialog(
+      context,
+      title: 'Revoke ${_g.name}?',
+      body:
+          'Their ${_g.role.label.toLowerCase()} access for ${_g.scopeLabel} '
+          'ends now. What they changed stays; revert a bad edit separately.',
+      action: 'Revoke',
+      cancel: 'Keep',
+      danger: true,
     );
     if (ok != true) return;
     setState(() => _busy = true);
@@ -278,6 +317,10 @@ class _PersonPageState extends State<PersonPage> {
     final mayRevoke = switch (_g.role) {
       GrantRole.admin => r.owner,
       GrantRole.dept => r.owner || r.admin,
+      GrantRole.contributor =>
+        r.owner ||
+            r.admin ||
+            r.presidencies.any((p) => p.campus == _g.campus),
       GrantRole.course =>
         r.owner ||
             r.admin ||
@@ -285,46 +328,56 @@ class _PersonPageState extends State<PersonPage> {
               (p) => p.campus == _g.campus && p.scope == deptOf(_g.scope),
             ),
     };
+    final revoke = mayRevoke && _g.active;
+    // "CR" is an acronym, not a sentence-case word (BUG-51): keep it as is,
+    // sentence-case everything else instead of the tag's raw ALL-CAPS form.
+    final roleWord =
+        _g.role == GrantRole.course
+            ? 'CR'
+            : '${_g.role.tag[0]}${_g.role.tag.substring(1).toLowerCase()}';
     return PageFrame(
       header: PageHeader(eyebrow: _g.role.tag, title: _g.name),
+      bottom:
+          revoke
+              ? BottomAction(
+                caption:
+                    'Revoking deactivates the grant; it is kept, with the '
+                    'audit log pointing at it.'
+                    // Only a president grant leaves CRs behind (BUG-51).
+                    '${_g.role == GrantRole.dept ? ' Their CRs stay in place.' : ''}',
+                child: PrimaryButton(
+                  label: _busy ? 'Revoking…' : 'Revoke $roleWord',
+                  onPressed: _busy ? null : _revoke,
+                ),
+              )
+              : null,
       children: [
         RowGroup(children: [GrantTile(g: _g)]),
         const SectionLabel('Recent edits'),
         Loaded<List<AuditEntry>>(
+          cacheKey: 'people-recent-edits|${_g.email}',
           load: () => roleStore!.audit(actor: _g.email, limit: 20),
+          peek: () => roleStore!.peekAudit(actor: _g.email, limit: 20),
           builder:
               (context, entries, _) =>
                   entries.isEmpty
                       ? const Note('Nothing changed yet.')
                       : AppCard(
+                        padding: EdgeInsets.zero,
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            for (final e in entries)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
-                                ),
-                                child: Text(
-                                  '${e.summary} · ${ago(e.at)}',
-                                  style: TypeScale.body.copyWith(fontSize: 12),
-                                ),
+                            for (final (i, e) in entries.indexed) ...[
+                              if (i > 0) const CardDivider(),
+                              CardRow(
+                                title: e.summary,
+                                titleLines: 2,
+                                subtitle: ago(e.at),
                               ),
+                            ],
                           ],
                         ),
                       ),
         ),
-        const SizedBox(height: Space.lg),
-        if (mayRevoke && _g.active)
-          PrimaryButton(
-            label: _busy ? 'Revoking…' : 'Revoke ${_g.role.tag.toLowerCase()}',
-            onPressed: _busy ? null : _revoke,
-          ),
-        if (mayRevoke && _g.active)
-          const Note(
-            'Revoking deactivates the grant; it is kept, with the audit log '
-            'pointing at it. Their CRs stay in place.',
-          ),
       ],
     );
   }

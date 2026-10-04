@@ -7,14 +7,16 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
+import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/features/semester/widgets/semester_pills.dart';
 import 'package:cgpa_calculator/shared/widgets/grade_chip.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/stat_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:cgpa_calculator/core/storage/course_order.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 import '../helpers/fonts.dart';
 
@@ -190,6 +192,25 @@ void main() {
         'Your expected CGPA is the same as last semester\'s.',
       );
       expect(on(SemesterMode.expected).editorialEmphasis, 'the same as');
+      // An earlier semester's tab shows the CGPA as it stood after that
+      // semester, and compares that with the one before (tester report).
+      final three = [
+        _c('A', 'CS F111', 3, 8, sem: '1 - 1'),
+        _c('B', 'CS F222', 3, 6, sem: '1 - 2'),
+        _c('C', 'CS F333', 3, 10, sem: '2 - 1'),
+      ];
+      final past = SemesterData.from(
+        allCourses: three,
+        visible: [three[1]],
+        sem: '1 - 2',
+        semesters: semestersFor('B3A7'),
+        discipline: 'B3A7',
+        mode: SemesterMode.actual,
+        sort: CourseSort.creditsAsc,
+        profileNames: const ['Actual', 'Expected', 'P3', 'P4', 'P5'],
+      );
+      expect(formatGpa(past.current.overall), '7.00');
+      expect(past.editorial, 'Your CGPA is 1.00 below last semester\'s.');
       expect(
         _data(SemesterMode.actual, sem: '4 - 2').editorial,
         'Nothing graded in 4 - 2 yet.',
@@ -204,6 +225,11 @@ void main() {
       expect(semestersFor('B3A7'), contains('5 - 2'));
       expect(semestersFor('A7'), isNot(contains('ST 2')));
       expect(semestersFor('A7'), baseSemesters);
+      // A single M.Sc. ends at 4 − 2 like a B.E.
+      expect(semestersFor('B3--'), baseSemesters);
+      expect(isDualDiscipline('B3--'), isFalse);
+      expect(isDualDiscipline('--A7'), isFalse);
+      expect(isDualDiscipline('B3A7'), isTrue);
     });
 
     test('credits and GPA formatting', () {
@@ -274,7 +300,7 @@ void main() {
       expect(find.text('A'), findsOneWidget); // Actual
       expect(find.text('A-'), findsOneWidget); // Expected
       expect(find.bySemanticsLabel('Export gradesheet'), findsNothing);
-      expect(find.text('Add courses'), findsNothing);
+      expect(find.widgetWithText(PillButton, 'Add'), findsNothing);
     });
 
     testWidgets('compare shows any two of five profiles and picks them', (
@@ -335,16 +361,14 @@ void main() {
       expect(taps, [('CS F351', 2)]);
     });
 
-    testWidgets('add card is reachable and fires', (t) async {
+    // Board `Main`: Add sits beside the sort and export pills; the card at
+    // the foot of the list only shows while the semester is empty.
+    testWidgets('the Add pill fires', (t) async {
       var adds = 0;
       await _pump(t, _data(SemesterMode.actual), onAdd: () => adds++);
-      await t.scrollUntilVisible(
-        find.text('Add courses'),
-        200,
-        scrollable: _page,
-      );
-      await t.tap(find.text('Add courses'));
+      await t.tap(find.widgetWithText(PillButton, 'Add'));
       expect(adds, 1);
+      expect(find.text('Add a course'), findsNothing);
     });
 
     testWidgets('no overflow at 320, 768, 1440 or 200% text', (t) async {
@@ -541,6 +565,186 @@ void main() {
       await t.pumpAndSettle();
       expect(order, isNotNull);
       expect(order!.first.id, isNot(_data(SemesterMode.actual).courses[0].id));
+
+      // A long-press first (a finger resting on the grip): no tooltip, and
+      // the drag afterwards still reorders (BUG-46).
+      order = null;
+      final held = await t.startGesture(t.getCenter(grip));
+      await t.pump(const Duration(seconds: 1));
+      expect(find.text('Drag to reorder'), findsNothing);
+      for (var i = 0; i < 12; i++) {
+        await held.moveBy(const Offset(0, 15));
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      await held.up();
+      await t.pumpAndSettle();
+      expect(order, isNotNull);
+    });
+  });
+
+  testWidgets('tapping the selected grade in the menu clears it', (t) async {
+    int? got = 0;
+    await t.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder:
+              (c) => TextButton(
+                onPressed: () async {
+                  got = await showGradeMenu(c, current: 10, title: 'X');
+                },
+                child: const Text('open'),
+              ),
+        ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('A'));
+    await t.pumpAndSettle();
+    expect(got, GradeCode.clr);
+  });
+
+  group('UI_OPT O3', () {
+    Finder page(SemesterMode m) => find.byWidgetPredicate(
+      (w) => w is KeyedSubtree && w.key == ValueKey(m),
+    );
+
+    testWidgets('rows are keyed by Hive key, not code', (t) async {
+      late Directory dir;
+      final ps = [
+        _c('Practice School II', 'BITS F412', 10, 9),
+        _c('Practice School II (second)', 'BITS F412', 12, 8),
+      ];
+      await t.runAsync(() async {
+        dir = await Directory.systemTemp.createTemp('hive_rows');
+        Hive.init(dir.path);
+        if (!Hive.isAdapterRegistered(0)) {
+          Hive.registerAdapter(CourseAdapter());
+        }
+        final box = await Hive.openBox<Course>(coursesBoxName);
+        await box.put('BITS F412', ps[0]);
+        await box.put('BITS F412#2', ps[1]);
+      });
+      addTearDown(
+        () => t.runAsync(() async {
+          await Hive.deleteFromDisk();
+          await dir.delete(recursive: true);
+        }),
+      );
+      final data = SemesterData.from(
+        allCourses: ps,
+        visible: ps,
+        sem: '4 - 1',
+        semesters: semestersFor('B3A7'),
+        discipline: 'B3A7',
+        mode: SemesterMode.actual,
+        sort: CourseSort.creditsAsc,
+        profileNames: const ['Actual', 'Expected', 'P3', 'P4', 'P5'],
+        compared: (1, 2),
+      );
+      List<Course>? order;
+      await _pump(
+        t,
+        data,
+        size: const Size(390, 844),
+        onReorder: (o) => order = o,
+      );
+      expect(
+        [for (final c in ps) (rowKey(c) as ValueKey).value],
+        ['BITS F412', 'BITS F412#2'],
+      );
+      expect(find.byKey(rowKey(ps[0])), findsOneWidget);
+      expect(find.byKey(rowKey(ps[1])), findsOneWidget);
+      expect(find.text('Practice School II'), findsOneWidget);
+      expect(find.text('Practice School II (second)'), findsOneWidget);
+
+      final handle = t.ensureSemantics();
+      final row = find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            (w.properties.customSemanticsActions?.keys.any(
+                  (a) => a.label == 'Move down',
+                ) ??
+                false),
+      );
+      t
+          .widget<Semantics>(row.first)
+          .properties
+          .customSemanticsActions!
+          .entries
+          .firstWhere((e) => e.key.label == 'Move down')
+          .value();
+      expect([for (final c in order!) c.key], ['BITS F412#2', 'BITS F412']);
+      handle.dispose();
+    });
+
+    /// Pumps Semester on Actual; the returned notifier switches profile.
+    Future<ValueNotifier<SemesterMode>> switchable(
+      WidgetTester t, {
+      bool still = false,
+    }) async {
+      final mode = ValueNotifier(SemesterMode.actual);
+      addTearDown(mode.dispose);
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          builder:
+              (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(disableAnimations: still),
+                child: child!,
+              ),
+          home: Scaffold(
+            body: ValueListenableBuilder(
+              valueListenable: mode,
+              builder:
+                  (_, m, _) => SemesterView(
+                    data: _data(m),
+                    greeting: 'Good evening',
+                    name: 'Siddharth',
+                    onSemesterSelected: (_) {},
+                    onSortSelected: (_) {},
+                    onExport: () {},
+                    onAddCourse: () {},
+                    onCourseTap: (_, _) {},
+                    onGradePicked: (_, _) {},
+                    onClearRequested: () {},
+                    onSwipe: (_) {},
+                    onOpenAnalytics: () {},
+                    onOpenCalendar: () {},
+                    onOpenSettings: () {},
+                    onToggleTheme: () {},
+                  ),
+            ),
+          ),
+        ),
+      );
+      return mode;
+    }
+
+    testWidgets('profile switch pages are repaint boundaries', (t) async {
+      final mode = await switchable(t);
+      mode.value = SemesterMode.expected;
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      for (final m in [SemesterMode.actual, SemesterMode.expected]) {
+        expect(page(m), findsOneWidget, reason: '$m');
+        expect(t.widget<KeyedSubtree>(page(m)).child, isA<RepaintBoundary>());
+      }
+      IgnorePointer gate(SemesterMode m) => t.widget<IgnorePointer>(
+        find.ancestor(of: page(m), matching: find.byType(IgnorePointer)).first,
+      );
+      expect(gate(SemesterMode.actual).ignoring, isTrue);
+      expect(gate(SemesterMode.expected).ignoring, isFalse);
+      await t.pumpAndSettle();
+      expect(page(SemesterMode.actual), findsNothing);
+    });
+
+    testWidgets('reduced motion switches profile instantly', (t) async {
+      final mode = await switchable(t, still: true);
+      mode.value = SemesterMode.expected;
+      await t.pump();
+      expect(page(SemesterMode.actual), findsNothing);
+      expect(page(SemesterMode.expected), findsOneWidget);
     });
   });
 }

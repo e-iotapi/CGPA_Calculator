@@ -1,0 +1,12 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"All\" 54x36",
+  "tap: \"Back\" 42x42",
+  "tap: \"Dubai\" 54x36",
+  "tap: \"Expiring\" 54x36",
+  "tap: \"Goa\" 54x36",
+  "tap: \"Hyd\" 54x36",
+  "tap: \"Pilani\" 54x36"
+ ]
+}

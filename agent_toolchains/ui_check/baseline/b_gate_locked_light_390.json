@@ -1,0 +1,8 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Back\" 42x42",
+  "tap: \"Courses\" 174x34",
+  "tap: \"Your reviews · 0\" 174x34"
+ ]
+}

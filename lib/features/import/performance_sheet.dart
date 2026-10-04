@@ -79,6 +79,7 @@ bool isFinalTerm(String id, String title) =>
     title.contains('THESIS') ||
     RegExp(r'^BITS F4(1[2-3]|2\d)T?$').hasMatch(id);
 
+/// The courses, grades and degree details read from an ERP performance sheet.
 class PerformanceSheet {
   const PerformanceSheet({
     required this.rows,

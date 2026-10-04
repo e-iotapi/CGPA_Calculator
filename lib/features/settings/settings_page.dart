@@ -1,22 +1,30 @@
-import 'package:cgpa_calculator/app/theme/palette.dart';
-import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
 import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/app/routes.dart';
+import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
+import 'package:cgpa_calculator/features/tour/tour.dart';
+import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cgpa_calculator/features/settings/install_guide.dart';
+import 'package:cgpa_calculator/features/contribute/apply_page.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:flutter/foundation.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Settings. Discipline changes only set [erase]; the home screen applies
 /// them through initializeCourses when this page closes, as before.
@@ -32,11 +40,61 @@ Future<void> signOut() async {
   await Sync.stop();
   await FirebaseAuth.instance.signOut();
   await Sync.clearLocal();
+  await clearAccountCaches();
   reloadPage();
+}
+
+/// Settings › Discipline: Pick a programme, with the same filter as setup's
+/// picker — M.Sc. for the dual half, B.E. (never A5) for the other — plus
+/// the current code and the choices that are not programmes.
+Future<String?> pickDisciplineHalf(
+  BuildContext context, {
+  required bool dual,
+  required String half,
+}) {
+  final choices = disciplineOptions(dual: dual, current: half);
+  final options = [
+    for (final p in programmesAt(campus))
+      if (dual ? p.isMsc : !p.isMsc && p.code != 'A5') p,
+  ];
+  if (programmeFor(half) case final cur? when !options.contains(cur)) {
+    options.add(cur);
+  }
+  return Navigator.of(context).push<String>(
+    MaterialPageRoute(
+      builder:
+          (_) => ProgrammePickPage(
+            heading: dual ? 'Dual degree' : 'Discipline',
+            options: options,
+            selected: half,
+            extras: [
+              for (final (code, label) in choices)
+                if (programmeFor(code) == null) (code, label),
+            ],
+          ),
+    ),
+  );
 }
 
 class _SettingsPageState extends State<SettingsPage> {
   User? get _user => FirebaseAuth.instance.currentUser;
+
+  void _again() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    contribState.addListener(_again);
+    refreshContribState();
+  }
+
+  @override
+  void dispose() {
+    contribState.removeListener(_again);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,23 +117,23 @@ class _SettingsPageState extends State<SettingsPage> {
               onPickDiscipline: (dual) => _pickDiscipline(context, dual),
               campus: campus?.label,
               onTheme: _setTheme,
+              showOffshoot: !offshootHiddenNow.value,
+              onShowOffshoot: prefsStore == null ? null : _setShowOffshoot,
               onRenameProfile: (i) => _renameProfile(context, i),
               onExport: () => _exportCsv(context),
-              onImportBackup: () => _importFromFile(context),
               onImportOld: () => _importFromOldSite(context),
               onImportErp: kIsWeb ? () => _importFromErp(context) : null,
               onReport: () => _submitReport(context),
               onReset: () => _reset(context),
               onSignOut: _signOut,
               onInstall: kIsWeb ? () => _install(context) : null,
+              // U8: students only, like the first-run tour.
+              onReplayTour: (workingAs.value == null && viewAs.value == null)
+                  ? () => replayTour(context)
+                  : null,
               installed: kIsWeb && isStandalone(),
-              onEmail:
-                  () => launchUrl(Uri.parse('mailto:siddhu.cms@gmail.com')),
-              onGithub:
-                  () => launchUrl(
-                    Uri.parse('https://github.com/e-iotapi'),
-                    mode: LaunchMode.externalApplication,
-                  ),
+              onEmail: () => openUrl('mailto:mishra.siddharth@icloud.com'),
+              onGithub: () => openUrl('https://github.com/e-iotapi'),
               // Your roles (ARCHITECTURE.md §16.4): owners and live grants.
               workingAs: myRoles.value.owner
                   ? (viewAs.value?.label ?? 'Owner')
@@ -90,6 +148,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       if (mounted) setState(() {});
                     }
                   : null,
+              onContribute:
+                  roleStore == null ||
+                          myRoles.value.staff ||
+                          const [
+                            ContribState.applied,
+                            ContribState.approved,
+                          ].contains(contribState.value)
+                      ? null
+                      : () => openRoute(
+                        context,
+                        Routes.contributeApply,
+                        () => const ApplyPage(),
+                      ),
               contactSummary: myContactSummary.value ?? 'Not set',
               onContact: myRoles.value.privileged
                   ? () async {
@@ -109,83 +180,13 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<T?> _pick<T>(
-    BuildContext context,
-    String title,
-    List<(T, String)> options,
-    T current,
-  ) {
-    final p = AppPalette.of(context);
-    return showModalBottomSheet<T>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      backgroundColor: p.background,
-      builder:
-          (c) => ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(c).height * 0.7,
-            ),
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.only(bottom: Space.lg),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Space.gutter,
-                    0,
-                    Space.gutter,
-                    Space.sm,
-                  ),
-                  child: Text(
-                    title,
-                    style: TypeScale.title.copyWith(color: p.text),
-                  ),
-                ),
-                for (final (v, label) in options)
-                  ListTile(
-                    title: Text(
-                      label,
-                      style: TypeScale.body.copyWith(color: p.text),
-                    ),
-                    trailing:
-                        v == current
-                            ? Icon(Icons.check_rounded, color: p.accent)
-                            : null,
-                    selected: v == current,
-                    onTap: () => Navigator.pop(c, v),
-                  ),
-              ],
-            ),
-          ),
-    );
-  }
-
   Future<bool> _confirm(
     BuildContext context,
     String title,
     String body,
     String action,
   ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder:
-          (c) => AlertDialog(
-            title: Text(title),
-            content: Text(body),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: Text(action),
-              ),
-            ],
-          ),
-    );
-    return ok == true;
+    return confirmDialog(context, title: title, body: body, action: action);
   }
 
   Future<void> _pickDiscipline(BuildContext context, bool dual) async {
@@ -193,12 +194,7 @@ class _SettingsPageState extends State<SettingsPage> {
         dual
             ? selecteddiscipline.substring(0, 2)
             : selecteddiscipline.substring(2, 4);
-    final v = await _pick(
-      context,
-      dual ? 'Dual degree' : 'Discipline',
-      disciplineOptions(dual: dual, current: half),
-      half,
-    );
+    final v = await pickDisciplineHalf(context, dual: dual, half: half);
     if (v == null || v == half || !context.mounted) return;
     final change = changeDiscipline(
       selecteddiscipline,
@@ -222,6 +218,18 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _install(BuildContext context) => offerInstall(context);
 
+  /// Tap only; the store writes the device copy first, so a failed sync
+  /// leaves the switch where the person put it.
+  Future<void> _setShowOffshoot(bool show) async {
+    final done = prefsStore!.setOffshootHidden(!show);
+    setState(() {});
+    try {
+      await done;
+    } catch (e) {
+      debugPrint('prefs: $e');
+    }
+  }
+
   Future<void> _setTheme(bool dark) => switchTheme(
     dark,
     then: () {
@@ -234,31 +242,33 @@ class _SettingsPageState extends State<SettingsPage> {
     final name = await showDialog<String>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: Text('Name profile $i'),
+          (c) => AppDialog(
+            title: 'Name profile $i',
             content: TextField(
               controller: controller,
               autofocus: true,
               maxLength: 9,
-              decoration: const InputDecoration(
-                helperText: 'Nine letters at most',
+              style: appFieldStyle(AppPalette.of(c)),
+              cursorColor: AppPalette.of(c).text,
+              decoration: appFieldDecoration(
+                AppPalette.of(c),
+                helper: 'Nine letters at most',
               ),
               onSubmitted: (t) => Navigator.pop(c, t),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, controller.text),
-                child: const Text('Save'),
+              DialogAction('Cancel', onTap: () => Navigator.pop(c)),
+              DialogAction(
+                'Save',
+                onTap: () => Navigator.pop(c, controller.text),
+                ink: true,
               ),
             ],
           ),
     );
     controller.dispose();
     if (name == null) return;
+    final blank = name.trim().isEmpty;
     setState(() {
       final n = profileName(name, 'Profile $i');
       switch (i) {
@@ -271,6 +281,10 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     });
     await setprof();
+    // A spaces-only name is silently dropped to the default (BUG-28): say so.
+    if (blank && context.mounted) {
+      _toast(context, "A blank name isn't allowed — kept 'Profile $i'.");
+    }
   }
 
   Future<void> _reset(BuildContext context) async {
@@ -304,53 +318,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _importFromFile(BuildContext context) async {
-    String? text;
-    try {
-      text = await pickTextFile('.json,application/json');
-    } catch (e) {
-      if (context.mounted) _toast(context, 'Could not read the file: $e');
-      return;
-    }
-    if (text == null || !context.mounted) return; // cancelled
-
-    Map<String, int> counts;
-    try {
-      counts = Sync.validate(text);
-    } catch (e) {
-      _toast(
-        context,
-        e is FormatException
-            ? "That file isn't a grade backup: ${e.message}"
-            : '$e',
-      );
-      return;
-    }
-    final summary = [
-      if (counts['coursesBox'] != null) '${counts['coursesBox']} courses',
-      if (counts['settingsBox'] != null) '${counts['settingsBox']} settings',
-      if ((counts['offshootBox'] ?? 0) > 0)
-        '${counts['offshootBox']} offshoot courses',
-      if ((counts['marksBox'] ?? 0) > 0) '${counts['marksBox']} marks entries',
-    ].join(', ');
-    if (!await _confirm(
-      context,
-      'Replace your grades?',
-      'This file contains $summary.\n\nImporting replaces everything '
-          'currently saved to your account. This cannot be undone.',
-      'Import',
-    )) {
-      return;
-    }
-    try {
-      await Sync.apply(text);
-      await Sync.push();
-      reloadPage();
-    } catch (e) {
-      if (context.mounted) _toast(context, 'Import failed: $e');
-    }
-  }
-
   /// Reads the ERP performance sheet PDF, shows what it changes, then sets
   /// Actual grades from it.
   Future<void> _importFromErp(BuildContext context) async {
@@ -365,29 +332,37 @@ class _SettingsPageState extends State<SettingsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: const Text('Import from old site'),
-            content: SizedBox(
-              width: 420,
-              child: TextField(
-                controller: controller,
-                maxLines: 8,
-                decoration: const InputDecoration(
-                  hintText: 'Paste the JSON copied from the old site',
-                  border: OutlineInputBorder(),
+          (c) => StatefulBuilder(
+            builder:
+                (c, setDialog) => AppDialog(
+                  title: 'Import from old site',
+                  content: TextField(
+                    controller: controller,
+                    maxLines: 8,
+                    onChanged: (_) => setDialog(() {}),
+                    style: appFieldStyle(AppPalette.of(c)),
+                    cursorColor: AppPalette.of(c).text,
+                    decoration: appFieldDecoration(
+                      AppPalette.of(c),
+                      hint: 'Paste the JSON copied from the old site',
+                    ),
+                  ),
+                  actions: [
+                    DialogAction(
+                      'Cancel',
+                      onTap: () => Navigator.pop(c, false),
+                    ),
+                    DialogAction(
+                      'Import',
+                      // Disabled while empty, not a silent no-op (BUG-44).
+                      onTap:
+                          controller.text.trim().isEmpty
+                              ? null
+                              : () => Navigator.pop(c, true),
+                      ink: true,
+                    ),
+                  ],
                 ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: const Text('Import'),
-              ),
-            ],
           ),
     );
     final text = controller.text;
@@ -398,7 +373,9 @@ class _SettingsPageState extends State<SettingsPage> {
       await Sync.push();
       reloadPage();
     } catch (e) {
-      if (context.mounted) _toast(context, 'Import failed: $e');
+      if (context.mounted) {
+        _toast(context, "That doesn't look like exported data. Import failed.");
+      }
     }
   }
 
@@ -411,52 +388,45 @@ class _SettingsPageState extends State<SettingsPage> {
       builder:
           (c) => StatefulBuilder(
             builder:
-                (c, setDialog) => AlertDialog(
-                  title: const Text('Report a problem'),
-                  content: SizedBox(
-                    width: 420,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final t in types)
-                              ChoiceChip(
-                                label: Text(t),
-                                selected: type == t,
-                                onSelected: (_) => setDialog(() => type = t),
-                              ),
-                          ],
+                (c, setDialog) => AppDialog(
+                  title: 'Report a problem',
+                  body: 'Sent with your email so a reply is possible.',
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final t in types)
+                            PillButton(
+                              label: t,
+                              selected: type == t,
+                              onPressed: () => setDialog(() => type = t),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: controller,
+                        maxLines: 5,
+                        maxLength: 2000,
+                        style: appFieldStyle(AppPalette.of(c)),
+                        cursorColor: AppPalette.of(c).text,
+                        decoration: appFieldDecoration(
+                          AppPalette.of(c),
+                          hint: 'What went wrong, or which course is missing?',
                         ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          controller: controller,
-                          maxLines: 5,
-                          maxLength: 2000,
-                          decoration: const InputDecoration(
-                            hintText:
-                                'What went wrong, or which course is missing?',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const Text(
-                          'Sent with your email so a reply is possible.',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(c, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(c, true),
-                      child: const Text('Send'),
+                    DialogAction('Cancel', onTap: () => Navigator.pop(c, false)),
+                    DialogAction(
+                      'Send',
+                      onTap: () => Navigator.pop(c, true),
+                      ink: true,
                     ),
                   ],
                 ),

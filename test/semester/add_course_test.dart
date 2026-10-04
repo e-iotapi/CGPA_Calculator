@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/features/semester/widgets/course_row.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_scrubber.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -71,7 +72,14 @@ void main() {
   test('category defaults follow the legacy rules', () {
     expect(categoryFor('HSS F222', 'A7--'), Elective.humanity.tag);
     expect(categoryFor('ZZZ F999', 'A7--'), Elective.open.tag);
+    // The degree's own department, even off the DEL list (projects).
+    expect(categoryFor('CS F266', 'A7--'), Elective.del1.tag);
+    expect(categoryFor('CS F376', 'B3A7'), Elective.del2.tag);
+    expect(categoryFor('ME F376', 'A7--'), Elective.open.tag);
     expect(categoryOptions('A7--'), isNot(contains(Elective.cdc2.tag)));
+    // A single M.Sc. has its DEL; a dual's comes from the B.E. half.
+    expect(categoryOptions('B3--'), contains(Elective.del1.tag));
+    expect(categoryOptions('B3A7'), isNot(contains(Elective.del1.tag)));
     expect(categoryLabel(Elective.cdc1.tag, 'A7--'), 'CDC (A7)');
   });
 
@@ -126,7 +134,8 @@ void main() {
     await t.tap(chip);
     await t.pumpAndSettle();
     expect(rowTaps, 0);
-    expect(find.text('Not graded yet'), findsOneWidget);
+    expect(find.text('Not yet'), findsOneWidget);
+    expect(find.byTooltip('Not graded yet'), findsOneWidget);
     expect(find.text(specialGradesNote), findsOneWidget);
     // A popover under the chip, right-aligned to it; the row stays visible.
     final menu = t.getRect(find.byType(GradeMenu));
@@ -186,7 +195,8 @@ void main() {
         ),
       );
       await t.enterText(find.byType(TextField), 'long');
-      await t.pump();
+      // Hits follow a pause in typing (UI_OPT O5.2).
+      await t.pump(const Duration(milliseconds: 200));
       await t.tap(find.text(_long).last);
       await t.pump();
       expect(t.takeException(), isNull);
@@ -224,7 +234,8 @@ void main() {
       ),
     );
     await t.enterText(find.byType(TextField), 'long');
-    await t.pump();
+    // Hits follow a pause in typing (UI_OPT O5.2).
+    await t.pump(const Duration(milliseconds: 200));
     await t.tap(find.text(_long).last);
     await t.pump();
     // The title wraps to two lines before it gives up.
@@ -241,9 +252,10 @@ void main() {
     expect(t.getSize(field).height, 38);
     await t.tap(field);
     await t.pumpAndSettle();
-    expect(find.byType(PopupMenuItem<String>), findsWidgets);
-    await t.tap(find.byType(PopupMenuItem<String>).last);
+    expect(find.text('COUNTS AS'), findsNWidgets(2));
+    await t.tap(find.byType(CardRow).last);
     await t.pumpAndSettle();
+    expect(find.text('COUNTS AS'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
 
@@ -308,7 +320,7 @@ void main() {
       await t.pump();
       expect(t.takeException(), isNull);
       final title = t.widget<TextField>(find.byType(TextField).last);
-      expect(title.maxLines, isNull); // wraps, never cut
+      expect(title.maxLines, 2); // wraps, never cut
       await t.scrollUntilVisible(
         find.byTooltip('Fewer credits'),
         100,
@@ -327,9 +339,68 @@ void main() {
       expect(added?.title, _long);
       expect(added?.credits, 2);
       expect(added?.grade1, 10);
-      expect(added?.elective, Elective.open.tag);
+      // A7's own department: its DEL, even off the DEL list.
+      expect(added?.elective, Elective.del1.tag);
     });
   }
+
+  testWidgets('manual needs code, title and credits; Close adds nothing', (
+    t,
+  ) async {
+    var closed = false;
+    Course? added;
+    await t.pumpWidget(
+      _app(
+        Builder(
+          builder:
+              (c) => TextButton(
+                onPressed: () async {
+                  added = await showAddCourseSheet(
+                    c,
+                    held: _held,
+                    sem: '4 - 1',
+                    discipline: 'A7--',
+                    profile: Profile.actual,
+                  );
+                  closed = true;
+                },
+                child: const Text('open'),
+              ),
+        ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Not in the list? Enter it manually'));
+    await t.pumpAndSettle();
+    bool enabled() =>
+        t
+            .widget<InkWell>(
+              find
+                  .ancestor(
+                    of: find.textContaining('Add to 4 − 1', findRichText: true),
+                    matching: find.byType(InkWell),
+                  )
+                  .first,
+            )
+            .onTap !=
+        null;
+    expect(enabled(), isFalse);
+    final fields = find.byType(TextField);
+    await t.enterText(fields.at(0), 'cs');
+    await t.enterText(fields.at(1), 'f499');
+    await t.pump();
+    expect(enabled(), isFalse, reason: 'no title yet');
+    await t.enterText(find.widgetWithText(TextField, 'Course name'), 'Extra');
+    await t.pump();
+    expect(enabled(), isTrue);
+    await t.tap(find.byTooltip('Back to search'));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Close'));
+    await t.pumpAndSettle();
+    expect(closed, isTrue);
+    expect(added, isNull);
+  });
 
   testWidgets('past 25 credits asks for an override', (t) async {
     // 24 credits already in 4 - 1.

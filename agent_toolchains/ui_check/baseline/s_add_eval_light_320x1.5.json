@@ -1,0 +1,18 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"Several parts\" 1.08:1, needs 3.0 (18.8 px)",
+  "tap: \"\" 50x22",
+  "tap: \"All 2\" 71x38",
+  "tap: \"Avg\" 36x22",
+  "tap: \"Best 1 of 2\" 129x38",
+  "tap: \"Close\" 42x42",
+  "tap: \"Of\" 30x22",
+  "tap: \"Optional\" 154x22",
+  "tap: \"Part 1 date\" 52x36",
+  "tap: \"Part 1 name\" 208x36",
+  "tap: \"You\" 30x22",
+  "truncated: \"CS F372 · NEW COMPONENT\"",
+  "truncated: \"You\""
+ ]
+}

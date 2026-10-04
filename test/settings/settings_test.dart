@@ -3,7 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
+import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
+import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -51,6 +53,11 @@ void main() {
       expect(disciplineLabel('--', dual: false), 'Other');
       expect(disciplineOptions(dual: false).first, ('A1', 'B.E. Chemical (A1)'));
     });
+
+    test('short discipline label: code first, no degree prefix', () {
+      expect(shortProgrammeLabel('A7'), 'A7 · Computer Science');
+      expect(shortProgrammeLabel('B3').startsWith('B3 · '), isTrue);
+    });
   });
 
   testWidgets('lays out at 320, 768, 1440 and 200% text', (t) async {
@@ -74,7 +81,6 @@ void main() {
       onTheme: (d) => taps.add('theme $d'),
       onRenameProfile: (i) => taps.add('profile $i'),
       onExport: () => taps.add('export'),
-      onImportBackup: () => taps.add('backup'),
       onImportOld: () => taps.add('old'),
       onReport: () => taps.add('report'),
       onReset: () => taps.add('reset'),
@@ -116,10 +122,14 @@ void main() {
     await pump(const Size(320, 640), scale: 2);
     expect(t.takeException(), isNull, reason: '200%');
 
+    await pump(const Size(320, 640));
+    // Short enough not to ellipsize at 320.
+    expect(find.text('A7 · Computer Science'), findsOneWidget);
+
     await pump(const Size(390, 844));
-    // Codes carry their names; campus is readable.
-    expect(find.text('B.E. Computer Science (A7)'), findsOneWidget);
-    expect(find.text('M.Sc. Economics (B3)'), findsOneWidget);
+    // The code first, the degree prefix dropped; campus is readable.
+    expect(find.text('A7 · Computer Science'), findsOneWidget);
+    expect(find.text('B3 · Economics'), findsOneWidget);
     expect(find.text('Goa'), findsOneWidget);
     expect(find.text('2024'), findsOneWidget);
     // Campus and batch are final: shown, never offered as a control.
@@ -162,5 +172,34 @@ void main() {
         });
       }
     }
+  });
+
+  testWidgets('Discipline opens the programme picker', (t) async {
+    String? picked;
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: Builder(
+          builder:
+              (c) => TextButton(
+                onPressed:
+                    () async =>
+                        picked = await pickDisciplineHalf(
+                          c,
+                          dual: true,
+                          half: 'B3',
+                        ),
+                child: const Text('open'),
+              ),
+        ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    expect(find.byType(ProgrammePickPage), findsOneWidget);
+    expect(find.text('None'), findsOneWidget, reason: 'not a programme');
+    await t.tap(find.text('None'));
+    await t.pumpAndSettle();
+    expect(picked, '--');
   });
 }

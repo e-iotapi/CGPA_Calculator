@@ -1,0 +1,51 @@
+name: e2e
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm install -g firebase-tools
+      - run: flutter pub get
+
+      - run: npm ci
+        working-directory: tools/test_env
+      - run: npm ci
+        working-directory: tools/e2e
+      # Not pre-installed here, unlike the sandboxed dev container this repo
+      # was built in — a real runner needs its own Chromium.
+      - run: npx playwright install --with-deps chromium
+        working-directory: tools/e2e
+
+      - name: build seed snapshots
+        run: POINTER_SEED=1 flutter test tools/test_env/build_snapshots_test.dart
+
+      - name: seed + role-matrix/counters check (T4b)
+        run: |
+          firebase emulators:exec --only auth,firestore --project demo-pointer \
+            "node tools/test_env/seed.mjs && npm --prefix tools/test_env test"
+
+      - name: E2E, perf and quota specs (T6)
+        run: |
+          firebase emulators:exec --only auth,firestore --project demo-pointer "
+            node tools/test_env/seed.mjs &&
+            flutter build web --profile --dart-define=POINTER_ENV=emulator --dart-define=POINTER_EMULATOR_HOST=localhost &&
+            npm --prefix tools/e2e test
+          "
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: tools/e2e/out/report
+          if-no-files-found: ignore

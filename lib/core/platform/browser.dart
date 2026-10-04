@@ -13,7 +13,25 @@ void downloadBytes(List<int> bytes, String filename, String mime) =>
 /// user cancelled.
 Future<String?> pickTextFile(String accept) => impl.pickTextFile(accept);
 
+/// Reloads the page.
 void reloadPage() => impl.reloadPage();
+
+/// Runs [run] when the page is hidden or closed (tab switch, app switch,
+/// closing the tab): the last moment to flush pending writes.
+void onPageHidden(void Function() run) => impl.onPageHidden(run);
+
+/// Runs [run] with every pointer-down's page position, seen by the page
+/// before Flutter: with the semantics tree on, a tap on a button reaches
+/// Flutter as a tap action with no position.
+void onDomPointerDown(void Function(double x, double y) run) =>
+    impl.onDomPointerDown(run);
+
+/// Opens [url] in a new tab; mail, phone and SMS links in place, where the
+/// browser hands them to the right app.
+void openUrl(String url) => impl.openUrl(url);
+
+/// Deletes Firebase Auth's saved sign-in on this origin.
+void forgetSavedSignIn() => impl.forgetSavedSignIn();
 
 /// The browser's user agent, for bug reports.
 String userAgent() => impl.userAgent();
@@ -21,15 +39,24 @@ String userAgent() => impl.userAgent();
 /// Running as the installed app rather than in a browser tab.
 bool isStandalone() => impl.isStandalone();
 
+/// The kind of device that installs the app to its home screen.
 enum InstallDevice { ios, android, desktop }
 
+/// The browser the person installs from.
 enum InstallBrowser { safari, chrome, edge, firefox, samsung, opera, other }
 
 /// Which home-screen steps apply: the device, and the browser on it.
 typedef InstallTarget = ({InstallDevice device, InstallBrowser browser});
 
+/// The device and browser this page runs in.
 InstallTarget installTarget() =>
     parseInstallTarget(impl.userAgent(), touch: impl.hasTouch());
+
+/// Logical CPU cores, when the browser exposes it (UI_OPT O0.2).
+int? hardwareConcurrency() => impl.hardwareConcurrency();
+
+/// Approximate device RAM in GB, Chrome only (UI_OPT O0.2).
+double? deviceMemory() => impl.deviceMemory();
 
 /// Reads [ua]. [touch] tells an iPad, which reports itself as a Mac, from a
 /// Mac.

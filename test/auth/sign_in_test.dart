@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,5 +46,32 @@ void main() {
     await t.ensureVisible(find.bySemanticsLabel('Continue with Google'));
     await t.tap(find.bySemanticsLabel('Continue with Google'));
     expect(taps, 1);
+  });
+
+  testWidgets('the button sits at the bottom', (t) async {
+    t.view.physicalSize = const Size(390, 844);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: SignInView(busy: false, onSignIn: () {}),
+      ),
+    );
+    expect(
+      t.getBottomLeft(find.byType(PrimaryButton)).dy,
+      greaterThan(844 - 120),
+    );
+  });
+
+  testWidgets('privacy lines and footer', (t) async {
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: SignInView(busy: false, onSignIn: () {}),
+      ),
+    );
+    expect(find.textContaining('never carry your name'), findsOneWidget);
+    expect(find.text('Built By Siddharth Mishra'), findsOneWidget);
   });
 }

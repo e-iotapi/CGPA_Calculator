@@ -1,0 +1,6 @@
+targets:
+  $default:
+    builders:
+      # Adapters are registered by hand in main.dart; no registrar file.
+      hive_ce_generator:hive_registrar_generator:
+        enabled: false

@@ -1,0 +1,19 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"7 AM\" 2.48:1, needs 4.5 (8.5 px)",
+  "dead: button \"All day on Thu 24 Sep: Founders day\" has no tap action",
+  "dead: button \"All day on Tue 22 Sep: Fees due\" has no tap action",
+  "dead: button \"Intro Widgets, AAA F111, 11:00 AM – 12:0…\" has no tap action",
+  "dead: button \"Intro Widgets, AAA F111, F101, 9:00 AM –…\" has no tap action",
+  "overlap: \"What is coming\" over \"2 AM\"",
+  "tap: \"Add\" 60x42",
+  "tap: \"Back\" 40x40",
+  "tap: \"Day\" 91x38",
+  "tap: \"Month\" 91x38",
+  "tap: \"Next week\" 38x38",
+  "tap: \"Previous week\" 38x38",
+  "tap: \"Week\" 91x38",
+  "truncated: \"Intro Widgets\""
+ ]
+}

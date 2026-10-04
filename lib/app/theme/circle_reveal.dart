@@ -1,14 +1,30 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/perf/device_tier.dart';
+import 'package:cgpa_calculator/core/perf/frame_stats.dart';
+import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 /// Where the last touch or click landed, in global coordinates. Pages and the
 /// theme switch grow their circle from here.
 abstract final class TapOrigin {
+  /// The last recorded position, or `null` before any tap.
   static Offset? last;
+  static bool _listening = false;
+
+  /// Also records taps from the page itself: with the semantics tree on
+  /// (screen readers, the test env) a tapped button gets no pointer event,
+  /// so iOS grew the circle from an older tap.
+  static void listen() {
+    if (_listening) return;
+    _listening = true;
+    onDomPointerDown((x, y) => last = Offset(x, y));
+  }
 }
 
 /// Records every pointer-down for [TapOrigin], without taking part in hit
@@ -19,11 +35,37 @@ class TapOriginTracker extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Listener(
-    behavior: HitTestBehavior.translucent,
-    onPointerDown: (e) => TapOrigin.last = e.position,
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    TapOrigin.listen();
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (e) => TapOrigin.last = e.position,
+      child: child,
+    );
+  }
+}
+
+/// Some browsers (Firefox on Linux) read WebGL snapshots back upside down.
+/// Snapshots one known picture, top half filled, and checks which way up it
+/// came back. False off the web or if the check fails.
+Future<bool> snapshotsFlipped() async {
+  if (!kIsWeb) return false;
+  try {
+    final rec = ui.PictureRecorder();
+    Canvas(rec).drawRect(
+      const Rect.fromLTWH(0, 0, 1, 1),
+      Paint()..color = const Color(0xFFFFFFFF),
+    );
+    final picture = rec.endRecording();
+    final image = picture.toImageSync(1, 2);
+    picture.dispose();
+    final bytes = await image.toByteData();
+    image.dispose();
+    // RGBA: byte 3 is the top pixel's alpha, byte 7 the bottom's.
+    return bytes != null && bytes.getUint8(3) == 0 && bytes.getUint8(7) != 0;
+  } catch (_) {
+    return false;
+  }
 }
 
 /// Radius that covers all of [size] from [center].
@@ -60,6 +102,11 @@ class CircleRevealTransitionsBuilder extends PageTransitionsBuilder {
   const CircleRevealTransitionsBuilder();
 
   static final _origins = Expando<Offset>();
+  static final _curves = Expando<CurvedAnimation>();
+
+  /// How many `CurvedAnimation`s have been created. Tests only (O2.3).
+  @visibleForTesting
+  static int debugCurvesCreated = 0;
 
   @override
   Duration get transitionDuration => const Duration(milliseconds: 420);
@@ -83,18 +130,30 @@ class CircleRevealTransitionsBuilder extends PageTransitionsBuilder {
     final size = MediaQuery.sizeOf(context);
     final origin =
         _origins[route] ??= TapOrigin.last ?? size.center(Offset.zero);
-    final curved = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeInOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
+    // O2.3: one curve per route, not one per build.
+    final curved =
+        _curves[route] ??= () {
+          debugCurvesCreated++;
+          return CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+        }();
+    // O2.2: the circle's edge moves fast, so a hard edge on weak GPUs costs
+    // nothing visible.
+    final edge = deviceTier == DeviceTier.low ? Clip.hardEdge : Clip.antiAlias;
     return AnimatedBuilder(
       animation: curved,
       child: page,
       builder: (_, c) {
         final t = curved.value;
-        if (t >= 1) return c!;
-        return ClipPath(clipper: _CircleClipper(origin, t), child: c);
+        // O2.1: always the same widget type, so the page never remounts.
+        return ClipPath(
+          clipper: _CircleClipper(origin, t),
+          clipBehavior: t >= 1 ? Clip.none : edge,
+          child: c,
+        );
       },
     );
   }
@@ -123,50 +182,179 @@ class ThemeReveal extends StatefulWidget {
     await s._run(apply);
   }
 
+  /// Starts a snapshot now, so it is ready by the time the finger lifts and
+  /// [run] is called (UI_OPT O1.3). Call this from `onPointerDown` on every
+  /// theme-toggle button.
+  static void prepare() => _key.currentState?._prepare();
+
+  /// [child], a theme toggle, with [prepare] on hover and on press, so the
+  /// capture is done before the click rather than inside the animation.
+  static Widget warm(Widget child) => MouseRegion(
+    onEnter: (_) => prepare(),
+    child: Listener(onPointerDown: (_) => prepare(), child: child),
+  );
+
+  /// How many snapshots have been captured (prepared or on-demand). Tests
+  /// only.
+  @visibleForTesting
+  static int captures = 0;
+
+  /// The snapshot [prepare] is holding, if any. Tests only.
+  @visibleForTesting
+  static ui.Image? get debugPreparedImage => _key.currentState?._preparedImage;
+
+  /// The reveal animation's current value. Tests only.
+  @visibleForTesting
+  static double? get debugAnimValue => _key.currentState?._anim.value;
+
+  /// How far the closing fade has run (0 when not fading). Tests only.
+  @visibleForTesting
+  static double? get debugFadeValue => _key.currentState?._fade.value;
+
   @override
   State<ThemeReveal> createState() => _ThemeRevealState();
 }
 
 class _ThemeRevealState extends State<ThemeReveal>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _boundary = GlobalKey();
   late final _anim = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 560),
   );
-  ui.Image? _old;
+  // The last picture fades into the live app: a snapshot is never exactly
+  // the screen (thin pill outlines came back a shade off, a visible jump).
+  late final _fade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+  );
+  bool _fading = false;
+  ui.Image? _old, _new;
   Offset _origin = Offset.zero;
+
+  ui.Image? _preparedImage;
+  bool _flipped = false;
+  bool _capturing = false;
+  Timer? _expireTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    snapshotsFlipped().then((f) {
+      _flipped = f;
+      debugPrint('[Pointer theme] snapshots flipped: $f');
+    });
+  }
 
   @override
   void dispose() {
     _anim.dispose();
+    _fade.dispose();
     _old?.dispose();
+    _expireTimer?.cancel();
+    _preparedImage?.dispose();
     super.dispose();
   }
 
+  RenderRepaintBoundary? get _box =>
+      _boundary.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+
+  /// A snapshot at the app's own pixel ratio on every device: any lower one
+  /// shows as a clear resolution drop (owner, 2026-10-04). Tried through the
+  /// synchronous path first.
+  Future<ui.Image> _capture(RenderRepaintBoundary box) {
+    final r = MediaQuery.devicePixelRatioOf(context);
+    ThemeReveal.captures++;
+    try {
+      return Future.value(box.toImageSync(pixelRatio: r));
+    } on UnsupportedError {
+      debugPrint('[Pointer theme] toImageSync unavailable');
+      return box.toImage(pixelRatio: r);
+    }
+  }
+
+  void _prepare() {
+    final box = _box;
+    if (box == null ||
+        _preparedImage != null ||
+        _capturing ||
+        _anim.isAnimating) {
+      return;
+    }
+    _capturing = true;
+    _capture(box).then((img) {
+      _capturing = false;
+      if (!mounted) {
+        img.dispose();
+        return;
+      }
+      _preparedImage = img;
+      _expireTimer?.cancel();
+      _expireTimer = Timer(const Duration(seconds: 2), () {
+        _preparedImage?.dispose();
+        _preparedImage = null;
+      });
+    });
+  }
+
   Future<void> _run(VoidCallback apply) async {
-    final box =
-        _boundary.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    final box = _box;
     if (box == null ||
         _anim.isAnimating ||
         MediaQuery.disableAnimationsOf(context)) {
       apply();
       return;
     }
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    // Capped: a full-screen picture at 3x is slow to take on a phone, and it
-    // is only on screen for half a second.
-    final image = await box.toImage(pixelRatio: math.min(dpr, 1.5));
-    if (!mounted) return image.dispose();
-    setState(() {
-      _old = image;
-      _origin = TapOrigin.last ?? box.size.center(Offset.zero);
-    });
-    apply();
-    await _anim.forward(from: 0);
-    if (!mounted) return;
-    setState(() => _old = null);
-    image.dispose();
+    ui.Image? image = _preparedImage, next;
+    _preparedImage = null;
+    _expireTimer?.cancel();
+    var applied = false;
+    // Any failure (a snapshot Safari refuses) still switches the theme and
+    // lifts the cover: without this the old picture stayed over the app and
+    // the button looked dead on iPhone (owner, 2026-10-04).
+    try {
+      image ??= await _capture(box);
+      if (!mounted) return;
+      // O1.4: the cover shows, hidden and motionless, before the theme
+      // changes.
+      setState(() {
+        _old = image;
+        _origin = TapOrigin.last ?? box.size.center(Offset.zero);
+        _anim.value = 0;
+      });
+      await Future<void>.delayed(Duration.zero); // the cover gets to paint
+      apply(); // the one rebuild happens under the cover
+      applied = true;
+      await Future<void>.delayed(Duration.zero); // laid out, still hidden
+      // The new screen is captured too and the live app sits out the
+      // animation: on the web every frame replays the whole app's drawing,
+      // so a text-heavy page under the hole ran the reveal at 25 fps on a
+      // big window. Two images per frame keep it smooth (owner, 2026-10-04).
+      await WidgetsBinding.instance.endOfFrame; // the new theme is painted
+      if (!mounted) return;
+      next = await _capture(box);
+      if (!mounted) return;
+      setState(() => _new = next);
+      FrameStats.start('theme');
+      await _anim.forward(from: 0); // now only the hole moves
+      FrameStats.stop();
+      if (!mounted) return;
+      setState(() => _fading = true); // the live app returns under it
+      await _fade.forward(from: 0);
+    } on Object catch (e) {
+      debugPrint('[Pointer theme] reveal failed: $e');
+      if (!applied) apply();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _old = _new = null;
+          _fading = false;
+        });
+        _fade.value = 0;
+      }
+      image?.dispose();
+      next?.dispose();
+    }
   }
 
   @override
@@ -175,20 +363,33 @@ class _ThemeRevealState extends State<ThemeReveal>
     return Stack(
       textDirection: TextDirection.ltr,
       children: [
-        RepaintBoundary(key: _boundary, child: widget.child),
+        Offstage(
+          offstage: _new != null && !_fading,
+          child: RepaintBoundary(key: _boundary, child: widget.child),
+        ),
         if (old != null)
           Positioned.fill(
             child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _anim,
-                builder:
-                    (_, _) => CustomPaint(
-                      painter: _HolePainter(
-                        old,
-                        _origin,
-                        Curves.easeInOutCubic.transform(_anim.value),
+              child: RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: Listenable.merge([_anim, _fade]),
+                  builder:
+                      (_, _) => CustomPaint(
+                        isComplex: true,
+                        willChange: true,
+                        painter: _HolePainter(
+                          old,
+                          _new,
+                          _origin,
+                          _flipped,
+                          Curves.easeInOutCubic.transform(_anim.value),
+                          1 - Curves.easeInOut.transform(_fade.value),
+                          deviceTier == DeviceTier.low
+                              ? FilterQuality.low
+                              : FilterQuality.medium,
+                        ),
                       ),
-                    ),
+                ),
               ),
             ),
           ),
@@ -197,14 +398,31 @@ class _ThemeRevealState extends State<ThemeReveal>
   }
 }
 
-/// The old screen with a growing circular hole; it fades out at the end so
-/// the last corners do not snap.
+/// The old screen with a growing circular hole onto the new one ([next]).
+/// The hole reaches the farthest corner exactly at the end, so the old
+/// screen stays opaque throughout; a fade here turned the last corner into a
+/// grey blob. Only once it is gone does [next] fade ([opacity]) into the
+/// live app, which is the same theme underneath.
 class _HolePainter extends CustomPainter {
-  _HolePainter(this.image, this.center, this.t);
+  _HolePainter(
+    this.image,
+    this.next,
+    this.center,
+    this.flipped,
+    this.t,
+    this.opacity,
+    this.quality,
+  );
 
   final ui.Image image;
+  final ui.Image? next;
   final Offset center;
+  final bool flipped;
   final double t;
+
+  /// The whole overlay's, for the closing fade.
+  final double opacity;
+  final FilterQuality quality;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -215,18 +433,39 @@ class _HolePainter extends CustomPainter {
           ..addRect(Offset.zero & size)
           ..addOval(Rect.fromCircle(center: center, radius: r));
     canvas.save();
-    canvas.clipPath(hole);
-    canvas.drawImageRect(
-      image,
-      Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
+    if (flipped) {
+      canvas
+        ..translate(0, size.height)
+        ..scale(1, -1);
+    }
+    final paint =
+        Paint()
+          ..filterQuality = quality
+          ..color = Color.fromRGBO(0, 0, 0, opacity);
+    void draw(ui.Image i) => canvas.drawImageRect(
+      i,
+      Offset.zero & Size(i.width.toDouble(), i.height.toDouble()),
       Offset.zero & size,
-      Paint()
-        ..filterQuality = FilterQuality.medium
-        ..color = Color.fromRGBO(0, 0, 0, t < 0.75 ? 1 : (1 - t) / 0.25),
+      paint,
     );
+    if (next != null) draw(next!);
+    canvas.restore();
+    if (t >= 1) return; // the hole is the whole screen
+    canvas.save();
+    canvas.clipPath(hole);
+    if (flipped) {
+      canvas
+        ..translate(0, size.height)
+        ..scale(1, -1);
+    }
+    draw(image);
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_HolePainter old) => old.t != t || old.image != image;
+  bool shouldRepaint(_HolePainter old) =>
+      old.t != t ||
+      old.opacity != opacity ||
+      old.image != image ||
+      old.next != next;
 }

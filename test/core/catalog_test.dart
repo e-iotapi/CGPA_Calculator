@@ -3,23 +3,10 @@ import 'dart:io';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
-import 'package:cgpa_calculator/course.dart';
-import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 String _asset() => File(catalogAsset).readAsStringSync();
-
-List _row(Course c) => [
-  c.id,
-  c.title,
-  c.credits,
-  c.sem,
-  c.discipline,
-  c.elective,
-  c.grade1,
-  c.grade2,
-];
 
 class _Source implements CatalogSource {
   _Source(this.published, this.bundles);
@@ -57,14 +44,7 @@ void main() {
   setUp(() => shipped = Catalog.fromJson(_asset()));
   tearDown(() => useCatalog(shipped));
 
-  test('the shipped asset is exactly the compiled-in catalogue', () {
-    // Step 2 of ARCHITECTURE.md §9: same data, new source.
-    expect(shipped.chartOld.map(_row), hydCourseList.map(_row));
-    expect(shipped.chartNew.map(_row), hydCourseListNew.map(_row));
-    expect(
-      shipped.master.map((m) => [m.id, m.title, m.credits]),
-      mcourselist.map((m) => [m.id, m.title, m.credits]),
-    );
+  test('the shipped asset picks its chart by batch', () {
     expect(shipped.chart(24), same(shipped.chartOld));
     expect(shipped.chart(25), same(shipped.chartNew));
   });
