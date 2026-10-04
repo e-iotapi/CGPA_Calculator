@@ -12,41 +12,70 @@ import 'package:flutter/material.dart';
 typedef TimingsResult = ({Map<String, SlotEdit> set, List<String> reset});
 
 /// Change the times of one section for this student only: one row per
-/// published slot, saved together.
+/// published slot, saved together. [TimingsSheet.own] is the same sheet for a
+/// course the timetable lacks: the student types each weekly time (pops a
+/// `List<OwnTime>`).
 class TimingsSheet extends StatefulWidget {
-  const TimingsSheet({super.key, required this.sectionKey, required this.section, required this.state});
+  const TimingsSheet({super.key, required String this.sectionKey, required TtSection this.section, required CalendarState this.state})
+    : course = null,
+      existing = const [];
 
-  final String sectionKey;
-  final TtSection section;
-  final CalendarState state;
+  const TimingsSheet.own({super.key, required String this.course, this.existing = const []})
+    : sectionKey = null,
+      section = null,
+      state = null;
+
+  final String? sectionKey, course;
+  final TtSection? section;
+  final CalendarState? state;
+
+  /// [TimingsSheet.own]: the times saved before, to edit.
+  final List<CalendarCustom> existing;
 
   @override
   State<TimingsSheet> createState() => _TimingsSheetState();
 }
 
 class _Row {
-  _Row(this.slot, this.key, SlotEdit? e)
+  _Row(TtSlot this.slot, this.key, SlotEdit? e)
     : day = e?.d ?? slot.d,
       start = TextEditingController(text: clock(e?.s ?? slot.s)),
       end = TextEditingController(text: clock(e?.e ?? slot.e)),
+      room = TextEditingController(),
       edited = e != null;
-  final TtSlot slot;
+
+  /// A time the student types: no published slot behind it.
+  _Row.own({this.day = 1, int s = 540, int e = 600, String room = ''})
+    : slot = null,
+      key = '',
+      start = TextEditingController(text: clock(s)),
+      end = TextEditingController(text: clock(e)),
+      room = TextEditingController(text: room),
+      edited = false;
+  final TtSlot? slot;
   final String key;
   final bool edited;
   int day;
-  final TextEditingController start, end;
+  final TextEditingController start, end, room;
 }
 
 class _TimingsSheetState extends State<TimingsSheet> {
-  late final List<_Row> _rows = [
-    for (final sl in widget.section.slots)
-      _Row(sl, '${widget.sectionKey}|${sl.id}', widget.state.slotOverrides['${widget.sectionKey}|${sl.id}']),
-  ];
+  bool get _own => widget.course != null;
+
+  late final List<_Row> _rows = _own
+      ? [
+          for (final c in widget.existing) _Row.own(day: c.d, s: c.s, e: c.e, room: c.room),
+          if (widget.existing.isEmpty) _Row.own(),
+        ]
+      : [
+          for (final sl in widget.section!.slots)
+            _Row(sl, '${widget.sectionKey}|${sl.id}', widget.state!.slotOverrides['${widget.sectionKey}|${sl.id}']),
+        ];
   final _errors = <String, String>{};
 
   /// Edits whose published slot is gone: only "Reset" applies to them.
   late final _gone = [
-    for (final k in widget.state.slotOverrides.keys)
+    for (final k in widget.state?.slotOverrides.keys ?? const <String>[])
       if (k.startsWith('${widget.sectionKey}|') && !_rows.any((r) => r.key == k)) k,
   ];
 
@@ -55,8 +84,26 @@ class _TimingsSheetState extends State<TimingsSheet> {
     for (final r in _rows) {
       r.start.dispose();
       r.end.dispose();
+      r.room.dispose();
     }
     super.dispose();
+  }
+
+  void _saveOwn() {
+    final out = <OwnTime>[];
+    _errors.clear();
+    for (final (i, r) in _rows.indexed) {
+      final s = parseClock(r.start.text), e = parseClock(r.end.text);
+      if (s == null || e == null) {
+        _errors['$i'] = 'Use a time like 9:00 AM';
+      } else if (e <= s) {
+        _errors['$i'] = 'End must be after start';
+      } else {
+        out.add((d: r.day, s: s, e: e, room: r.room.text.trim()));
+      }
+    }
+    if (_errors.isNotEmpty) return setState(() {});
+    Navigator.pop<List<OwnTime>>(context, out);
   }
 
   void _save() {
@@ -69,7 +116,7 @@ class _TimingsSheetState extends State<TimingsSheet> {
         _errors[r.key] = 'Use a time like 9:00 AM';
       } else if (e <= s) {
         _errors[r.key] = 'End must be after start';
-      } else if (r.day == r.slot.d && s == r.slot.s && e == r.slot.e) {
+      } else if (r.day == r.slot!.d && s == r.slot!.s && e == r.slot!.e) {
         if (r.edited) reset.add(r.key);
       } else {
         set[r.key] = (d: r.day, s: s, e: e);
@@ -87,24 +134,38 @@ class _TimingsSheetState extends State<TimingsSheet> {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final course = widget.sectionKey.split('|').first;
+    final course = widget.course ?? widget.sectionKey!.split('|').first;
     return CalSheet(
-      title: 'Change time',
+      title: _own ? 'Class times' : 'Change time',
       subtitle: '$course · only for you',
-      footer: SheetButton('Save', onPressed: _save),
+      footer: SheetButton('Save', onPressed: _own ? _saveOwn : _save),
       children: [
-        for (final r in _rows) ...[
+        for (final (i, r) in _rows.indexed) ...[
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
-                    'Published ${dayShort(r.slot.d)} ${span(r.slot.s, r.slot.e)}',
+                    _own
+                        ? 'Time ${i + 1}'
+                        : 'Published ${dayShort(r.slot!.d)} ${span(r.slot!.s, r.slot!.e)}',
                     style: TypeScale.caption.copyWith(color: p.textMuted),
                   ),
                 ),
                 if (r.edited) const TagBadge('Your time', tone: TagTone.yours),
+                if (_own && _rows.length > 1)
+                  Semantics(
+                    button: true,
+                    label: 'Remove time ${i + 1}',
+                    child: InkWell(
+                      onTap: () => setState(() => _rows.removeAt(i).room.dispose()),
+                      child: SizedBox.square(
+                        dimension: Sizes.minTouch,
+                        child: Icon(Icons.close_rounded, size: 17, color: p.icon),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -120,7 +181,7 @@ class _TimingsSheetState extends State<TimingsSheet> {
                 dropdownColor: p.surface,
                 style: _ink(p),
                 items: [
-                  for (var d = 1; d <= 6; d++)
+                  for (var d = 1; d <= 7; d++)
                     DropdownMenuItem(value: d, child: Text(dayNames[d - 1])),
                 ],
                 onChanged: (v) => setState(() => r.day = v ?? r.day),
@@ -131,48 +192,79 @@ class _TimingsSheetState extends State<TimingsSheet> {
           _field(p, 'Start', _time(p, r.start, 'Start')),
           const SizedBox(height: 10),
           _field(p, 'End', _time(p, r.end, 'End')),
-          if (_errors[r.key] case final e?)
+          if (_own) ...[
+            const SizedBox(height: 10),
+            _field(p, 'Room (optional)', _time(p, r.room, 'Room')),
+          ],
+          if (_errors[_own ? '$i' : r.key] case final e?)
             Padding(
               padding: const EdgeInsets.only(top: Space.xs),
               child: Text(e, style: TypeScale.caption.copyWith(color: p.danger)),
             ),
           const SizedBox(height: 10),
         ],
-        if (_gone.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Space.sm),
-            child: Text(
-              'Your time (published time changed). Reset to follow the new timetable.',
-              style: TypeScale.caption.copyWith(color: p.textMuted),
-            ),
-          ),
-        Text(
-          'The published time stays for everyone else. You can reset to it any time.',
-          style: TypeScale.caption.copyWith(fontSize: 10.5, height: 1.45, color: p.textMuted),
-        ),
-        if (_rows.any((r) => r.edited) || _gone.isNotEmpty)
+        if (_own) ...[
           Semantics(
             button: true,
             child: InkWell(
-              onTap: _restore,
+              onTap: () => setState(() => _rows.add(_Row.own())),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: Sizes.minTouch),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Reset to published',
+                    'Add another day',
                     style: TypeScale.body.copyWith(
-                      fontSize: 11.5,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: p.accent,
-                      decoration: TextDecoration.underline,
-                      decorationColor: p.accent,
+                      color: p.text,
                     ),
                   ),
                 ),
               ),
             ),
           ),
+          Text(
+            'This course has no published timetable. These times stay on this device.',
+            style: TypeScale.caption.copyWith(fontSize: 10.5, height: 1.45, color: p.textMuted),
+          ),
+        ] else ...[
+          if (_gone.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.sm),
+              child: Text(
+                'Your time (published time changed). Reset to follow the new timetable.',
+                style: TypeScale.caption.copyWith(color: p.textMuted),
+              ),
+            ),
+          Text(
+            'The published time stays for everyone else. You can reset to it any time.',
+            style: TypeScale.caption.copyWith(fontSize: 10.5, height: 1.45, color: p.textMuted),
+          ),
+          if (_rows.any((r) => r.edited) || _gone.isNotEmpty)
+            Semantics(
+              button: true,
+              child: InkWell(
+                onTap: _restore,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Reset to published',
+                      style: TypeScale.body.copyWith(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: p.accent,
+                        decoration: TextDecoration.underline,
+                        decorationColor: p.accent,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }

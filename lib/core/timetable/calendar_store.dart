@@ -11,6 +11,9 @@ import 'package:hive_ce/hive.dart';
 /// A replacement day and minutes for one published slot.
 typedef SlotEdit = ({int d, int s, int e});
 
+/// One weekly time the student typed for a course the timetable lacks.
+typedef OwnTime = ({int d, int s, int e, String room});
+
 /// An event that belongs to no course.
 class CalendarCustom {
   const CalendarCustom({
@@ -23,8 +26,12 @@ class CalendarCustom {
     this.room = '',
     this.until,
     this.once = false,
+    this.course = '',
   });
-  final String id, title, room, from;
+
+  /// [course]: the catalogue course this belongs to (a course of the
+  /// student's own timings), or '' for an event that belongs to none.
+  final String id, title, room, from, course;
   final String? until;
   final int d, s, e;
   final bool once;
@@ -39,6 +46,7 @@ class CalendarCustom {
     from: m['from'] as String,
     until: m['until'] as String?,
     once: m['once'] == true,
+    course: m['course'] as String? ?? '',
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -50,6 +58,7 @@ class CalendarCustom {
     'from': from,
     if (until != null) 'until': until,
     'once': once,
+    if (course.isNotEmpty) 'course': course,
   };
 }
 
@@ -231,8 +240,43 @@ class CalendarStore {
             ),
           );
 
+  /// A course the timetable does not have: [times] weekly from [from] to
+  /// [until], replacing any earlier ones for [courseId].
+  Future<void> setOwnCourse(
+    String courseId,
+    String title,
+    List<OwnTime> times, {
+    required String from,
+    required String until,
+  }) async {
+    for (final t in times) {
+      _check((d: t.d, s: t.s, e: t.e));
+    }
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    await _save(
+      _state.copy(
+        custom: [
+          ..._state.custom.where((c) => c.course != courseId),
+          for (final (i, t) in times.indexed)
+            CalendarCustom(
+              id: 'o$stamp$i',
+              title: title,
+              d: t.d,
+              s: t.s,
+              e: t.e,
+              room: t.room,
+              from: from,
+              until: until,
+              course: courseId,
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> removeCourse(String courseId) => _save(
     _state.copy(
+      custom: _state.custom.where((c) => c.course != courseId).toList(),
       picks: {..._state.picks}..remove(courseId),
       slotOverrides: {
         for (final e in _state.slotOverrides.entries)

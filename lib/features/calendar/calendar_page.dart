@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/admin/widgets.dart' show Note, problem;
 import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
@@ -576,15 +577,41 @@ class _CalendarPageState extends State<CalendarPage> {
             timetable: t,
             state: _state,
             suggested: takingNow(),
+            catalogue: [for (final m in catalog.master) (id: m.id, title: m.title)],
             today: _focus,
           ),
     );
     if (r is CoursePick) {
-      await _write((c) => c.addCourse(r.course, r.keys));
+      if (r.course.sections.isEmpty) {
+        await _ownTimes(t, r.course);
+      } else {
+        await _write((c) => c.addCourse(r.course, r.keys));
+      }
       if (mounted && _view == _View.month) setState(() => _view = _View.week);
     } else if (r is CalendarCustom) {
       await _write((c) => c.addCustom(r));
     }
+  }
+
+  /// A course with no published timetable: the student types its times.
+  Future<void> _ownTimes(Timetable t, TtCourse course) async {
+    final r = await showCalSheet<List<OwnTime>>(
+      context,
+      (_) => TimingsSheet.own(
+        course: course.id,
+        existing: [for (final c in _state.custom) if (c.course == course.id) c],
+      ),
+    );
+    if (r == null) return;
+    await _write(
+      (c) => c.setOwnCourse(
+        course.id,
+        course.title,
+        r,
+        from: t.semStart(),
+        until: _state.repeatUntil[course.id] ?? t.lastClassworkDay(),
+      ),
+    );
   }
 
   Future<void> _blockTap(Occurrence o) async {
@@ -607,6 +634,9 @@ class _CalendarPageState extends State<CalendarPage> {
       case ClassAct.open:
         await _openCourse(o.courseId);
       case ClassAct.changeTime:
+        if (o.kind == OccKind.custom && _tt != null) {
+          return _ownTimes(_tt!, TtCourse(id: o.courseId, title: o.title));
+        }
         final sec = sectionOf(_tt, o);
         if (sec == null || sk == null) return;
         final r = await showCalSheet<TimingsResult>(

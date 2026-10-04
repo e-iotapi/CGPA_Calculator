@@ -138,7 +138,7 @@ List<Occurrence> expandOccurrences(
     for (final date in dates) {
       if (date.compareTo(from) < 0 || date.compareTo(to) > 0) continue;
       out.add(Occurrence(
-        id: 'custom|${c.id}|$date', courseId: '', title: c.title,
+        id: 'custom|${c.id}|$date', courseId: c.course, title: c.title,
         kind: OccKind.custom, date: date, start: c.s, end: c.e, room: c.room,
       ));
     }
