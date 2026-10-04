@@ -535,7 +535,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
         const SizedBox(height: 5),
         if (shown)
           Container(
-            height: 40,
+            height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: Color.lerp(p.surface, p.hero, 0.4),
@@ -576,7 +576,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
           )
         else
           SizedBox(
-            height: 40,
+            height: 36,
             child: CompactField(
               c: _average,
               hint: outOf > 0 ? 'of ${marks2(outOf)}' : 'Optional',
@@ -661,9 +661,9 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
               if (!narrow) ...[
                 headCell('DATE', 52),
                 const SizedBox(width: 5),
-                headCell('YOU', 36),
+                headCell('YOU', 40),
                 const SizedBox(width: 5),
-                headCell('OUT OF', 36),
+                headCell('OUT OF', 40),
                 const SizedBox(width: 5),
                 headCell('AVG', 46),
               ],
@@ -766,7 +766,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
           error: boundedError(double.tryParse(f.marks.text), outOf) != null,
           onChanged: changed,
         ),
-        36,
+        40,
       ),
       field(
         CompactField(
@@ -775,7 +775,7 @@ class _AddEvaluativePageState extends State<AddEvaluativePage> {
           error: positiveError(outOf) != null,
           onChanged: changed,
         ),
-        36,
+        40,
       ),
       field(
         official
@@ -976,7 +976,10 @@ class _DateChip extends StatelessWidget {
     final set = date != null;
     return Material(
       color: p.surface,
-      borderRadius: BorderRadius.circular(11),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(11),
+        side: BorderSide(color: p.outline),
+      ),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
         height: 36,

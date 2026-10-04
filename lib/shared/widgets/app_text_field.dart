@@ -243,6 +243,7 @@ class CompactField extends StatelessWidget {
       child: TextField(
         controller: c,
         onChanged: onChanged,
+        textAlignVertical: TextAlignVertical.center,
         textAlign: TextAlign.center,
         style: TypeScale.body.copyWith(
           fontSize: 12,
@@ -259,13 +260,29 @@ class CompactField extends StatelessWidget {
           // Component name field fills with.
           fillColor: p.surface,
           hintText: hint,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          border: OutlineInputBorder(
+          hintStyle: TypeScale.caption.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: p.textMuted,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 4,
+            vertical: 10,
+          ),
+          // Outlined like a pill, so a box reads on a white card too.
+          enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(11),
             borderSide:
                 error
                     ? BorderSide(color: p.behind, width: 1.5)
-                    : BorderSide.none,
+                    : BorderSide(color: p.outline),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: BorderSide(
+              color: error ? p.behind : p.text,
+              width: 1.5,
+            ),
           ),
         ),
       ),

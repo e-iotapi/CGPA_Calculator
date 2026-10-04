@@ -283,16 +283,25 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
                   tall: true,
                   onPressed: () => _write(m.mine),
                 )
-                : took != null
-                ? PrimaryButton(
+                : PrimaryButton(
                   label: 'Review ${widget.courseId}',
                   icon: Icons.rate_review_outlined,
                   tall: true,
-                  onPressed: () => _write(null),
-                )
-                : null;
+                  // A review carries the term from the student's grades.
+                  onPressed:
+                      took != null || reviewTerm(widget.courseId) != null
+                          ? () => _write(null)
+                          : () => ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Add ${widget.courseId} to your grades in the '
+                                'semester you took it, then review it here.',
+                              ),
+                            ),
+                          ),
+                );
         return PageFrame(
-          bottom: action == null ? null : BottomAction(child: action),
+          bottom: BottomAction(child: action),
           header: PageHeader(
             eyebrow: '${widget.courseId} · ${_campus.toUpperCase()}',
             title: title ?? widget.courseId,
