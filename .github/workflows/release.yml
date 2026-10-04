@@ -63,9 +63,9 @@ jobs:
             git checkout -q --orphan "$branch"
           fi
           # The source's tree exactly, then the dev-only paths out of it.
-          git rm -rq --ignore-unmatch .
+          git rm -rqf --ignore-unmatch .
           git checkout "$src" -- .
-          git rm -rq --ignore-unmatch $DEV_ONLY
+          git rm -rqf --ignore-unmatch $DEV_ONLY
           if git diff --cached --quiet; then
             echo "Nothing to release: $TO already matches $from."
             exit 0
