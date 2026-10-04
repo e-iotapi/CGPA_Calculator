@@ -11,6 +11,15 @@ import 'package:hive_ce/hive.dart';
 /// A replacement day and minutes for one published slot.
 typedef SlotEdit = ({int d, int s, int e});
 
+/// A start and end (minutes) the student gave a date they entered in Marks.
+typedef MarkTime = ({int s, int e});
+
+/// The key of a Marks date's time: `<courseId>|<label>|<date>`.
+String markKey(String courseId, String label, String date) => '$courseId|$label|$date';
+
+/// One weekly time the student typed for a course the timetable lacks.
+typedef OwnTime = ({int d, int s, int e, String room});
+
 /// An event that belongs to no course.
 class CalendarCustom {
   const CalendarCustom({
@@ -23,8 +32,12 @@ class CalendarCustom {
     this.room = '',
     this.until,
     this.once = false,
+    this.course = '',
   });
-  final String id, title, room, from;
+
+  /// [course]: the catalogue course this belongs to (a course of the
+  /// student's own timings), or '' for an event that belongs to none.
+  final String id, title, room, from, course;
   final String? until;
   final int d, s, e;
   final bool once;
@@ -39,6 +52,7 @@ class CalendarCustom {
     from: m['from'] as String,
     until: m['until'] as String?,
     once: m['once'] == true,
+    course: m['course'] as String? ?? '',
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -50,6 +64,7 @@ class CalendarCustom {
     'from': from,
     if (until != null) 'until': until,
     'once': once,
+    if (course.isNotEmpty) 'course': course,
   };
 }
 
@@ -63,9 +78,13 @@ class CalendarState {
     this.removed = const {},
     this.examsOff = const {},
     this.custom = const [],
+    this.markTimes = const {},
     this.autoFilled = false,
   });
   final String campus, sem;
+
+  /// [markKey] -> the time the student gave that dated part from Marks.
+  final Map<String, MarkTime> markTimes;
 
   /// The student's courses were put in once for this sem; removing them all
   /// later does not bring them back.
@@ -93,6 +112,7 @@ class CalendarState {
     Set<String>? removed,
     Set<String>? examsOff,
     List<CalendarCustom>? custom,
+    Map<String, MarkTime>? markTimes,
     bool? autoFilled,
   }) => CalendarState(
     campus: campus ?? this.campus,
@@ -103,6 +123,7 @@ class CalendarState {
     removed: removed ?? this.removed,
     examsOff: examsOff ?? this.examsOff,
     custom: custom ?? this.custom,
+    markTimes: markTimes ?? this.markTimes,
     autoFilled: autoFilled ?? this.autoFilled,
   );
 
@@ -137,6 +158,13 @@ class CalendarState {
       for (final c in (m['custom'] as List?) ?? const [])
         CalendarCustom.fromJson(c as Map),
     ],
+    markTimes: {
+      for (final e in ((m['markTimes'] as Map?) ?? const {}).entries)
+        '${e.key}': (
+          s: ((e.value as Map)['s'] as num).toInt(),
+          e: ((e.value as Map)['e'] as num).toInt(),
+        ),
+    },
     autoFilled: m['autoFilled'] == true,
   );
 
@@ -153,6 +181,10 @@ class CalendarState {
     'removed': {for (final k in removed) k: true},
     'examsOff': {for (final k in examsOff) k: true},
     'custom': [for (final c in custom) c.toJson()],
+    if (markTimes.isNotEmpty)
+      'markTimes': {
+        for (final e in markTimes.entries) e.key: {'s': e.value.s, 'e': e.value.e},
+      },
     if (autoFilled) 'autoFilled': true,
   };
 }
@@ -187,7 +219,7 @@ class CalendarStore {
   Future<void> adopt(String campus, String sem) =>
       (_state.campus == campus && _state.sem == sem)
           ? Future.value()
-          : _save(CalendarState(campus: campus, sem: sem, custom: _state.custom));
+          : _save(CalendarState(campus: campus, sem: sem, custom: _state.custom, markTimes: _state.markTimes));
 
   bool _of(String course, String key) => key.startsWith('$course|');
 
@@ -231,8 +263,43 @@ class CalendarStore {
             ),
           );
 
+  /// A course the timetable does not have: [times] weekly from [from] to
+  /// [until], replacing any earlier ones for [courseId].
+  Future<void> setOwnCourse(
+    String courseId,
+    String title,
+    List<OwnTime> times, {
+    required String from,
+    required String until,
+  }) async {
+    for (final t in times) {
+      _check((d: t.d, s: t.s, e: t.e));
+    }
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    await _save(
+      _state.copy(
+        custom: [
+          ..._state.custom.where((c) => c.course != courseId),
+          for (final (i, t) in times.indexed)
+            CalendarCustom(
+              id: 'o$stamp$i',
+              title: title,
+              d: t.d,
+              s: t.s,
+              e: t.e,
+              room: t.room,
+              from: from,
+              until: until,
+              course: courseId,
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> removeCourse(String courseId) => _save(
     _state.copy(
+      custom: _state.custom.where((c) => c.course != courseId).toList(),
       picks: {..._state.picks}..remove(courseId),
       slotOverrides: {
         for (final e in _state.slotOverrides.entries)
@@ -277,6 +344,15 @@ class CalendarStore {
   Future<void> addCustom(CalendarCustom e) => _save(
     _state.copy(custom: [..._state.custom.where((c) => c.id != e.id), e]),
   );
+
+  /// A time for a dated part from Marks (see [markKey]); only on this device.
+  Future<void> setMarkTime(String key, {required int s, required int e}) async {
+    _check((d: 0, s: s, e: e));
+    await _save(_state.copy(markTimes: {..._state.markTimes, key: (s: s, e: e)}));
+  }
+
+  Future<void> clearMarkTime(String key) =>
+      _save(_state.copy(markTimes: {..._state.markTimes}..remove(key)));
 
   Future<void> removeCustom(String id) =>
       _save(_state.copy(custom: _state.custom.where((c) => c.id != id).toList()));

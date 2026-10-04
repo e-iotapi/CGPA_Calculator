@@ -14,7 +14,11 @@ import 'package:flutter/material.dart';
 /// A course and the section of each type the student attends.
 typedef CoursePick = ({TtCourse course, List<String> keys});
 
-/// Add a published course or an event of the student's own. Pops a
+/// A catalogue course: its code and name.
+typedef CatalogCourse = ({String id, String title});
+
+/// Add a course (published, or any catalogue course whose times the student
+/// types: its pick has no sections) or an event of the student's own. Pops a
 /// [CoursePick] or a [CalendarCustom].
 class AddSheet extends StatefulWidget {
   const AddSheet({
@@ -22,11 +26,15 @@ class AddSheet extends StatefulWidget {
     required this.timetable,
     required this.state,
     this.suggested = const {},
+    this.catalogue = const [],
     this.today,
   });
 
   final Timetable timetable;
   final CalendarState state;
+
+  /// The whole catalogue: search covers it, not just the published courses.
+  final List<CatalogCourse> catalogue;
 
   /// Course ids to offer before anything is typed (this semester's).
   final Set<String> suggested;
@@ -56,7 +64,20 @@ class _AddSheetState extends State<AddSheet> {
     super.dispose();
   }
 
-  void _pick(TtCourse c) => setState(() {
+  /// The published courses, then each catalogue course the timetable lacks
+  /// (no sections: the student types its times).
+  late final List<TtCourse> _all = [
+    ...widget.timetable.courses.values,
+    for (final m in {for (final m in widget.catalogue) m.id: m}.values)
+      if (!widget.timetable.courses.containsKey(m.id)) TtCourse(id: m.id, title: m.title),
+  ];
+
+  void _pick(TtCourse c) {
+    if (c.sections.isEmpty) return Navigator.pop<Object>(context, (course: c, keys: <String>[]));
+    _pickSections(c);
+  }
+
+  void _pickSections(TtCourse c) => setState(() {
     _course = c;
     _keys
       ..clear()
@@ -70,7 +91,7 @@ class _AddSheetState extends State<AddSheet> {
 
   List<TtCourse> get _results {
     final t = widget.timetable;
-    if (_q.text.trim().isNotEmpty) return t.search(_q.text);
+    if (_q.text.trim().isNotEmpty) return searchCourses(_all, _q.text);
     return [for (final id in widget.suggested.toList()..sort()) if (t.courses[id] != null) t.courses[id]!];
   }
 
@@ -162,8 +183,9 @@ class _AddSheetState extends State<AddSheet> {
                   itemCount: res.length,
                   itemBuilder: (_, i) => CardRow(
                     title: res[i].title.isEmpty ? res[i].id : res[i].title,
-                    subtitle: res[i].id,
-                    trailing: widget.state.picks.containsKey(res[i].id)
+                    subtitle: res[i].sections.isEmpty ? '${res[i].id} · you add the times' : res[i].id,
+                    trailing: widget.state.picks.containsKey(res[i].id) ||
+                            widget.state.custom.any((e) => e.course == res[i].id)
                         ? Icon(Icons.check_rounded, size: 18, color: p.text)
                         : null,
                     onTap: () => _pick(res[i]),
@@ -209,11 +231,6 @@ class _AddSheetState extends State<AddSheet> {
           child: ListView(
             shrinkWrap: true,
             children: [
-              if (c.sections.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(Space.md),
-                  child: Text('No sections published.', style: TypeScale.caption.copyWith(color: p.textMuted)),
-                ),
               for (final ty in types) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, Space.md, 4, Space.xs),

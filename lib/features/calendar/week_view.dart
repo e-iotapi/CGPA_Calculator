@@ -9,8 +9,13 @@ import 'package:flutter/material.dart';
 /// An all-day line: a holiday, an academic date, or an evaluative part from
 /// Marks (which has a date but no time).
 class AllDayItem {
-  const AllDayItem(this.label, this.kind, {this.courseId});
+  const AllDayItem(this.label, this.kind, {this.courseId, this.part});
+
+  /// What the strip says; for an `eval` it names the course.
   final String label;
+
+  /// An `eval`'s own label from Marks (`Quiz 1`), without the course.
+  final String? part;
 
   /// `holiday`, `event` or `eval`.
   final String kind;
@@ -49,7 +54,7 @@ List<(int lane, int lanes)> layoutLanes(List<({int s, int e})> spans) {
 }
 
 const hourHeight = 50.0;
-const _axisWidth = 38.0;
+const _axisWidth = 30.0;
 
 /// 9:00 -> "9", 11:30 -> "11:30", 13:00 -> "1": the board's block times.
 String _hm(int m) {
@@ -271,7 +276,7 @@ class _WeekViewState extends State<WeekView> {
           top: top + 1,
           width: bw - 2,
           height: height - 2,
-          child: _block(context, p, o, height),
+          child: _block(context, p, o, height, bw < 46),
         ),
       );
     }
@@ -280,22 +285,27 @@ class _WeekViewState extends State<WeekView> {
 
   /// A class on a white card (an exam on the amber one); a time of the
   /// student's own gets an ink outline and a YOUR TIME chip.
-  Widget _block(BuildContext context, AppPalette p, Occurrence o, double height) {
-    final exam = o.kind == OccKind.midsem || o.kind == OccKind.compre;
-    Widget line(String t, double size, FontWeight w, Color c) => Padding(
-      padding: const EdgeInsets.only(bottom: 1),
-      child: Text(
+  Widget _block(BuildContext context, AppPalette p, Occurrence o, double height, bool narrow) {
+    final exam = o.kind != OccKind.cls && o.kind != OccKind.custom;
+    Widget line(String t, double size, FontWeight w, Color c, {bool fit = false}) {
+      final text = Text(
         t,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TypeScale.caption.copyWith(fontSize: size, height: 1.2, fontWeight: w, color: c),
-      ),
-    );
+      );
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 1),
+        // Seven columns are 38-51 wide: code, room and time shrink, never "CS F2…".
+        child: fit ? FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: text) : text,
+      );
+    }
+
     final lines = <(Widget, double)>[
-      (line(o.courseId.isEmpty ? o.title : o.courseId, 8.5, FontWeight.w800, p.text), 11.2),
+      (line(o.courseId.isEmpty ? o.title : o.courseId, 8.5, FontWeight.w800, p.text, fit: true), 11.2),
       if (o.courseId.isNotEmpty) (line(o.title, 7, FontWeight.w600, p.textMuted), 9.4),
-      if (o.room != null && o.room!.isNotEmpty) (line(o.room!, 7, FontWeight.w700, p.text), 9.4),
-      (line('${_hm(o.start)}–${_hm(o.end)}', 7, FontWeight.w600, p.textMuted), 9.4),
+      if (o.room != null && o.room!.isNotEmpty) (line(o.room!, 7, FontWeight.w700, p.text, fit: true), 9.4),
+      (line('${_hm(o.start)}–${_hm(o.end)}', 7, FontWeight.w600, p.textMuted, fit: true), 9.4),
       if (o.edited)
         (
           Align(
@@ -303,13 +313,17 @@ class _WeekViewState extends State<WeekView> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
               decoration: BoxDecoration(color: p.hero, borderRadius: BorderRadius.circular(4)),
-              child: Text(
-                'YOUR TIME',
-                style: TypeScale.label.copyWith(
-                  fontSize: 6.5,
-                  height: 1.2,
-                  fontWeight: FontWeight.w800,
-                  color: p.onHero,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'YOUR TIME',
+                  maxLines: 1,
+                  style: TypeScale.label.copyWith(
+                    fontSize: 6.5,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                    color: p.onHero,
+                  ),
                 ),
               ),
             ),
@@ -343,7 +357,7 @@ class _WeekViewState extends State<WeekView> {
         child: InkWell(
           onTap: () => widget.onBlock(o),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 3, 4, 2),
+            padding: EdgeInsets.fromLTRB(narrow ? 2 : 4, 3, narrow ? 2 : 4, 2),
             child: MediaQuery(
               data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: shown),
