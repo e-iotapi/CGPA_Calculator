@@ -28,6 +28,11 @@ class _FrameHudState extends State<FrameHud> {
   int _scrolls = 0, _first = 0, _last = 0, _frames = 0, _late = 0, _gap = 0;
   int _build = 0, _draw = 0;
 
+  // The motion: when the finger went down and up, and where the content
+  // was on each update (ms, px, still dragging).
+  int _down = -1, _up = -1;
+  final _moves = <(int, double, bool)>[];
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +45,13 @@ class _FrameHudState extends State<FrameHud> {
     if (n is ScrollStartNotification && _scrolls++ == 0) {
       _first = _last = _clock.elapsedMilliseconds;
       _frames = _late = _gap = _build = _draw = 0;
+      _moves.clear();
+    } else if (n is ScrollUpdateNotification && _scrolls > 0) {
+      _moves.add((
+        _clock.elapsedMilliseconds,
+        n.metrics.pixels,
+        n.dragDetails != null,
+      ));
     } else if (n is ScrollEndNotification && _scrolls > 0 && --_scrolls == 0) {
       _show();
     }
@@ -72,7 +84,32 @@ class _FrameHudState extends State<FrameHud> {
     if (_frames < 2 || ms <= 0) return;
     _text.value =
         '${(1000 * _frames / ms).round()} fps · $_frames frames in $ms ms\n'
-        'late $_late · gap $_gap ms · worst build $_build + draw $_draw ms';
+        'late $_late · gap $_gap ms · worst build $_build + draw $_draw ms'
+        '\n${_motion()}';
+  }
+
+  /// Touch to first movement, lift to the fling's first step, and the
+  /// biggest single step against the steps either side of it.
+  String _motion() {
+    if (_moves.length < 3) return '';
+    final touch = _down < 0 ? '?' : '${_moves.first.$1 - _down}';
+    final fling = _moves.indexWhere((m) => !m.$3);
+    final lift =
+        fling < 0 || _up < 0 || _up > _moves[fling].$1
+            ? '-'
+            : '${_moves[fling].$1 - _up}';
+    var at = 1, big = 0.0, around = 0.0;
+    for (var i = 1; i < _moves.length; i++) {
+      final step = (_moves[i].$2 - _moves[i - 1].$2).abs();
+      if (step <= big) continue;
+      final prev = i > 1 ? (_moves[i - 1].$2 - _moves[i - 2].$2).abs() : 0;
+      final next =
+          i + 1 < _moves.length ? (_moves[i + 1].$2 - _moves[i].$2).abs() : 0;
+      (at, big, around) = (i, step, (prev + next) / 2);
+    }
+    final where = _moves[at].$3 ? 'drag' : 'fling';
+    return 'touch→move $touch ms · lift→fling $lift ms\n'
+        'jump ${big.round()} px ($where, around ${around.round()})';
   }
 
   @override
@@ -87,9 +124,14 @@ class _FrameHudState extends State<FrameHud> {
     return Stack(
       textDirection: TextDirection.ltr,
       children: [
-        NotificationListener<ScrollNotification>(
-          onNotification: _onScroll,
-          child: widget.child,
+        Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) => _down = _clock.elapsedMilliseconds,
+          onPointerUp: (_) => _up = _clock.elapsedMilliseconds,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _onScroll,
+            child: widget.child,
+          ),
         ),
         Positioned(
           left: 8,
