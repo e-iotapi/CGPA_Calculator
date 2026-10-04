@@ -535,8 +535,12 @@ service cloud.firestore {
 
     // volunteers pattern: id campus|dept|email.
     match /contributorRequests/{id} {
-      allow get: if (signedIn() && resource.data.email == me())
-        || approves(resource.data.campus, resource.data.dept);
+      // A missing request reads as missing to its own applicant (the app
+      // checks before applying; resource.data on null would deny it).
+      allow get: if resource == null
+        ? signedIn() && id.split('[|]')[2] == me()
+        : (signedIn() && resource.data.email == me())
+          || approves(resource.data.campus, resource.data.dept);
       allow list: if approves(resource.data.campus, resource.data.dept);
       // Apply, or apply again after a decline or a withdrawal.
       allow create, update: if isStudent(me())
