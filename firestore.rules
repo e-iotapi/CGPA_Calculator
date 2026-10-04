@@ -194,7 +194,11 @@ service cloud.firestore {
 
     // ---- Grants and the staff index (§4) -----------------------------------
 
-    function terms() { return get(/databases/$(db)/documents/config/grantTerms).data; }
+    // Until an owner saves config/grantTerms, the app's defaultTerms.
+    function terms() {
+      let p = /databases/$(db)/documents/config/grantTerms;
+      return exists(p) ? get(p).data : {'crDays': 183, 'presidentDays': 365, 'adminDays': 730};
+    }
 
     function termDays(role) {
       return role == 'admin' ? terms().adminDays
