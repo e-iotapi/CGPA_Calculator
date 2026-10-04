@@ -207,17 +207,28 @@ class ThemeReveal extends StatefulWidget {
   @visibleForTesting
   static double? get debugAnimValue => _key.currentState?._anim.value;
 
+  /// How far the closing fade has run (0 when not fading). Tests only.
+  @visibleForTesting
+  static double? get debugFadeValue => _key.currentState?._fade.value;
+
   @override
   State<ThemeReveal> createState() => _ThemeRevealState();
 }
 
 class _ThemeRevealState extends State<ThemeReveal>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _boundary = GlobalKey();
   late final _anim = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 560),
   );
+  // The last picture fades into the live app: a snapshot is never exactly
+  // the screen (thin pill outlines came back a shade off, a visible jump).
+  late final _fade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+  );
+  bool _fading = false;
   ui.Image? _old, _new;
   Offset _origin = Offset.zero;
 
@@ -238,6 +249,7 @@ class _ThemeRevealState extends State<ThemeReveal>
   @override
   void dispose() {
     _anim.dispose();
+    _fade.dispose();
     _old?.dispose();
     _expireTimer?.cancel();
     _preparedImage?.dispose();
@@ -326,11 +338,20 @@ class _ThemeRevealState extends State<ThemeReveal>
       FrameStats.start('theme');
       await _anim.forward(from: 0); // now only the hole moves
       FrameStats.stop();
+      if (!mounted) return;
+      setState(() => _fading = true); // the live app returns under it
+      await _fade.forward(from: 0);
     } on Object catch (e) {
       debugPrint('[Pointer theme] reveal failed: $e');
       if (!applied) apply();
     } finally {
-      if (mounted) setState(() => _old = _new = null);
+      if (mounted) {
+        setState(() {
+          _old = _new = null;
+          _fading = false;
+        });
+        _fade.value = 0;
+      }
       image?.dispose();
       next?.dispose();
     }
@@ -343,7 +364,7 @@ class _ThemeRevealState extends State<ThemeReveal>
       textDirection: TextDirection.ltr,
       children: [
         Offstage(
-          offstage: _new != null,
+          offstage: _new != null && !_fading,
           child: RepaintBoundary(key: _boundary, child: widget.child),
         ),
         if (old != null)
@@ -351,7 +372,7 @@ class _ThemeRevealState extends State<ThemeReveal>
             child: IgnorePointer(
               child: RepaintBoundary(
                 child: AnimatedBuilder(
-                  animation: _anim,
+                  animation: Listenable.merge([_anim, _fade]),
                   builder:
                       (_, _) => CustomPaint(
                         isComplex: true,
@@ -362,6 +383,7 @@ class _ThemeRevealState extends State<ThemeReveal>
                           _origin,
                           _flipped,
                           Curves.easeInOutCubic.transform(_anim.value),
+                          1 - Curves.easeInOut.transform(_fade.value),
                           deviceTier == DeviceTier.low
                               ? FilterQuality.low
                               : FilterQuality.medium,
@@ -379,7 +401,8 @@ class _ThemeRevealState extends State<ThemeReveal>
 /// The old screen with a growing circular hole onto the new one ([next]).
 /// The hole reaches the farthest corner exactly at the end, so the old
 /// screen stays opaque throughout; a fade here turned the last corner into a
-/// grey blob.
+/// grey blob. Only once it is gone does [next] fade ([opacity]) into the
+/// live app, which is the same theme underneath.
 class _HolePainter extends CustomPainter {
   _HolePainter(
     this.image,
@@ -387,6 +410,7 @@ class _HolePainter extends CustomPainter {
     this.center,
     this.flipped,
     this.t,
+    this.opacity,
     this.quality,
   );
 
@@ -395,6 +419,9 @@ class _HolePainter extends CustomPainter {
   final Offset center;
   final bool flipped;
   final double t;
+
+  /// The whole overlay's, for the closing fade.
+  final double opacity;
   final FilterQuality quality;
 
   @override
@@ -411,7 +438,10 @@ class _HolePainter extends CustomPainter {
         ..translate(0, size.height)
         ..scale(1, -1);
     }
-    final paint = Paint()..filterQuality = quality;
+    final paint =
+        Paint()
+          ..filterQuality = quality
+          ..color = Color.fromRGBO(0, 0, 0, opacity);
     void draw(ui.Image i) => canvas.drawImageRect(
       i,
       Offset.zero & Size(i.width.toDouble(), i.height.toDouble()),
@@ -420,6 +450,7 @@ class _HolePainter extends CustomPainter {
     );
     if (next != null) draw(next!);
     canvas.restore();
+    if (t >= 1) return; // the hole is the whole screen
     canvas.save();
     canvas.clipPath(hole);
     if (flipped) {
@@ -433,5 +464,8 @@ class _HolePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_HolePainter old) =>
-      old.t != t || old.image != image || old.next != next;
+      old.t != t ||
+      old.opacity != opacity ||
+      old.image != image ||
+      old.next != next;
 }
