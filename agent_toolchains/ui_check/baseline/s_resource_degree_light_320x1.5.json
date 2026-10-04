@@ -1,8 +1,0 @@
-{
- "errors": [],
- "issues": [
-  "contrast: \"A7\" 1.31:1, needs 3.0 (16.5 px)",
-  "tap: \"Back\" 42x42",
-  "truncated: \"B.E. Computer Science\""
- ]
-}

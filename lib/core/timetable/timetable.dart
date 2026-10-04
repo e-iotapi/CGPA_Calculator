@@ -225,7 +225,7 @@ class Timetable {
   String semStart() {
     final term = events.where((e) => e.kind == 'term').toList();
     final begin = term.where(
-      (e) => RegExp(r'instruction.*begin|begin.*instruction', caseSensitive: false).hasMatch(e.title),
+      (e) => RegExp(r'instruction.*begin|begin.*instruction|classwork begin', caseSensitive: false).hasMatch(e.title),
     );
     if (begin.isNotEmpty) return begin.first.from;
     if (term.isNotEmpty) return (term.map((e) => e.from).toList()..sort()).first;
@@ -236,10 +236,29 @@ class Timetable {
   /// The last day of classes (YYYY-MM-DD).
   String lastClassworkDay() {
     final term = events.where((e) => e.kind == 'term').toList();
-    final last = term.where((e) => e.title.toLowerCase().contains('last day'));
+    // "Last date for classwork" is published as a deadline, not a term date.
+    final last = events.where(
+      (e) =>
+          e.kind == 'term' && e.title.toLowerCase().contains('last day') ||
+          RegExp(r'last (day|date) (of|for) class', caseSensitive: false).hasMatch(e.title),
+    );
     String max(Iterable<String> ds) => (ds.toList()..sort()).last;
     if (last.isNotEmpty) return max(last.map((e) => e.last));
     if (term.isNotEmpty) return max(term.map((e) => e.last));
     return fmtDate(parseDate(semStart()).add(const Duration(days: 16 * 7)));
+  }
+
+  /// The spans (inclusive `YYYY-MM-DD`) classwork stops for exams: an exam
+  /// event with a range, or one that begins up to the next one that ends.
+  List<(String, String)> examWindows() {
+    final ex = events.where((e) => e.kind == 'exam').toList()..sort((a, b) => a.from.compareTo(b.from));
+    bool has(AcademicEvent e, String w) => RegExp('\\b$w', caseSensitive: false).hasMatch(e.title);
+    return [
+      for (final (i, e) in ex.indexed)
+        if (e.to != null)
+          (e.from, e.last)
+        else if (has(e, 'begin'))
+          (e.from, ex.skip(i + 1).where((x) => has(x, 'end')).firstOrNull?.last ?? e.from),
+    ];
   }
 }

@@ -1,7 +1,0 @@
-{
- "errors": [],
- "issues": [
-  "contrast: \"2025-26\" 1.12:1, needs 4.5 (14.0 px)",
-  "stretch: chip \"2025-26\" 358 of 390 wide"
- ]
-}

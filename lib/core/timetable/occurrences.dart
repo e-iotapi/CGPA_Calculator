@@ -77,7 +77,8 @@ List<String> staleSections(Timetable t, CalendarState s) {
 }
 
 /// Everything on the calendar from [from] to [to] (inclusive `YYYY-MM-DD`),
-/// sorted by date, start, id. [t] null: only custom items.
+/// sorted by date, start, id. [t] null: only custom items. No weekly class
+/// falls inside an exam window ([Timetable.examWindows]).
 List<Occurrence> expandOccurrences(
   Timetable? t,
   CalendarState s, {
@@ -85,6 +86,8 @@ List<Occurrence> expandOccurrences(
   required String to,
 }) {
   final out = <Occurrence>[];
+  final exams = _live(t, s) ? t!.examWindows() : const <(String, String)>[];
+  bool examDay(String d) => exams.any((w) => w.$1.compareTo(d) <= 0 && w.$2.compareTo(d) >= 0);
   if (_live(t, s)) {
     final tt = t!;
     final lo = _max(from, tt.semStart());
@@ -98,7 +101,7 @@ List<Occurrence> expandOccurrences(
         void emit(String slotId, int d, int st, int en, {required bool edited, required bool stale}) {
           for (final date in _weekly(d, lo, hi)) {
             final id = '$slotId|$date';
-            if (s.removed.contains(id)) continue;
+            if (s.removed.contains(id) || examDay(date)) continue;
             out.add(Occurrence(
               id: id, courseId: c.id, title: c.title, kind: OccKind.cls,
               date: date, start: st, end: en, room: sec.room, sectionKey: sk,
@@ -146,6 +149,8 @@ List<Occurrence> expandOccurrences(
         : _weekly(c.d, _max(c.from, from), _min(c.until ?? to, to)).toList();
     for (final date in dates) {
       if (date.compareTo(from) < 0 || date.compareTo(to) > 0) continue;
+      // A course's own weekly times stop for exams too; a one-off stays.
+      if (!c.once && c.course.isNotEmpty && examDay(date)) continue;
       out.add(Occurrence(
         id: 'custom|${c.id}|$date', courseId: c.course, title: c.title,
         kind: OccKind.custom, date: date, start: c.s, end: c.e, room: c.room,
