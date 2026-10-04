@@ -174,6 +174,22 @@ describe('reviews', () => {
     await assertFails(getDoc(doc(as(OTHER), 'reviews', C, 'campus', 'goa')));
   });
 
+  test('the imported class averages stay as the import left them', async () => {
+    await professors();
+    const base = { '2024-25-1': { g: 8, gn: 3, m: 64, t: 100, mn: 2 } };
+    await seed((db) => setDoc(doc(db, 'reviews', C, 'campus', 'goa'), { k: 'rebuild', r: {}, base }));
+    await assertSucceeds(post(as(STUDENT), STUDENT));
+    const db = as(S2);
+    const b = writeBatch(db);
+    b.set(doc(db, 'reviews', C, 'campus', 'goa'), { base: { '2024-25-1': { g: 10, gn: 3 } } }, { merge: true });
+    bump(b, db, 'goa', `reviews/${C}`);
+    await assertFails(b.commit());
+    const fresh = writeBatch(db);
+    fresh.set(doc(db, 'reviews', 'CS F111', 'campus', 'goa'), { k: 'x', r: {}, base });
+    bump(fresh, db, 'goa', 'reviews/CS F111');
+    await assertFails(fresh.commit());
+  });
+
   test('counters cannot be written on their own', async () => {
     await assertFails(setDoc(doc(as(STUDENT), 'courses', C, 'stats', 'goa'), {
       count: 100, starSum: 500, recommendCount: 100, campus: 'goa', courseId: C, scope: 'course', professorId: null, touchedBy: 'x',

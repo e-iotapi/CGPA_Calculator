@@ -385,7 +385,15 @@ class _CourseReviewsPageState extends State<CourseReviewsPage> {
             const SizedBox(height: Space.sm),
             StatsCard(
               stats: ReviewFilter.statsOf(shown),
-              summary: statsOf(shown),
+              summary: statsOf(
+                shown,
+                classes: [
+                  for (final c
+                      in reviewStore?.classAverages(widget.courseId, _campus) ??
+                          const <ClassAverage>[])
+                    if (c.matches(yr, _sem)) c,
+                ],
+              ),
               note:
                   filtered
                       ? [

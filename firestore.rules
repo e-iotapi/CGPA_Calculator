@@ -1204,7 +1204,10 @@ service cloud.firestore {
     match /reviews/{c}/campus/{campus} {
       allow get: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
       allow create, update: if mayUse()
-        && request.resource.data.keys().hasOnly(['k', 'r'])
+        && request.resource.data.keys().hasOnly(['k', 'r', 'base'])
+        // The imported class averages (`base`) are the import script's alone.
+        && request.resource.data.get('base', null)
+             == (resource == null ? null : resource.data.get('base', null))
         && mirrors(c, campus)
         && pathBumped(campus, 'reviews/' + c);
       allow delete: if false;
