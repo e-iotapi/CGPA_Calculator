@@ -42,25 +42,6 @@ jobs:
             --dart-define=POINTER_TEST_PASSWORD="$STAGING_PASSWORD" \
             --build-number="$(date +%s)"
           sed -i 's#"/calculator/"#"/"#g' build/web/manifest.json
-      # Cross-origin isolation runs skwasm multi-threaded (drawing on its own
-      # worker). It also cuts Google's sign-in popup off from the page, so
-      # /signin is served without it and the app signs in there (main.dart).
-      # Only this channel gets it; the live staging site keeps its headers.
-      - name: Isolate the page (COOP same-origin + COEP require-corp)
-        run: |
-          node -e '
-            const fs = require("fs");
-            const j = JSON.parse(fs.readFileSync("firebase.json", "utf8"));
-            const h = j.hosting[0].headers;
-            const all = h.find((x) => x.source === "**").headers;
-            all.find((x) => x.key === "Cross-Origin-Opener-Policy").value = "same-origin";
-            all.push({ key: "Cross-Origin-Embedder-Policy", value: "require-corp" });
-            h.push({ source: "/signin", headers: [
-              { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
-              { key: "Cross-Origin-Embedder-Policy", value: "unsafe-none" },
-            ] });
-            fs.writeFileSync("firebase.json", JSON.stringify(j, null, 2));
-          '
       - name: Deploy to the "wasm" preview channel
         run: |
           firebase hosting:channel:deploy wasm --only staging --project staging \
