@@ -4,6 +4,10 @@ Future<String?> pickTextFile(String accept) async => null;
 
 void reloadPage() {}
 
+bool crossOriginIsolated() => false;
+
+void replacePage(String path) {}
+
 String userAgent() => 'vm';
 
 bool isStandalone() => false;
