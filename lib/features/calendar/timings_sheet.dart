@@ -268,53 +268,138 @@ class _TimingsSheetState extends State<TimingsSheet> {
       ],
     );
   }
+}
 
-  TextStyle _ink(AppPalette p) =>
-      TypeScale.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: p.text);
+TextStyle _ink(AppPalette p) =>
+    TypeScale.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: p.text);
 
-  Widget _chevron(AppPalette p) =>
-      Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: p.textMuted);
+Widget _chevron(AppPalette p) =>
+    Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: p.textMuted);
 
-  /// The board's field: a small upper-case label over a white 46-tall box.
-  Widget _field(AppPalette p, String label, Widget child) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.only(bottom: 5),
-        child: Text(
-          label.toUpperCase(),
-          style: TypeScale.label.copyWith(fontSize: 10.5, letterSpacing: 0.5, color: p.textMuted),
-        ),
-      ),
-      Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: p.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: p.outline),
-        ),
-        child: child,
-      ),
-    ],
-  );
-
-  Widget _time(AppPalette p, TextEditingController c, String label) => Semantics(
-    label: label,
-    textField: true,
-    child: TextField(
-      controller: c,
-      style: _ink(p),
-      cursorColor: p.text,
-      decoration: const InputDecoration(
-        isDense: true,
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        filled: false,
-        contentPadding: EdgeInsets.zero,
+/// The board's field: a small upper-case label over a white 46-tall box.
+Widget _field(AppPalette p, String label, Widget child) => Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Text(
+        label.toUpperCase(),
+        style: TypeScale.label.copyWith(fontSize: 10.5, letterSpacing: 0.5, color: p.textMuted),
       ),
     ),
-  );
+    Container(
+      height: 46,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: p.outline),
+      ),
+      child: child,
+    ),
+  ],
+);
+
+Widget _time(AppPalette p, TextEditingController c, String label) => Semantics(
+  label: label,
+  textField: true,
+  child: TextField(
+    controller: c,
+    style: _ink(p),
+    cursorColor: p.text,
+    decoration: const InputDecoration(
+      isDense: true,
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      filled: false,
+      contentPadding: EdgeInsets.zero,
+    ),
+  ),
+);
+
+/// Give a date from Marks a start and end on the calendar page: pops
+/// `(s: , e: )` (a [MarkTime]), `'clear'` to go back to all day, or `'open'`
+/// for the course.
+class MarkTimeSheet extends StatefulWidget {
+  const MarkTimeSheet({
+    super.key,
+    required this.courseId,
+    required this.label,
+    required this.date,
+    this.current,
+    this.canOpenCourse = false,
+  });
+
+  final String courseId, label, date;
+  final MarkTime? current;
+  final bool canOpenCourse;
+
+  @override
+  State<MarkTimeSheet> createState() => _MarkTimeSheetState();
+}
+
+class _MarkTimeSheetState extends State<MarkTimeSheet> {
+  late final _start = TextEditingController(text: clock(widget.current?.s ?? 540)),
+      _end = TextEditingController(text: clock(widget.current?.e ?? 660));
+  String? _error;
+
+  @override
+  void dispose() {
+    _start.dispose();
+    _end.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final s = parseClock(_start.text), e = parseClock(_end.text);
+    if (s == null || e == null) return setState(() => _error = 'Use a time like 9:00 AM');
+    if (e <= s) return setState(() => _error = 'End must be after start');
+    Navigator.pop<MarkTime>(context, (s: s, e: e));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    Widget link(String label, String result) => Semantics(
+      button: true,
+      child: InkWell(
+        onTap: () => Navigator.pop<String>(context, result),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              style: TypeScale.body.copyWith(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.text),
+            ),
+          ),
+        ),
+      ),
+    );
+    return CalSheet(
+      title: '${widget.courseId} ${widget.label}',
+      subtitle: '${dateLabel(widget.date)} · Added by you',
+      footer: SheetButton('Save time', onPressed: _save),
+      children: [
+        Text(
+          'You entered this date in Marks, so it has no time yet. Add one to see it on the grid.',
+          style: TypeScale.caption.copyWith(fontSize: 10.5, height: 1.45, color: p.textMuted),
+        ),
+        const SizedBox(height: 12),
+        _field(p, 'Start', _time(p, _start, 'Start')),
+        const SizedBox(height: 10),
+        _field(p, 'End', _time(p, _end, 'End')),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: Space.xs),
+            child: Text(_error!, style: TypeScale.caption.copyWith(color: p.danger)),
+          ),
+        const SizedBox(height: 6),
+        if (widget.current != null) link('Back to all day', 'clear'),
+        if (widget.canOpenCourse) link('Open course', 'open'),
+      ],
+    );
+  }
 }

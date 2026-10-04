@@ -61,6 +61,7 @@ Timetable fakeTimetable() => Timetable.fromJson({
     {'from': '2026-08-03', 'title': 'Instruction begins', 'kind': 'term'},
     {'from': '2026-09-22', 'title': 'Fees due', 'kind': 'deadline'},
     {'from': '2026-09-24', 'title': 'Founders day', 'kind': 'holiday'},
+    {'from': '2026-10-12', 'to': '2026-10-17', 'title': 'Midsem exams', 'kind': 'exam'},
     {'from': '2026-11-28', 'title': 'Last day of classes', 'kind': 'term'},
   ],
   'courses': {

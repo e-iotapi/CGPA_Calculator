@@ -5,7 +5,9 @@ library;
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
 import 'package:cgpa_calculator/core/timetable/timetable.dart';
 
-enum OccKind { cls, midsem, compre, custom, event }
+/// [mark]: a dated part the student entered in Marks, given a time on the
+/// calendar page.
+enum OccKind { cls, midsem, compre, custom, event, mark }
 
 class Occurrence {
   const Occurrence({
@@ -32,6 +34,20 @@ class Occurrence {
 
   /// The student moved it; [stale]: the published slot it was moved from is gone.
   final bool edited, stale;
+}
+
+/// [c]'s published [x] (its midsem or compre) as an occurrence.
+Occurrence examOccurrence(TtCourse c, TtExam x, OccKind kind) {
+  final tag = kind == OccKind.midsem ? 'mid' : 'comp';
+  return Occurrence(
+    id: '${c.id}|$tag|${x.d}',
+    courseId: c.id,
+    title: '${c.title} ${kind == OccKind.midsem ? 'Midsem' : 'Compre'}',
+    kind: kind,
+    date: x.d,
+    start: x.s,
+    end: x.e,
+  );
 }
 
 /// Each date in [lo, hi] (inclusive) that falls on ISO weekday [d].
@@ -106,16 +122,9 @@ List<Occurrence> expandOccurrences(
         }
       }
       if (s.examsOff.contains(c.id)) continue;
-      for (final (x, kind, tag) in [
-        (c.mid, OccKind.midsem, 'mid'),
-        (c.compre, OccKind.compre, 'comp'),
-      ]) {
+      for (final (x, kind) in [(c.mid, OccKind.midsem), (c.compre, OccKind.compre)]) {
         if (x == null || x.d.compareTo(from) < 0 || x.d.compareTo(to) > 0) continue;
-        out.add(Occurrence(
-          id: '${c.id}|$tag|${x.d}', courseId: c.id,
-          title: '${c.title} ${kind == OccKind.midsem ? 'Midsem' : 'Compre'}',
-          kind: kind, date: x.d, start: x.s, end: x.e,
-        ));
+        out.add(examOccurrence(c, x, kind));
       }
     }
     for (final ev in tt.events) {
