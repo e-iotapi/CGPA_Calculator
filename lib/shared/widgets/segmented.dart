@@ -69,21 +69,23 @@ class SegmentedTrack<T> extends StatelessWidget {
     required this.tabs,
     required this.value,
     required this.onChanged,
+    this.height = 40,
   });
 
   final List<(T, String)> tabs;
   final T value;
   final ValueChanged<T> onChanged;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Container(
-      height: 40,
+      height: height,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: p.mutedTone.fill,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(height / 2),
       ),
       child: Row(
         children: [
@@ -94,9 +96,9 @@ class SegmentedTrack<T> extends StatelessWidget {
                 button: true,
                 child: Material(
                   color: tab.$1 == value ? p.inverse : Colors.transparent,
-                  borderRadius: BorderRadius.circular(17),
+                  borderRadius: BorderRadius.circular(height / 2 - 3),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(17),
+                    borderRadius: BorderRadius.circular(height / 2 - 3),
                     onTap: () => onChanged(tab.$1),
                     child: Container(
                       alignment: Alignment.center,

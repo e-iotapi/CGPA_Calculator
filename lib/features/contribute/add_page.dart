@@ -185,9 +185,9 @@ class _AddPageState extends State<AddPage> {
       ),
       children: [
         const OfflineStrip(),
-        SegmentedPair<bool>(
-          a: (false, 'Department'),
-          b: (true, 'A course'),
+        SegmentedTrack<bool>(
+          height: 42,
+          tabs: const [(false, 'Department'), (true, 'A course')],
           value: _course,
           onChanged: (v) => setState(() => _course = v),
         ),

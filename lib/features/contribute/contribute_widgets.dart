@@ -269,14 +269,14 @@ class _PromptSheet extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _SheetButton(
+                  child: SheetButton(
                     'Not now',
                     onTap: () => Navigator.pop(context, false),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _SheetButton(
+                  child: SheetButton(
                     'Apply now',
                     ink: true,
                     onTap: () => Navigator.pop(context, true),
@@ -291,19 +291,29 @@ class _PromptSheet extends StatelessWidget {
   }
 }
 
-class _SheetButton extends StatelessWidget {
-  const _SheetButton(this.label, {required this.onTap, this.ink = false});
+/// The 52-tall pill of a board sheet or dialog: outlined, ink, or [fill]
+/// with [fg] text (the red Revoke / Send).
+class SheetButton extends StatelessWidget {
+  const SheetButton(
+    this.label, {
+    super.key,
+    required this.onTap,
+    this.ink = false,
+    this.fill,
+    this.fg,
+  });
   final String label;
   final VoidCallback onTap;
   final bool ink;
+  final Color? fill, fg;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Material(
-      color: ink ? p.inverse : p.surface,
+      color: fill ?? (ink ? p.inverse : p.surface),
       shape: StadiumBorder(
-        side: ink ? BorderSide.none : BorderSide(color: p.outline),
+        side: ink || fill != null ? BorderSide.none : BorderSide(color: p.outline),
       ),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -316,7 +326,7 @@ class _SheetButton extends StatelessWidget {
               style: TypeScale.body.copyWith(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: ink ? p.onInverse : p.text,
+                color: fg ?? (ink ? p.onInverse : p.text),
               ),
             ),
           ),

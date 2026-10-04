@@ -144,10 +144,10 @@ void main() {
     );
     await settle(t);
     expect(find.text('Not a good fit'), findsOneWidget);
-    expect(find.widgetWithText(PrimaryButton, 'Send'), findsOneWidget);
+    expect(find.text('Send'), findsOneWidget);
     await t.tap(find.text('Not a good fit'));
     await t.pump();
-    await t.tap(find.widgetWithText(PrimaryButton, 'Send'));
+    await t.tap(find.text('Send'));
     await settle(t);
     expect(find.text('Dev Patel'), findsNothing);
     final r = await t.runAsync(
