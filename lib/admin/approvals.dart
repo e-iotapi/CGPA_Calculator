@@ -5,7 +5,8 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/contrib/contributor_store.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
-import 'package:cgpa_calculator/core/resources/resource_store.dart' show LinkExpired;
+import 'package:cgpa_calculator/core/resources/resource_store.dart'
+    show LinkExpired;
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart'
@@ -19,11 +20,12 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:flutter/material.dart';
 
-typedef _Data = ({
-  List<ContributorRequest> requests,
-  List<PendingBatch> batches,
-  List<Grant> contributors,
-});
+typedef _Data =
+    ({
+      List<ContributorRequest> requests,
+      List<PendingBatch> batches,
+      List<Grant> contributors,
+    });
 
 /// Presets on the Reason sheet when links are rejected.
 const reasonPresets = ['Needs access', 'Wrong course', 'Not useful', 'Other'];
@@ -45,7 +47,8 @@ Future<String?> askReason(
 }) => showModalBottomSheet<String>(
   context: context,
   isScrollControlled: true,
-  builder: (_) => ReasonSheet(title: title, subtitle: subtitle, presets: presets),
+  builder:
+      (_) => ReasonSheet(title: title, subtitle: subtitle, presets: presets),
 );
 
 class ReasonSheet extends StatefulWidget {
@@ -75,11 +78,16 @@ class _ReasonSheetState extends State<ReasonSheet> {
 
   void _send() {
     final n = _note.text.trim();
-    final text = [if (_preset != null) _preset!, if (n.isNotEmpty) n].join(': ');
+    final text = [
+      if (_preset != null) _preset!,
+      if (n.isNotEmpty) n,
+    ].join(': ');
     if (text.isEmpty) {
       return setState(() => _error = 'Pick a reason or write one.');
     }
-    Navigator.of(context).pop(text.length > 200 ? text.substring(0, 200) : text);
+    Navigator.of(
+      context,
+    ).pop(text.length > 200 ? text.substring(0, 200) : text);
   }
 
   @override
@@ -143,7 +151,11 @@ class _ReasonSheetState extends State<ReasonSheet> {
                       onTap: () => Navigator.pop(context),
                       child: SizedBox.square(
                         dimension: 44,
-                        child: Icon(Icons.close_rounded, size: 20, color: p.text),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 20,
+                          color: p.text,
+                        ),
                       ),
                     ),
                   ),
@@ -178,7 +190,10 @@ class _ReasonSheetState extends State<ReasonSheet> {
                 spacing: 10,
                 children: [
                   Expanded(
-                    child: SheetButton('Cancel', onTap: () => Navigator.pop(context)),
+                    child: SheetButton(
+                      'Cancel',
+                      onTap: () => Navigator.pop(context),
+                    ),
                   ),
                   Expanded(
                     child: SheetButton(
@@ -288,7 +303,9 @@ class _ApprovalsState extends State<Approvals> {
     try {
       await f();
       if (_failed.isNotEmpty) {
-        if (mounted) setState(() => _error = 'Not approved: ${_failed.join('; ')}.');
+        if (mounted) {
+          setState(() => _error = 'Not approved: ${_failed.join('; ')}.');
+        }
       } else if (mounted) {
         _say(done);
       }
@@ -311,7 +328,10 @@ class _ApprovalsState extends State<Approvals> {
     for (final l in b.links) {
       try {
         await resourceStore!.approve(_with(b, queued), linkIds: {l.id});
-        queued = [for (final q in queued) if (q.id != l.id) q];
+        queued = [
+          for (final q in queued)
+            if (q.id != l.id) q,
+        ];
       } on LinkExpired {
         _failed.add('${l.title} (expired, reject it)');
       } catch (e) {
@@ -335,16 +355,18 @@ class _ApprovalsState extends State<Approvals> {
     }
   }
 
-  PendingBatch _with(PendingBatch b, List<({String id, String title, String url})> links) =>
-      PendingBatch(
-        id: b.id,
-        campus: b.campus,
-        dept: b.dept,
-        email: b.email,
-        username: b.username,
-        at: b.at,
-        links: links,
-      );
+  PendingBatch _with(
+    PendingBatch b,
+    List<({String id, String title, String url})> links,
+  ) => PendingBatch(
+    id: b.id,
+    campus: b.campus,
+    dept: b.dept,
+    email: b.email,
+    username: b.username,
+    at: b.at,
+    links: links,
+  );
 
   Future<void> _decline(ContributorRequest r) async {
     final why = await askReason(
@@ -409,11 +431,12 @@ class _ApprovalsState extends State<Approvals> {
         return PageFrame(
           header: header,
           children: [
-            if (widget.dept == null) _DeptPicker(
-              campus: campus,
-              dept: dept,
-              onChanged: (v) => setState(() => _dept = v),
-            ),
+            if (widget.dept == null)
+              _DeptPicker(
+                campus: campus,
+                dept: dept,
+                onChanged: (v) => setState(() => _dept = v),
+              ),
             SegmentedTrack<bool>(
               height: 44,
               tabs: [
@@ -425,11 +448,7 @@ class _ApprovalsState extends State<Approvals> {
             ),
             const SizedBox(height: Space.sm),
             if (_busy)
-              Notice(
-                text: TextSpan(
-                  text: 'Working on $_done of $_total…',
-                ),
-              ),
+              Notice(text: TextSpan(text: 'Working on $_done of $_total…')),
             if (_error != null)
               Notice(warning: true, text: TextSpan(text: _error)),
             if (n > 0)
@@ -469,7 +488,8 @@ class _ApprovalsState extends State<Approvals> {
                   onReject: () => _reject(b),
                 ),
             ] else ...[
-              if (d.requests.isEmpty) const Note('No applications are waiting.'),
+              if (d.requests.isEmpty)
+                const Note('No applications are waiting.'),
               for (final r in d.requests)
                 _RequestCard(
                   r,
@@ -527,31 +547,33 @@ class _ApproveAll extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Opacity(
-      opacity: off ? .5 : 1,
-      child: Material(
-        color: p.hero,
-        shape: const StadiumBorder(),
-        child: InkWell(
-          customBorder: const StadiumBorder(),
-          onTap: off ? null : onTap,
-          child: SizedBox(
-            height: 46,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_rounded, size: 18, color: p.onHero),
-                const SizedBox(width: 6),
-                Text(
-                  'Approve all',
-                  style: TypeScale.body.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: p.onHero,
-                  ),
+    final a = off ? .5 : 1.0;
+    return Material(
+      color: p.hero.withValues(alpha: a),
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: off ? null : onTap,
+        child: SizedBox(
+          height: 46,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.check_rounded,
+                size: 18,
+                color: p.onHero.withValues(alpha: a),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Approve all',
+                style: TypeScale.body.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: p.onHero.withValues(alpha: a),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -659,27 +681,28 @@ class _Duo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final a = off ? .5 : 1.0;
     Widget pill(String label, VoidCallback tap, bool ink) => Expanded(
-      child: Opacity(
-        opacity: off ? .5 : 1,
-        child: Material(
-          color: ink ? p.inverse : p.surface,
-          shape: StadiumBorder(
-            side: ink ? BorderSide.none : BorderSide(color: p.outline),
-          ),
-          child: InkWell(
-            customBorder: const StadiumBorder(),
-            onTap: off ? null : tap,
-            child: SizedBox(
-              height: 42,
-              child: Center(
-                child: Text(
-                  label,
-                  style: TypeScale.body.copyWith(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: ink ? p.onInverse : p.text,
-                  ),
+      child: Material(
+        color: (ink ? p.inverse : p.surface).withValues(alpha: a),
+        shape: StadiumBorder(
+          side:
+              ink
+                  ? BorderSide.none
+                  : BorderSide(color: p.outline.withValues(alpha: a)),
+        ),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: off ? null : tap,
+          child: SizedBox(
+            height: 42,
+            child: Center(
+              child: Text(
+                label,
+                style: TypeScale.body.copyWith(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: (ink ? p.onInverse : p.text).withValues(alpha: a),
                 ),
               ),
             ),
@@ -687,7 +710,10 @@ class _Duo extends StatelessWidget {
         ),
       ),
     );
-    return Row(spacing: 8, children: [pill(no, onNo, false), pill(yes, onYes, true)]);
+    return Row(
+      spacing: 8,
+      children: [pill(no, onNo, false), pill(yes, onYes, true)],
+    );
   }
 }
 
@@ -736,11 +762,10 @@ class _BatchCard extends StatelessWidget {
     final p = AppPalette.of(context);
     final n = b.links.length;
     final used = DateTime.now().millisecondsSinceEpoch - b.at;
-    final left =
-        ((contributorWindow.inMilliseconds - used) /
-                Duration.millisecondsPerDay)
-            .ceil()
-            .clamp(0, 15);
+    final left = ((contributorWindow.inMilliseconds - used) /
+            Duration.millisecondsPerDay)
+        .ceil()
+        .clamp(0, 15);
     // ponytail: "urgent" is three days or fewer, a guess at the board's 2.
     final urgent = left <= 3;
     return _Card(
@@ -814,24 +839,27 @@ class _ContributorRow extends StatelessWidget {
                 at == null ? g.email : 'approved ${shortDay(at)}',
               ),
             ),
-            Opacity(
-              opacity: off ? .5 : 1,
-              child: Material(
-                color: Colors.transparent,
-                shape: StadiumBorder(side: BorderSide(color: p.outline)),
-                child: InkWell(
-                  customBorder: const StadiumBorder(),
-                  onTap: off ? null : onRevoke,
-                  child: Container(
-                    height: 36,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Revoke',
-                      style: TypeScale.body.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: p.rejectedTone.text,
+            Material(
+              color: Colors.transparent,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: p.outline.withValues(alpha: off ? .5 : 1),
+                ),
+              ),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: off ? null : onRevoke,
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Revoke',
+                    style: TypeScale.body.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: p.rejectedTone.text.withValues(
+                        alpha: off ? .5 : 1,
                       ),
                     ),
                   ),

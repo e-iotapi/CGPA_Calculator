@@ -53,11 +53,11 @@ class _ContributePageState extends State<ContributePage> {
     actions: [
       if (add)
         CircleIconButton(
-        icon: Icons.add_rounded,
-        tooltip: 'Add a link',
-        size: 44,
-        onPressed: () => _add(reload ?? () {}),
-      ),
+          icon: Icons.add_rounded,
+          tooltip: 'Add a link',
+          size: 44,
+          onPressed: () => _add(reload ?? () {}),
+        ),
     ],
   );
 
@@ -152,46 +152,46 @@ class _ContributePageState extends State<ContributePage> {
                 ),
               ),
             ] else ...[
-            if (!direct) ...[
-              _PointsCard(mine?.me.username, mine?.me.points ?? 0, campus),
-              const SizedBox(height: Space.sm),
-              ChoicePills<ContribFilter>(
-                small: true,
-                values: ContribFilter.values,
-                selected: _filter,
-                label:
-                    (f) => switch (f) {
-                      ContribFilter.all => 'All',
-                      ContribFilter.awaiting => 'Waiting',
-                      ContribFilter.approved => 'Approved',
-                      ContribFilter.rejected => 'Rejected',
-                    },
-                onSelected: (f) => setState(() => _filter = f),
-              ),
-              const SizedBox(height: Space.sm),
-            ],
-            if (rows.isEmpty)
+              if (!direct) ...[
+                _PointsCard(mine?.me.username, mine?.me.points ?? 0, campus),
+                const SizedBox(height: Space.sm),
+                ChoicePills<ContribFilter>(
+                  small: true,
+                  values: ContribFilter.values,
+                  selected: _filter,
+                  label:
+                      (f) => switch (f) {
+                        ContribFilter.all => 'All',
+                        ContribFilter.awaiting => 'Waiting',
+                        ContribFilter.approved => 'Approved',
+                        ContribFilter.rejected => 'Rejected',
+                      },
+                  onSelected: (f) => setState(() => _filter = f),
+                ),
+                const SizedBox(height: Space.sm),
+              ],
+              if (rows.isEmpty)
+                Note(
+                  all.isEmpty || direct
+                      ? 'No links yet'
+                      : 'No ${_filter.name} links.',
+                )
+              else
+                SliverRowGroup(
+                  count: rows.length,
+                  radius: 20,
+                  row: (context, i) {
+                    final (r, s) = rows[i];
+                    return _MyLink(r, s, direct: direct, onChanged: reload);
+                  },
+                ),
               Note(
-                all.isEmpty || direct
-                    ? 'No links yet'
-                    : 'No ${_filter.name} links.',
-              )
-            else
-              SliverRowGroup(
-                count: rows.length,
-                radius: 20,
-                row: (context, i) {
-                  final (r, s) = rows[i];
-                  return _MyLink(r, s, direct: direct, onChanged: reload);
-                },
+                direct
+                    ? 'Staff links publish at once, so there are no Waiting or '
+                        'Rejected rows and no points.'
+                    : 'Points only count after approval. Removing a published '
+                        'link never takes points back.',
               ),
-            Note(
-              direct
-                  ? 'Staff links publish at once, so there are no Waiting or '
-                      'Rejected rows and no points.'
-                  : 'Points only count after approval. Removing a published '
-                      'link never takes points back.',
-            ),
             ],
           ],
         );
@@ -289,7 +289,9 @@ class _MyLink extends StatelessWidget {
     final p = AppPalette.of(context);
     final scope =
         r.isCourse
-            ? ((r.fromCourse ?? '').isEmpty ? 'Course' : 'Course ${r.fromCourse}')
+            ? ((r.fromCourse ?? '').isEmpty
+                ? 'Course'
+                : 'Course ${r.fromCourse}')
             : 'Department: ${r.department}';
     final day = shortDay(DateTime.fromMillisecondsSinceEpoch(r.addedAt));
     final extra = direct ? '' : _extra;
@@ -299,102 +301,102 @@ class _MyLink extends StatelessWidget {
       LinkState.rejected => p.rejectedTone,
       LinkState.expired => GradeTone(p.chipFill, p.icon),
     };
-    final extraColor =
-        state == LinkState.rejected ? p.rejectedTone.text : p.textMuted;
+    final a = state == LinkState.expired ? .6 : 1.0;
+    final extraColor = (state == LinkState.rejected
+            ? p.rejectedTone.text
+            : p.textMuted)
+        .withValues(alpha: a);
     return Semantics(
       button: true,
       label: '${r.title}, $scope, ${state.name}',
       excludeSemantics: true,
-      child: Opacity(
-        opacity: state == LinkState.expired ? .6 : 1,
-        child: InkWell(
-          // A removed (rejected) link is not edited: the rules refuse it.
-          onTap:
-              r.removed
-                  ? null
-                  : () async {
-                    await openRoute(
-                      context,
-                      Routes.contributeEdit(r.id),
-                      () => EditPage(id: r.id),
-                    );
-                    onChanged?.call();
-                  },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            r.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TypeScale.body.copyWith(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: p.text,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$scope · ${direct ? 'published' : 'added'} $day',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TypeScale.caption.copyWith(
-                              fontSize: 10.5,
-                              color: p.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!direct) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        height: 20,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: tone.fill,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          switch (state) {
-                            LinkState.awaiting => 'WAITING',
-                            LinkState.approved => 'APPROVED',
-                            LinkState.rejected => 'REJECTED',
-                            LinkState.expired => 'HIDDEN',
-                          },
-                          style: TypeScale.label.copyWith(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: .3,
-                            color: tone.text,
+      child: InkWell(
+        // A removed (rejected) link is not edited: the rules refuse it.
+        onTap:
+            r.removed
+                ? null
+                : () async {
+                  await openRoute(
+                    context,
+                    Routes.contributeEdit(r.id),
+                    () => EditPage(id: r.id),
+                  );
+                  onChanged?.call();
+                },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          r.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TypeScale.body.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: p.text.withValues(alpha: a),
                           ),
                         ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (extra.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    extra,
-                    style: TypeScale.caption.copyWith(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: extraColor,
+                        const SizedBox(height: 2),
+                        Text(
+                          '$scope · ${direct ? 'published' : 'added'} $day',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TypeScale.caption.copyWith(
+                            fontSize: 10.5,
+                            color: p.textMuted.withValues(alpha: a),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  if (!direct) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 20,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: tone.fill.withValues(alpha: a),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        switch (state) {
+                          LinkState.awaiting => 'WAITING',
+                          LinkState.approved => 'APPROVED',
+                          LinkState.rejected => 'REJECTED',
+                          LinkState.expired => 'HIDDEN',
+                        },
+                        style: TypeScale.label.copyWith(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .3,
+                          color: tone.text.withValues(alpha: a),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
+              ),
+              if (extra.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Text(
+                  extra,
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: extraColor,
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),
