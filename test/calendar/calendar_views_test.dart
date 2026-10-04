@@ -151,14 +151,13 @@ void main() {
     });
 
     testWidgets(
-      'Week: Mon to Sat, classes, holiday and dates in the all-day strip',
+      'Week: Mon to Sun, classes, holiday and dates in the all-day strip',
       (t) async {
         await pump(t);
         await tab(t, 'Week');
-        for (final d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) {
+        for (final d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) {
           expect(find.text(d), findsOneWidget);
         }
-        expect(find.text('Sun'), findsNothing);
         // L1 on Mon, Wed, Fri and the tutorial on Thu.
         expect(find.text(_aaa), findsNWidgets(4));
         expect(find.textContaining('Founders day'), findsOneWidget);
@@ -167,7 +166,7 @@ void main() {
       },
     );
 
-    testWidgets('a Sunday shows only when it has something', (t) async {
+    testWidgets('Sunday is always a column and carries its own items', (t) async {
       await cal.addCustom(
         const CalendarCustom(
           id: 'x1',
@@ -185,8 +184,16 @@ void main() {
       expect(find.text('Study group'), findsOneWidget);
       await t.tap(find.byTooltip('Next week'));
       await t.pumpAndSettle();
-      expect(find.text('Sun'), findsNothing);
+      expect(find.text('Sun'), findsOneWidget);
       expect(find.text('28 Sep – 4 Oct'), findsOneWidget);
+    });
+
+    testWidgets('seven columns at 320 leave no overflow and the code readable', (t) async {
+      await pump(t, size: const Size(320, 640));
+      await tab(t, 'Week');
+      expect(find.text('Sun'), findsOneWidget);
+      expect(find.textContaining('F111'), findsWidgets);
+      expect(t.takeException(), isNull);
     });
 
     testWidgets(

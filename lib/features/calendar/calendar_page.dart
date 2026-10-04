@@ -479,7 +479,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   String get _unit => switch (_view) { _View.month => 'month', _View.week => 'week', _View.day => 'day' };
 
-  /// Week (Mon-Sat, Sunday only when it has something) or Day.
+  /// Week (Mon-Sun: some evals are on a Sunday) or Day.
   Widget _timeView(List<CalendarEntry> all) {
     final week = _view == _View.week;
     final from = week ? mondayOf(_focus) : _focus;
@@ -507,11 +507,7 @@ class _CalendarPageState extends State<CalendarPage> {
       }
     }
     final dates = [
-      if (week) ...[
-        for (var i = 0; i < 6; i++) addDays(from, i),
-        if (timed.any((o) => o.date == to) || (allDay[to] ?? const []).isNotEmpty) to,
-      ] else
-        from,
+      if (week) for (var i = 0; i < 7; i++) addDays(from, i) else from,
     ];
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
