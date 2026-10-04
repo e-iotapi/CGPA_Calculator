@@ -83,3 +83,7 @@ bugs/
 
 # Timetable and other PDFs dropped at the root: never commit
 /*.pdf
+# Screen recordings (owner bug videos) never go in git.
+/*.mp4
+/*.mov
+/*.webm
