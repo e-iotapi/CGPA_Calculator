@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
+import 'package:cgpa_calculator/core/reviews/review_stats.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/timings.dart';
@@ -235,6 +236,9 @@ class ReviewStore {
     DateTime? now,
   }) async {
     if (after != null) return (reviews: const <Review>[], last: null);
+    // The imported class averages ride in the same cached copy (see
+    // [classAverages]); a cache hit keeps the ones saved with it.
+    Object? base;
     final all = await cacheFirst<List<Review>>(
       key: _rcdKey(courseId, campus),
       maxAge: fresh,
@@ -245,6 +249,7 @@ class ReviewStore {
           'reviews.page',
           () => _mirror(courseId, campus).get(),
         );
+        base = d.data()?['base'];
         return [
           for (final e in ((d.data()?['r'] as Map?) ?? const {}).entries)
             Review.fromMap('${e.key}', courseId, {
@@ -253,7 +258,11 @@ class ReviewStore {
             }),
         ];
       },
-      encode: (rs) => {for (final r in rs) r.id: r.toMap()},
+      encode:
+          (rs) => {
+            for (final r in rs) r.id: r.toMap(),
+            if (base != null) _baseKey: _jsonSafe(base),
+          },
       decode: (o) => _decodePage(o, courseId),
     );
     return (reviews: _shown(all, professorIds, order), last: null);
@@ -272,8 +281,32 @@ class ReviewStore {
 
   static List<Review> _decodePage(Object? o, String courseId) => [
     for (final e in (o as Map).entries)
-      Review.fromMap('${e.key}', courseId, e.value as Map),
+      if (e.key != _baseKey)
+        Review.fromMap('${e.key}', courseId, e.value as Map),
   ];
+
+  static const _baseKey = '_base';
+
+  static Object? _jsonSafe(Object? o) => switch (o) {
+    final Map m => {for (final e in m.entries) '${e.key}': _jsonSafe(e.value)},
+    final num n => n,
+    _ => null,
+  };
+
+  /// The class averages imported once with the old reviews (owner,
+  /// 2026-10-05), by term, from the copy [page] last saved; empty when the
+  /// course has none. Real reviews never change them.
+  List<ClassAverage> classAverages(String courseId, String campus) =>
+      peekCache(_rcdKey(courseId, campus), (o) {
+        final base = (o as Map)[_baseKey];
+        if (base is! Map) return const <ClassAverage>[];
+        return [
+          for (final e in base.entries)
+            if (e.value is Map)
+              ClassAverage.fromMap('${e.key}', e.value as Map),
+        ];
+      }) ??
+      const [];
 
   /// The saved [page], read synchronously; null when none is saved.
   ({List<Review> reviews, DocumentSnapshot? last})? peekPage(

@@ -32,6 +32,55 @@ List<String> ids(Iterable<Review> rs) => [for (final x in rs) x.id];
 
 void main() {
   group('statsOf', () {
+    test('imported class averages win over reviewers\' own grades', () {
+      const classes = [
+        ClassAverage(
+          term: '2024-25-1',
+          grade: 8,
+          gradeN: 3,
+          marks: 60,
+          outOf: 100,
+          marksN: 1,
+        ),
+        ClassAverage(
+          term: '2025-26-1',
+          grade: 7,
+          gradeN: 1,
+          marks: 70,
+          outOf: 100,
+          marksN: 3,
+        ),
+      ];
+      final s = statsOf([r('a', grade: 'A', marks: 95)], classes: classes);
+      expect(s.avgGradePoints, 7.75);
+      expect(s.avgGradeLetter, 'B');
+      expect(s.avgMarks, 67.5);
+      expect(s.marksOutOf, 100);
+      expect(s.gradeCount, 4);
+      // Different totals across terms: a percentage.
+      final mixed = statsOf(
+        const [],
+        classes: [
+          classes.first,
+          const ClassAverage(
+            term: '2025-26-1',
+            marks: 150,
+            outOf: 200,
+            marksN: 1,
+          ),
+        ],
+      );
+      expect(mixed.avgMarks, 67.5);
+      expect(mixed.marksOutOf, 100);
+      // None: the reviewers' own, with no total.
+      final own = statsOf([r('a', grade: 'A', marks: 95)]);
+      expect(own.avgGradeLetter, 'A');
+      expect(own.marksOutOf, isNull);
+      expect(classes.first.matches('2024-25', '1'), isTrue);
+      expect(classes.first.matches('2024-25', '2'), isFalse);
+      expect(classes.first.matches(null, null), isTrue);
+    });
+
     test('empty says nothing', () {
       final s = statsOf(const []);
       expect(s.count, 0);
