@@ -5,6 +5,7 @@
   "tap: \"Back\" 42x42",
   "truncated: \"BITS F112 · Technical Report Writing\"",
   "truncated: \"CS F342 · Computer Architecture\"",
-  "truncated: \"CS F372 · Operating Systems\""
+  "truncated: \"CS F372 · Operating Systems\"",
+  "word-break: \"semester\" split across lines in \"This semester\""
  ]
 }

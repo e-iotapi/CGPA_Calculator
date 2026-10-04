@@ -17,6 +17,7 @@
   "contrast: \"9 AM\" 3.48:1, needs 4.5 (8.5 px)",
   "contrast: \"AAA F111\" 2.38:1, needs 4.5 (8.5 px)",
   "contrast: \"Day\" 3.59:1, needs 4.5 (12.5 px)",
+  "contrast: \"F101\" 2.38:1, needs 4.5 (7.0 px)",
   "contrast: \"Intro Widgets\" 1.16:1, needs 4.5 (7.0 px)",
   "contrast: \"Intro Widgets\" 3.01:1, needs 4.5 (7.0 px)",
   "contrast: \"Month\" 3.59:1, needs 4.5 (12.5 px)",
@@ -25,7 +26,6 @@
   "contrast: \"Week of\" 2.71:1, needs 4.5 (11.0 px)",
   "contrast: \"What is coming\" 2.71:1, needs 4.5 (12.0 px)",
   "overlap: \"What is coming\" over \"2 AM\"",
-  "truncated: \"AAA F111\"",
   "truncated: \"Intro Widgets\""
  ]
 }

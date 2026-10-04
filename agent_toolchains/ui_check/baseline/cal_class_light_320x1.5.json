@@ -16,7 +16,6 @@
   "contrast: \"9 AM\" 3.48:1, needs 4.5 (12.8 px)",
   "contrast: \"Week\" 1.00:1, needs 3.0 (18.8 px)",
   "dead: button \"Close\" has no tap action",
-  "truncated: \"AAA F111\"",
   "truncated: \"Founders day · Thu 24 Sep\"",
   "truncated: \"Intro Widgets\"",
   "truncated: \"Mon 9:00-10:00 · Wed 9:00-10:00 · Fri 9:…\""
