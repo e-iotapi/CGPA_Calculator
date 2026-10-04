@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
@@ -25,7 +26,9 @@ class ResourceCoursesPage extends StatefulWidget {
 
 class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
   final _search = TextEditingController();
-  bool _all = false;
+
+  /// 'now' (this semester), 'starred' or 'all'.
+  var _show = 'now';
 
   @override
   void dispose() {
@@ -53,7 +56,7 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
       );
     }
     final q = _search.text.trim().toLowerCase();
-    final now = takingNow();
+    final now = takingNow(), starred = starredCourses();
     // Every catalogue course plus the student's own (a manual add may not be
     // charted). A search covers them all; the pills only shape the empty box.
     final titles = {for (final m in catalog.master) m.id: m.title};
@@ -65,7 +68,11 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
         if (q.isNotEmpty
             ? e.key.toLowerCase().contains(q) ||
                 e.value.toLowerCase().contains(q)
-            : _all || now.contains(e.key))
+            : switch (_show) {
+              'all' => true,
+              'starred' => starred.contains(e.key),
+              _ => now.contains(e.key),
+            })
           e.key,
     ]..sort();
     return PageFrame(
@@ -77,17 +84,21 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: Space.sm),
-        SegmentedPair<bool>(
-          a: (false, 'This semester'),
-          b: (true, 'All'),
-          value: _all,
-          onChanged: (v) => setState(() => _all = v),
+        SegmentedPair<String>(
+          a: ('now', 'This semester'),
+          b: ('starred', 'Starred'),
+          c: ('all', 'All'),
+          value: _show,
+          onChanged: (v) => setState(() => _show = v),
         ),
         const SizedBox(height: Space.sm),
         if (courses.isEmpty)
           Note(
             q.isNotEmpty
                 ? 'No course code or name matches “${_search.text.trim()}”.'
+                : _show == 'starred'
+                ? 'No starred courses yet. Tap the star on any course to keep '
+                    'it here.'
                 : 'Nothing for your courses this semester. Tap All, or search '
                     'for any course.',
           )
@@ -102,8 +113,9 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
                         Routes.resourceCourse(courses[i]),
                         () => ResourceCoursePage(courseId: courses[i]),
                       ),
-                  child: ConstrainedBox(
+                  child: Container(
                     constraints: const BoxConstraints(minHeight: 52),
+                    padding: const EdgeInsets.only(left: 15, right: 8),
                     child: Row(
                       children: [
                         Expanded(
@@ -115,6 +127,22 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                             ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip:
+                              starred.contains(courses[i]) ? 'Unstar' : 'Star',
+                          onPressed:
+                              () => setState(() => toggleStar(courses[i])),
+                          icon: Icon(
+                            starred.contains(courses[i])
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            size: 20,
+                            color:
+                                starred.contains(courses[i])
+                                    ? p.text
+                                    : p.textMuted,
                           ),
                         ),
                         Icon(Icons.chevron_right, size: 18, color: p.icon),

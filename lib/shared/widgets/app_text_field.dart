@@ -44,7 +44,7 @@ class AppTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(dense ? 12 : 14),
+      borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: p.outline),
     );
     final errorBorder = border.copyWith(
@@ -65,8 +65,12 @@ class AppTextField extends StatelessWidget {
         color: p.text,
       ),
       cursorColor: p.text,
+      // A dense field stands 44 tall, text centred, level with the 44-tall
+      // SelectRow and SegmentedPair beside it.
+      textAlignVertical: dense ? TextAlignVertical.center : null,
       decoration: InputDecoration(
         isDense: true,
+        constraints: dense ? const BoxConstraints(minHeight: 44) : null,
         // labelAbove shows the label as its own Text above the box, so the
         // box itself keeps no internal label (hintText carries the
         // placeholder instead). Otherwise: always labelText, never a bare
@@ -86,8 +90,8 @@ class AppTextField extends StatelessWidget {
         filled: true,
         fillColor: fill ?? (labelAbove ? p.background : p.surface),
         contentPadding: EdgeInsets.symmetric(
-          horizontal: dense ? 10 : 14,
-          vertical: dense ? 11 : (labelAbove ? 16 : 14),
+          horizontal: dense ? 12 : 14,
+          vertical: dense ? 0 : (labelAbove ? 16 : 14),
         ),
         labelStyle: TypeScale.caption.copyWith(color: p.textMuted),
         floatingLabelStyle: TypeScale.caption.copyWith(color: p.textMuted),
@@ -123,6 +127,61 @@ class AppTextField extends StatelessWidget {
         ),
         SizedBox(height: 46, child: field),
       ],
+    );
+  }
+}
+
+/// A number box shaped like a `CountPill` (38 tall, stadium, outline), for a
+/// value typed in a row of pills.
+class PillField extends StatelessWidget {
+  const PillField({
+    super.key,
+    required this.controller,
+    this.onChanged,
+    this.width = 86,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String>? onChanged;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(19),
+      borderSide: BorderSide(color: p.outline),
+    );
+    return SizedBox(
+      width: width,
+      height: 38,
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        expands: true,
+        maxLines: null,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+        ],
+        textAlign: TextAlign.center,
+        textAlignVertical: TextAlignVertical.center,
+        style: TypeScale.caption.copyWith(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: p.text,
+        ),
+        cursorColor: p.text,
+        decoration: InputDecoration(
+          isCollapsed: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+          border: border,
+          enabledBorder: border,
+          focusedBorder: border.copyWith(
+            borderSide: BorderSide(color: p.text, width: 1.5),
+          ),
+        ),
+      ),
     );
   }
 }

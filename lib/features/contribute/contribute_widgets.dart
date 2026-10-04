@@ -162,7 +162,7 @@ Future<void> maybeShowContributePrompt(BuildContext context) async {
   if (contributePromptShown || roleStore == null || viewCampus() == null) {
     return;
   }
-  if (myRoles.value.privileged) return;
+  if (myRoles.value.staff) return;
   contributePromptShown = true;
   await refreshContribState();
   if (!context.mounted) return;

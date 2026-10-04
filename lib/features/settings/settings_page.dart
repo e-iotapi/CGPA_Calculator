@@ -150,7 +150,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   : null,
               onContribute:
                   roleStore == null ||
-                          myRoles.value.privileged ||
+                          myRoles.value.staff ||
                           const [
                             ContribState.applied,
                             ContribState.approved,

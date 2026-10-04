@@ -108,9 +108,14 @@ void main() {
       ),
     );
     await t.pumpWidget(view(() {}));
-    expect(find.text('Apply now'), findsOneWidget);
+    await t.scrollUntilVisible(
+      find.text('Become a contributor'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Become a contributor'), findsOneWidget);
     await t.pumpWidget(view(null));
-    expect(find.text('Apply now'), findsNothing);
+    expect(find.text('Become a contributor'), findsNothing);
   });
 
   Future<void> open(WidgetTester t, As who, Widget page) async {

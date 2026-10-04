@@ -12,10 +12,14 @@ class SegmentedPair<T> extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.height = 44,
+    this.c,
   });
 
   final (T, String) a;
   final (T, String) b;
+
+  /// An optional third button.
+  final (T, String)? c;
   final T value;
   final ValueChanged<T> onChanged;
   final double height;
@@ -57,7 +61,14 @@ class SegmentedPair<T> extends StatelessWidget {
       );
     }
 
-    return Row(children: [seg(a), const SizedBox(width: 8), seg(b)]);
+    return Row(
+      children: [
+        seg(a),
+        const SizedBox(width: 8),
+        seg(b),
+        if (c case final c?) ...[const SizedBox(width: 8), seg(c)],
+      ],
+    );
   }
 }
 

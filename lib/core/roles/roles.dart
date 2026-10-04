@@ -322,6 +322,10 @@ class MyRoles {
   /// Whether the person is the owner or holds any live grant.
   bool get privileged => owner || grants.isNotEmpty;
 
+  /// Owner, admin or president: publishes links at once and is never offered
+  /// to contribute. A CR alone is not staff.
+  bool get staff => owner || grants.any((g) => g.role != GrantRole.course);
+
   /// Whether the person may open the admin screens.
   bool get reachesAdmin => owner || admin;
 

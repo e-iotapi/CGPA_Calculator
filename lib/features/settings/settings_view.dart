@@ -170,10 +170,6 @@ class SettingsView extends StatelessWidget {
                       ),
                   ]),
                 ],
-                if (onContribute != null) ...[
-                  const SizedBox(height: Space.sm),
-                  _ContributeCard(onContribute!),
-                ],
                 _SectionLabel('ACADEMICS'),
                 _Group([
                   _Item(
@@ -232,18 +228,6 @@ class SettingsView extends StatelessWidget {
                           ),
                         ],
                       ),
-                      if (onShowOffshoot != null) ...[
-                        const SizedBox(height: Space.sm),
-                        _Group([
-                          _SwitchItem(
-                            label: 'Show Offshoot tab',
-                            subtitle:
-                                'On by default. Off puts More in its place.',
-                            value: showOffshoot,
-                            onChanged: onShowOffshoot!,
-                          ),
-                        ]),
-                      ],
                     ],
                   ),
                 ),
@@ -265,7 +249,11 @@ class SettingsView extends StatelessWidget {
                       ),
                   ]),
                 ),
-                if (onInstall != null || onReplayTour != null) ...[
+                // Board FlS_Settings: one APP card.
+                if (onInstall != null ||
+                    onReplayTour != null ||
+                    onShowOffshoot != null ||
+                    onContribute != null) ...[
                   _SectionLabel('APP'),
                   _Group([
                     if (onInstall != null)
@@ -278,6 +266,14 @@ class SettingsView extends StatelessWidget {
                           onTap: onInstall!,
                         ),
                       ),
+                    if (onShowOffshoot != null)
+                      _SwitchItem(
+                        icon: Icons.visibility_outlined,
+                        label: 'Show Offshoot tab',
+                        subtitle: 'On by default. Off puts More in its place.',
+                        value: showOffshoot,
+                        onChanged: onShowOffshoot!,
+                      ),
                     if (onReplayTour != null)
                       KeyedSubtree(
                         key: tourKey('set.replay'),
@@ -287,6 +283,14 @@ class SettingsView extends StatelessWidget {
                           subtitle: 'Whole tour or one chapter',
                           onTap: onReplayTour!,
                         ),
+                      ),
+                    if (onContribute != null)
+                      _Item(
+                        icon: Icons.add_rounded,
+                        label: 'Become a contributor',
+                        subtitle:
+                            'Add links for any course. Hidden once applied.',
+                        onTap: onContribute!,
                       ),
                   ]),
                 ],
@@ -528,10 +532,12 @@ class _SwitchItem extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.subtitle,
+    this.icon,
   });
 
   final String label;
   final String? subtitle;
+  final IconData? icon;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -547,6 +553,10 @@ class _SwitchItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Row(
               children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: p.text),
+                  const SizedBox(width: 11),
+                ],
                 Expanded(
                   child: _Subtitled(
                     subtitle,
@@ -824,83 +834,6 @@ class _LabelValue extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-/// Board `PfContribSettings`: the mint "apply" card.
-class _ContributeCard extends StatelessWidget {
-  const _ContributeCard(this.onTap);
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-      decoration: BoxDecoration(
-        color: p.hero,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              SizedBox.square(
-                dimension: 44,
-                child: Icon(Icons.link_rounded, size: 20, color: p.onHero),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Contribute to the Community Now',
-                      style: TypeScale.body.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: p.onHero,
-                      ),
-                    ),
-                    Text(
-                      'Become a Contributor and share links for any course on '
-                      'campus.',
-                      style: TypeScale.caption.copyWith(
-                        fontSize: 10.5,
-                        color: p.onHeroMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Material(
-            color: p.inverse,
-            shape: const StadiumBorder(),
-            child: InkWell(
-              customBorder: const StadiumBorder(),
-              onTap: onTap,
-              child: SizedBox(
-                height: 46,
-                width: double.infinity,
-                child: Center(
-                  child: Text(
-                    'Apply now',
-                    style: TypeScale.body.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: p.onInverse,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
