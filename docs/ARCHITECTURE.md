@@ -503,7 +503,8 @@ load (the E2E finders need it), so every scroll frame also updated the
 hidden accessibility DOM; now only the emulator (E2E) build has it by
 default, and `?semantics=1` turns it on elsewhere (2026-10-04). Touch resampling is off by default since the same day: with
 frames on time it only delayed the finger and leapt on lift (`?resample=1`
-turns it on). The WebAssembly renderer, single- and multi-threaded, was no
+turns it on), and the 2× pixel cap is off again for sharpness (`?dpr=2`
+restores it). The WebAssembly renderer, single- and multi-threaded, was no
 better than the JS build on iPhone.
 
 ### Where a repeat visit's time goes now
