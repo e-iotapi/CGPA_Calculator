@@ -1,0 +1,16 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"Your reviews · 0\" 1.09:1, needs 3.0 (18.8 px)",
+  "tap: \"All\" 57x30",
+  "tap: \"Back\" 42x42",
+  "tap: \"Courses\" 139x34",
+  "tap: \"Electives\" 120x30",
+  "tap: \"Helpful\" 104x30",
+  "tap: \"Highest\" 110x30",
+  "tap: \"Lowest\" 102x30",
+  "tap: \"Recent\" 104x30",
+  "tap: \"This semester\" 170x30",
+  "tap: \"Your reviews · 0\" 139x34"
+ ]
+}

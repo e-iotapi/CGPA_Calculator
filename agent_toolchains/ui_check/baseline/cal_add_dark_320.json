@@ -1,0 +1,14 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"23\" 3.92:1, needs 4.5 (12.5 px)",
+  "contrast: \"24\" 1.00:1, needs 3.0 (17.0 px)",
+  "contrast: \"Academic calendar · Goa\" 1.72:1, needs 4.5 (10.5 px)",
+  "contrast: \"Month\" 3.92:1, needs 4.5 (12.5 px)",
+  "contrast: \"SEP\" 1.72:1, needs 4.5 (8.0 px)",
+  "tap: \"Search by code or name\" 228x24",
+  "truncated: \"Academic calendar · Goa\"",
+  "truncated: \"Last day of classes\"",
+  "truncated: \"Operating Systems · CS F372\""
+ ]
+}

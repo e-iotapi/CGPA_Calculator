@@ -15,7 +15,7 @@ pixels only where the fallback rules say to. See ../README.md.
 
 Needs flutter on PATH and `pip install pillow numpy`. Everything it writes
 goes under build/ui_check/ (UI_CHECK_DIR overrides), which git ignores:
-new/ this run, base/ the accepted run, crops/, sheets/, show/,
+new/ this run, crops/, sheets/, show/,
 summary.txt. Exit status: 0 clean, 1 something to look at, 2 the tooling
 itself is broken (nothing it says can be trusted).
 """
@@ -36,7 +36,12 @@ except ImportError:
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 WORK = os.environ.get('UI_CHECK_DIR', os.path.join(ROOT, 'build', 'ui_check'))
-NEW, BASE = os.path.join(WORK, 'new'), os.path.join(WORK, 'base')
+NEW = os.path.join(WORK, 'new')
+# The accepted baseline is committed, so every checkout compares against the
+# same renders; UI_CHECK_BASE (or a custom UI_CHECK_DIR) points elsewhere.
+BASE = os.environ.get('UI_CHECK_BASE') or (
+    os.path.join(WORK, 'base') if 'UI_CHECK_DIR' in os.environ
+    else os.path.join(ROOT, 'agent_toolchains', 'ui_check', 'baseline'))
 CANARY_TEST = 'agent_toolchains/ui_check/canary_test.dart'
 # Every render suite a full run covers; the semester one lives with its
 # feature tests and needs naming.

@@ -1,0 +1,7 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Back\" 42x42",
+  "word-break: \"Assignments\" split across lines in \"Kernel Assignments\""
+ ]
+}

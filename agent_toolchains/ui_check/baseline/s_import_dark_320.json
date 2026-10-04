@@ -1,0 +1,7 @@
+{
+ "errors": [],
+ "issues": [
+  "anim: frames still scheduled after settling",
+  "dead: button \"Choose your performance sheet, PDF\" has no tap action"
+ ]
+}

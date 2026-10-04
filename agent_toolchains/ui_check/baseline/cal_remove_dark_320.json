@@ -1,0 +1,14 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"AAA F111\" 2.14:1, needs 4.5 (8.5 px)",
+  "contrast: \"ALL DAY\" 1.08:1, needs 4.5 (8.5 px)",
+  "contrast: \"Fees due · Tue 22 Sep\" 1.08:1, needs 4.5 (10.5 px)",
+  "contrast: \"Founders day · Thu 24 Sep\" 1.08:1, needs 4.5 (10.5 px)",
+  "contrast: \"Intro Widgets\" 1.24:1, needs 4.5 (7.0 px)",
+  "contrast: \"Week\" 2.95:1, needs 4.5 (12.5 px)",
+  "overlap: \"What is coming\" over \"2 AM\"",
+  "truncated: \"AAA F111\"",
+  "truncated: \"Intro Widgets\""
+ ]
+}

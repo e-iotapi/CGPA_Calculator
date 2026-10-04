@@ -1,0 +1,19 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"—\" 1.19:1, needs 4.5 (14.0 px)",
+  "dead: button \"Add a part\" has no tap action",
+  "tap: \"\" 60x36",
+  "tap: \"All 2\" 57x38",
+  "tap: \"Avg\" 46x36",
+  "tap: \"Best 1 of 2\" 96x38",
+  "tap: \"Close\" 42x42",
+  "tap: \"Of\" 36x36",
+  "tap: \"Optional\" 239x40",
+  "tap: \"Part 1 date\" 52x36",
+  "tap: \"Part 1 name\" 278x36",
+  "tap: \"Part 2 date\" 52x36",
+  "tap: \"Part 2 name\" 278x36",
+  "tap: \"You\" 36x36"
+ ]
+}

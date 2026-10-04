@@ -1,0 +1,14 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"open\" 3.26:1, needs 4.5 (13.0 px)",
+  "tap: \"Grade A−\\nA−\" 54x31",
+  "tap: \"Grade B\\nB\" 54x31",
+  "tap: \"Grade B−\\nB−\" 54x31",
+  "tap: \"Grade C\\nC\" 54x31",
+  "tap: \"Grade E\\nE\" 54x31",
+  "tap: \"Grade NC\\nNC\" 54x31",
+  "tap: \"Grade RC\\nRC\" 54x31",
+  "tap: \"Grade W\\nW\" 54x31"
+ ]
+}

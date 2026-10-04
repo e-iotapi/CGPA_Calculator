@@ -1,0 +1,16 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"Approve all\" 2.95:1, needs 4.5 (13.0 px)",
+  "contrast: \"Approve\" 1.04:1, needs 4.5 (12.5 px)",
+  "contrast: \"Asha Rao\" 3.91:1, needs 4.5 (13.0 px)",
+  "contrast: \"Decline\" 3.91:1, needs 4.5 (12.5 px)",
+  "contrast: \"GOA · CS\" 1.30:1, needs 4.5 (11.0 px)",
+  "contrast: \"Links · 2\" 1.25:1, needs 4.5 (12.5 px)",
+  "contrast: \"Revoke\" 1.00:1, needs 4.5 (12.0 px)",
+  "contrast: \"approved 3 Aug\" 1.16:1, needs 4.5 (10.5 px)",
+  "contrast: \"f20240009@goa.bits-pilani.ac.in · just n…\" 1.42:1, needs 4.5 (10.5 px)",
+  "contrast: \"ramesh_menon\" 2.38:1, needs 4.5 (13.0 px)",
+  "contrast: \"\" 2.95:1, needs 3.0 (18.0 px)"
+ ]
+}

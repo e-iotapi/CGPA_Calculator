@@ -52,7 +52,7 @@ The pieces:
   raised false alarms: tightly boxed text, a disabled button, and text past the
   end of a scroll view.
 - `ui_check.py`: runs the suites and checks the canaries. It diffs pixels and
-  issue lines against `build/ui_check/base/`, crops what changed, and applies
+  issue lines against `agent_toolchains/ui_check/baseline/`, crops what changed, and applies
   the rules below.
 
 `atlas` is for people, not agents. After a full `run`, it writes one image,
@@ -60,9 +60,11 @@ The pieces:
 side by side at 1x under the screen's name. Rebuild and commit it when asked
 for a manual pass. It is far too large to read yourself.
 
-The baseline lives in `build/` and is never committed, because renders differ
-slightly between machines. In a fresh container, start with `run`, do a
-`sheet` sweep, then `accept`.
+The baseline is committed in `agent_toolchains/ui_check/baseline/`, so every
+checkout compares against the same accepted renders. `accept` rewrites it:
+commit the result with the UI change it records (pathspec only). Renders can
+differ slightly between machines; if a run on a new machine shows changes on
+screens nobody touched, look once, then `accept` there and commit.
 
 ### Fallback rules
 
