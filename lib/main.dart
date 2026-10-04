@@ -47,11 +47,12 @@ void main() async {
   // Real paths (/calculator/stats), not #/stats (ARCHITECTURE.md §7).
   usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
-  // Phone browsers deliver touches out of step with frames, so a drag moves
-  // the list unevenly. Resampling lines the touches up with the frames.
-  // ?resample=0 turns it off, to compare iPhone scrolling by feel (TM-14).
+  // Touch resampling (on since 26 Sep) held the finger's position ~38 ms
+  // back and let it catch up in a leap on lift; with frames on time since
+  // the 2x cap, the owner found the app smoother and more responsive
+  // without it (2026-10-04). ?resample=1 turns it on, to compare.
   GestureBinding.instance.resamplingEnabled =
-      Uri.base.queryParameters['resample'] != '0';
+      Uri.base.queryParameters['resample'] == '1';
   beforeFirebase();
   // Each step before the first frame is timed (perf and test builds only):
   // `window.pointerPerf.timings()` shows which one holds the app back.

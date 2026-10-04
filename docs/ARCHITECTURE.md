@@ -498,9 +498,13 @@ same setup; the first two rows toggled only that change on one build.
 | Reopening Resources, Reviews, Representatives, admin pages | spinner every time | last data at once | per-screen session cache (`a9d7978`, `c78433c`) |
 | Opening Resources, Reviews, Representatives after a relaunch | spinner, then a network read | saved data in the first frame, no spinner (9 of 9 loads) | data kept on the phone, drawn by `peek` (`d468333`–`e4a0897`) |
 
-Tried and ruled out for iPhone scrolling: touch resampling off (`?resample=0`,
-no difference) and the WebAssembly renderer (slightly smoother, not enough on
-its own).
+Staging, unlike production, turned Flutter's semantics tree on for every
+load (the E2E finders need it), so every scroll frame also updated the
+hidden accessibility DOM; now only a `?as=` test account run gets it
+(2026-10-04). Touch resampling is off by default since the same day: with
+frames on time it only delayed the finger and leapt on lift (`?resample=1`
+turns it on). The WebAssembly renderer, single- and multi-threaded, was no
+better than the JS build on iPhone.
 
 ### Where a repeat visit's time goes now
 
