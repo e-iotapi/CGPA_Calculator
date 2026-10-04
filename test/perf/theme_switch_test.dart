@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -76,6 +79,43 @@ void main() {
       expect(ThemeReveal.captures, 1);
     });
 
+    testWidgets('a warm toggle captures on hover, before the click', (t) async {
+      await t.pumpWidget(
+        MaterialApp(
+          home: ThemeReveal.root(
+            Center(
+              child: ThemeReveal.warm(
+                IconButton(onPressed: () {}, icon: const Icon(Icons.dark_mode)),
+              ),
+            ),
+          ),
+        ),
+      );
+      final mouse = await t.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(t.getCenter(find.byType(IconButton)));
+      await t.pump();
+      await t.pump();
+      expect(ThemeReveal.captures, 1);
+      expect(ThemeReveal.debugPreparedImage, isNotNull);
+    });
+
+    // The redesign dropped the early capture once and every switch paid for
+    // it inside the animation; both toggles must keep it.
+    test('the Home and Settings toggles capture early', () {
+      for (final f in [
+        'lib/features/semester/semester_page.dart',
+        'lib/features/settings/settings_view.dart',
+      ]) {
+        expect(
+          File(f).readAsStringSync(),
+          contains('ThemeReveal.warm('),
+          reason: f,
+        );
+      }
+    });
+
     testWidgets('a prepared snapshot expires', (t) async {
       await t.pumpWidget(MaterialApp(home: ThemeReveal.root(_screen())));
       ThemeReveal.prepare();
@@ -105,7 +145,9 @@ void main() {
     final done = ThemeReveal.run(() {});
     await t.pump();
     final hole = find.byWidgetPredicate(
-      (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_HolePainter',
+      (w) =>
+          w is CustomPaint &&
+          w.painter.runtimeType.toString() == '_HolePainter',
     );
     expect(hole, findsOneWidget);
     expect(repaintBoundaryAround(hole), findsWidgets);

@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -412,11 +413,14 @@ class _SemesterViewState extends State<SemesterView> {
           ),
         ),
         const SizedBox(width: Space.sm),
-        CircleIconButton(
-          icon: p.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-          tooltip: p.isDark ? 'Switch to light mode' : 'Switch to dark mode',
-          onPressed: widget.onToggleTheme,
-          size: btn,
+        ThemeReveal.warm(
+          CircleIconButton(
+            icon:
+                p.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+            tooltip: p.isDark ? 'Switch to light mode' : 'Switch to dark mode',
+            onPressed: widget.onToggleTheme,
+            size: btn,
+          ),
         ),
         const SizedBox(width: Space.sm),
         _t(

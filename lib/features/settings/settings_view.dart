@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
@@ -210,20 +211,26 @@ class SettingsView extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: _Choice(
-                              icon: Icons.light_mode_outlined,
-                              label: 'Light',
-                              on: !isDark,
-                              onTap: () => onTheme(false),
+                            child: _warmIf(
+                              isDark,
+                              _Choice(
+                                icon: Icons.light_mode_outlined,
+                                label: 'Light',
+                                on: !isDark,
+                                onTap: () => onTheme(false),
+                              ),
                             ),
                           ),
                           const SizedBox(width: Space.sm),
                           Expanded(
-                            child: _Choice(
-                              icon: Icons.dark_mode_outlined,
-                              label: 'Dark',
-                              on: isDark,
-                              onTap: () => onTheme(true),
+                            child: _warmIf(
+                              !isDark,
+                              _Choice(
+                                icon: Icons.dark_mode_outlined,
+                                label: 'Dark',
+                                on: isDark,
+                                onTap: () => onTheme(true),
+                              ),
                             ),
                           ),
                         ],
@@ -837,3 +844,7 @@ class _LabelValue extends StatelessWidget {
     );
   }
 }
+
+/// Only the choice that would switch the theme captures ahead of the click.
+Widget _warmIf(bool switches, Widget child) =>
+    switches ? ThemeReveal.warm(child) : child;
