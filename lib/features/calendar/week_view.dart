@@ -9,8 +9,13 @@ import 'package:flutter/material.dart';
 /// An all-day line: a holiday, an academic date, or an evaluative part from
 /// Marks (which has a date but no time).
 class AllDayItem {
-  const AllDayItem(this.label, this.kind, {this.courseId});
+  const AllDayItem(this.label, this.kind, {this.courseId, this.part});
+
+  /// What the strip says; for an `eval` it names the course.
   final String label;
+
+  /// An `eval`'s own label from Marks (`Quiz 1`), without the course.
+  final String? part;
 
   /// `holiday`, `event` or `eval`.
   final String kind;
@@ -281,7 +286,7 @@ class _WeekViewState extends State<WeekView> {
   /// A class on a white card (an exam on the amber one); a time of the
   /// student's own gets an ink outline and a YOUR TIME chip.
   Widget _block(BuildContext context, AppPalette p, Occurrence o, double height, bool narrow) {
-    final exam = o.kind == OccKind.midsem || o.kind == OccKind.compre;
+    final exam = o.kind != OccKind.cls && o.kind != OccKind.custom;
     Widget line(String t, double size, FontWeight w, Color c, {bool fit = false}) {
       final text = Text(
         t,
@@ -308,13 +313,17 @@ class _WeekViewState extends State<WeekView> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
               decoration: BoxDecoration(color: p.hero, borderRadius: BorderRadius.circular(4)),
-              child: Text(
-                'YOUR TIME',
-                style: TypeScale.label.copyWith(
-                  fontSize: 6.5,
-                  height: 1.2,
-                  fontWeight: FontWeight.w800,
-                  color: p.onHero,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'YOUR TIME',
+                  maxLines: 1,
+                  style: TypeScale.label.copyWith(
+                    fontSize: 6.5,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                    color: p.onHero,
+                  ),
                 ),
               ),
             ),

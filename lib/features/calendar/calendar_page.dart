@@ -495,11 +495,15 @@ class _CalendarPageState extends State<CalendarPage> {
           if (e.kind == 'holiday') put(d, AllDayItem(e.title, 'holiday'));
         }
       }
-      for (final e in all) {
-        if (dayStr(e.date) == d) put(d, AllDayItem(e.label, 'eval', courseId: e.courseId));
-      }
     }
-    final timed = <Occurrence>[];
+    final marks = marksInSpan(_tt, _state, all, occs, from: from, to: to);
+    for (final e in marks.allDay) {
+      put(
+        dayStr(e.date),
+        AllDayItem('${e.courseId} · ${e.label}', 'eval', courseId: e.courseId, part: e.label),
+      );
+    }
+    final timed = <Occurrence>[...marks.timed];
     for (final o in occs) {
       if (o.kind != OccKind.event) {
         timed.add(o);
@@ -524,13 +528,18 @@ class _CalendarPageState extends State<CalendarPage> {
         today: _todayStr,
         now: () => widget.today ?? DateTime.now(),
         onBlock: _blockTap,
-        onAllDay: (d) => _allDaySheet(d, allDay[d] ?? const []),
+        onAllDay: (d) => _allDaySheet(d, allDay[d] ?? const [], [
+          for (final o in timed)
+            if (o.date == d && o.kind != OccKind.cls && o.kind != OccKind.custom && o.kind != OccKind.event) o,
+        ]),
       ),
     );
   }
 
-  Future<void> _allDaySheet(String date, List<AllDayItem> items) async {
-    final id = await showModalBottomSheet<String>(
+  /// The all-day lines of [date]. [exams] are the student's own midsem, compre
+  /// and Marks-time blocks that day, listed under the campus-wide exam event.
+  Future<void> _allDaySheet(String date, List<AllDayItem> items, List<Occurrence> exams) async {
+    final r = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       builder:
@@ -546,24 +555,63 @@ class _CalendarPageState extends State<CalendarPage> {
                   ),
                 ),
                 const SizedBox(height: Space.sm),
-                for (final i in items)
+                for (final i in items) ...[
                   CardRow(
                     title: i.label,
+                    titleLines: 2,
                     subtitle: switch (i.kind) {
                       'holiday' => 'Holiday',
-                      'eval' => 'From Marks',
-                      _ => 'Academic calendar',
+                      'eval' => 'Added by you',
+                      _ => 'Academic calendar · campus-wide',
                     },
                     onTap:
-                        i.courseId == null
+                        i.kind == 'eval'
+                            ? () => Navigator.pop(context, i)
+                            : i.courseId == null
                             ? null
                             : () => Navigator.pop(context, i.courseId),
                   ),
+                  if (i.kind == 'event' && i.label.toLowerCase().contains('exam'))
+                    for (final o in exams)
+                      CardRow(
+                        title: '${o.courseId} · ${o.kind == OccKind.mark ? o.title : o.kind == OccKind.compre ? 'Compre' : 'Midsem'}',
+                        titleLines: 2,
+                        subtitle: 'Your time · ${span(o.start, o.end)}',
+                        onTap: () => Navigator.pop(context, o),
+                      ),
+                ],
               ],
             ),
           ),
     );
-    if (id != null && mounted) await _openCourse(id);
+    if (!mounted) return;
+    if (r is String) {
+      await _openCourse(r);
+    } else if (r is AllDayItem) {
+      await _markTime(r.courseId!, r.part!, date);
+    } else if (r is Occurrence) {
+      await _blockTap(r);
+    }
+  }
+
+  /// A date from Marks gets a start and end (or goes back to all day).
+  Future<void> _markTime(String course, String label, String date) async {
+    final key = markKey(course, label, date);
+    final r = await showCalSheet<Object>(
+      context,
+      (_) => MarkTimeSheet(
+        courseId: course,
+        label: label,
+        date: date,
+        current: _state.markTimes[key],
+        canOpenCourse: allCourses().any((c) => c.id == course),
+      ),
+    );
+    if (r == null || !mounted) return;
+    if (r == 'open') return _openCourse(course);
+    if (r == 'clear') return _write((c) => c.clearMarkTime(key));
+    final t = r as MarkTime;
+    await _write((c) => c.setMarkTime(key, s: t.s, e: t.e));
   }
 
   Future<void> _add() async {
@@ -615,6 +663,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _blockTap(Occurrence o) async {
+    if (o.kind == OccKind.mark) return _markTime(o.courseId, o.title, o.date);
     final act = await showCalSheet<Object>(
       context,
       (_) => ClassSheet(
