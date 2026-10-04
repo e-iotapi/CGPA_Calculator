@@ -11,16 +11,18 @@ import 'package:flutter/rendering.dart';
 /// Signs in the test account chosen for the E2E run, for non-production
 /// builds only.
 Future<User?> testSignIn() async {
-  // The E2E tests (T6) find widgets by role/text, which needs a semantics
-  // tree; production never turns this on. It costs frame time, so a
-  // performance run can leave it off with `?semantics=0`.
-  if (Uri.base.queryParameters['semantics'] != '0') {
-    SemanticsBinding.instance.ensureSemantics();
-  }
   final key = Uri.base.queryParameters['as'] ??
       const String.fromEnvironment('POINTER_TEST_AS');
   final auth = FirebaseAuth.instance;
   final email = testAccounts[key];
+  // The E2E tests (T6) find widgets by role/text, which needs a semantics
+  // tree; production never turns this on. Only a test account run gets it:
+  // on every staging load it slowed scrolling, the theme switch and start
+  // (owner, 2026-10-04: prod felt far smoother). `?semantics=0` leaves it
+  // off for a performance run.
+  if (email != null && Uri.base.queryParameters['semantics'] != '0') {
+    SemanticsBinding.instance.ensureSemantics();
+  }
   if (email == null || auth.currentUser?.email == email) {
     return auth.currentUser;
   }
