@@ -5,7 +5,6 @@
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
 import 'package:cgpa_calculator/core/timetable/timetable.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fake_data.dart';
