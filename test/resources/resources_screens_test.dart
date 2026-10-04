@@ -176,7 +176,7 @@ void main() {
     testWidgets('course: Last updated beside the CR', (t) async {
       // The seed's scheme save stamped the course (ActivityStore.touch).
       await open(t, As.student, const ResourceCoursePage(courseId: takingId));
-      expect(find.textContaining('Last updated '), findsOneWidget);
+      expect(find.text('LAST UPDATED'), findsOneWidget);
     });
 
     testWidgets('a reopened course screen draws its last copy at once', (
