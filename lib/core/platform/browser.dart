@@ -16,6 +16,15 @@ Future<String?> pickTextFile(String accept) => impl.pickTextFile(accept);
 /// Reloads the page.
 void reloadPage() => impl.reloadPage();
 
+/// Whether the page is cross-origin isolated (COOP + COEP headers), which
+/// runs the wasm renderer on its own thread but cuts Google's sign-in popup
+/// off from the page.
+bool crossOriginIsolated() => impl.crossOriginIsolated();
+
+/// Replaces the page with [path], resolved against the app's base URL
+/// (`''` is the app itself).
+void replacePage(String path) => impl.replacePage(path);
+
 /// Runs [run] when the page is hidden or closed (tab switch, app switch,
 /// closing the tab): the last moment to flush pending writes.
 void onPageHidden(void Function() run) => impl.onPageHidden(run);

@@ -104,11 +104,26 @@ void main() async {
       await FirebaseAuth.instance.signOut();
       message = refusal(user, allowed);
     }
-    runApp(SignInApp(message: message));
+    // An isolated page (the multi-threaded renderer) cuts Google's popup
+    // off, so signing in happens on [signInPage], served without isolation.
+    if (crossOriginIsolated()) {
+      replacePage(signInPage);
+    } else {
+      runApp(SignInApp(message: message));
+    }
+  } else if (onSignInPage()) {
+    replacePage(''); // signed in: back to the isolated app
   } else {
     await startApp(user);
   }
 }
+
+/// The page, beside the app, that serves the sign-in screen without
+/// cross-origin isolation (firebase.json on the wasm preview).
+const signInPage = 'signin';
+
+/// Whether this load is [signInPage].
+bool onSignInPage() => Uri.base.pathSegments.lastOrNull == signInPage;
 
 /// Pulls the user's data down before basicStartup() reads settings into globals.
 Future<void> startApp(User user) async {
@@ -317,6 +332,10 @@ class _SignInAppState extends State<SignInApp>
       if (allowed != true) {
         await FirebaseAuth.instance.signOut();
         throw refusal(user, allowed);
+      }
+      if (onSignInPage()) {
+        replacePage(''); // the isolated app, signed in
+        return;
       }
       await startApp(user); // replaces this app with the real one
       return;
