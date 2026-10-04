@@ -2,7 +2,6 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
-import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/features/contribute/contribute_page.dart';
 import 'package:cgpa_calculator/features/resources/link_sheet.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';

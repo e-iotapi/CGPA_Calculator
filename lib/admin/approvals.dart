@@ -8,16 +8,15 @@ import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart' show LinkExpired;
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_widgets.dart' show SheetButton;
 import 'package:cgpa_calculator/features/resources/resources_page.dart'
     show resourceStore;
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
-import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
-import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
-import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:flutter/material.dart';
 
 typedef _Data = ({
@@ -26,8 +25,11 @@ typedef _Data = ({
   List<Grant> contributors,
 });
 
-/// Presets on the Reason sheet (decline and reject).
-const reasonPresets = [
+/// Presets on the Reason sheet when links are rejected.
+const reasonPresets = ['Needs access', 'Wrong course', 'Not useful', 'Other'];
+
+/// Presets when an application is declined.
+const declinePresets = [
   'Not a good fit',
   'Broken or private link',
   'Wrong department or course',
@@ -35,16 +37,27 @@ const reasonPresets = [
 ];
 
 /// Asks why: a preset or a note, then Send. Null when dismissed.
-Future<String?> askReason(BuildContext context, {required String title}) =>
-    showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => ReasonSheet(title: title),
-    );
+Future<String?> askReason(
+  BuildContext context, {
+  required String title,
+  String? subtitle,
+  List<String> presets = reasonPresets,
+}) => showModalBottomSheet<String>(
+  context: context,
+  isScrollControlled: true,
+  builder: (_) => ReasonSheet(title: title, subtitle: subtitle, presets: presets),
+);
 
 class ReasonSheet extends StatefulWidget {
-  const ReasonSheet({super.key, required this.title});
+  const ReasonSheet({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.presets = reasonPresets,
+  });
   final String title;
+  final String? subtitle;
+  final List<String> presets;
 
   @override
   State<ReasonSheet> createState() => _ReasonSheetState();
@@ -70,41 +83,133 @@ class _ReasonSheetState extends State<ReasonSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    child: Padding(
-      padding: EdgeInsets.fromLTRB(
-        Space.gutter,
-        Space.lg,
-        Space.gutter,
-        MediaQuery.viewInsetsOf(context).bottom + Space.lg,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(widget.title, style: TypeScale.title),
-          const SizedBox(height: Space.sm),
-          ChoicePills<String>(
-            values: reasonPresets,
-            selected: _preset,
-            label: (s) => s,
-            onSelected:
-                (s) => setState(() {
-                  _preset = _preset == s ? null : s;
-                  _error = null;
-                }),
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            10,
+            20,
+            MediaQuery.viewInsetsOf(context).bottom + 30,
           ),
-          const SizedBox(height: Space.sm),
-          AppTextField(
-            controller: _note,
-            label: 'Note (optional)',
-            error: _error,
-            onChanged: (_) => setState(() => _error = null),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: p.outline,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 13),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: TypeScale.title.copyWith(
+                            fontSize: 21,
+                            letterSpacing: -0.5,
+                            color: p.text,
+                          ),
+                        ),
+                        if (widget.subtitle != null)
+                          Text(
+                            widget.subtitle!,
+                            style: TypeScale.caption.copyWith(
+                              fontSize: 11.5,
+                              color: p.textMuted,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Material(
+                    color: p.chipFill,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => Navigator.pop(context),
+                      child: SizedBox.square(
+                        dimension: 44,
+                        child: Icon(Icons.close_rounded, size: 20, color: p.text),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _Cap('REASON · THEY SEE THIS'),
+              const SizedBox(height: 10),
+              ChoicePills<String>(
+                small: true,
+                values: widget.presets,
+                selected: _preset,
+                label: (s) => s,
+                onSelected:
+                    (s) => setState(() {
+                      _preset = _preset == s ? null : s;
+                      _error = null;
+                    }),
+              ),
+              const SizedBox(height: 12),
+              _Cap('NOTE · THEY SEE IT'),
+              const SizedBox(height: 5),
+              AppTextField(
+                controller: _note,
+                label: 'Say what to fix',
+                fill: p.surface,
+                error: _error,
+                onChanged: (_) => setState(() => _error = null),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                spacing: 10,
+                children: [
+                  Expanded(
+                    child: SheetButton('Cancel', onTap: () => Navigator.pop(context)),
+                  ),
+                  Expanded(
+                    child: SheetButton(
+                      'Send',
+                      onTap: _send,
+                      fill: p.rejectedTone.text,
+                      fg: p.background,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: Space.md),
-          PrimaryButton(label: 'Send', onPressed: _send),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _Cap extends StatelessWidget {
+  const _Cap(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: TypeScale.label.copyWith(
+      fontSize: 10.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+      color: AppPalette.of(context).textMuted,
     ),
   );
 }
@@ -242,13 +347,23 @@ class _ApprovalsState extends State<Approvals> {
       );
 
   Future<void> _decline(ContributorRequest r) async {
-    final why = await askReason(context, title: 'Why decline ${r.name}?');
+    final why = await askReason(
+      context,
+      title: 'Decline ${r.name.isEmpty ? r.email : r.name}',
+      subtitle: r.email,
+      presets: declinePresets,
+    );
     if (why == null || !mounted) return;
     await _run(1, () => _contrib.decline(r, reason: why), 'Declined');
   }
 
   Future<void> _reject(PendingBatch b) async {
-    final why = await askReason(context, title: 'Why reject these links?');
+    final n = b.links.length;
+    final why = await askReason(
+      context,
+      title: 'Reject $n ${n == 1 ? 'link' : 'links'}',
+      subtitle: '${b.username.isEmpty ? b.email : b.username} · ${b.dept}',
+    );
     if (why == null || !mounted) return;
     await _run(
       b.links.length,
@@ -258,15 +373,11 @@ class _ApprovalsState extends State<Approvals> {
   }
 
   Future<void> _revoke(Grant g) async {
-    final ok = await confirmDialog(
-      context,
-      title: 'Revoke ${g.name}?',
-      body: 'They can no longer add links. Their points stay.',
-      action: 'Revoke',
-      cancel: 'Keep',
-      danger: true,
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => _RevokeDialog(g.name.isEmpty ? g.email : g.name),
     );
-    if (!ok || !mounted) return;
+    if (ok != true || !mounted) return;
     await _run(1, () => _contrib.revoke(g), 'Revoked');
   }
 
@@ -303,13 +414,14 @@ class _ApprovalsState extends State<Approvals> {
               dept: dept,
               onChanged: (v) => setState(() => _dept = v),
             ),
-            ChoicePills<bool>(
-              equal: true,
-              values: const [false, true],
-              selected: _links,
-              label: (l) => l ? 'Links' : 'Applications',
-              count: (l) => '${l ? d.batches.length : d.requests.length}',
-              onSelected: (v) => setState(() => _links = v),
+            SegmentedTrack<bool>(
+              height: 44,
+              tabs: [
+                (false, 'Applications · ${d.requests.length}'),
+                (true, 'Links · ${d.batches.length}'),
+              ],
+              value: _links,
+              onChanged: (v) => setState(() => _links = v),
             ),
             const SizedBox(height: Space.sm),
             if (_busy)
@@ -321,31 +433,26 @@ class _ApprovalsState extends State<Approvals> {
             if (_error != null)
               Notice(warning: true, text: TextSpan(text: _error)),
             if (n > 0)
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedPill(
-                  label: 'Approve all',
-                  onPressed:
-                      off
-                          ? null
-                          : () =>
-                              _links
-                                  ? _run(
-                                    d.batches.fold(0, (a, b) => a + b.links.length),
-                                    () async {
-                                      for (final b in d.batches) {
-                                        await _approveBatch(b);
-                                      }
-                                    },
-                                    'Approved',
-                                  )
-                                  : _run(d.requests.length, () async {
-                                    for (final r in d.requests) {
-                                      await _contrib.approve(r);
-                                      if (mounted) setState(() => _done++);
-                                    }
-                                  }, 'Approved'),
-                ),
+              _ApproveAll(
+                off: off,
+                onTap:
+                    () =>
+                        _links
+                            ? _run(
+                              d.batches.fold(0, (a, b) => a + b.links.length),
+                              () async {
+                                for (final b in d.batches) {
+                                  await _approveBatch(b);
+                                }
+                              },
+                              'Approved',
+                            )
+                            : _run(d.requests.length, () async {
+                              for (final r in d.requests) {
+                                await _contrib.approve(r);
+                                if (mounted) setState(() => _done++);
+                              }
+                            }, 'Approved'),
               ),
             if (_links) ...[
               if (d.batches.isEmpty) const Note('No links are waiting.'),
@@ -375,6 +482,9 @@ class _ApprovalsState extends State<Approvals> {
                 const SectionLabel('Contributors'),
                 for (final g in d.contributors)
                   _ContributorRow(g, off: off, onRevoke: () => _revoke(g)),
+                const Note(
+                  'Approvers are not named; everyone else sees usernames only.',
+                ),
               ],
             ],
           ],
@@ -409,8 +519,133 @@ class _DeptPicker extends StatelessWidget {
   );
 }
 
-class _Actions extends StatelessWidget {
-  const _Actions({
+class _ApproveAll extends StatelessWidget {
+  const _ApproveAll({required this.off, required this.onTap});
+  final bool off;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Opacity(
+      opacity: off ? .5 : 1,
+      child: Material(
+        color: p.hero,
+        shape: const StadiumBorder(),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: off ? null : onTap,
+          child: SizedBox(
+            height: 46,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_rounded, size: 18, color: p.onHero),
+                const SizedBox(width: 6),
+                Text(
+                  'Approve all',
+                  style: TypeScale.body.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: p.onHero,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A board card (radius 20, 12 / 14 padding) holding its content.
+class _Card extends StatelessWidget {
+  const _Card({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: AppCard(
+      radius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 10,
+        children: children,
+      ),
+    ),
+  );
+}
+
+/// The name, a muted line under it, and an optional tag at the right.
+class _Head extends StatelessWidget {
+  const _Head(this.title, this.sub, {this.tag, this.tone});
+  final String title, sub;
+  final String? tag;
+  final GradeTone? tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Row(
+      spacing: 8,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TypeScale.body.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: p.text,
+                ),
+              ),
+              Text(
+                sub,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TypeScale.caption.copyWith(
+                  fontSize: 10.5,
+                  height: 1.45,
+                  color: p.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (tag != null)
+          Container(
+            height: 20,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: (tone ?? GradeTone(p.chipFill, p.icon)).fill,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              tag!,
+              style: TypeScale.label.copyWith(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+                color: (tone ?? GradeTone(p.chipFill, p.icon)).text,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Two equal 42-tall pills: the refusal outlined, the approval in ink.
+class _Duo extends StatelessWidget {
+  const _Duo({
     required this.yes,
     required this.no,
     required this.onYes,
@@ -422,22 +657,38 @@ class _Actions extends StatelessWidget {
   final bool off;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      PillButton(
-        label: yes,
-        selected: true,
-        height: Sizes.minTouch,
-        onPressed: off ? null : onYes,
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    Widget pill(String label, VoidCallback tap, bool ink) => Expanded(
+      child: Opacity(
+        opacity: off ? .5 : 1,
+        child: Material(
+          color: ink ? p.inverse : p.surface,
+          shape: StadiumBorder(
+            side: ink ? BorderSide.none : BorderSide(color: p.outline),
+          ),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: off ? null : tap,
+            child: SizedBox(
+              height: 42,
+              child: Center(
+                child: Text(
+                  label,
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: ink ? p.onInverse : p.text,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
-      const SizedBox(width: 8),
-      PillButton(
-        label: no,
-        height: Sizes.minTouch,
-        onPressed: off ? null : onNo,
-      ),
-    ],
-  );
+    );
+    return Row(spacing: 8, children: [pill(no, onNo, false), pill(yes, onYes, true)]);
+  }
 }
 
 class _RequestCard extends StatelessWidget {
@@ -452,38 +703,21 @@ class _RequestCard extends StatelessWidget {
   final VoidCallback onApprove, onDecline;
 
   @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              r.name.isEmpty ? r.email : r.name,
-              style: TypeScale.body.copyWith(
-                fontWeight: FontWeight.w700,
-                color: p.text,
-              ),
-            ),
-            Text(
-              '${r.email} · ${ago(DateTime.fromMillisecondsSinceEpoch(r.createdAt))}',
-              style: TypeScale.caption.copyWith(color: p.textMuted),
-            ),
-            const SizedBox(height: Space.sm),
-            _Actions(
-              yes: 'Approve',
-              no: 'Decline',
-              onYes: onApprove,
-              onNo: onDecline,
-              off: off,
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) => _Card(
+    children: [
+      _Head(
+        r.name.isEmpty ? r.email : r.name,
+        '${r.email} · ${ago(DateTime.fromMillisecondsSinceEpoch(r.createdAt))}',
       ),
-    );
-  }
+      _Duo(
+        yes: 'Approve',
+        no: 'Decline',
+        onYes: onApprove,
+        onNo: onDecline,
+        off: off,
+      ),
+    ],
+  );
 }
 
 class _BatchCard extends StatelessWidget {
@@ -500,55 +734,61 @@ class _BatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: AppCard(
-        child: Column(
+    final n = b.links.length;
+    final used = DateTime.now().millisecondsSinceEpoch - b.at;
+    final left =
+        ((contributorWindow.inMilliseconds - used) /
+                Duration.millisecondsPerDay)
+            .ceil()
+            .clamp(0, 15);
+    // ponytail: "urgent" is three days or fewer, a guess at the board's 2.
+    final urgent = left <= 3;
+    return _Card(
+      children: [
+        _Head(
+          '${b.username.isEmpty ? b.email : b.username} · $n ${n == 1 ? 'link' : 'links'}',
+          '${b.dept} Department · $left ${left == 1 ? 'day' : 'days'} left',
+          tag: urgent ? 'URGENT' : 'WAITING',
+          tone: urgent ? p.rejectedTone : p.waitingTone,
+        ),
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              b.username.isEmpty ? b.email : b.username,
-              style: TypeScale.body.copyWith(
-                fontWeight: FontWeight.w700,
-                color: p.text,
-              ),
-            ),
-            Text(
-              '${b.links.length} ${b.links.length == 1 ? 'link' : 'links'} · '
-              '${ago(DateTime.fromMillisecondsSinceEpoch(b.at))}',
-              style: TypeScale.caption.copyWith(color: p.textMuted),
-            ),
             for (final l in b.links)
               InkWell(
                 onTap: () => openUrl(l.url),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: Sizes.minTouch),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      l.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TypeScale.body.copyWith(
-                        fontSize: 12.5,
-                        decoration: TextDecoration.underline,
-                        color: p.text,
+                  constraints: const BoxConstraints(minHeight: 28),
+                  child: Row(
+                    spacing: 6,
+                    children: [
+                      Icon(Icons.link_rounded, size: 14, color: p.accent),
+                      Expanded(
+                        child: Text(
+                          l.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TypeScale.body.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: p.accent,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
-            const SizedBox(height: Space.xs),
-            _Actions(
-              yes: 'Approve',
-              no: 'Reject',
-              onYes: onApprove,
-              onNo: onReject,
-              off: off,
-            ),
           ],
         ),
-      ),
+        _Duo(
+          yes: 'Approve',
+          no: 'Reject',
+          onYes: onApprove,
+          onNo: onReject,
+          off: off,
+        ),
+      ],
     );
   }
 }
@@ -562,37 +802,115 @@ class _ContributorRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: AppCard(
-        child: Row(
+    final at = g.grantedAt;
+    return _Card(
+      children: [
+        Row(
+          spacing: 8,
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    g.name.isEmpty ? g.email : g.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: p.text,
-                    ),
-                  ),
-                  Text(
-                    g.email,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.caption.copyWith(color: p.textMuted),
-                  ),
-                ],
+              child: _Head(
+                g.name.isEmpty ? g.email : g.name,
+                at == null ? g.email : 'approved ${shortDay(at)}',
               ),
             ),
-            PillButton(
-              label: 'Revoke',
-              height: Sizes.minTouch,
-              onPressed: off ? null : onRevoke,
+            Opacity(
+              opacity: off ? .5 : 1,
+              child: Material(
+                color: Colors.transparent,
+                shape: StadiumBorder(side: BorderSide(color: p.outline)),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: off ? null : onRevoke,
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Revoke',
+                      style: TypeScale.body.copyWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: p.rejectedTone.text,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RevokeDialog extends StatelessWidget {
+  const _RevokeDialog(this.name);
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Dialog(
+      backgroundColor: p.background,
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 12,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: p.rejectedTone.fill,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  Icons.person_outline_rounded,
+                  size: 20,
+                  color: p.rejectedTone.text,
+                ),
+              ),
+            ),
+            Semantics(
+              header: true,
+              child: Text(
+                'Revoke $name?',
+                style: TypeScale.title.copyWith(
+                  fontSize: 18,
+                  letterSpacing: -0.3,
+                  height: 1.25,
+                  color: p.text,
+                ),
+              ),
+            ),
+            Text(
+              'They can’t add or edit links any more. Links they published '
+              'stay up, and their points stay. They can apply again.',
+              style: TypeScale.caption.copyWith(
+                fontSize: 12,
+                height: 1.45,
+                color: p.textMuted,
+              ),
+            ),
+            const SizedBox(height: 4),
+            SheetButton(
+              'Revoke',
+              onTap: () => Navigator.pop(context, true),
+              fill: p.rejectedTone.text,
+              fg: p.background,
+            ),
+            SheetButton(
+              'Keep contributor',
+              onTap: () => Navigator.pop(context, false),
             ),
           ],
         ),
