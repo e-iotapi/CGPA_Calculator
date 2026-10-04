@@ -168,22 +168,26 @@ void main() {
       ).claimUsername('goa', 'taken_name'),
     );
     await open(t, As.student, const ApplyPage());
-    expect(find.text('Become a contributor'), findsOneWidget);
-    expect(find.textContaining('A president approves them'), findsOneWidget);
-    final field = find.widgetWithText(TextField, 'Username');
+    expect(find.text('Apply'), findsOneWidget);
+    expect(find.textContaining('An approver confirms each link'), findsOneWidget);
+    final field = find.byType(TextField);
     t.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(t.view.resetViewInsets);
     await t.pump();
     expect(t.getRect(field).bottom, lessThan(844 - 300 / 3));
     await t.enterText(field, 'taken_name');
-    await t.tap(find.text('Apply'));
+    t.view.resetViewInsets();
+    await t.pump();
+    await t.tap(find.textContaining('I understand how approval'));
+    await t.pump();
+    await t.tap(find.text('Send application'));
     await settle(t);
     expect(find.textContaining('That username is taken'), findsOneWidget);
     await t.enterText(field, 'quiet_owl');
-    await t.tap(find.text('Apply'));
+    await t.tap(find.text('Send application'));
     await settle(t);
     expect(find.text('Application sent'), findsOneWidget);
-    expect(find.textContaining('Add links opens'), findsOneWidget);
+    expect(find.text('Waiting for approval'), findsOneWidget);
     expect(contribState.value, ContribState.applied);
   });
 
