@@ -10,24 +10,24 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-/// The theme snapshot's pixel ratio: at most 1.5, and 1 on a low tier device
-/// or on iOS, where Safari caps canvas memory (UI_OPT O1.3, O8.1). A big
-/// window is captured at no more than [maxSnapshotPixels]: on the web the
-/// capture reads the screen back from the GPU on the main thread, so its
-/// cost grows with the pixels (2560x1440 took 80 to 230 ms).
+/// The theme snapshot's pixel ratio: the screen's own, so the reveal's
+/// pictures are as sharp as the live app (a lower one showed as a clear
+/// resolution drop, owner 2026-10-04); 1 on a low tier device or on iOS,
+/// where Safari caps canvas memory (UI_OPT O1.3, O8.1). Past
+/// [maxSnapshotPixels] (a 4K screen) it drops to stay within memory.
 double snapshotRatio({
   required double dpr,
   required DeviceTier tier,
   required bool ios,
   Size? size,
 }) {
-  final r = tier == DeviceTier.low || ios ? 1.0 : math.min(dpr, 1.5);
+  final r = tier == DeviceTier.low || ios ? 1.0 : dpr;
   if (size == null || size.isEmpty) return r;
   return math.min(r, math.sqrt(maxSnapshotPixels / (size.width * size.height)));
 }
 
-/// About a 1080p screen's worth.
-const double maxSnapshotPixels = 1920 * 1080;
+/// A 4K screen's worth.
+const double maxSnapshotPixels = 3840 * 2160;
 
 /// Read once: every iOS browser is Safari underneath.
 final bool _onIos = installTarget().device == InstallDevice.ios;

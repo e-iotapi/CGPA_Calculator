@@ -5,8 +5,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('capped at 1.5 elsewhere', () {
-    expect(snapshotRatio(dpr: 3, tier: DeviceTier.normal, ios: false), 1.5);
+  test("the screen's own ratio elsewhere, so the pictures stay sharp", () {
+    expect(snapshotRatio(dpr: 3, tier: DeviceTier.normal, ios: false), 3);
     expect(snapshotRatio(dpr: 1.25, tier: DeviceTier.normal, ios: false), 1.25);
   });
 
@@ -18,17 +18,18 @@ void main() {
     expect(snapshotRatio(dpr: 3, tier: DeviceTier.normal, ios: true), 1);
   });
 
-  test('a big window is captured at about 1080p worth of pixels', () {
+  test('only past a 4K screen does the ratio drop', () {
     double r(double w, double h, double dpr) => snapshotRatio(
       dpr: dpr,
       tier: DeviceTier.normal,
       ios: false,
       size: Size(w, h),
     );
-    expect(r(390, 844, 3), 1.5);
+    expect(r(390, 844, 3), 3);
     expect(r(1920, 1080, 1), 1);
-    expect(r(2560, 1440, 1.25), closeTo(0.75, 1e-9));
-    final big = r(3840, 2160, 2);
-    expect(3840 * 2160 * big * big, closeTo(maxSnapshotPixels, 1));
+    expect(r(2560, 1440, 1.25), 1.25);
+    expect(r(1920, 1080, 2), 2);
+    final big = r(2560, 1440, 2);
+    expect(2560 * 1440 * big * big, closeTo(maxSnapshotPixels, 1));
   });
 }
