@@ -18,7 +18,6 @@
   "contrast: \"Week\" 1.00:1, needs 4.5 (12.5 px)",
   "dead: button \"Close\" has no tap action",
   "tap: \"\" 250x16",
-  "truncated: \"AAA F111\"",
   "truncated: \"Intro Widgets\""
  ]
 }
