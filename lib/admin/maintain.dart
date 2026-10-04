@@ -36,6 +36,7 @@ import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/icon_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -520,15 +521,20 @@ class _DeptCoursesState extends State<DeptCourses> {
   }
 
   Future<void> _claim(Mastercourselist c, VoidCallback reload) async {
-    final ok = await confirmDialog(
-      context,
-      title: 'Claim ${c.id}?',
-      body:
-          '${c.title} moves from Electives to your department. Its '
-          'resources, reviews and structure are yours to manage.',
-      action: 'Claim',
+    final ok = await showDialog<bool>(
+      context: context,
+      builder:
+          (_) => IconDialog(
+            icon: Icons.open_in_full_rounded,
+            title: 'Claim ${c.id} for ${widget.dept}?',
+            body:
+                'After you claim it, Electives can no longer manage its '
+                'resources and ${widget.dept} can.',
+            primary: 'Claim course',
+            secondary: 'Cancel',
+          ),
     );
-    if (!ok || !mounted) return;
+    if (ok != true || !mounted) return;
     try {
       await ClaimStore(roleStore!).claim(widget.campus, c.id, widget.dept);
     } on Object catch (e) {

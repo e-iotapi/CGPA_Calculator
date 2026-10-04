@@ -229,7 +229,11 @@ class ChoicePills<T> extends StatelessWidget {
     required this.onSelected,
     this.equal = false,
     this.count,
+    this.small = false,
   });
+
+  /// The 32 high, 11.5 pt pills of the Your links board.
+  final bool small;
 
   final List<T> values;
   final T? selected;
@@ -253,7 +257,7 @@ class ChoicePills<T> extends StatelessWidget {
         n == null ? label(v) : '${label(v)} $n',
         maxLines: equal ? 1 : null,
         style: TypeScale.body.copyWith(
-          fontSize: 12.5,
+          fontSize: small ? 11.5 : 12.5,
           fontWeight: on ? FontWeight.w700 : FontWeight.w600,
           color: on ? p.onInverse : p.text,
         ),
@@ -268,17 +272,20 @@ class ChoicePills<T> extends StatelessWidget {
         child: Material(
           color: on ? p.inverse : Colors.transparent,
           shape: StadiumBorder(
-            side: on ? BorderSide.none : BorderSide(color: p.border),
+            side:
+                on
+                    ? BorderSide.none
+                    : BorderSide(color: small ? p.outline : p.border),
           ),
           child: InkWell(
             customBorder: const StadiumBorder(),
             onTap: () => onSelected(v),
             child: Container(
-              height: Sizes.pill,
+              height: small ? 32 : Sizes.pill,
               constraints: const BoxConstraints(minWidth: 44),
               // Equal tabs share the width, so they keep only a little
               // padding of their own (§10.1 item 2).
-              padding: EdgeInsets.symmetric(horizontal: equal ? 4 : 14),
+              padding: EdgeInsets.symmetric(horizontal: equal ? 4 : (small ? 12 : 14)),
               child: Center(
                 widthFactor: 1,
                 heightFactor: 1,
@@ -716,16 +723,20 @@ class SelectRow extends StatelessWidget {
     required this.text,
     required this.onTap,
     this.placeholder = false,
+    this.fill,
   });
   final String text;
   final VoidCallback onTap;
   final bool placeholder;
 
+  /// Overrides the box colour (default: the page background).
+  final Color? fill;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Material(
-      color: p.background,
+      color: fill ?? p.background,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: p.outline),

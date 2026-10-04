@@ -78,13 +78,13 @@ void main() {
     expect(find.textContaining('Off'), findsOneWidget);
     await t.tap(find.byType(Switch));
     await t.pumpAndSettle();
-    expect(find.text('Switch on compulsory reviews?'), findsOneWidget);
+    expect(find.text('Turn on forced reviews for Goa?'), findsOneWidget);
     await t.tap(find.text('Cancel'));
     await t.pumpAndSettle();
     expect((await db.collection('reviewGate').doc('goa').get())['on'], isFalse);
     await t.tap(find.byType(Switch));
     await t.pumpAndSettle();
-    await t.tap(find.text('Switch on'));
+    await t.tap(find.text('Turn on'));
     await until(t, find.textContaining('turned on by Owner'));
     expect((await db.collection('reviewGate').doc('goa').get())['on'], isTrue);
     expect(find.textContaining('turned on by Owner'), findsOneWidget);

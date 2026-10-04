@@ -7,7 +7,7 @@ import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
-import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/icon_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -200,8 +200,8 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(
         find.descendant(
-          of: find.byType(ConfirmDialog),
-          matching: find.text('Claim'),
+          of: find.byType(IconDialog),
+          matching: find.text('Claim course'),
         ),
       );
       await t.pumpAndSettle();
@@ -231,8 +231,8 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(
         find.descendant(
-          of: find.byType(ConfirmDialog),
-          matching: find.text('Claim'),
+          of: find.byType(IconDialog),
+          matching: find.text('Claim course'),
         ),
       );
       await t.pumpAndSettle();
