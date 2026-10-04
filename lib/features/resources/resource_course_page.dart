@@ -193,12 +193,28 @@ class _CrContact extends StatelessWidget {
                 ),
               ),
               if (updated case final ms?)
-                Text(
-                  'Last updated ${monthYear(ms)}',
-                  style: TypeScale.caption.copyWith(
-                    fontSize: 10.5,
-                    color: p.textMuted,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  spacing: 1,
+                  children: [
+                    Text(
+                      'LAST UPDATED',
+                      style: TypeScale.caption.copyWith(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: p.textMuted,
+                      ),
+                    ),
+                    Text(
+                      monthYear(ms),
+                      style: TypeScale.caption.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: p.text,
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
