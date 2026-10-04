@@ -7,7 +7,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
-import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/icon_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:flutter/material.dart';
 
@@ -61,15 +61,21 @@ class _GateSwitchRowState extends State<GateSwitchRow> {
 
   Future<void> _set(bool on) async {
     if (on &&
-        !await confirmDialog(
-          context,
-          title: 'Switch on compulsory reviews?',
-          body:
-              'Students past 2 - 1 who have taken electives will have to '
-              'review them before they can read reviews on '
-              '${campusName(_campus)}.',
-          action: 'Switch on',
-        )) {
+        await showDialog<bool>(
+              context: context,
+              builder:
+                  (_) => IconDialog(
+                    icon: Icons.lock_outline_rounded,
+                    title: 'Turn on forced reviews for ${campusName(_campus)}?',
+                    body:
+                        'Every student will need to review their electives, up '
+                        'to 5, before they can read any review. You can turn '
+                        'it off any time.',
+                    primary: 'Turn on',
+                    secondary: 'Cancel',
+                  ),
+            ) !=
+            true) {
       return;
     }
     if (!mounted) return;

@@ -8,12 +8,12 @@ import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart' show LinkExpired;
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
-import 'package:cgpa_calculator/features/contribute/contribute_widgets.dart' show SheetButton;
 import 'package:cgpa_calculator/features/resources/resources_page.dart'
     show resourceStore;
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/icon_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/segmented.dart';
@@ -852,69 +852,18 @@ class _RevokeDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Dialog(
-      backgroundColor: p.background,
-      surfaceTintColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 12,
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: p.rejectedTone.fill,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(
-                  Icons.person_outline_rounded,
-                  size: 20,
-                  color: p.rejectedTone.text,
-                ),
-              ),
-            ),
-            Semantics(
-              header: true,
-              child: Text(
-                'Revoke $name?',
-                style: TypeScale.title.copyWith(
-                  fontSize: 18,
-                  letterSpacing: -0.3,
-                  height: 1.25,
-                  color: p.text,
-                ),
-              ),
-            ),
-            Text(
-              'They can’t add or edit links any more. Links they published '
-              'stay up, and their points stay. They can apply again.',
-              style: TypeScale.caption.copyWith(
-                fontSize: 12,
-                height: 1.45,
-                color: p.textMuted,
-              ),
-            ),
-            const SizedBox(height: 4),
-            SheetButton(
-              'Revoke',
-              onTap: () => Navigator.pop(context, true),
-              fill: p.rejectedTone.text,
-              fg: p.background,
-            ),
-            SheetButton(
-              'Keep contributor',
-              onTap: () => Navigator.pop(context, false),
-            ),
-          ],
-        ),
-      ),
+    return IconDialog(
+      icon: Icons.person_outline_rounded,
+      tint: p.rejectedTone.fill,
+      tintFg: p.rejectedTone.text,
+      title: 'Revoke $name?',
+      body:
+          'They can’t add or edit links any more. Links they published '
+          'stay up, and their points stay. They can apply again.',
+      primary: 'Revoke',
+      primaryFill: p.rejectedTone.text,
+      primaryFg: p.background,
+      secondary: 'Keep contributor',
     );
   }
 }

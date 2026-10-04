@@ -1,12 +1,16 @@
 /// The compulsory-reviews gate as the student's screens see it (feature 2).
 library;
 
+import 'package:cgpa_calculator/admin/widgets.dart' show Note, shortDay;
 import 'package:cgpa_calculator/app/routes.dart';
+import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
+import 'package:cgpa_calculator/core/models/elective.dart';
 import 'package:cgpa_calculator/core/reviews/gate.dart';
+import 'package:cgpa_calculator/core/reviews/gate.dart' as gate show required;
 import 'package:cgpa_calculator/core/reviews/gate_store.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart' show markerOf;
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -17,8 +21,8 @@ import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/features/reviews/compulsory_pick.dart';
 import 'package:cgpa_calculator/script.dart'
     show currentsem, selecteddiscipline;
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
-import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:flutter/material.dart';
 
@@ -102,40 +106,228 @@ Future<void> recoverMyReviews(String campus) async {
   }
 }
 
-/// Board `ReviewsLocked`: the banner (no count) and the way out, drawn in
-/// place of every list of reviews while the gate is [GateState.locked].
-/// [onBack] runs when the student returns from the electives page.
+/// The short code the boards print for an elective's stored tag.
+String electiveCode(String tag) => switch (Elective.fromTag(tag)) {
+  Elective.humanity => 'HEL',
+  Elective.open => 'OPEL',
+  Elective.del1 || Elective.del2 => 'DEL',
+  _ => tag,
+};
+
+/// The board's 22-square tick: ink with a check when [on], a ring when not.
+class ReviewTick extends StatelessWidget {
+  const ReviewTick({super.key, required this.on});
+  final bool on;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: on ? p.inverse : p.surface,
+        borderRadius: BorderRadius.circular(7),
+        border: on ? null : Border.all(color: p.outline, width: 1.5),
+      ),
+      child: on ? Icon(Icons.check_rounded, size: 16, color: p.onInverse) : null,
+    );
+  }
+}
+
+/// Board `PfForcedLocked`: the mint banner with the progress bar (no count)
+/// and the way out, then the reviews that count so far. Drawn in place of
+/// every list of reviews while the gate is [GateState.locked]. [onBack] runs
+/// when the student returns from the electives page.
 class LockedReviews extends StatelessWidget {
   const LockedReviews({super.key, required this.onBack});
   final VoidCallback onBack;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const Notice(
-        icon: Icons.lock_outline_rounded,
-        text: TextSpan(
-          text:
-              'Reviews are locked. Review the electives you have taken to '
-              'open them: it takes a minute, and stays anonymous.',
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final taken = electivesTaken();
+    final need = gate.required(taken.length);
+    final done = myReviewCount();
+    final remembered = myReviewedCourses().toSet();
+    final counted = [
+      for (final c in taken)
+        if (remembered.contains(c.id)) c,
+    ];
+    final share = need == 0 ? 0.0 : (done / need).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+          decoration: BoxDecoration(
+            color: p.hero,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 10,
+            children: [
+              Row(
+                spacing: 12,
+                children: [
+                  SizedBox.square(
+                    dimension: 44,
+                    child: Icon(
+                      Icons.lock_outline_rounded,
+                      size: 20,
+                      color: p.onHero,
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 2,
+                      children: [
+                        Text(
+                          'Reviews are locked',
+                          style: TypeScale.body.copyWith(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: p.onHero,
+                          ),
+                        ),
+                        Text(
+                          'Review your electives to read every course’s '
+                          'reviews.',
+                          style: TypeScale.caption.copyWith(
+                            fontSize: 10.5,
+                            color: p.onHeroMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                'YOUR REVIEWS',
+                style: TypeScale.label.copyWith(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                  color: p.onHeroMuted,
+                ),
+              ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: share,
+                  minHeight: 8,
+                  backgroundColor: p.chipFill,
+                  color: p.inverse,
+                ),
+              ),
+              PrimaryButton(
+                label: 'Review my electives',
+                onPressed: () async {
+                  await openRoute(
+                    context,
+                    Routes.compulsoryReviews,
+                    () => const CompulsoryPickPage(),
+                  );
+                  onBack();
+                },
+              ),
+            ],
+          ),
         ),
-      ),
-      const SizedBox(height: Space.sm),
-      PrimaryButton(
-        label: 'Review your electives',
-        tall: true,
-        onPressed: () async {
-          await openRoute(
-            context,
-            Routes.compulsoryReviews,
-            () => const CompulsoryPickPage(),
-          );
-          onBack();
-        },
-      ),
-    ],
-  );
+        if (counted.isNotEmpty) ...[
+          const SizedBox(height: Space.sm),
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 6),
+            child: Text(
+              'COUNTED SO FAR',
+              style: TypeScale.label.copyWith(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: p.textMuted,
+              ),
+            ),
+          ),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final (i, c) in counted.indexed) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      indent: 15,
+                      endIndent: 15,
+                      color: p.divider,
+                    ),
+                  Opacity(
+                    opacity: 0.5,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        spacing: 10,
+                        children: [
+                          const ReviewTick(on: true),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              spacing: 2,
+                              children: [
+                                Text(
+                                  c.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TypeScale.body.copyWith(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  _posted(c),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TypeScale.caption.copyWith(
+                                    fontSize: 10.5,
+                                    color: p.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: Space.xs),
+        const Note(
+          'Only electives count (HEL, DEL, OPEL). Compulsory courses and '
+          'imported historical reviews never do. Stars and Will I take it are '
+          'required; the written part is optional.',
+        ),
+      ],
+    );
+  }
+
+  String _posted(Course c) {
+    final at = reviewStore?.peekMine(c.id)?.createdAt ?? 0;
+    return [
+      c.id,
+      electiveCode(c.elective),
+      if (at > 0)
+        'posted ${shortDay(DateTime.fromMillisecondsSinceEpoch(at))}',
+    ].join(' · ');
+  }
 }
 
 /// The switch as the staff rows show it: on or off, who turned it on, when

@@ -115,7 +115,7 @@ void main() {
     await locked(t);
     await t.pumpWidget(app(const ReviewsHome()));
     await t.pump();
-    expect(find.text('Review your electives'), findsOneWidget);
+    expect(find.text('Review my electives'), findsOneWidget);
     expect(find.text('Course or professor'), findsNothing);
     expect(find.textContaining('Reviews are locked'), findsOneWidget);
     // No count anywhere on the banner.
@@ -128,7 +128,7 @@ void main() {
     await locked(t);
     await t.pumpWidget(app(const CourseReviewsPage(courseId: 'HSS F101')));
     await t.pump();
-    expect(find.text('Review your electives'), findsOneWidget);
+    expect(find.text('Review my electives'), findsOneWidget);
     expect(find.byTooltip('Course resources'), findsOneWidget);
     expect(find.text('Search reviews'), findsNothing);
     await settle(t);
@@ -156,8 +156,10 @@ void main() {
     );
     await t.pumpWidget(app(const CompulsoryPickPage()));
     await t.pumpAndSettle();
-    final post = find.widgetWithText(PrimaryButton, 'Post 2 reviews');
+    final post = find.widgetWithText(PrimaryButton, 'Review 2 selected');
     expect(t.widget<PrimaryButton>(post).onPressed, isNull);
+    await t.tap(find.text('Not listed? Search for an elective'));
+    await t.pump();
     await t.enterText(
       find.descendant(
         of: find.byType(SearchBox),
@@ -168,7 +170,7 @@ void main() {
     await t.pump();
     await t.tap(find.text('EEE F111 · Title EEE F111'));
     await t.pump();
-    expect(find.text('Post 3 reviews'), findsOneWidget);
+    expect(find.text('Review 3 selected'), findsOneWidget);
     await t.pumpWidget(const SizedBox());
     await settle(t);
   });
@@ -247,7 +249,7 @@ void main() {
     // Both electives share a semester, so both start ticked; no CDC.
     expect(find.text('HSS F101 · Title HSS F101'), findsOneWidget);
     expect(find.text('CS F211 · Title CS F211'), findsNothing);
-    expect(find.text('Post 2 reviews'), findsOneWidget);
+    expect(find.text('Review 2 selected'), findsOneWidget);
     for (final i in [0, 1]) {
       await t.tap(
         find
@@ -260,7 +262,7 @@ void main() {
       await t.tap(find.text('Yes').at(i));
     }
     await t.pump();
-    await t.tap(find.text('Post 2 reviews'));
+    await t.tap(find.text('Review 2 selected'));
     // Saves finish on real time (Hive deletes under the cache).
     for (
       var i = 0;
@@ -273,7 +275,7 @@ void main() {
       await t.pump();
     }
     expect(find.text('Reviews unlocked'), findsOneWidget);
-    await t.tap(find.text('Done'));
+    await t.tap(find.text('See course reviews'));
     await t.pumpAndSettle();
     expect(find.text('open'), findsOneWidget);
     final mine = await t.runAsync(
