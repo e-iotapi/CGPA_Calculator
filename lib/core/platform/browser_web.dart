@@ -64,12 +64,6 @@ Future<String?> pickTextFile(String accept) {
 
 void reloadPage() => web.window.location.reload();
 
-bool crossOriginIsolated() => web.window.crossOriginIsolated;
-
-void replacePage(String path) => web.window.location.replace(
-  Uri.parse(web.document.baseURI).resolve(path).toString(),
-);
-
 String userAgent() => web.window.navigator.userAgent;
 
 bool isStandalone() {
