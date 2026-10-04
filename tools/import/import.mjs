@@ -3,11 +3,14 @@
 //
 //   node tools/import/import.mjs reviews [--project p --key k] [--allow-prod] [--answers a.json] [--commit]
 //   node tools/import/import.mjs rebuild  --project p --key k  [--allow-prod] [--commit]
+//   node tools/import/import.mjs faculty  [--project p --key k] [--allow-prod] [--answers a.json] [--commit]
 //
 // Dry run by default: prints counts and what needs an answer, writes nothing, and never
 // prints review text. `reviews` reads tools/course_reviews_out/ (or --dir): reviews.json,
 // courses.json (handout links) and derived_ratings.json, then adds the new professors,
 // the reviews (Goa) and one "Handout" link per course; with --commit it then rebuilds.
+// `faculty` adds the campus website's faculty list (--dir faculty.json) as professors, ids
+// fac_<profile slug>; run it first, so the timetable and the reviews link to them.
 // `rebuild` alone recomputes every copy the app reads (counters, reviewIndex, review
 // copies, resource links, repIndex) from the source docs: the production backfill.
 //   --answers {"courses": {"HSF226": "HSS F226" | "skip"}, "professors": {"Name": "<id>" | "new"},
@@ -18,14 +21,14 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { apply, connect } from '../timetable/extract.mjs';
-import { catalogIndex, courseIdOf, planImport, planRebuild } from './plan.mjs';
+import { catalogIndex, courseIdOf, facultyIdOf, planFaculty, planImport, planRebuild } from './plan.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const json = (p) => JSON.parse(readFileSync(p, 'utf8'));
 
 export function parseArgs(argv) {
   const [cmd, ...rest] = argv;
-  if (!['reviews', 'rebuild'].includes(cmd)) throw new Error('Usage: import.mjs reviews|rebuild [--project p --key k] [--commit]');
+  if (!['reviews', 'rebuild', 'faculty'].includes(cmd)) throw new Error('Usage: import.mjs reviews|rebuild|faculty [--project p --key k] [--commit]');
   const out = { cmd, campus: 'goa', dir: path.join(root, 'tools', 'course_reviews_out') };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
@@ -121,6 +124,22 @@ async function main() {
     if (!args.commit) return log('\nDry run: nothing written. Add --commit to write.');
     await apply(fs, plan.batches, log);
     return log('\nRebuilt.');
+  }
+
+  if (args.cmd === 'faculty') {
+    const faculty = json(path.join(args.dir, 'faculty.json'));
+    let k = 0;
+    const live = db
+      ? await readLive(db, args.campus, faculty.map((f) => `professors/${facultyIdOf(f.url)}`))
+      : { profs: [], existing: new Set(), newId: (x) => `new-${x}-${++k}` };
+    const plan = planFaculty({ faculty, live, answers: args.answers ? json(args.answers).faculty : {}, newId: live.newId, campus: args.campus });
+    log(db ? `compared with ${args.project}` : 'compared with nothing (give --project for an exact diff)');
+    log(`professors to add: ${plan.created.length}; already there: ${plan.linked.length}; not Goa: ${plan.skipped.length}`);
+    log(`close to an existing professor, need your answer (in --answers faculty): ${plan.unsure.length}`);
+    for (const u of plan.unsure) log(`  ${u.name} ~ ${u.candidates.join(' / ')}`);
+    if (!args.commit) return log('\nDry run: nothing written. Add --commit to write.');
+    await apply(fs, plan.batches, log);
+    return log('\nDone.');
   }
 
   const rows = json(path.join(args.dir, 'reviews.json'));

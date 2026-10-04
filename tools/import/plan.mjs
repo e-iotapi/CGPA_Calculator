@@ -3,7 +3,7 @@
 // timetable tool's shape ({path, set | merge}, values may be {$ts: 1} or {$inc: n}).
 import { createHash } from 'node:crypto';
 
-import { buildBatches, CAMPUSES, deptOf, normName, resolveProfessors } from '../timetable/plan.mjs';
+import { buildBatches, CAMPUSES, deptOf, likelySame, nameTokens, normName, resolveProfessors } from '../timetable/plan.mjs';
 
 export const ACTOR = { email: 'import-script@pointer.local', name: 'Pointer' };
 const MAX_WRITES = 450; // a Firestore batch holds 500
@@ -259,6 +259,78 @@ export function planImport({ rows, ratings, courses, idx, live, answers = {}, ca
     classCourses: baseOps.length,
     batches: [...profBatches, ...pack('reviews', reviewOps), ...pack('class averages', baseOps), ...pack('handouts', handoutOps)],
   };
+}
+
+// ---- faculty ---------------------------------------------------------------------
+
+// The campus website's departments as the app's; HSS and General Sciences are GEN.
+const FACULTY_DEPTS = {
+  'Electrical & Electronics Engineering': 'ELEC', 'Computer Science & Information Systems': 'CS', 'Computer Science': 'CS',
+  'Mechanical Engineering': 'ME', 'Chemical Engineering': 'CHE', Mathematics: 'MATH', 'Biological Sciences': 'BIO',
+  Physics: 'PHY', Chemistry: 'CHEM', 'Economics & Finance': 'ECON',
+};
+export const facultyDept = (d) => FACULTY_DEPTS[str(d)] ?? 'GEN';
+
+/** "Dr. Mainak Banerjee, PhD, FRSC" -> "Mainak Banerjee": the website's titles off. */
+export const cleanFacultyName = (n) => str(n).replace(/^(?:(?:dr|prof|professor)\.?\s+)+/i, '')
+  .replace(/(?:,\s*(?:ph\.?\s*d\.?|frsc|fna|fnasc|fasc))+\s*$/i, '').replace(/\s+/g, ' ').trim();
+
+/** "https://…/goa/a-baskar" -> "fac_a-baskar": the same person gets the same id on every run. */
+export const facultyIdOf = (url) => `fac_${str(url).replace(/\/+$/, '').split('/').pop().toLowerCase().replace(/[^a-z0-9-]/g, '')}`;
+
+/**
+ * The campus faculty list as professors: one doc each, id from the profile address. A
+ * faculty member whose name a live professor already has (or an alias of) is that
+ * professor: nothing written. A close but not exact name is listed, not created, until
+ * answers ({"Faculty Name": "<professor id>" | "new"}) settles it.
+ */
+export function planFaculty({ faculty, live, answers = {}, campus = 'goa', newId }) {
+  const liveProfs = live.profs.filter((p) => !p.mergedInto);
+  const byName = new Map();
+  for (const p of liveProfs) for (const n of [p.name, ...(p.aliases ?? [])]) if (!byName.has(normName(n))) byName.set(normName(n), p.id);
+  const ops = [];
+  const out = { created: [], linked: [], unsure: [], skipped: [] };
+  const depts = new Set();
+  for (const raw of faculty) {
+    const f = { ...raw, name: cleanFacultyName(raw.name) };
+    if (!/goa/i.test(f.campus)) { out.skipped.push(f.name); continue; }
+    const id = facultyIdOf(f.url);
+    const a = answers[f.name];
+    const same = byName.get(normName(f.name)) ?? (a && a !== 'new' ? a : null);
+    if (same || live.existing.has(`professors/${id}`)) { out.linked.push({ name: f.name, id: same ?? id }); continue; }
+    const near = liveProfs.filter((p) => !p.removed && [p.name, ...(p.aliases ?? [])].some((n) => likelySame(f.name, n)));
+    if (near.length && a !== 'new') { out.unsure.push({ name: f.name, candidates: near.map((p) => `${p.name} (${p.id})`) }); continue; }
+    const department = facultyDept(f.department);
+    const auditId = newId('audit');
+    ops.push(
+      {
+        path: `professors/${id}`,
+        set: {
+          name: f.name, campus, department, aliases: [], nameTokens: [...nameTokens(f.name)], mergedIds: [], active: true,
+          designation: str(f.designation), profile: str(f.url), src: 'faculty', updatedBy: ACTOR, updatedAt: { $ts: 1 }, auditId,
+        },
+      },
+      auditOp(auditId, `Added professor ${f.name} to ${department}`, `professors/${id}`, campus, { name: f.name, department, src: 'faculty' }),
+    );
+    depts.add(department);
+    out.created.push({ name: f.name, id, department });
+  }
+  const heads = { path: `heads/${campus}`, merge: { v: Object.fromEntries([...depts].map((d) => [`professors/${d}`, { $inc: 1 }])) } };
+  // At most 4 markers per batch, as the app writes them; a department's docs stay in one batch.
+  const byDept = new Map();
+  for (let i = 0; i < ops.length; i += 2) {
+    const d = ops[i].set.department;
+    (byDept.get(d) ?? byDept.set(d, []).get(d)).push(ops[i], ops[i + 1]);
+  }
+  const batches = [];
+  let cur = null;
+  for (const [d, list] of byDept) {
+    if (!cur || cur.depts.length >= 4 || cur.ops.length + list.length > MAX_WRITES - 1) batches.push(cur = { label: 'faculty', ops: [], depts: [] });
+    cur.ops.push(...list);
+    cur.depts.push(d);
+  }
+  for (const b of batches) b.ops.push({ ...heads, merge: { v: Object.fromEntries(b.depts.map((d) => [`professors/${d}`, { $inc: 1 }])) } });
+  return { ...out, batches: batches.map(({ label, ops: o }) => ({ label, ops: o })) };
 }
 
 // ---- the rebuild ---------------------------------------------------------------

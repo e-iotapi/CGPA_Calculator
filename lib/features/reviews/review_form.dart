@@ -67,8 +67,23 @@ Future<ReviewProfs> reviewProfessors(
   for (final id in offered) {
     if (await store.get(id) case final p?) named[id] = p;
   }
+  // Whoever has reviews on the course, from any department: a CS course
+  // can be taught from Economics (owner, 2026-10-05).
+  final reviewed = <String>[];
+  try {
+    for (final id
+        in (await reviewStore?.byProfessor(courseId, campus))?.keys ??
+            const <String>[]) {
+      if (await store.get(id) case final p? when !named.containsKey(p.id)) {
+        named[p.id] = p;
+        reviewed.add(p.id);
+      }
+    }
+  } catch (_) {
+    // No counters read: the offering and the department alone.
+  }
   final r = _ordered(
-    offered,
+    [...offered, ...reviewed],
     await store.department(campus, deptOf(courseId)),
     named,
   );
@@ -91,7 +106,16 @@ ReviewProfs? peekReviewProfessors(String courseId, String campus, String term) {
     }
     named[id] = p;
   }
-  final r = _ordered(offered, dept, named);
+  final reviewed = <String>[];
+  for (final id
+      in reviewStore?.peekByProfessor(courseId, campus)?.keys ??
+          const <String>[]) {
+    if (store.peekResolved(id) case final p? when !named.containsKey(p.id)) {
+      named[p.id] = p;
+      reviewed.add(p.id);
+    }
+  }
+  final r = _ordered([...offered, ...reviewed], dept, named);
   return (list: r.list, taught: offered.isEmpty ? null : r.taught);
 }
 
@@ -140,6 +164,9 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
 
   bool get _marksBad => _marks.text.trim().isNotEmpty && _marksValue == null;
   String? _professorId;
+
+  /// Professors picked from the campus search, beyond the listed ones.
+  final _found = <String, Professor>{};
   bool _busy = false;
 
   @override
@@ -250,7 +277,8 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
           );
         }
         final prof =
-            t.profs.list.where((x) => x.id == _professorId).firstOrNull;
+            t.profs.list.where((x) => x.id == _professorId).firstOrNull ??
+            _found[_professorId];
         final label = TypeScale.label.copyWith(color: p.textMuted);
         final e = widget.existing;
         return PageFrame(
@@ -305,6 +333,19 @@ class _ReviewFormPageState extends State<ReviewFormPage> {
                             (null, 'Not sure who taught it'),
                             for (final x in t.profs.list) (x.id, x.name),
                           ],
+                          // Anyone on the campus: some courses (an SOP, a
+                          // project) are taught by whoever the student picks.
+                          more: (q) async {
+                            final campus = myCampus;
+                            if (campus == null) return const [];
+                            final found = await ProfessorStore(
+                              roleStore!.db,
+                            ).search(campus, q);
+                            for (final x in found) {
+                              _found[x.id] = x;
+                            }
+                            return [for (final x in found) (x.id, x.name)];
+                          },
                         );
                         if (v != null) setState(() => _professorId = v.value);
                       },

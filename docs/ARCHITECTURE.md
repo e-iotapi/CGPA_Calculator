@@ -286,6 +286,13 @@ run by default) recomputes all four, and every review counter, from the
 source docs, then moves the heads markers. It is the backfill for a project
 whose summaries predate the app (production) or have drifted.
 
+**Faculty** (`import.mjs faculty`, owner-run, before the timetable and the
+reviews): the campus website's faculty list, one professor each under their
+own department (`fac_<profile slug>`), so a course from one department can
+name a professor from another. The review form offers this term's timetable
+professors, then anyone already reviewed on the course, then the course's
+department, and its search finds anyone on the campus.
+
 **Imported reviews** (`import.mjs reviews`, owner-run once) come from the old
 review site: Goa, ids `imp_<hash>`, the reviewer's own grade, stars and
 recommend derived from their text, professors matched to the timetable's
