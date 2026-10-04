@@ -203,7 +203,7 @@ void main() {
           theme: AppPalette.light.materialTheme,
           home: CalendarPage(
             today: _now,
-            timetables: FakeTimetableStore(fakeTimetable()),
+            timetables: FakeTimetableStore(fakeTimetable(midsemWeek: true)),
             campus: 'goa',
             calendar: cal,
           ),

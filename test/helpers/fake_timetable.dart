@@ -45,7 +45,7 @@ class FakeTimetableStore implements TimetableStore {
 }
 
 /// Two courses, one holiday, one deadline, a term span (Aug 3 to Nov 28).
-Timetable fakeTimetable() => Timetable.fromJson({
+Timetable fakeTimetable({bool midsemWeek = false}) => Timetable.fromJson({
   'v': 1,
   'campus': 'goa',
   'sem': '2026-1',
@@ -61,7 +61,8 @@ Timetable fakeTimetable() => Timetable.fromJson({
     {'from': '2026-08-03', 'title': 'Instruction begins', 'kind': 'term'},
     {'from': '2026-09-22', 'title': 'Fees due', 'kind': 'deadline'},
     {'from': '2026-09-24', 'title': 'Founders day', 'kind': 'holiday'},
-    {'from': '2026-10-12', 'to': '2026-10-17', 'title': 'Midsem exams', 'kind': 'exam'},
+    if (midsemWeek)
+      {'from': '2026-10-12', 'to': '2026-10-17', 'title': 'Midsem exams', 'kind': 'exam'},
     {'from': '2026-11-28', 'title': 'Last day of classes', 'kind': 'term'},
   ],
   'courses': {

@@ -296,16 +296,16 @@ class _WeekViewState extends State<WeekView> {
       );
       return Padding(
         padding: const EdgeInsets.only(bottom: 1),
-        // Seven columns at 320 are ~38 wide: the code shrinks, never "CS F2…".
+        // Seven columns are 38-51 wide: code, room and time shrink, never "CS F2…".
         child: fit ? FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: text) : text,
       );
     }
 
     final lines = <(Widget, double)>[
-      (line(o.courseId.isEmpty ? o.title : o.courseId, 8.5, FontWeight.w800, p.text, fit: narrow), 11.2),
+      (line(o.courseId.isEmpty ? o.title : o.courseId, 8.5, FontWeight.w800, p.text, fit: true), 11.2),
       if (o.courseId.isNotEmpty) (line(o.title, 7, FontWeight.w600, p.textMuted), 9.4),
-      if (o.room != null && o.room!.isNotEmpty) (line(o.room!, 7, FontWeight.w700, p.text), 9.4),
-      (line('${_hm(o.start)}–${_hm(o.end)}', 7, FontWeight.w600, p.textMuted), 9.4),
+      if (o.room != null && o.room!.isNotEmpty) (line(o.room!, 7, FontWeight.w700, p.text, fit: true), 9.4),
+      (line('${_hm(o.start)}–${_hm(o.end)}', 7, FontWeight.w600, p.textMuted, fit: true), 9.4),
       if (o.edited)
         (
           Align(
