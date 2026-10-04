@@ -13,6 +13,7 @@ class CalendarEntry {
     required this.courseId,
     required this.weight,
     required this.graded,
+    this.time,
   });
 
   final DateTime date;
@@ -22,6 +23,9 @@ class CalendarEntry {
   final String courseId;
   final double weight;
   final bool graded;
+
+  /// A published exam's start ("9:30 AM"); Marks parts have none.
+  final String? time;
 }
 
 DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -39,6 +43,32 @@ List<CalendarEntry> calendarEntries(Iterable<Evaluative> evals) => [
           graded: p.marks != null,
         ),
 ]..sort((a, b) => a.date.compareTo(b.date));
+
+/// Every dated eval the Month lists: the published midsem and compre of each
+/// course the student has on the calendar (as the Week shows them), and the
+/// dated parts of Marks, a part dropped where its course's exam already is.
+List<CalendarEntry> evalEntries(Timetable? t, CalendarState s, List<CalendarEntry> marks) {
+  final exams = <CalendarEntry>[
+    if (t != null && (s.sem.isEmpty || s.sem == t.sem))
+      for (final id in s.picks.keys)
+        if (t.courses[id] case final c? when !s.examsOff.contains(id))
+          for (final (x, name) in [(c.mid, 'Midsem'), (c.compre, 'Compre')])
+            if (x != null)
+              CalendarEntry(
+                date: DateTime.parse(x.d),
+                label: name,
+                courseId: id,
+                weight: 0,
+                graded: false,
+                time: clock(x.s),
+              ),
+  ];
+  return [
+    ...exams,
+    for (final e in marks)
+      if (!exams.any((x) => x.courseId == e.courseId && x.date == e.date)) e,
+  ]..sort((a, b) => a.date.compareTo(b.date));
+}
 
 /// Entries on or after [today], soonest first.
 List<CalendarEntry> upcoming(List<CalendarEntry> all, DateTime today) =>

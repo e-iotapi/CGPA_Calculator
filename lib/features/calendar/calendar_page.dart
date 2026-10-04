@@ -32,6 +32,7 @@ import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/offline_strip.dart';
 import 'package:cgpa_calculator/shared/widgets/outlined_pill.dart';
+import 'package:cgpa_calculator/shared/widgets/segmented.dart';
 import 'package:cgpa_calculator/sync.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
@@ -52,6 +53,9 @@ const _months = [
 ];
 
 enum _View { month, week, day }
+
+/// What Month lists: everything, campus dates only, or evals only.
+enum _Show { all, events, evals }
 
 /// Month, Week and Day over the published timetable, the student's own
 /// changes and every dated part entered in Marks.
@@ -87,6 +91,10 @@ class _CalendarPageState extends State<CalendarPage> {
   DateTime? _selected;
 
   _View _view = _View.month;
+  _Show _show = _Show.all;
+
+  /// Campus rows tapped open to their whole title.
+  final _open = <String>{};
 
   /// The date Week and Day show (a Week shows the one that holds it).
   late String _focus = dayStr(_today);
@@ -171,20 +179,31 @@ class _CalendarPageState extends State<CalendarPage> {
     final p = AppPalette.of(context);
     final all = calendarEntries(allEvaluatives());
     final titles = <String, Course>{for (final c in allCourses()) c.id: c};
+    final evals =
+        _show == _Show.events ? <CalendarEntry>[] : evalEntries(_tt, _state, all);
+    final events =
+        _show == _Show.evals ? const <AcademicEvent>[] : _tt?.events ?? const <AcademicEvent>[];
     final shown =
         _selected == null
-            ? upcoming(all, _today)
-            : all.where((e) => e.date == _selected).toList();
+            ? upcoming(evals, _today)
+            : evals.where((e) => e.date == _selected).toList();
     // Campus dates (the timetable's academic calendar) in the same list.
     final today = dayStr(_today);
     final sel = _selected == null ? null : dayStr(_selected!);
     final campusDays = [
-      for (final ev in _tt?.events ?? const <AcademicEvent>[])
+      for (final ev in events)
         if (sel == null
             ? ev.last.compareTo(today) >= 0
             : ev.from.compareTo(sel) <= 0 && ev.last.compareTo(sel) >= 0)
           ev,
     ];
+    // The grid's dots: each day an eval or a campus date covers.
+    final dotted = {
+      for (final e in evals) e.date,
+      for (final ev in events)
+        for (var d = ev.from; d.compareTo(ev.last) <= 0; d = addDays(d, 1))
+          DateTime.parse(d),
+    };
     final rows = <(String, int, Widget)>[
       for (final (i, e) in shown.indexed)
         (dayStr(e.date), i, _entry(p, e, titles[e.courseId], first: i == 0)),
@@ -240,7 +259,16 @@ class _CalendarPageState extends State<CalendarPage> {
                             children: [
                               ...top,
                               const SizedBox(height: 13),
-                              _grid(p, all),
+                              SegmentedPair<_Show>(
+                                a: (_Show.all, 'All'),
+                                b: (_Show.events, 'Events'),
+                                c: (_Show.evals, 'Evals'),
+                                value: _show,
+                                height: 36,
+                                onChanged: (v) => setState(() => _show = v),
+                              ),
+                              const SizedBox(height: 13),
+                              _grid(p, dotted, upcoming(evals, _today).firstOrNull?.date),
                               const SizedBox(height: 13),
                               Row(
                                 children: [
@@ -281,7 +309,9 @@ class _CalendarPageState extends State<CalendarPage> {
                               const SizedBox(height: Space.sm),
                               if (rows.isEmpty)
                                 Text(
-                                  'Dates you add to parts in Marks show up here.',
+                                  _show == _Show.events
+                                      ? 'No campus dates here.'
+                                      : 'Dates you add to parts in Marks show up here.',
                                   style: TypeScale.body.copyWith(
                                     fontWeight: FontWeight.w500,
                                     color: p.textMuted,
@@ -558,7 +588,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 for (final i in items) ...[
                   CardRow(
                     title: i.label,
-                    titleLines: 2,
+                    titleLines: 4,
                     subtitle: switch (i.kind) {
                       'holiday' => 'Holiday',
                       'eval' => 'Added by you',
@@ -801,13 +831,12 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  Widget _grid(AppPalette p, List<CalendarEntry> all) {
-    final dated = {for (final e in all) e.date};
+  /// [dated]: the days that get a dot; [next]: the soonest eval, ringed.
+  Widget _grid(AppPalette p, Set<DateTime> dated, DateTime? next) {
     final first = _month;
     final days = DateTime(first.year, first.month + 1, 0).day;
     final lead = first.weekday - 1; // Monday first
     final today = DateTime(_today.year, _today.month, _today.day);
-    final next = upcoming(all, _today).firstOrNull?.date;
     final label = TypeScale.label.copyWith(fontSize: 9.5, color: p.textMuted);
 
     Widget cell(int day) {
@@ -922,7 +951,10 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget _campusRow(AppPalette p, AcademicEvent ev) {
     final d = DateTime.parse(ev.from);
     final campus = _campus ?? '';
+    final key = '${ev.from}|${ev.title}';
+    final open = _open.contains(key);
     return AppCard(
+      onTap: () => setState(() => open ? _open.remove(key) : _open.add(key)),
       radius: 20,
       padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
       child: Row(
@@ -961,8 +993,8 @@ class _CalendarPageState extends State<CalendarPage> {
               children: [
                 Text(
                   ev.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: open ? null : 1,
+                  overflow: open ? null : TextOverflow.ellipsis,
                   style: TypeScale.body.copyWith(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
@@ -1099,7 +1131,7 @@ class _CalendarPageState extends State<CalendarPage> {
             )
           else
             Text(
-              '${marks2(e.weight)}%',
+              e.time ?? '${marks2(e.weight)}%',
               style: TypeScale.caption.copyWith(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
