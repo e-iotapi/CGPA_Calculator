@@ -174,6 +174,29 @@ class _CalendarPageState extends State<CalendarPage> {
         _selected == null
             ? upcoming(all, _today)
             : all.where((e) => e.date == _selected).toList();
+    // Campus dates (the timetable's academic calendar) in the same list.
+    final today = dayStr(_today);
+    final sel = _selected == null ? null : dayStr(_selected!);
+    final campusDays = [
+      for (final ev in _tt?.events ?? const <AcademicEvent>[])
+        if (sel == null
+            ? ev.last.compareTo(today) >= 0
+            : ev.from.compareTo(sel) <= 0 && ev.last.compareTo(sel) >= 0)
+          ev,
+    ];
+    final rows = <(String, int, Widget)>[
+      for (final (i, e) in shown.indexed)
+        (dayStr(e.date), i, _entry(p, e, titles[e.courseId], first: i == 0)),
+      for (final (i, ev) in campusDays.indexed)
+        (
+          sel ?? (ev.from.compareTo(today) < 0 ? today : ev.from),
+          i - 100000,
+          _campusRow(p, ev),
+        ),
+    ]..sort((a, b) {
+      final d = a.$1.compareTo(b.$1);
+      return d != 0 ? d : a.$2.compareTo(b.$2);
+    });
 
     final top = <Widget>[
       _header(p),
@@ -245,7 +268,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                     )
                                   else
                                     Text(
-                                      '${shown.length} remaining',
+                                      '${rows.length} remaining',
                                       style: TypeScale.caption.copyWith(
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
@@ -255,7 +278,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                 ],
                               ),
                               const SizedBox(height: Space.sm),
-                              if (all.isEmpty)
+                              if (rows.isEmpty)
                                 Text(
                                   'Dates you add to parts in Marks show up here.',
                                   style: TypeScale.body.copyWith(
@@ -263,8 +286,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                     color: p.textMuted,
                                   ),
                                 ),
-                              for (final (i, e) in shown.indexed) ...[
-                                _entry(p, e, titles[e.courseId], first: i == 0),
+                              for (final r in rows) ...[
+                                r.$3,
                                 const SizedBox(height: Space.sm),
                               ],
                             ],
@@ -815,6 +838,96 @@ class _CalendarPageState extends State<CalendarPage> {
                   ),
               ],
             ),
+        ],
+      ),
+    );
+  }
+
+  /// Board FlS_Calendar: an academic-calendar date in Next up.
+  Widget _campusRow(AppPalette p, AcademicEvent ev) {
+    final d = DateTime.parse(ev.from);
+    final campus = _campus ?? '';
+    return AppCard(
+      radius: 20,
+      padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 34,
+            child: Column(
+              children: [
+                Text(
+                  '${d.day}',
+                  style: TypeScale.section.copyWith(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: p.text,
+                  ),
+                ),
+                Text(
+                  _months[d.month - 1].substring(0, 3).toUpperCase(),
+                  style: TypeScale.label.copyWith(
+                    fontSize: 8,
+                    color: p.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            color: p.divider,
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ev.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.body.copyWith(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: p.text,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Academic calendar'
+                  '${campus.isEmpty ? '' : ' · ${campus[0].toUpperCase()}${campus.substring(1)}'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: p.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Space.sm),
+          Container(
+            height: 22,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: p.chipFill,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Text(
+              'CAMPUS',
+              style: TypeScale.label.copyWith(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: p.textMuted,
+              ),
+            ),
+          ),
         ],
       ),
     );
