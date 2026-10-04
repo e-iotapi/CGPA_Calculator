@@ -1,0 +1,11 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Back\" 42x42",
+  "tap: \"Dubai\" 67x36",
+  "tap: \"Goa\" 67x36",
+  "tap: \"Hyd\" 67x36",
+  "tap: \"Pilani\" 67x36",
+  "truncated: \"OPEN AS · COURSE MANAGER\""
+ ]
+}

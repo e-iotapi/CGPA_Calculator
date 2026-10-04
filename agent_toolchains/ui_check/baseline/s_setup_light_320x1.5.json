@@ -1,0 +1,9 @@
+{
+ "errors": [],
+ "issues": [
+  "dead: button \"2+2, not available yet\" has no tap action",
+  "dead: button \"YOUR PROGRAMME: Choose a programme\" has no tap action",
+  "tap: \"Dual degree\" 155x38",
+  "tap: \"Single degree\" 175x38"
+ ]
+}

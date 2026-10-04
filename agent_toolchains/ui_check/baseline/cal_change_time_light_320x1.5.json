@@ -1,0 +1,24 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"1 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"1 PM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"10 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"11 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"12 PM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"2 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"3 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"4 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"5 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"6 AM\" 3.78:1, needs 4.5 (12.8 px)",
+  "contrast: \"7 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"8 AM\" 3.78:1, needs 4.5 (12.8 px)",
+  "contrast: \"9 AM\" 3.48:1, needs 4.5 (12.8 px)",
+  "contrast: \"Week\" 1.00:1, needs 3.0 (18.8 px)",
+  "dead: button \"Close\" has no tap action",
+  "tap: \"\" 250x24",
+  "truncated: \"AAA F111\"",
+  "truncated: \"Founders day · Thu 24 Sep\"",
+  "truncated: \"Intro Widgets\""
+ ]
+}

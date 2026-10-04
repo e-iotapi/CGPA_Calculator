@@ -1,0 +1,19 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Grade A-\\nA−\" 60x35",
+  "tap: \"Grade A\\nA\" 60x35",
+  "tap: \"Grade B-\\nB−\" 60x35",
+  "tap: \"Grade B\\nB\" 60x35",
+  "tap: \"Grade C-\\nC−\" 60x35",
+  "tap: \"Grade C\\nC\" 60x35",
+  "tap: \"Grade D\\nD\" 60x35",
+  "tap: \"Grade E\\nE\" 60x35",
+  "tap: \"Grade GD\\nGD\" 60x33",
+  "tap: \"Grade NC\\nNC\" 60x33",
+  "tap: \"Grade Not yet\\nNot yet\" 126x33",
+  "tap: \"Grade Ongoing\\nOngoing\" 126x33",
+  "tap: \"Grade RC\\nRC\" 60x33",
+  "tap: \"Grade W\\nW\" 60x33"
+ ]
+}

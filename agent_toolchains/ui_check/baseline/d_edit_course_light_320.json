@@ -1,0 +1,13 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Grade A−\\nA−\" 43x31",
+  "tap: \"Grade B\\nB\" 43x31",
+  "tap: \"Grade B−\\nB−\" 43x31",
+  "tap: \"Grade C\\nC\" 43x31",
+  "tap: \"Grade E\\nE\" 43x31",
+  "tap: \"Grade NC\\nNC\" 43x31",
+  "tap: \"Grade RC\\nRC\" 43x31",
+  "tap: \"Grade W\\nW\" 43x31"
+ ]
+}

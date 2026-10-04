@@ -1,0 +1,12 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"13\" 1.00:1, needs 3.0 (17.0 px)",
+  "contrast: \"23\" 3.92:1, needs 4.5 (12.5 px)",
+  "contrast: \"Compre\" 1.00:1, needs 4.5 (13.0 px)",
+  "contrast: \"DEC\" 1.72:1, needs 4.5 (9.0 px)",
+  "contrast: \"Month\" 3.92:1, needs 4.5 (12.5 px)",
+  "contrast: \"Operating Systems · CS F372\" 1.72:1, needs 4.5 (10.5 px)",
+  "tap: \"Search by code or name\" 298x24"
+ ]
+}

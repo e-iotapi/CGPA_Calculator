@@ -1,0 +1,10 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"EEE F211\" 1.47:1, needs 3.0 (15.0 px)",
+  "tap: \"All 3\" 91x36",
+  "tap: \"Back\" 42x42",
+  "tap: \"Hidden 1\" 91x36",
+  "tap: \"Reported 1\" 91x36"
+ ]
+}

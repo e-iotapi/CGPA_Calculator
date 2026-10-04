@@ -1,0 +1,19 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"ADMIN\" 1.47:1, needs 3.0 (15.0 px)",
+  "tap: \"All\" 42x36",
+  "tap: \"Back\" 42x42",
+  "tap: \"Dubai\" 42x36",
+  "tap: \"Expiring\" 42x36",
+  "tap: \"Goa\" 42x36",
+  "tap: \"Hyd\" 42x36",
+  "tap: \"Pilani\" 42x36",
+  "truncated: \"Appointed by Owner One · until 12 Jan 20…\"",
+  "truncated: \"Appointed by Owner One · until 8 Oct 202…\"",
+  "truncated: \"Rohan Deshpande\"",
+  "truncated: \"f20200011@hyderabad\"",
+  "truncated: \"f20220003@goa\"",
+  "truncated: \"f20230802@goa\""
+ ]
+}

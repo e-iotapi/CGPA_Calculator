@@ -1,0 +1,10 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"This semester\" 1.04:1, needs 3.0 (18.8 px)",
+  "tap: \"Back\" 42x42",
+  "truncated: \"BITS F112 · Technical Report Writing\"",
+  "truncated: \"CS F342 · Computer Architecture\"",
+  "truncated: \"CS F372 · Operating Systems\""
+ ]
+}

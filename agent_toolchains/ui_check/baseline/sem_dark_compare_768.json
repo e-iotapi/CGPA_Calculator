@@ -1,0 +1,12 @@
+{
+ "errors": [],
+ "issues": [
+  "dead: button \"Actual\" has no tap action",
+  "dead: button \"Compare\" has no tap action",
+  "dead: button \"Expected\" has no tap action",
+  "dead: button \"More\" has no tap action",
+  "dead: button \"Offshoot\" has no tap action",
+  "dead: button \"Scroll semesters left\" has no tap action",
+  "dead: button \"Scroll semesters right\" has no tap action"
+ ]
+}

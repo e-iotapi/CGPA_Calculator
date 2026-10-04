@@ -1,0 +1,14 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Back\" 42x42",
+  "truncated: \"chalkdust\"",
+  "truncated: \"ece_sage\"",
+  "truncated: \"merry_mole\"",
+  "truncated: \"nightowl\"",
+  "truncated: \"quietfalcon42 (you)\"",
+  "truncated: \"ramesh_menon\"",
+  "word-break: \"th\" split across lines in \"6th\"",
+  "word-break: \"th\" split across lines in \"7th\""
+ ]
+}

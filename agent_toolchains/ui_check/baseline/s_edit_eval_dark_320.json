@@ -1,0 +1,15 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"\" 160x36",
+  "tap: \"\" 169x40",
+  "tap: \"\" 36x36",
+  "tap: \"\" 46x36",
+  "tap: \"\" 60x36",
+  "tap: \"All 3\" 57x38",
+  "tap: \"Best 1 of 3\" 96x38",
+  "tap: \"Best 2 of 3\" 99x38",
+  "tap: \"Close\" 42x42",
+  "tap: \"Part 1 date\" 52x36"
+ ]
+}

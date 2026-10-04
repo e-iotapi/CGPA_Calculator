@@ -1,0 +1,10 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Appoint as CR\" 130x36",
+  "tap: \"Back\" 42x42",
+  "tap: \"Dismiss\" 83x36",
+  "tap: \"Maintainers\" 174x34",
+  "tap: \"Volunteers · 2\" 174x34"
+ ]
+}

@@ -1,0 +1,12 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"You are 40.50 behind · 23 against 63.50\" 3.32:1, needs 4.5 (11.5 px)",
+  "contrast: \"each part has a %\" 1.98:1, needs 4.5 (9.5 px)",
+  "tap: \"100\" 51x38",
+  "tap: \"200\" 53x38",
+  "tap: \"300\" 53x38",
+  "tap: \"Close\" 42x42",
+  "tap: \"Custom\" 80x38"
+ ]
+}

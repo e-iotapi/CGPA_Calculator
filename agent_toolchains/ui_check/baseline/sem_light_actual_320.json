@@ -1,0 +1,20 @@
+{
+ "errors": [],
+ "issues": [
+  "dead: button \"Actual\" has no tap action",
+  "dead: button \"Compare\" has no tap action",
+  "dead: button \"Expected\" has no tap action",
+  "dead: button \"Export gradesheet\" has no tap action",
+  "dead: button \"More\" has no tap action",
+  "dead: button \"Offshoot\" has no tap action",
+  "dead: button \"Scroll semesters left\" has no tap action",
+  "dead: button \"Scroll semesters right\" has no tap action",
+  "tap: \"Add\" 75x34",
+  "tap: \"Calendar\" 40x40",
+  "tap: \"Credits ↑\" 106x34",
+  "tap: \"Settings\" 40x40",
+  "tap: \"Stats\" 40x40",
+  "tap: \"Switch to dark mode\" 40x40",
+  "truncated: \"Principles of Programming Languages\""
+ ]
+}
