@@ -1,0 +1,52 @@
+name: deploy-staging-wasm
+# A WebAssembly build (dart2wasm + skwasm) of staging on a 7-day preview
+# channel, to compare iPhone scrolling and tab switches with the JS build
+# (TM-14). Browsers without WasmGC get the JS build from the same deploy.
+# Never replaces https://pointer-staging.web.app.
+# Trigger: git push -f origin pointer-dev:staging-wasm
+on:
+  push:
+    branches: [staging-wasm]
+
+concurrency:
+  group: deploy-staging-wasm
+  cancel-in-progress: true
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.5
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Credentials and tools
+        env:
+          SA: ${{ secrets.STAGING_DEPLOY_SA }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/staging-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/staging-sa.json" >> "$GITHUB_ENV"
+          npm i -g firebase-tools@15 --no-fund --no-audit
+          flutter pub get
+      - name: WebAssembly build
+        env:
+          STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+        run: |
+          flutter build web --release --wasm \
+            --dart-define=POINTER_ENV=staging \
+            --dart-define=POINTER_TEST_PASSWORD="$STAGING_PASSWORD" \
+            --build-number="$(date +%s)"
+          sed -i 's#"/calculator/"#"/"#g' build/web/manifest.json
+      - name: Deploy to the "wasm" preview channel
+        run: |
+          firebase hosting:channel:deploy wasm --only staging --project staging \
+            --expires 7d --non-interactive | tee "$RUNNER_TEMP/deploy.txt"
+          echo "### WebAssembly build: $(grep -o 'https://[^ ]*web.app' "$RUNNER_TEMP/deploy.txt" | head -1)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/staging-sa.json"

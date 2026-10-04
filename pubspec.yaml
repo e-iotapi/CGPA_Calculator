@@ -1,0 +1,58 @@
+name: cgpa_calculator
+description: "Pointer — the CGPA calculator for BITS Pilani, Goa and Hyderabad."
+publish_to: 'none'
+version: 2.3.1+131
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  hive_ce: ^2.20.1
+  hive_ce_flutter: ^2.4.0
+  firebase_core: ^4.15.0
+  firebase_auth: ^6.7.0
+  cloud_firestore: ^6.10.0
+  web: ^1.1.1
+  go_router: ^18.0.2
+  crypto: ^3.0.7
+  flutter_web_plugins:
+    sdk: flutter
+  cupertino_icons: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # Regenerate lib/course.g.dart after changing the Course model.
+  hive_ce_generator: ^1.11.3
+  build_runner: ^2.16.1
+  flutter_lints: ^6.0.0
+  fake_cloud_firestore: ^4.3.0
+  fake_async: ^1.3.3
+
+flutter:
+  uses-material-design: true
+  assets:
+    # The fallback catalogue (tools/export_catalog.dart, ARCHITECTURE.md §3).
+    - assets/catalog.json
+  fonts:
+    # The engine fetches Roboto from fonts.gstatic.com unless a family by that
+    # name is bundled, and waits for it before main(); the app sets Montserrat
+    # everywhere, so the default family is Montserrat too, at no extra bytes.
+    - family: Roboto
+      fonts:
+        - asset: fonts/Montserrat-Regular.ttf
+    # Full weight range (TypeScale.family). Licence: fonts/OFL.txt
+    - family: MontserratFull
+      fonts:
+        - asset: fonts/Montserrat-Regular.ttf
+          weight: 400
+        - asset: fonts/Montserrat-Medium.ttf
+          weight: 500
+        - asset: fonts/Montserrat-SemiBold.ttf
+          weight: 600
+        - asset: fonts/Montserrat-Bold.ttf
+          weight: 700
+        - asset: fonts/Montserrat-ExtraBold.ttf
+          weight: 800

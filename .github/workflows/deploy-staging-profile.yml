@@ -1,0 +1,53 @@
+name: deploy-staging-profile
+# A release build with source maps, so Chrome's Performance panel shows Dart
+# function names (a --profile build hangs in firebase_auth_web's auth-state
+# stream before the first frame), deployed to a 7-day preview channel of the staging site. It never
+# replaces https://pointer-staging.web.app. Trigger: push a commit to the
+# staging-profile branch (git push origin pointer-dev:staging-profile).
+on:
+  push:
+    branches: [staging-profile]
+
+concurrency:
+  group: deploy-staging-profile
+  cancel-in-progress: true
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.5
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Credentials and tools
+        env:
+          SA: ${{ secrets.STAGING_DEPLOY_SA }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/staging-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/staging-sa.json" >> "$GITHUB_ENV"
+          npm i -g firebase-tools@15 --no-fund --no-audit
+          flutter pub get
+      - name: Release build with source maps
+        env:
+          STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+        run: |
+          flutter build web --release --source-maps \
+            --dart-define=POINTER_ENV=staging \
+            --dart-define=POINTER_FRAMES=true \
+            --dart-define=POINTER_TEST_PASSWORD="$STAGING_PASSWORD" \
+            --build-number="$(date +%s)"
+          sed -i 's#"/calculator/"#"/"#g' build/web/manifest.json
+      - name: Deploy to the "profile" preview channel
+        run: |
+          firebase hosting:channel:deploy profile --only staging --project staging \
+            --expires 7d --non-interactive | tee "$RUNNER_TEMP/deploy.txt"
+          echo "### Profile build: $(grep -o 'https://[^ ]*web.app' "$RUNNER_TEMP/deploy.txt" | head -1)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/staging-sa.json"

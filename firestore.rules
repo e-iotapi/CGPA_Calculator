@@ -1,0 +1,1616 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    // ---- Who is asking -----------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string;
+    }
+
+    // Only verified BITS Pilani student accounts (faculty and alumni are
+    // refused, as in the app's mayUseApp). A client-side check is bypassable —
+    // this is the real enforcement.
+    function isBits() {
+      return signedIn()
+        && request.auth.token.email.matches(
+             '(?i)^[fhp][0-9]{4}[0-9]+@(goa|hyderabad|pilani|dubai)[.]bits-pilani[.]ac[.]in$');
+    }
+
+    function me() { return request.auth.token.email.lower(); }
+    function myName() { return request.auth.token.get('name', ''); }
+
+    function isBitsAddress(email) {
+      return email.matches('^[^@]+@(goa|pilani|dubai|hyderabad)[.]bits-pilani[.]ac[.]in$');
+    }
+
+    // A student: a letter, the four-digit batch year, the serial, a campus
+    // (ARCHITECTURE.md §4). Faculty and alumni addresses do not match.
+    function isStudent(email) {
+      return email.matches('^[fhp][0-9]{4}[0-9]+@(goa|hyderabad|pilani|dubai)[.]bits-pilani[.]ac[.]in$');
+    }
+
+    // 'goa' from f20230802@goa.bits-pilani.ac.in.
+    function campusOf(email) { return email.split('@')[1].split('[.]')[0]; }
+
+    // Departments are keyed by course prefix; electronics is one (§4). A
+    // prefix no department owns belongs to GEN, the electives department (B2).
+    function deptOf(course) {
+      let p = course.trim().upper().split(' ')[0];
+      return p in ['EEE', 'ECE', 'INSTR', 'ECOM'] ? 'ELEC'
+        : p == 'FIN' ? 'ECON'
+        : p in ['BIO', 'BIOT', 'CE', 'CHE', 'CHEM', 'CS', 'ECON', 'ELEC', 'ENVS',
+                'MAC', 'MATH', 'ME', 'MF', 'PHA', 'PHY', 'SNS'] ? p : 'GEN';
+    }
+
+    // Who manages a course: its department, or, for a GEN course a department
+    // has claimed (courseClaims, B2), the claimant.
+    function claimPath(campus, course) {
+      return /databases/$(db)/documents/courseClaims/$(campus + '|' + course);
+    }
+    function managingDept(campus, course) {
+      return deptOf(course) == 'GEN' && exists(claimPath(campus, course))
+        ? get(claimPath(campus, course)).data.dept : deptOf(course);
+    }
+
+    // An owner need not be a BITS account: the list in owners/{email} is the
+    // only way a non-BITS address gets in. A get() on a missing document is an
+    // error, and an error denies — so no exists() first (lookups are capped).
+    function isOwner() {
+      return signedIn()
+        && get(/databases/$(db)/documents/owners/$(me())).data.active == true;
+    }
+
+    function mayUse() { return isBits() || isOwner(); }
+
+    function grantPath(role, campus, scope, email) {
+      return /databases/$(db)/documents/grants/$(role + '|' + campus + '|' + scope + '|' + email);
+    }
+
+    // A live grant, used on the holder's own campus (checked on use as well as
+    // on write, which catches a grant typed by hand in the console).
+    function holds(role, campus, scope) {
+      let g = get(grantPath(role, campus, scope, me())).data;
+      return g.active == true && request.time < g.expiresAt
+        && (campus == 'all' || campusOf(me()) == campus);
+    }
+
+    function isAdmin() { return isBits() && holds('admin', 'all', 'all'); }
+    function isPresident(c, dept) { return isStudent(me()) && holds('dept', c, dept); }
+    function isCr(c, course) { return isStudent(me()) && holds('course', c, course); }
+
+    function staffPath(email) { return /databases/$(db)/documents/staff/$(email); }
+
+    // The staff index says who is a president where. It is trusted for reads
+    // only; every write checks the grant itself.
+    function isPresidentOn(campus) {
+      let s = get(staffPath(me())).data;
+      return s.presidentOf.size() > 0 && s.campus == campus
+        && request.time < s.expiresAt;
+    }
+
+    function readsRoster(campus) {
+      return isOwner() || isAdmin() || isPresidentOn(campus)
+        || (campus == 'all' && isPresidentOn(campusOf(me())));
+    }
+
+    // ---- The audit log (§4) ------------------------------------------------
+
+    // A shared write carries auditId, and the entry it names describes this
+    // very document, written by this very person, in the same batch.
+    function audited(path) {
+      let a = getAfter(/databases/$(db)/documents/audit/$(request.resource.data.auditId)).data;
+      return a.path == path && a.actor.email == me();
+    }
+
+    function afterPath(p) { return path('/databases/' + db + '/documents/' + p); }
+
+    match /audit/{id} {
+      allow create: if mayUse()
+        && request.resource.data.keys().hasAll(['actor', 'action', 'path', 'campus', 'at'])
+        && request.resource.data.actor.email == me()
+        && request.resource.data.actor.name == myName()
+        && request.resource.data.at == request.time
+        && request.resource.data.path is string
+        // The document it describes names it, or is deleted in this batch
+        // (an unclaim, B2: the only delete in the build-out).
+        && (existsAfter(afterPath(request.resource.data.path))
+            ? getAfter(afterPath(request.resource.data.path)).data.auditId == id
+            : exists(afterPath(request.resource.data.path)));
+      allow read: if readsRoster(resource.data.campus);
+      allow update, delete: if false;
+    }
+
+    // ---- People who have signed in (§16.3 fix 12) ---------------------------
+
+    // Self-written on every first sign-in; checked, never browsed.
+    match /people/{email} {
+      allow get: if email == me() || isOwner() || isAdmin()
+        || isPresidentOn(campusOf(me()));
+      // Owners only, for site analytics' count() queries.
+      allow list: if isOwner();
+      allow create, update: if mayUse() && email == me()
+        && request.resource.data.keys().hasOnly(['name', 'campus', 'firstSignIn', 'lastSeen'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && (isBits() ? request.resource.data.campus == campusOf(me())
+                     : request.resource.data.campus in ['goa', 'hyderabad', 'pilani', 'dubai']);
+    }
+
+    // ---- Site analytics (PERF_TEST_PLAN.md §D) ------------------------------
+
+    // One doc per IST day. A sampled client adds 1 to its own campus's day
+    // count (once a day) and hour count; owners read it. ponytail: sampling
+    // is not checked server-side; a forged ping only skews the estimate.
+    match /analytics/{day} {
+      allow read: if isOwner();
+      allow create, update: if mayUse()
+        && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.keys().hasOnly(['sample', 'goa', 'hyderabad', 'pilani'])
+        && request.resource.data.sample == 20
+        && request.resource.data.diff(resource == null ? {} : resource.data)
+             .affectedKeys().hasOnly(['sample', campusOf(me())])
+        && pinged(resource == null ? {} : resource.data.get(campusOf(me()), {}),
+                  request.resource.data.get(campusOf(me()), {}));
+      allow delete: if false;
+    }
+
+    function pinged(was, now) {
+      let h0 = was.get('h', {});
+      let h1 = now.get('h', {});
+      let at = now.at;
+      return now.keys().hasOnly(['dau', 'h', 'at'])
+        && now.get('dau', 0) - was.get('dau', 0) in [0, 1]
+        && h1.diff(h0).affectedKeys().hasOnly([at])
+        && h1[at] == h0.get(at, 0) + 1;
+    }
+
+    // ---- Owners ------------------------------------------------------------
+
+    // Anyone may ask whether they are on the list, so sign-in can decide. An
+    // owner can never deactivate themselves, so there is always one.
+    match /owners/{email} {
+      allow get: if (signedIn() && me() == email) || isOwner();
+      // The roster names the owners to everyone who may open it.
+      allow list: if readsRoster('all');
+      allow create: if isOwner()
+        && request.resource.data.email == email
+        && request.resource.data.active == true
+        && request.resource.data.addedBy.email == me()
+        && request.resource.data.addedAt == request.time
+        && audited('owners/' + email)
+        && pathBumped('goa', 'owners');
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['active', 'name', 'auditId'])
+        && (email != me() || request.resource.data.active == true)
+        && audited('owners/' + email)
+        && pathBumped('goa', 'owners');
+      allow delete: if false;
+    }
+
+    // ---- Grants and the staff index (§4) -----------------------------------
+
+    // Until an owner saves config/grantTerms, the app's defaultTerms.
+    function terms() {
+      let p = /databases/$(db)/documents/config/grantTerms;
+      return exists(p) ? get(p).data : {'crDays': 183, 'presidentDays': 365, 'adminDays': 730};
+    }
+
+    function termDays(role) {
+      return role == 'admin' ? terms().adminDays
+           : role == 'dept' ? terms().presidentDays
+           : terms().crDays;
+    }
+
+    // Counted from today; a grant can end sooner, never later.
+    function expiryOk(d) {
+      return d.role == 'contributor' ? d.expiresAt == timestamp.date(2100, 1, 1)
+        : d.expiresAt is timestamp && d.expiresAt > request.time
+        && d.expiresAt <= request.time + duration.value(termDays(d.role), 'd');
+    }
+
+    // Who may give or change a grant like [d].
+    function mayGrant(d) {
+      return d.role == 'admin'
+          ? isOwner() && d.campus == 'all' && d.scope == 'all' && isBitsAddress(d.email)
+        : d.role == 'dept'
+          ? (d.get('secretary', false) == true
+              // A secretary serves one branch: the appointing president's.
+              ? ((isOwner() || isAdmin())
+                  && (d.get('programme', null) == null || d.programme is string)
+                || presidentNotSecretary(d.campus, d.scope)
+                  && d.get('programme', null) == get(grantPath('dept', d.campus,
+                       d.scope, me())).data.get('programme', null))
+              : d.scope == 'GEN'
+                // The electives department: no branch, no handover (B2).
+                ? (isOwner() || isAdmin()) && d.get('programme', null) == null
+                : (isOwner() || isAdmin() || handsOver(d) || cancelsHandover(d))
+                  && d.programme is string)
+            && isStudent(d.email) && campusOf(d.email) == d.campus
+        : d.role == 'course'
+          ? (isOwner() || isAdmin() || isPresident(d.campus, managingDept(d.campus, d.scope)))
+            && isStudent(d.email) && campusOf(d.email) == d.campus
+        // B7: campus-wide, no expiry; `dept` names the president (or
+        // secretary) whose request it answers. isPresident covers both.
+        : d.role == 'contributor'
+          ? d.scope == d.campus && isStudent(d.email) && campusOf(d.email) == d.campus
+            && (isOwner() || isAdmin()
+                || (d.get('dept', null) is string && isPresident(d.campus, d.dept)))
+        : false;
+    }
+
+    // A secretary is a dept grant flagged `secretary`: every president right
+    // but handing over and appointing secretaries.
+    function presidentNotSecretary(c, dept) {
+      return isPresident(c, dept)
+        && get(grantPath('dept', c, dept, me())).data.get('secretary', false) == false;
+    }
+
+    // Succession (§13.4): a live president names the next one. Their own
+    // grant, in the same batch, records the successor — once: a second
+    // handover while one runs is refused.
+    function handsOver(d) {
+      let mine = grantPath('dept', d.campus, d.scope, me());
+      return presidentNotSecretary(d.campus, d.scope)
+        && d.get('secretary', false) == false
+        && get(mine).data.get('handedTo', null) == null
+        && getAfter(mine).data.get('handedTo', '') == d.email
+        && d.get('programme', '') == get(mine).data.get('programme', '');
+    }
+
+    // The outgoing president cancels while the overlap runs.
+    function cancelsHandover(d) {
+      let mine = grantPath('dept', d.campus, d.scope, me());
+      return d.active == false && presidentNotSecretary(d.campus, d.scope)
+        && get(mine).data.get('handedTo', '') == d.email
+        && getAfter(mine).data.get('handedTo', null) == null;
+    }
+
+    // The staff index is written in the same batch and agrees with the grant.
+    function staffAgrees(id, d) {
+      return d.role == 'contributor' || staffListed(id, d);
+    }
+
+    function staffListed(id, d) {
+      let s = getAfter(staffPath(d.email)).data;
+      return s.lastGrant == id
+        && (d.role == 'admin' ? s.admin == d.active
+          : d.role == 'dept' ? (d.scope in s.presidentOf) == d.active
+          : (d.scope in s.courses) == d.active);
+    }
+
+    match /grants/{id} {
+      // A get() on a grant that does not exist yet is how the app checks
+      // whether an appointment is new or a renewal (RoleStore.appoint); with
+      // no document there is nothing to leak, so any mayUse() reader may see
+      // that absence. A list still needs the full check, per document.
+      allow get: if resource == null
+        ? mayUse()
+        : ((signedIn() && resource.data.email == me())
+            || readsRoster(resource.data.campus));
+      allow list: if (signedIn() && resource.data.email == me())
+        || readsRoster(resource.data.campus);
+      allow create: if mayUse()
+        && id == request.resource.data.role + '|' + request.resource.data.campus
+                 + '|' + request.resource.data.scope + '|' + request.resource.data.email
+        && mayGrant(request.resource.data)
+        && request.resource.data.active == true
+        && expiryOk(request.resource.data)
+        // Only someone who has signed in can be appointed; the name is theirs.
+        && request.resource.data.name
+             == get(/databases/$(db)/documents/people/$(request.resource.data.email)).data.name
+        && request.resource.data.grantedBy.email == me()
+        && request.resource.data.grantedAt == request.time
+        && staffAgrees(id, request.resource.data)
+        && (request.resource.data.role != 'contributor' || contributorApproved(request.resource.data))
+        && audited('grants/' + id)
+        && pathBumped(markerCampus(request.resource.data.campus), 'grants');
+      // Revoke (active false) or renew (a new expiry); who and what are fixed,
+      // save the branch a renewed president is appointed for.
+      allow update: if mayUse()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['active', 'expiresAt', 'name', 'grantedBy', 'grantedAt',
+                       'auditId', 'programme'])
+        && mayGrant(request.resource.data)
+        && (request.resource.data.active == false || expiryOk(request.resource.data))
+        && staffAgrees(id, request.resource.data)
+        && audited('grants/' + id)
+        && pathBumped(markerCampus(request.resource.data.campus), 'grants');
+      // A president's own grant during succession: shortened to at most
+      // twenty days — never extended — beside the successor's new grant; or
+      // restored, beside its revocation, by a cancel.
+      allow update: if mayUse()
+        && resource.data.role == 'dept' && resource.data.email == me()
+        && resource.data.get('secretary', false) == false
+        && isPresident(resource.data.campus, resource.data.scope)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['expiresAt', 'handedTo', 'expiresBefore', 'auditId'])
+        && request.resource.data.active == true
+        && (handingOver(resource.data, request.resource.data)
+            || cancellingHandover(resource.data, request.resource.data))
+        && staffAgrees(id, request.resource.data)
+        && audited('grants/' + id)
+        && pathBumped(markerCampus(request.resource.data.campus), 'grants');
+      allow delete: if false;
+    }
+
+    function handingOver(before, d) {
+      return before.get('handedTo', null) == null
+        && d.handedTo is string && d.handedTo != me()
+        && d.expiresBefore == before.expiresAt
+        && d.expiresAt > request.time
+        && d.expiresAt <= before.expiresAt
+        && d.expiresAt <= request.time + duration.value(20, 'd')
+        && getAfter(grantPath('dept', d.campus, d.scope, d.handedTo)).data.active == true;
+    }
+
+    function cancellingHandover(before, d) {
+      return before.get('handedTo', null) is string
+        && d.get('handedTo', null) == null
+        && d.get('expiresBefore', null) == null
+        && d.expiresAt == before.expiresBefore
+        && getAfter(grantPath('dept', d.campus, d.scope, before.handedTo)).data.active == false;
+    }
+
+    // staff/{email}: { name, email, campus, owner, admin, presidentOf: [dept],
+    // courses: [courseId], expiresAt, lastGrant }. Changed only beside the
+    // grant it names, and only in that grant's own field, by that scope.
+    function grantChanged(id) {
+      let p = /databases/$(db)/documents/grants/$(id);
+      let before = exists(p) ? get(p).data.get('auditId', '') : '';
+      return getAfter(p).data.auditId != before;
+    }
+
+    function moved(before, after, field) {
+      return after.get(field, []).toSet().difference(before.get(field, []).toSet())
+        .union(before.get(field, []).toSet().difference(after.get(field, []).toSet()));
+    }
+
+    function same(before, after, field, empty) {
+      return after.get(field, empty) == before.get(field, empty);
+    }
+
+    function staffWriteOk(email) {
+      let d = request.resource.data;
+      let before = resource == null ? {} : resource.data;
+      let g = getAfter(/databases/$(db)/documents/grants/$(d.lastGrant)).data;
+      return g.email == email && d.email == email
+        && (resource == null || d.campus == before.campus)
+        && same(before, d, 'owner', false)
+        && (g.role == 'admin'
+            ? same(before, d, 'presidentOf', []) && same(before, d, 'courses', [])
+          : g.role == 'dept'
+            ? moved(before, d, 'presidentOf').hasOnly([g.scope])
+              && same(before, d, 'courses', []) && same(before, d, 'admin', false)
+          : moved(before, d, 'courses').hasOnly([g.scope])
+              && same(before, d, 'presidentOf', []) && same(before, d, 'admin', false));
+    }
+
+    match /staff/{email} {
+      allow get: if (signedIn() && email == me()) || isOwner() || isAdmin()
+        || isPresidentOn(resource == null ? campusOf(me()) : resource.data.campus);
+      allow list: if isOwner() || isAdmin();
+      // Owners are trusted with the index outright (their own owner flag too).
+      allow create, update: if isOwner()
+        || (mayUse() && grantChanged(request.resource.data.lastGrant)
+            && staffWriteOk(email));
+      allow delete: if false;
+    }
+
+    // ---- Contacts (§13.5, §16.3 fix 8) --------------------------------------
+
+    // Privileged: an owner, or a live entry in the staff index.
+    function privileged() {
+      return isOwner()
+        || (signedIn() && exists(staffPath(me()))
+            && request.time < get(staffPath(me())).data.expiresAt);
+    }
+
+    function nameOk(n) { return n is string && n.size() > 0 && n.size() <= 80; }
+    function phoneOk(n) { return n is string && n.matches('^[+0-9 ()-]{7,20}$'); }
+
+    // Owners, admins, presidents and CRs reach each other here.
+    match /staffContacts/{email} {
+      allow read: if privileged();
+      allow create, update: if email == me() && privileged()
+        && request.resource.data.keys().hasOnly(['name', 'phone', 'email', 'updatedAt'])
+        && request.resource.data.email == me()
+        && nameOk(request.resource.data.name)
+        && phoneOk(request.resource.data.phone)
+        && request.resource.data.updatedAt == request.time
+        && pathBumped(isBits() ? campusOf(me()) : 'goa', 'staff');
+      allow delete: if false;
+    }
+
+    // A listed role: a live grant of the writer's, with its expiry as it
+    // stands after this batch (a handover rewrites it).
+    function listed(r) {
+      let g = getAfter(grantPath(r.role, campusOf(me()), r.scope, me())).data;
+      return r.role in ['dept', 'course'] && g.active == true
+        && request.time < g.expiresAt && r.until == g.expiresAt
+        && r.get('secretary', false) == g.get('secretary', false)
+        && r.get('programme', null) == g.get('programme', null);
+    }
+
+    function listedAt(l, i) { return l.size() <= i || listed(l[i]); }
+
+    // What a president or CR shows the students of their campus: at least
+    // one way to reach them, each chosen separately.
+    // Every listed person on a campus in one doc: each writes only their
+    // own key, a copy of their directory entry after the batch.
+    match /repIndex/{campus} {
+      allow get: if mayUse() && campus == campusOf(me());
+      // Any key may be refreshed, but only to a copy of that person's own
+      // directory entry after the batch, which its own rules guard.
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['k', 'p'])
+        && repCopy(request.resource.data.k,
+                   resource == null ? {} : resource.data.get('p', {}))
+        && pathBumped(campus, 'reps');
+      allow delete: if false;
+    }
+
+    function repCopy(k, was) {
+      let now = request.resource.data.p;
+      let d = /databases/$(db)/documents/directory/$(k);
+      return now.diff(was).affectedKeys().hasOnly([k])
+        && (existsAfter(d)
+            ? now[k] == getAfter(d).data
+            : !(k in now));
+    }
+
+    match /directory/{email} {
+      // A get() on a directory entry that does not exist yet is how a
+      // handover's _relist checks whether there is one to update; nothing
+      // to leak when there is no document.
+      allow get: if mayUse()
+        && (resource == null || resource.data.campus == campusOf(me()));
+      allow list: if mayUse() && resource.data.campus == campusOf(me());
+      allow create, update: if isStudent(me()) && email == me()
+        && request.resource.data.keys().hasOnly(
+             ['name', 'campus', 'roles', 'email', 'whatsapp', 'phone', 'updatedAt'])
+        && nameOk(request.resource.data.name)
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.roles is list
+        && request.resource.data.roles.size() > 0
+        && request.resource.data.roles.size() <= 4
+        && listedAt(request.resource.data.roles, 0)
+        && listedAt(request.resource.data.roles, 1)
+        && listedAt(request.resource.data.roles, 2)
+        && listedAt(request.resource.data.roles, 3)
+        && ('email' in request.resource.data || 'whatsapp' in request.resource.data
+            || 'phone' in request.resource.data)
+        && request.resource.data.get('email', me()) == me()
+        && (!('whatsapp' in request.resource.data) || phoneOk(request.resource.data.whatsapp))
+        && (!('phone' in request.resource.data) || phoneOk(request.resource.data.phone))
+        && pathBumped(request.resource.data.campus, 'staff');
+      allow delete: if signedIn() && email == me();
+    }
+
+    // ---- Volunteers (§16.3 fix 16) -----------------------------------------
+
+    function readsOffers(d) {
+      return isOwner() || isAdmin() || isPresident(d.campus, d.dept);
+    }
+
+    match /volunteers/{id} {
+      allow get: if (signedIn() && resource.data.email == me()) || readsOffers(resource.data);
+      allow list: if readsOffers(resource.data);
+      // Offered, or offered again, by the student themselves.
+      allow create, update: if isStudent(me())
+        && id == request.resource.data.campus + '|' + request.resource.data.courseId + '|' + me()
+        && request.resource.data.keys().hasOnly(
+             ['name', 'email', 'campus', 'courseId', 'dept', 'term', 'open', 'createdAt', 'closedBy'])
+        && request.resource.data.email == me()
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.dept == managingDept(request.resource.data.campus, request.resource.data.courseId)
+        && nameOk(request.resource.data.name)
+        && request.resource.data.term is string
+        && request.resource.data.open == true
+        && request.resource.data.createdAt == request.time
+        && pathBumped(request.resource.data.campus, 'volunteers/' + request.resource.data.dept);
+      // Withdrawn by them; dismissed, or closed by an appointment, by a reader.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['open', 'closedBy'])
+        && request.resource.data.open == false
+        && ((signedIn() && resource.data.email == me()) || readsOffers(resource.data))
+        && pathBumped(resource.data.campus, 'volunteers/' + resource.data.dept);
+      allow delete: if false;
+    }
+
+    // ---- Contributors (B7, DATA_SYNC_PLAN 5.2) ------------------------------
+
+    function contribDoc(p) { return afterPath(p); }
+
+    function contributorApproved(d) {
+      return getAfter(contribDoc('contributorRequests/' + d.campus + '|' + d.dept
+        + '|' + d.email)).data.status == 'approved';
+    }
+
+    // Owner, admin, or the dept's president or secretary (holds() covers both).
+    function approves(campus, dept) {
+      return isOwner() || isAdmin() || isPresident(campus, dept);
+    }
+
+    // volunteers pattern: id campus|dept|email.
+    match /contributorRequests/{id} {
+      // A missing request reads as missing to its own applicant (the app
+      // checks before applying; resource.data on null would deny it).
+      allow get: if resource == null
+        ? signedIn() && id.split('[|]')[2] == me()
+        : (signedIn() && resource.data.email == me())
+          || approves(resource.data.campus, resource.data.dept);
+      allow list: if approves(resource.data.campus, resource.data.dept);
+      // Apply, or apply again after a decline or a withdrawal.
+      allow create, update: if isStudent(me())
+        && id == request.resource.data.campus + '|' + request.resource.data.dept + '|' + me()
+        && request.resource.data.keys().hasOnly(
+             ['name', 'email', 'campus', 'dept', 'status', 'createdAt'])
+        && request.resource.data.email == me()
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.dept is string
+        && request.resource.data.dept.size() > 0 && request.resource.data.dept.size() <= 8
+        && nameOk(request.resource.data.name)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && (resource == null || resource.data.status in ['declined', 'withdrawn'])
+        && pathBumped(request.resource.data.campus, 'contributorRequests/' + request.resource.data.dept);
+      allow update: if signedIn() && resource.data.email == me()
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'withdrawn'
+        && pathBumped(resource.data.campus, 'contributorRequests/' + resource.data.dept);
+      // A revoked contributor may apply again: the revoke batch (grant
+      // active:false, audited there) moves the request approved to withdrawn.
+      allow update: if mayUse() && approves(resource.data.campus, resource.data.dept)
+        && resource.data.status == 'approved'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'withdrawn'
+        && getAfter(grantPath('contributor', resource.data.campus, resource.data.campus,
+             resource.data.email)).data.active == false
+        && pathBumped(resource.data.campus, 'contributorRequests/' + resource.data.dept);
+      // Decided by an approver; approval comes with the grant, same batch.
+      allow update: if mayUse() && approves(resource.data.campus, resource.data.dept)
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'decidedBy', 'decidedAt', 'reason', 'auditId'])
+        && request.resource.data.status in ['approved', 'declined']
+        && request.resource.data.decidedBy == me()
+        && request.resource.data.decidedAt == request.time
+        && request.resource.data.get('reason', '').size() <= 200
+        && (request.resource.data.status == 'declined'
+            || getAfter(grantPath('contributor', resource.data.campus, resource.data.campus,
+                 resource.data.email)).data.active == true)
+        && audited('contributorRequests/' + id)
+        && pathBumped(resource.data.campus, 'contributorRequests/' + resource.data.dept);
+      allow delete: if false;
+    }
+
+    // pending/{campus|dept}: { batches: { <batchId>: { email, username, at,
+    // links: { <resourceId>: {title, url} } } } }. A link enters beside its
+    // create and leaves beside its approval or rejection.
+    function pendingId(id, i) { return id.split('[|]')[i]; }
+
+    // courseClaims/{campus}|{course}: a department takes over a GEN-prefix
+    // course (B2). Created or deleted (the one hard delete) by that
+    // department's president or secretary, audited; never edited, so a
+    // claim by another department is a delete then a create.
+    match /courseClaims/{id} {
+      allow read: if mayUse();
+      allow create: if mayUse()
+        && id == request.resource.data.campus + '|' + request.resource.data.courseId
+        && request.resource.data.keys().hasOnly(['campus', 'courseId', 'dept', 'by', 'at', 'auditId'])
+        && request.resource.data.campus in ['goa', 'hyderabad', 'pilani', 'dubai']
+        && deptOf(request.resource.data.courseId) == 'GEN'
+        && request.resource.data.dept is string && request.resource.data.dept != 'GEN'
+        && (isOwner() || isAdmin()
+            || isPresident(request.resource.data.campus, request.resource.data.dept))
+        && request.resource.data.by.email == me()
+        && request.resource.data.at == request.time
+        && audited('courseClaims/' + id)
+        && pathBumped(request.resource.data.campus, 'courseClaims');
+      allow update: if false;
+      allow delete: if mayUse()
+        && (isOwner() || isAdmin() || isPresident(resource.data.campus, resource.data.dept))
+        // A deleted doc cannot name its audit entry; its id is derived.
+        && getAfter(/databases/$(db)/documents/audit/$('del|' + id + '|' + string(resource.data.at.toMillis()))).data.path
+             == 'courseClaims/' + id
+        && getAfter(/databases/$(db)/documents/audit/$('del|' + id + '|' + string(resource.data.at.toMillis()))).data.actor.email == me()
+        && pathBumped(resource.data.campus, 'courseClaims');
+    }
+
+    // activity/{campus}: { course: {<id>: ts}, dept: {<dept>: ts}, c, d }:
+    // when staff last made a meaningful edit (Last updated, B4). `c` and `d`
+    // name the one course and department the write touched; each moves to
+    // request.time. Not a marker; read with a plain age.
+    match /activity/{campus} {
+      allow get: if mayUse();
+      allow create, update: if privileged()
+        && request.resource.data.keys().hasOnly(['course', 'dept', 'c', 'd'])
+        && touchedNow('course', request.resource.data.c)
+        && touchedNow('dept', request.resource.data.d)
+        // A stamped course belongs to the stamped department (B4). Not tied to
+        // a resource/structure/professor write in the same batch: rules cannot
+        // tell which of those documents the batch touched.
+        && (request.resource.data.c == ''
+            || request.resource.data.d == deptOf(request.resource.data.c)
+            || request.resource.data.d == managingDept(campus, request.resource.data.c));
+      allow delete: if false;
+    }
+
+    function touchedNow(field, key) {
+      let was = resource == null ? {} : resource.data.get(field, {});
+      let now = request.resource.data.get(field, {});
+      return key is string && now.diff(was).affectedKeys().hasOnly([key])
+        && (key == '' || now[key] == request.time);
+    }
+
+    match /pending/{id} {
+      allow get: if mayUse() && approves(pendingId(id, 0), pendingId(id, 1));
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['batches', 'b', 'k'])
+        && pendingMoved(id, resource == null ? {} : resource.data.get('batches', {}))
+        && pathBumped(pendingId(id, 0), 'pending/' + pendingId(id, 1));
+      allow delete: if false;
+    }
+
+    // `b` and `k` name the one batch and link that moved (rules cannot list a
+    // diff's keys, as with resourceVersions.k).
+    function pendingMoved(id, was) {
+      let now = request.resource.data.batches;
+      let b = request.resource.data.b;
+      let k = request.resource.data.k;
+      let wasL = b in was ? was[b].links : {};
+      let nowL = b in now ? now[b].links : {};
+      let r = getAfter(contribDoc('resources/' + k)).data;
+      return now.diff(was).affectedKeys().hasOnly([b])
+        && nowL.diff(wasL).affectedKeys().hasOnly([k])
+        && (b in now ? nowL.size() > 0 : wasL.size() == 1)
+        && (!(k in wasL) && k in nowL
+            // Added beside the contributor's own unapproved create.
+            ? !exists(contribDoc('resources/' + k))
+              && now[b].email == me() && r.addedBy.email == me()
+              // Only into a new batch or the contributor's own.
+              && (!(b in was) || was[b].email == me())
+              && r.batchId == b && r.get('approved', true) == false
+              && r.campus == pendingId(id, 0) && r.department == pendingId(id, 1)
+              && nowL[k].title == r.title && nowL[k].url == r.url
+            // Refreshed beside the contributor's own edit of it, still unapproved.
+            : k in wasL && k in nowL
+            ? now[b].diff(was[b]).affectedKeys().hasOnly(['links'])
+              && r.addedBy.email == me() && r.get('approved', true) == false
+              && nowL[k].keys().hasOnly(['title', 'url'])
+              && nowL[k].title == r.title && nowL[k].url == r.url
+            // Dropped beside its approval or rejection.
+            : k in wasL && !(k in nowL)
+              && approves(pendingId(id, 0), pendingId(id, 1))
+              && (r.get('approved', true) == true || r.get('removed', false) == true));
+    }
+
+    // +4 is earned in the batch where a link turns approved (false to true,
+    // inside its 15 days), or is created approved by its own staff author.
+    function pointsMoved(email, campus) {
+      let p = contribDoc('resources/' + request.resource.data.lastLink);
+      let a = getAfter(p).data;
+      return request.resource.data.points is int
+        && a.addedBy.email == email && a.campus == campus
+        && (exists(p)
+            ? get(p).data.get('approved', true) == false && a.get('approved', true) == true
+              && request.time < get(p).data.publishedAt + duration.value(15, 'd')
+            : email == me() && a.get('approved', true) == true);
+    }
+
+    // Who may hold a username (#7): a contributor, active or revoked (they
+    // keep the grant doc), or an applicant whose request for dept `d` is
+    // pending after this write (the app claims it beside the request).
+    function mayHoldName(campus, d) {
+      return exists(grantPath('contributor', campus, campus, me()))
+        || (d is string && d.size() > 0 && d.size() <= 8
+            && getAfter(contribDoc('contributorRequests/' + campus + '|' + d + '|' + me()))
+                 .data.status == 'pending');
+    }
+
+    // A declined applicant's username goes back (#7): cleared beside the
+    // decline of their request, unless they ever held the grant.
+    // ponytail: keyed by the dept they first claimed with; a withdraw and a
+    // re-apply elsewhere keeps the name until that request is declined too.
+    function declinedNow(campus, d, email) {
+      let r = contribDoc('contributorRequests/' + campus + '|' + d + '|' + email);
+      return d is string && d.size() > 0 && approves(campus, d)
+        && get(r).data.status == 'pending' && getAfter(r).data.status == 'declined'
+        && !exists(grantPath('contributor', campus, campus, email));
+    }
+
+    function nameFree(campus, u) {
+      let p = contribDoc('usernames/' + campus + '|' + u);
+      return u.matches('^[a-z0-9_]{3,20}$') && existsAfter(p) && !exists(p)
+        && getAfter(p).data.email == me();
+    }
+
+    // contributors/{email}: { username?, campus, points }. Self writes the
+    // username once; points move only by +4 beside a link's approval.
+    match /contributors/{email} {
+      allow get: if resource == null ? mayUse()
+        : (signedIn() && email == me()) || readsRoster(resource.data.campus);
+      allow create: if isBits() && email == me()
+        && request.resource.data.keys().hasOnly(['username', 'campus', 'points', 'd'])
+        && request.resource.data.points == 0
+        && request.resource.data.campus == campusOf(me())
+        && mayHoldName(request.resource.data.campus, request.resource.data.get('d', ''))
+        && nameFree(request.resource.data.campus, request.resource.data.username);
+      allow create: if mayUse()
+        && request.resource.data.keys().hasOnly(['campus', 'points', 'lastLink'])
+        && request.resource.data.points == 4
+        && request.resource.data.campus is string
+        && pointsMoved(email, request.resource.data.campus);
+      allow update: if isBits() && email == me()
+        && resource.data.get('username', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'd'])
+        && mayHoldName(resource.data.campus, request.resource.data.get('d', ''))
+        && nameFree(resource.data.campus, request.resource.data.username);
+      allow update: if mayUse()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'lastLink'])
+        && request.resource.data.points == resource.data.points + 4
+        && pointsMoved(email, resource.data.campus);
+      // A president clears an offensive username (audited, points stay).
+      allow update: if mayUse() && resource.data.get('username', null) != null
+        && (isOwner() || isAdmin() || isPresidentOn(resource.data.campus))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'auditId'])
+        && !('username' in request.resource.data)
+        && audited('contributors/' + email);
+      allow update: if mayUse() && resource.data.get('username', null) != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username'])
+        && !('username' in request.resource.data)
+        && declinedNow(resource.data.campus, resource.data.get('d', ''), email);
+      allow delete: if false;
+    }
+
+    // usernames/{campus|name}: unique, created beside the claimant's own
+    // contributors doc, deleted only by a president clearing it.
+    match /usernames/{id} {
+      allow get: if mayUse()
+        && (resource == null || resource.data.email == me() || readsRoster(pendingId(id, 0)));
+      allow create: if isBits() && pendingId(id, 0) == campusOf(me())
+        && pendingId(id, 1).matches('^[a-z0-9_]{3,20}$')
+        && request.resource.data.keys().hasOnly(['email', 'claimedAt'])
+        && request.resource.data.email == me()
+        && request.resource.data.claimedAt == request.time
+        && getAfter(contribDoc('contributors/' + me())).data.get('username', null)
+             == pendingId(id, 1);
+      allow delete: if mayUse()
+        && (isOwner() || isAdmin() || isPresidentOn(pendingId(id, 0))
+            || declinedNow(pendingId(id, 0),
+                 get(contribDoc('contributors/' + resource.data.email)).data.get('d', ''),
+                 resource.data.email))
+        && getAfter(contribDoc('contributors/' + resource.data.email)).data
+             .get('username', null) != pendingId(id, 1);
+      allow update: if false;
+    }
+
+    // leaderboard/{campus}: { p: {username: points}, tags: {username: branch} }.
+    // `k` names the one username that moved; its points must equal the
+    // contributors doc after the batch.
+    match /leaderboard/{campus} {
+      allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['p', 'tags', 'k'])
+        && boardMirrors(campus, resource == null ? {} : resource.data.get('p', {}),
+                        resource == null ? {} : resource.data.get('tags', {}))
+        && pathBumped(campus, 'leaderboard');
+      allow delete: if false;
+    }
+
+    function boardMirrors(campus, was, tagsWas) {
+      let now = request.resource.data.get('p', {});
+      let tags = request.resource.data.get('tags', {});
+      let k = request.resource.data.k;
+      let u = contribDoc('usernames/' + campus + '|' + k);
+      return now.diff(was).affectedKeys().hasOnly([k])
+        && (k in now
+            ? now[k] is int
+              && getAfter(contribDoc('contributors/' + get(u).data.email)).data.username == k
+              && getAfter(contribDoc('contributors/' + get(u).data.email)).data.points == now[k]
+              && (tags.diff(tagsWas).affectedKeys().size() == 0
+                  || (tags.diff(tagsWas).affectedKeys().hasOnly([k])
+                      && get(u).data.email == me() && privileged()
+                      && tags[k] is string && tags[k].size() <= 8))
+            : !existsAfter(u) && tags.diff(tagsWas).affectedKeys().hasOnly([k]));
+    }
+
+    // ---- Configuration (§4, §10.5) -----------------------------------------
+
+    match /config/grantTerms {
+      allow read: if mayUse();
+      allow write: if (isOwner()
+          || (isAdmin() && request.resource.data.get('adminDays', 0)
+                == (resource == null ? 730 : resource.data.adminDays)))
+        && request.resource.data.crDays is int
+        && request.resource.data.crDays > 0 && request.resource.data.crDays <= 400
+        && request.resource.data.presidentDays is int
+        && request.resource.data.presidentDays > 0 && request.resource.data.presidentDays <= 800
+        && request.resource.data.adminDays is int
+        && request.resource.data.adminDays > 0 && request.resource.data.adminDays <= 1500
+        && audited('config/grantTerms')
+        && pathBumped('goa', 'terms');
+    }
+
+    // ---- Campus heads (PERF_TEST_PLAN.md §A) -----------------------------
+
+    // One small doc per campus says what moved, so an app open reads it
+    // instead of polling the catalogue marker, the contact and each offering.
+    function staffOn(campus) {
+      let s = get(staffPath(me())).data;
+      return s.campus == campus && request.time < s.expiresAt
+        && (s.presidentOf.size() > 0 || s.get('courses', []).size() > 0);
+    }
+
+    function headDiff() {
+      return request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys();
+    }
+
+    // Every course's review counter on a campus in one doc: an entry moves
+    // only by what its stats doc moved in the same batch.
+    match /reviewIndex/{campus} {
+      allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['c', 'k'])
+        && indexMoved(campus)
+        && pathBumped(campus, 'reviews');
+      allow delete: if false;
+    }
+
+    function indexMoved(campus) {
+      let was = resource == null ? {} : resource.data.get('c', {});
+      let now = request.resource.data.c;
+      let k = request.resource.data.k;
+      let ks = now.diff(was).affectedKeys();
+      let p = /databases/$(db)/documents/courses/$(k)/stats/$(campus);
+      let before = exists(p) ? get(p).data : {};
+      let after = getAfter(p).data;
+      let o = was.get(k, {});
+      return ks.hasOnly([k])
+        && now[k].keys().hasOnly(['count', 'starSum', 'recommendCount'])
+        && now[k].count - o.get('count', 0) == after.count - before.get('count', 0)
+        && now[k].starSum - o.get('starSum', 0) == after.starSum - before.get('starSum', 0)
+        && now[k].recommendCount - o.get('recommendCount', 0)
+             == after.recommendCount - before.get('recommendCount', 0);
+    }
+
+    function headPath(campus) { return /databases/$(db)/documents/heads/$(campus); }
+
+    // A write to a shared path moves that path's marker by exactly one in the
+    // same batch (DATA_SYNC_PLAN Stage 1).
+    function pathBumped(campus, path) {
+      let was0 = exists(headPath(campus))
+        ? get(headPath(campus)).data.get('v', {}).get(path, 0) : 0;
+      let was = was0 is number ? was0 : 0;
+      return getAfter(headPath(campus)).data.get('v', {}).get(path, 0) == was + 1;
+    }
+
+    // Admin grants (campus 'all') count on the goa head, as owners and terms
+    // do; the app moves every campus's head for those.
+    function markerCampus(c) { return c == 'all' ? 'goa' : c; }
+
+    match /heads/{campus} {
+      allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      // Offering versions move in the batch that saves a scheme. ponytail:
+      // not tied to the offering written; a stray bump only costs students
+      // one re-read of that course, never wrong data.
+      allow create, update: if (
+          (isOwner() || isAdmin() || staffOn(campus))
+            && headDiff().hasOnly(['offerings'])
+            && request.resource.data.offerings is map)
+        || (isOwner() && headDiff().hasOnly(['catalog', 'catalogSchema'])
+            && request.resource.data.catalog
+                 == getAfter(/databases/$(db)/documents/catalog/marker).data.version)
+        || ((isOwner() || isAdmin()) && headDiff().hasOnly(['contact'])
+            && request.resource.data.contact.contactEnabled
+                 == getAfter(/databases/$(db)/documents/config/public).data.contactEnabled
+            && request.resource.data.contact.contactTarget
+                 == getAfter(/databases/$(db)/documents/config/public).data.contactTarget)
+        // Markers move by writes that bumped them elsewhere (pathBumped, in
+        // the source rule, enforces the exact +1). This only limits who moves
+        // markers, how many at once, how big the map grows, and that none is
+        // removed. ponytail: decreases and +2 are not checkable in rules (no
+        // Set to List, so no per-key value check); clients compare markers by
+        // equality, so a decrease costs a re-read, never a freeze. A stray
+        // string is healed by pathBumped (a non-int counts as 0) and skipped
+        // by Head.fromMap.
+        || (mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin())
+            && headDiff().hasOnly(['v']) && request.resource.data.v is map
+            && request.resource.data.v.size() <= 3000
+            && request.resource.data.v.diff(resource == null ? {} : resource.data.get('v', {}))
+                 .removedKeys().size() == 0
+            && request.resource.data.v.diff(resource == null ? {} : resource.data.get('v', {}))
+                 .affectedKeys().size() <= 4);
+      allow delete: if false;
+    }
+
+    // The review gate switch (B6, ruling R-A): one doc per campus, read by
+    // anyone on it. The unlock count is enforced in the app only.
+    match /reviewGate/{campus} {
+      allow read: if mayUse();
+      // A president or secretary (a dept grant; holds() covers both) names the
+      // dept whose grant authorises the write; owners and admins need none.
+      allow create, update: if (isOwner() || isAdmin()
+          || isPresident(campus, request.resource.data.get('dept', '')))
+        && request.resource.data.keys().hasOnly(['on', 'by', 'at', 'auditId', 'dept'])
+        && request.resource.data.on is bool
+        && request.resource.data.by.email == me()
+        && request.resource.data.at == request.time
+        && audited('reviewGate/' + campus)
+        && pathBumped(campus, 'reviewGate');
+      allow delete: if false;
+    }
+
+    match /config/public {
+      allow read: if mayUse();
+      allow write: if (isOwner() || isAdmin())
+        && request.resource.data.contactMethod in ['whatsapp', 'phone', 'email']
+        && request.resource.data.contactEnabled is bool
+        && audited('config/public');
+    }
+
+    // The broadcast timetable (B8b), written only by the owner-run script, in
+    // one batch: the meta doc timetable/<campus>|<sem> (audited, moves the
+    // `timetable` marker), its chunks <campus>|<sem>|<n> (same audit id) and
+    // the pointer <campus>|current (marker equal to the head's after the batch).
+    match /timetable/{id} {
+      allow read: if mayUse();
+      allow create, update: if (isOwner() || isAdmin()) && ttOk(id);
+      allow delete: if false;
+    }
+
+    function ttOk(id) {
+      let p = id.split('[|]');
+      let d = request.resource.data;
+      let tag = getAfter(headPath(p[0])).data.get('v', {}).get('timetable', 0);
+      return (p.size() == 2 && p[1] == 'current'
+            && d.keys().hasOnly(['sem', 'marker'])
+            && d.sem is string && d.marker == tag
+            && pathBumped(p[0], 'timetable'))
+        || (p.size() == 2 && p[1] != 'current'
+            && d.keys().hasOnly(['v', 'sem', 'campus', 'hours', 'examSlots', 'events',
+                                 'chunks', 'publishedAt', 'marker', 'auditId'])
+            && d.v == 1 && d.campus == p[0] && d.sem == p[1]
+            && d.chunks is int && d.chunks > 0 && d.chunks <= 40
+            && d.hours is map && d.examSlots is map && d.events is list
+            && d.publishedAt == request.time && d.marker == tag
+            && audited('timetable/' + id)
+            && pathBumped(p[0], 'timetable'))
+        || (p.size() == 3
+            && d.keys().hasOnly(['n', 'courses'])
+            && d.n is int && string(d.n) == p[2] && d.courses is map
+            && d.n < getAfter(metaPath(p)).data.chunks
+            && getAfter(/databases/$(db)/documents/audit/$(getAfter(metaPath(p)).data.auditId)).data.actor.email == me());
+    }
+
+    function metaPath(p) { return /databases/$(db)/documents/timetable/$(p[0] + '|' + p[1]); }
+
+    // ---- Shared course data ------------------------------------------------
+
+    // The published catalogue (§1): not secret, one read per new version.
+    // Written only by an owner's Publish: a new v{n}, never rewritten, and the
+    // marker moved to it with an audit entry in the same batch (§11).
+    match /catalog/{doc} {
+      allow read: if mayUse();
+      allow create: if doc != 'marker' && isOwner()
+        && doc == 'v' + string(request.resource.data.version)
+        && request.resource.data.json is string
+        && getAfter(afterPath('catalog/marker')).data.version
+             == request.resource.data.version;
+      allow create, update: if doc == 'marker' && isOwner()
+        && request.resource.data.keys().hasOnly(['version', 'schema', 'auditId'])
+        && existsAfter(afterPath('catalog/v' + string(request.resource.data.version)))
+        && audited('catalog/marker');
+      allow delete: if false;
+    }
+
+    // ---- Maintainer writes (§13.2, §13.3) -----------------------------------
+
+    // An owner, the department's president or the course's CR, on the
+    // campus in the path. Each is checked against the grant, not the index.
+    function maintains(campus, courseId) {
+      return isOwner() || isPresident(campus, managingDept(campus, courseId))
+        || isCr(campus, courseId);
+    }
+
+    function stamped() {
+      return request.resource.data.updatedBy.email == me()
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // Course identity: drafts until an owner publishes (§11). Presidents in
+    // scope may draft; nothing here reaches students until Publish.
+    match /courses/{courseId} {
+      allow read: if isOwner() || isAdmin();
+      allow create, update: if mayUse()
+        && (isOwner() || isPresident(campusOf(me()), managingDept(campusOf(me()), courseId)))
+        && request.resource.data.id == courseId
+        && request.resource.data.draft == true
+        && request.resource.data.keys().hasOnly(['id', 'title', 'credits',
+             'retired', 'elective', 'draft', 'auditId', 'updatedBy', 'updatedAt'])
+        && stamped()
+        && audited('courses/' + courseId);
+      // Publish clears the flag.
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['draft'])
+        && request.resource.data.draft == false;
+      allow delete: if false;
+    }
+
+    // Offerings: a course as taught on one campus in one term (§4, §10.1).
+    // Read by that campus; written by whoever maintains it there, logged.
+    // The courses a professor teaches (Reviews search), across courses on
+    // the reader's own campus.
+    match /{path=**}/offerings/{offering} {
+      allow list: if mayUse() && resource.data.campus == campusOf(me());
+    }
+
+    match /courses/{courseId}/offerings/{offering} {
+      allow read: if mayUse()
+        && (offering.split('_')[0] == campusOf(me()) || isOwner());
+      allow create, update: if mayUse()
+        && maintains(offering.split('_')[0], courseId)
+        && request.resource.data.courseId == courseId
+        && offering == request.resource.data.campus + '_' + request.resource.data.term
+        && request.resource.data.components is list
+        && request.resource.data.components.size() <= 30
+        && stamped()
+        && audited('courses/' + courseId + '/offerings/' + offering);
+      allow delete: if false;
+    }
+
+    // ---- Professors (§10.1, §16.3 fix 7) ----------------------------------------
+
+    // Presidents in scope, admins and owners add, rename and merge; CRs only
+    // pick one for their offering.
+    function editsProfessors(campus, dept) {
+      return isOwner() || isAdmin() || isPresident(campus, dept);
+    }
+
+    function professorOk(d) {
+      return d.name is string && d.name.size() > 1 && d.name.size() <= 80
+        && d.nameTokens is list && d.nameTokens.size() <= 200
+        && d.aliases is list && d.aliases.size() <= 20
+        && d.mergedIds is list && d.mergedIds.size() <= 20
+        && d.campus in ['goa', 'hyderabad', 'pilani', 'dubai'];
+    }
+
+    // A survivor's change in a merge: the batch's audit entry names a
+    // duplicate that now points here (merge by pointer).
+    function mergedHere(id) {
+      let a = getAfter(/databases/$(db)/documents/audit/$(request.resource.data.auditId)).data;
+      return a.actor.email == me()
+        && a.path.split('/')[1] in request.resource.data.mergedIds
+        && getAfter(afterPath(a.path)).data.mergedInto == id;
+    }
+
+    // Soft delete: a removed doc is frozen (like a merged one) until restored;
+    // the flip itself changes only the removal fields and names its actor.
+    function removalOk() {
+      let was = resource.data.get('removed', false);
+      let now = request.resource.data.get('removed', false);
+      let flip = request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['removed', 'removedBy', 'removedAt', 'updatedBy', 'updatedAt', 'auditId']);
+      return was == now
+        ? !was && !('removedAt' in request.resource.data.diff(resource.data).affectedKeys())
+        : flip && (!now || (request.resource.data.removedBy.email == me()
+                            && request.resource.data.removedAt == request.time));
+    }
+
+    match /professors/{id} {
+      // A review's counters can name a professor who is gone (a deleted or
+      // reseeded doc). The Reviews screen reads each named professor; a
+      // get() on a missing doc must answer "absent", not fail the screen.
+      // Nothing is leaked by confirming a doc is absent (as for grants).
+      allow get: if mayUse()
+        && (resource == null
+            || resource.data.campus == campusOf(me()) || isOwner() || isAdmin());
+      allow list: if mayUse()
+        && (resource.data.campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create: if mayUse()
+        && professorOk(request.resource.data)
+        && editsProfessors(request.resource.data.campus, request.resource.data.department)
+        && request.resource.data.mergedIds.size() == 0
+        && !('mergedInto' in request.resource.data)
+        && request.resource.data.get('removed', false) == false
+        && stamped()
+        && audited('professors/' + id)
+        && pathBumped(request.resource.data.campus, 'professors/' + request.resource.data.department);
+      allow update: if mayUse()
+        && professorOk(request.resource.data)
+        && request.resource.data.campus == resource.data.campus
+        && request.resource.data.department == resource.data.department
+        && !('mergedInto' in resource.data)
+        && removalOk()
+        && editsProfessors(resource.data.campus, resource.data.department)
+        && stamped()
+        && (audited('professors/' + id) || mergedHere(id))
+        && pathBumped(resource.data.campus, 'professors/' + resource.data.department);
+      allow delete: if false;
+    }
+
+    // ---- Reviews (§10.3, §16.3 fixes 4–6) --------------------------------------
+
+    // Pseudonymous by construction: the id is sha256(uid + course), and the
+    // review stores no uid. Votes and reports use sha256(uid + review id).
+    function hashOf(key) {
+      return hashing.sha256(request.auth.uid + key).toHexString().lower();
+    }
+
+    function statsPath(c, s) {
+      return /databases/$(db)/documents/courses/$(c)/stats/$(s);
+    }
+
+    // The counter at s moved by exactly these amounts in this batch.
+    function statMoved(c, s, dc, ds, dr) {
+      let p = statsPath(c, s);
+      let after = getAfter(p).data;
+      return exists(p)
+        ? after.count == get(p).data.count + dc
+          && after.starSum == get(p).data.starSum + ds
+          && after.recommendCount == get(p).data.recommendCount + dr
+        : after.count == dc && after.starSum == ds && after.recommendCount == dr;
+    }
+
+    // The course's counter, and the professor's when there is one.
+    function counted(c, d, dc, ds, dr) {
+      return statMoved(c, d.campus, dc, ds, dr)
+        && (d.professorId == null || statMoved(c, d.campus + '_' + d.professorId, dc, ds, dr));
+    }
+
+    function rec(d) { return d.recommend ? 1 : 0; }
+
+    function reviewOk(d) {
+      return d.stars is int && d.stars >= 1 && d.stars <= 5
+        && d.recommend is bool
+        && (!('text' in d) || (d.text is string && d.text.size() <= 600))
+        && (!('grade' in d) || d.grade in ['A', 'A-', 'B', 'B-', 'C', 'C-', 'D', 'E',
+             'NC', 'RC', 'W', 'ND'])
+        && (!('marks' in d) || ((d.marks is int || d.marks is float)
+             && d.marks >= 0 && d.marks <= 1000));
+    }
+
+    // Taking a course is self-declared (fix 5). A review is of the course
+    // under a professor: one named must be a professor on the writer's
+    // campus. The term, or whether it was offered, does not matter.
+    function professorNamed(d) {
+      let p = /databases/$(db)/documents/professors/$(d.professorId);
+      return d.professorId == null
+        || (d.professorId is string && exists(p) && get(p).data.campus == d.campus);
+    }
+
+    // Moderators read through the staff index; writes check the grant.
+    function readsModeration(d) {
+      let s = get(staffPath(me())).data;
+      return isOwner() || (s.campus == d.campus && request.time < s.expiresAt
+        && d.department in s.presidentOf);
+    }
+
+    function reviewPath(c, id) {
+      return /databases/$(db)/documents/reviews/$(c)/entries/$(id);
+    }
+
+    // DeptReviews lists a department's reviews across its courses.
+    match /{path=**}/entries/{id} {
+      allow list: if mayUse() && readsModeration(resource.data);
+    }
+
+    // The student-visible copy of a campus's reviews of a course, one doc:
+    // an entry mirrors its review after the batch, and a hidden review has
+    // none.
+    match /reviews/{c}/campus/{campus} {
+      allow get: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['k', 'r', 'base'])
+        // The imported class averages (`base`) are the import script's alone.
+        && request.resource.data.get('base', null)
+             == (resource == null ? null : resource.data.get('base', null))
+        && mirrors(c, campus)
+        && pathBumped(campus, 'reviews/' + c);
+      allow delete: if false;
+    }
+
+    function mirrors(c, campus) {
+      let k = request.resource.data.k;
+      let was = resource == null ? {} : resource.data.get('r', {});
+      let now = request.resource.data.r;
+      let e = getAfter(reviewPath(c, k)).data;
+      return now.diff(was).affectedKeys().hasOnly([k])
+        && e.campus == campus
+        && (e.hidden
+            ? !(k in now)
+            : now[k].keys().hasOnly(['stars', 'recommend', 'text', 'term',
+                  'professorId', 'helpful', 'createdAt', 'updatedAt', 'grade', 'marks'])
+              && now[k].get('grade', null) == e.get('grade', null)
+              && now[k].get('marks', null) == e.get('marks', null)
+              && now[k].stars == e.stars
+              && now[k].recommend == e.recommend
+              && now[k].get('text', null) == e.get('text', null)
+              && now[k].term == e.term
+              && now[k].professorId == e.professorId
+              && now[k].helpful == e.helpful);
+    }
+
+    match /reviews/{c}/entries/{id} {
+      allow get: if mayUse()
+        && (id == hashOf(c)
+            || (resource.data.campus == campusOf(me()) && resource.data.hidden == false)
+            || readsModeration(resource.data));
+      allow list: if mayUse()
+        && ((resource.data.campus == campusOf(me()) && resource.data.hidden == false)
+            || readsModeration(resource.data));
+
+      allow create: if isStudent(me()) && id == hashOf(c)
+        && request.resource.data.keys().hasOnly(['courseId', 'department', 'stars',
+             'recommend', 'text', 'campus', 'term', 'professorId', 'hidden',
+             'helpful', 'reports', 'createdAt', 'updatedAt', 'grade', 'marks'])
+        && reviewOk(request.resource.data)
+        && request.resource.data.courseId == c
+        && request.resource.data.department == deptOf(c)
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.hidden == false
+        && request.resource.data.helpful == 0
+        && request.resource.data.reports == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && professorNamed(request.resource.data)
+        && counted(c, request.resource.data, 1, request.resource.data.stars,
+                   rec(request.resource.data));
+
+      // The author edits: the counters move by the difference, not at all
+      // while it is hidden. Votes are kept (fix 6).
+      allow update: if isStudent(me()) && id == hashOf(c)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['stars', 'recommend', 'text', 'grade', 'marks', 'updatedAt'])
+        && reviewOk(request.resource.data)
+        && request.resource.data.updatedAt == request.time
+        && (resource.data.hidden
+            || counted(c, resource.data, 0,
+                       request.resource.data.stars - resource.data.stars,
+                       rec(request.resource.data) - rec(resource.data)));
+
+      // Helpful and report: one each per person, the counter by one.
+      allow update: if isBits() && resource.data.campus == campusOf(me())
+        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['helpful'])
+             && request.resource.data.helpful == resource.data.helpful + 1
+             && existsAfter(/databases/$(db)/documents/reviews/$(c)/entries/$(id)/votes/$(hashOf(id)))
+             && !exists(/databases/$(db)/documents/reviews/$(c)/entries/$(id)/votes/$(hashOf(id))))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reports'])
+             && request.resource.data.reports == resource.data.reports + 1
+             && existsAfter(/databases/$(db)/documents/reviews/$(c)/entries/$(id)/reports/$(hashOf(id)))
+             && !exists(/databases/$(db)/documents/reviews/$(c)/entries/$(id)/reports/$(hashOf(id)))));
+
+      // Moderation is hide-only, with a reason and an audit entry; a hide
+      // takes the review off the counters and an unhide puts it back.
+      allow update: if mayUse()
+        && (isOwner() || isPresident(resource.data.campus, managingDept(resource.data.campus, c)))
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['hidden', 'reason', 'hiddenBy', 'reports', 'auditId', 'moderatedAt'])
+        && request.resource.data.moderatedAt == request.time
+        && audited('reviews/' + c + '/entries/' + id)
+        && (request.resource.data.hidden == resource.data.hidden
+            || (request.resource.data.hidden
+                ? request.resource.data.reason is string
+                  && request.resource.data.reason.size() > 0
+                  && request.resource.data.hiddenBy.email == me()
+                  && counted(c, resource.data, -1, -resource.data.stars, -rec(resource.data))
+                : counted(c, resource.data, 1, resource.data.stars, rec(resource.data))));
+
+      // Edit only: nobody deletes a review, its author included (fix 6,
+      // decided 27 Sep 2026).
+      allow delete: if false;
+
+      match /votes/{v} {
+        allow get: if isBits() && v == hashOf(id);
+        allow create: if isBits() && v == hashOf(id)
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && getAfter(reviewPath(c, id)).data.helpful == get(reviewPath(c, id)).data.helpful + 1;
+      }
+
+      match /reports/{v} {
+        allow create: if isBits() && v == hashOf(id)
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && getAfter(reviewPath(c, id)).data.reports == get(reviewPath(c, id)).data.reports + 1;
+      }
+    }
+
+    // Counters: written only in a batch that also writes the review they
+    // count, whose rule checks the amounts.
+    function reviewTouched(c, rid) {
+      let p = reviewPath(c, rid);
+      return !existsAfter(p)
+        ? exists(p)
+        : getAfter(p).data.updatedAt == request.time
+          || getAfter(p).data.get('moderatedAt', null) == request.time;
+    }
+
+    // Most reviewed on a campus (§16.3 fix 14): counters are public to
+    // anyone signed in, across courses too.
+    match /{path=**}/stats/{s} {
+      allow list: if mayUse();
+    }
+
+    match /courses/{c}/stats/{s} {
+      allow read: if mayUse();
+      allow create, update: if mayUse()
+        && request.resource.data.keys().hasOnly(['count', 'starSum', 'recommendCount',
+             'campus', 'courseId', 'scope', 'professorId', 'touchedBy'])
+        && request.resource.data.courseId == c
+        && reviewTouched(c, request.resource.data.touchedBy);
+      allow delete: if false;
+    }
+
+    // ---- Resources (§6, §16.3 fixes 3 and 17) ---------------------------------
+
+    // https links to known hosts only, the same list as lib/core/resources.
+    function linkOk(url) {
+      return url is string && url.size() <= 500
+        // Any website (UI_REBUILD_HANDOFF.md §3.10): http(s) and a dotted host.
+        && url.matches('^https?://[^/?#@\\s]+[.][^/?#@\\s]+([/?#].*)?$');
+    }
+
+    function resourceOk(d) {
+      return d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && linkOk(d.url)
+        && d.scope in ['department', 'course']
+        && d.courseIds is list && d.courseIds.size() <= 20
+        && (d.scope == 'department'
+            || (d.courseIds.size() > 0 && managingDept(d.campus, d.courseIds[0]) == d.department))
+        && d.removed is bool && d.pinnedToDepartment is bool;
+    }
+
+    function versionsPath(campus) {
+      return /databases/$(db)/documents/resourceVersions/$(campus);
+    }
+
+    // Every resource write moves the campus version in the same batch, so a
+    // cached department is re-read (§6).
+    function versionBumped(campus) {
+      return exists(versionsPath(campus))
+        ? getAfter(versionsPath(campus)).data.v == get(versionsPath(campus)).data.v + 1
+        : getAfter(versionsPath(campus)).data.v == 1;
+    }
+
+    // A CR acting for their course: it must be on the link, before or after.
+    function crOn(campus, a, before, after) {
+      return a is string && a != '' && (a in after || a in before)
+        && isCr(campus, a);
+    }
+
+    match /resources/{id} {
+      allow read: if mayUse()
+        && (resource.data.campus == campusOf(me()) || isOwner());
+      allow create: if request.resource.data.get('approved', true) == true
+        && mayUse()
+        && resourceOk(request.resource.data)
+        && (isOwner() || request.resource.data.campus == campusOf(me()))
+        && (isOwner()
+            || isPresident(request.resource.data.campus, request.resource.data.department)
+            || (request.resource.data.scope == 'course'
+                && request.resource.data.actingFor == request.resource.data.courseIds[0]
+                && crOn(request.resource.data.campus, request.resource.data.actingFor,
+                        [], request.resource.data.courseIds)))
+        && request.resource.data.addedBy.email == me()
+        && request.resource.data.addedAt == request.time
+        && audited('resources/' + id)
+        && versionBumped(request.resource.data.campus)
+        && pathBumped(request.resource.data.campus, 'resources');
+      // A contributor's link is live but unapproved (B7), listed in pending.
+      allow create: if request.resource.data.get('approved', true) == false
+        && mayUse()
+        && resourceOk(request.resource.data)
+        && request.resource.data.removed == false
+        && request.resource.data.campus == campusOf(me())
+        && holds('contributor', request.resource.data.campus, request.resource.data.campus)
+        && request.resource.data.publishedAt == request.time
+        && request.resource.data.batchId is string
+        && getAfter(contribDoc('pending/' + request.resource.data.campus + '|'
+             + request.resource.data.department)).data.k == id
+        && request.resource.data.addedBy.email == me()
+        && request.resource.data.addedAt == request.time
+        && audited('resources/' + id)
+        && versionBumped(request.resource.data.campus)
+        && pathBumped(request.resource.data.campus, 'resources');
+      // Approve: false to true inside the 15 days, +4 to the author beside it.
+      allow update: if resource.data.get('approved', true) == false
+        && request.resource.data.get('approved', true) == true
+        && mayUse()
+        && approves(resource.data.campus, resource.data.department)
+        && resource.data.removed == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'auditId'])
+        && resource.data.publishedAt + duration.value(15, 'd') > request.time
+        && getAfter(contribDoc('contributors/' + resource.data.addedBy.email)).data.points
+             == (exists(contribDoc('contributors/' + resource.data.addedBy.email))
+                 ? get(contribDoc('contributors/' + resource.data.addedBy.email)).data.points : 0) + 4
+        && audited('resources/' + id)
+        && versionBumped(resource.data.campus)
+        && pathBumped(resource.data.campus, 'resources');
+      // Reject (an admin; owners and presidents may already remove).
+      allow update: if resource.data.get('approved', true) == false
+        && request.resource.data.removed == true
+        && mayUse()
+        && approves(resource.data.campus, resource.data.department)
+        && request.resource.data.rejectedReason is string
+        && request.resource.data.rejectedReason.size() > 0
+        && request.resource.data.rejectedReason.size() <= 200
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['removed', 'rejectedReason', 'auditId'])
+        && audited('resources/' + id)
+        && versionBumped(resource.data.campus)
+        && pathBumped(resource.data.campus, 'resources');
+      allow update: if request.resource.data.get('approved', true) == resource.data.get('approved', true)
+        && mayUse()
+        && resourceOk(request.resource.data)
+        && request.resource.data.diff(resource.data).unchangedKeys()
+             .hasAll(['campus', 'department', 'scope', 'addedBy', 'addedAt'])
+        && (isOwner() || isPresident(resource.data.campus, resource.data.department)
+            || (crOn(resource.data.campus, request.resource.data.actingFor,
+                     resource.data.courseIds, request.resource.data.courseIds)
+                && ((resource.data.scope == 'course'
+                     && resource.data.courseIds[0] == request.resource.data.actingFor)
+                    || request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['courseIds', 'actingFor', 'auditId']))))
+        && audited('resources/' + id)
+        && versionBumped(resource.data.campus)
+        && pathBumped(resource.data.campus, 'resources');
+      // A contributor edits their own link: approval and window untouched
+      // (an edited approved link stays approved, no new points), never removed.
+      allow update: if mayUse()
+        && resourceOk(request.resource.data)
+        && resource.data.removed == false
+        && resource.data.addedBy.email == me()
+        && holds('contributor', resource.data.campus, resource.data.campus)
+        && request.resource.data.diff(resource.data).unchangedKeys()
+             .hasAll(['campus', 'department', 'scope', 'addedBy', 'addedAt', 'removed',
+                      'approved', 'publishedAt', 'batchId'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['title', 'url', 'host', 'kind', 'courseIds', 'pinnedToDepartment',
+                       'actingFor', 'auditId'])
+        && audited('resources/' + id)
+        && versionBumped(resource.data.campus)
+        && pathBumped(resource.data.campus, 'resources');
+      allow delete: if false;
+    }
+
+    // The version moves on every link write, and `links` holds a copy of
+    // each live link that matches it after the batch (removed: no copy).
+    match /resourceVersions/{campus} {
+      allow read: if mayUse();
+      allow create: if mayUse() && request.resource.data.keys().hasOnly(['v', 'k', 'links'])
+        && request.resource.data.v == 1
+        && linksMirror(campus, {});
+      allow update: if mayUse() && request.resource.data.keys().hasOnly(['v', 'k', 'links'])
+        && request.resource.data.v == resource.data.v + 1
+        && linksMirror(campus, resource.data.get('links', {}));
+      allow delete: if false;
+    }
+
+    function linksMirror(campus, was) {
+      let now = request.resource.data.get('links', {});
+      let k = request.resource.data.get('k', '');
+      let ks = now.diff(was).affectedKeys();
+      return ks.size() == 0
+        || (ks.hasOnly([k]) && linkCopy(campus, k, now));
+    }
+
+    function linkCopy(campus, k, now) {
+      let r = getAfter(/databases/$(db)/documents/resources/$(k)).data;
+      return r.campus == campus
+        && (r.get('removed', false) == true
+            ? !(k in now)
+            : now[k].title == r.title && now[k].url == r.url
+              && now[k].department == r.department && now[k].scope == r.scope
+              && now[k].courseIds == r.courseIds
+              && now[k].pinnedToDepartment == r.pinnedToDepartment
+              && now[k].get('approved', true) == r.get('approved', true)
+              && now[k].get('publishedAt', null) == r.get('publishedAt', null));
+    }
+
+    // Reports: one per person per link, id sha256(uid + resourceId), no uid
+    // stored. Nobody reads entries back; the flag carries the counts.
+    function reportPath(rid) {
+      return /databases/$(db)/documents/resourceReports/$(rid)/entries/$(
+        hashing.sha256(request.auth.uid + rid).toHexString().lower());
+    }
+
+    match /resourceReports/{rid}/entries/{entry} {
+      allow create: if isBits()
+        && entry == hashing.sha256(request.auth.uid + rid).toHexString().lower()
+        && request.resource.data.keys().hasOnly(['reason', 'note', 'campus', 'createdAt'])
+        && request.resource.data.reason in ['broken', 'wrong', 'spam', 'other']
+        && request.resource.data.get('note', '').size() <= 300
+        && request.resource.data.campus == campusOf(me())
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(db)/documents/resourceFlags/$(rid)).data.lastAt == request.time;
+      allow read, update, delete: if false;
+    }
+
+    // The staff index is trusted for reads (§4): who may see a link's reports.
+    function readsFlags(d) {
+      let s = get(staffPath(me())).data;
+      return isOwner() || (s.campus == d.campus && request.time < s.expiresAt
+        && (d.department in s.presidentOf || d.courseIds.hasAny(s.courses)));
+    }
+
+    match /resourceFlags/{rid} {
+      // Anyone on the campus may see a link's count (to report it); the
+      // lists are for the people who can fix it.
+      allow get: if mayUse()
+        && (resource == null || resource.data.campus == campusOf(me()) || readsFlags(resource.data));
+      allow list: if mayUse() && readsFlags(resource.data);
+      // A new report: its entry lands in the same batch, and the count moves
+      // by exactly one.
+      allow create, update: if isBits()
+        && existsAfter(reportPath(rid)) && !exists(reportPath(rid))
+        && request.resource.data.keys().hasOnly(['campus', 'department',
+             'courseIds', 'open', 'count', 'reasons', 'lastAt', 'auditId'])
+        && request.resource.data.open == true
+        && request.resource.data.count
+             == (resource == null ? 0 : resource.data.count) + 1
+        && request.resource.data.lastAt == request.time
+        && request.resource.data.campus == campusOf(me())
+        && get(/databases/$(db)/documents/resources/$(rid)).data.campus == campusOf(me())
+        && request.resource.data.department
+             == get(/databases/$(db)/documents/resources/$(rid)).data.department;
+      // Closing: It works · dismiss, or Fix the link with the resource edit.
+      allow update: if mayUse()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['open', 'auditId'])
+        && request.resource.data.open == false
+        && (isOwner() || isPresident(resource.data.campus, resource.data.department)
+            || (resource.data.courseIds.size() > 0
+                && isCr(resource.data.campus, resource.data.courseIds[0])))
+        && (audited('resourceFlags/' + rid)
+            || getAfter(/databases/$(db)/documents/resources/$(rid)).data.auditId
+                 == request.resource.data.auditId);
+      allow delete: if false;
+    }
+
+    // ---- The user's own data -----------------------------------------------
+
+    match /users/{uid} {
+      allow get, delete: if mayUse() && request.auth.uid == uid;
+      // The pull check: where uid == me and rev > mine (§A.4).
+      allow list: if mayUse() && resource.data.uid == request.auth.uid;
+      // Prefs (B1): an owner's update that touches only `prefs`, whose keys
+      // are the two known flags and whose values are bool, needs no rev/data.
+      allow update: if mayUse() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['prefs'])
+        && request.resource.data.prefs is map
+        && request.resource.data.prefs.keys().hasOnly(['offshootHidden', 'tourSeen'])
+        && request.resource.data.prefs.get('offshootHidden', false) is bool
+        && request.resource.data.prefs.get('tourSeen', false) is bool;
+      // rev moves by exactly one per push, so a plain update is safe without
+      // a transaction read: another device's push makes this one fail, and
+      // the app pulls (PERF_TEST_PLAN.md §A.4).
+      allow create, update: if mayUse() && request.auth.uid == uid
+        && request.resource.data.rev is int
+        && (resource == null || request.resource.data.rev == resource.data.rev + 1)
+        && request.resource.data.get('uid', uid) == uid
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 500000
+        // The pre-step-3 snapshot, kept once so the migration can be undone.
+        && (!('v1' in request.resource.data)
+            || (request.resource.data.v1 is string
+                && request.resource.data.v1.size() < 500000));
+    }
+
+    // Bug reports / course requests. Write-only from the app: a signed-in user
+    // can file one under their own uid, but nothing can be read back from the
+    // client. Read them in the Firebase console, which bypasses these rules.
+    match /reports/{reportId} {
+      allow create: if mayUse()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() < 5000;
+      allow read, update, delete: if false;
+    }
+  }
+}

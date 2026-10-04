@@ -1,0 +1,167 @@
+/// A cache-first helper (PERF_TEST_PLAN.md P1): the stores that read shared
+/// Firestore data (contacts, resources, reviews, professors, roles) wrap
+/// their network calls with this instead of hand-rolling a `Box` cache each
+/// time. `sharedCacheBox` (ARCHITECTURE.md §16.3) never syncs to the user
+/// document, so this is only for data everyone reads the same way.
+library;
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
+import 'package:flutter/foundation.dart';
+import 'package:hive_ce/hive.dart';
+
+/// Opens the shared cache box that [cacheFirst] reads through.
+Future<void> openSharedCache() => Hive.openBox(sharedCacheBoxName);
+
+/// The shared cache box, or `null` while it is not open.
+Box? get sharedCacheBox =>
+    Hive.isBoxOpen(sharedCacheBoxName) ? Hive.box(sharedCacheBoxName) : null;
+
+/// The saved value under [key], read synchronously (for a screen's first
+/// frame); null when nothing is saved or it no longer decodes.
+T? peekCache<T>(String key, T Function(Object?) decode, {Box? box}) {
+  final raw = (box ?? sharedCacheBox)?.get(key);
+  if (raw is! String) return null;
+  try {
+    return decode((jsonDecode(raw) as Map)['v']);
+  } on Object {
+    return null;
+  }
+}
+
+/// True while the live socket is connected, so a saved version that still
+/// matches the head's is current. LiveHeads sets it.
+bool versionsLive = false;
+
+/// Fetches in flight, keyed the same as the cache, so concurrent callers for
+/// one key share one fetch instead of each starting their own.
+final _inFlight = <String, Future<Object?>>{};
+
+/// Returns the cached value at once when there is one, refreshing it in the
+/// background when older than [maxAge]; fetches (and caches) only when
+/// nothing is cached. Concurrent calls for one key share one fetch.
+/// [awaitStale] waits for that refresh instead (the cached value if it fails):
+/// the same single read, but the caller sees the new value now, not next open.
+/// With a [version], a saved value from another version is stale and awaited
+/// like [awaitStale]; one saved under it is fresh while [versionsLive] (the
+/// live socket keeps versions current), otherwise only within [maxAge].
+Future<T> cacheFirst<T>({
+  required String key,
+  required Duration maxAge,
+  required Future<T> Function() fetch,
+  required Object? Function(T) encode, // JSON-safe
+  required T Function(Object?) decode,
+  Box? box,
+  DateTime Function()? now,
+  bool awaitStale = false,
+  String? version,
+}) async {
+  final b = box ?? sharedCacheBox;
+  final at = (now ?? DateTime.now)().millisecondsSinceEpoch;
+  final raw = b?.get(key);
+  if (raw is String) {
+    try {
+      final m = jsonDecode(raw) as Map;
+      final value = decode(m['v']);
+      final young = at - (m['at'] as int) < maxAge.inMilliseconds;
+      final moved = version != null && m['ver'] != version;
+      final fresh = version != null ? !moved && (versionsLive || young) : young;
+      if (fresh) return value;
+      if (awaitStale || moved) {
+        try {
+          return await _fetchAndCache(key, fetch, encode, b, at, version);
+        } on Object {
+          return value;
+        }
+      }
+      unawaited(
+        _fetchAndCache(key, fetch, encode, b, at, version).catchError((Object e) {
+          debugPrint('[Pointer cache] $key: background refresh failed: $e');
+          return value;
+        }),
+      );
+      return value;
+    } on Object catch (e) {
+      debugPrint('[Pointer cache] $key: dropping bad cache entry: $e');
+      await b?.delete(key);
+    }
+  }
+  return _fetchAndCache(key, fetch, encode, b, at, version);
+}
+
+Future<T> _fetchAndCache<T>(
+  String key,
+  Future<T> Function() fetch,
+  Object? Function(T) encode,
+  Box? box,
+  int at,
+  String? version,
+) {
+  final existing = _inFlight[key];
+  if (existing != null) return existing.then((v) => v as T);
+  final future = _run(key, fetch, encode, box, at, version);
+  _inFlight[key] = future;
+  return future;
+}
+
+Future<T> _run<T>(
+  String key,
+  Future<T> Function() fetch,
+  Object? Function(T) encode,
+  Box? box,
+  int at,
+  String? version,
+) async {
+  try {
+    final value = await fetch();
+    // Hive updates memory at once; the disk write need not hold the caller.
+    unawaited(
+      box
+          ?.put(key, jsonEncode({'at': at, 'v': encode(value), 'ver': version}))
+          .catchError((Object e) => debugPrint('[Pointer cache] $key: $e')),
+    );
+    return value;
+  } finally {
+    _inFlight.remove(key);
+  }
+}
+
+/// Drops every cached entry whose key starts with [keyPrefix], e.g. after a
+/// write that only that prefix's reads should now see.
+Future<void> forget(String keyPrefix, {Box? box}) async {
+  final b = box ?? sharedCacheBox;
+  if (b == null) return;
+  final keys = b.keys.where((k) => k is String && k.startsWith(keyPrefix));
+  await b.deleteAll(keys);
+}
+
+/// [load] that also saves each successful result under [key] (JSON via
+/// [encode]), for a live read whose last list is drawn in the next first
+/// frame ([peekCache] with its decode); the screen keeps its writes disabled
+/// until the fresh load completes. [key] carries whatever scopes the data
+/// (campus, email).
+Future<T> Function() remembered<T>(
+  String key,
+  Future<T> Function() load,
+  Object? Function(T) encode,
+) => () async {
+  final v = await load();
+  try {
+    unawaited(
+      sharedCacheBox
+          ?.put(
+            key,
+            jsonEncode({
+              'at': DateTime.now().millisecondsSinceEpoch,
+              'v': encode(v),
+            }),
+          )
+          .catchError((Object e) => debugPrint('[Pointer cache] $key: $e')),
+    );
+  } on Object catch (e) {
+    debugPrint('[Pointer cache] $key: not saved: $e');
+  }
+  return v;
+};

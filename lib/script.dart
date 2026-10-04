@@ -1,0 +1,614 @@
+import 'dart:convert';
+import 'dart:ui' as ui;
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
+import 'package:cgpa_calculator/core/platform/browser.dart';
+import 'package:flutter/foundation.dart';
+import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/core/grading/cgpa.dart';
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cgpa_calculator/core/models/semesters.dart';
+import 'package:cgpa_calculator/core/storage/course_order.dart';
+import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/core/storage/seed.dart';
+import 'package:cgpa_calculator/course.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:hive_ce/hive.dart';
+
+export 'package:cgpa_calculator/core/grading/grade_scale.dart';
+
+/// Downloads [bytes] as the PNG [filename].
+void saveImageWeb(Uint8List bytes, String filename) =>
+    downloadBytes(bytes, filename, 'image/png');
+
+String _csvCell(Object? v) {
+  var s = v?.toString() ?? '';
+  // Formula injection (BUG-45): a leading =, +, - or @ is a formula trigger
+  // in Excel/Sheets. Prefix with ' so the cell is read as plain text.
+  if (RegExp(r'^[=+\-@]').hasMatch(s)) s = "'$s";
+  return RegExp(r'[",\n\r]').hasMatch(s)
+      ? '"${s.replaceAll('"', '""')}"'
+      : s;
+}
+
+/// Builds a CSV of every saved course, both grade profiles included.
+String buildGradesCsv() {
+  final courses = Hive.box<Course>('coursesBox').values.toList()
+    ..sort((a, b) {
+      final c = a.sem.compareTo(b.sem);
+      return c != 0 ? c : a.id.compareTo(b.id);
+    });
+
+  final rows = <List<Object?>>[
+    [
+      'Course ID',
+      'Title',
+      'Credits',
+      'Semester',
+      'Discipline',
+      'Type',
+      '$profile1n Grade',
+      '$profile1n Points',
+      '$profile2n Grade',
+      '$profile2n Points',
+    ],
+    for (final c in courses)
+      [
+        c.id,
+        c.title,
+        c.credits,
+        c.sem,
+        c.discipline,
+        c.elective,
+        gradecalc(c.grade1),
+        c.grade1 < 0 ? '' : c.grade1,
+        gradecalc(c.grade2),
+        c.grade2 < 0 ? '' : c.grade2,
+      ],
+  ];
+
+  return rows.map((r) => r.map(_csvCell).join(',')).join('\r\n');
+}
+
+/// Downloads the course list as a .csv file. Returns the filename used.
+String exportGradesCsv() {
+  final name =
+      'CGPA_Grades_${DateTime.now().toIso8601String().split("T").first}.csv';
+  // BOM so Excel opens UTF-8 correctly.
+  final bytes = <int>[0xEF, 0xBB, 0xBF, ...utf8.encode(buildGradesCsv())];
+  downloadBytes(bytes, name, 'text/csv;charset=utf-8');
+  return name;
+}
+
+/// Reads the saved settings into the globals.
+void _loadSettings(Box settingsBox) {
+  selecteddiscipline = settingsBox.get(
+    'selecteddiscipline',
+    defaultValue: selecteddiscipline,
+  );
+  batch = settingsBox.get('batch', defaultValue: 24);
+  campus = Campus.named(settingsBox.get('campus') as String?);
+  loadPinnedCategories(settingsBox);
+  // Saved names from the removed colour themes fall back to White or Black.
+  selected_theme = AppPalette.resolveName(
+    settingsBox.get('selected_theme', defaultValue: selected_theme),
+  );
+  degree_selected = settingsBox.get('degree_selected', defaultValue: false);
+  currentsort = settingsBox.get('currentsort', defaultValue: currentsort);
+  currentsem = settingsBox.get('currentsem', defaultValue: currentsem);
+  profile1n = settingsBox.get('profile1n', defaultValue: profile1n);
+  profile2n = settingsBox.get('profile2n', defaultValue: profile2n);
+  for (var id = 3; id <= profileCount; id++) {
+    moreProfileNames[id - 3] = settingsBox.get(
+      'profile${id}n',
+      defaultValue: 'Profile $id',
+    );
+  }
+  final pair = settingsBox.get('comparePair');
+  if (pair is List && pair.length == 2) {
+    comparePair = (pair[0] as int, pair[1] as int);
+  }
+}
+
+/// Opens the settings and course boxes and loads the saved settings.
+Future<void> basicStartup() async {
+  var settingsBox = await Hive.openBox('settingsBox');
+  await Hive.openBox<Course>('coursesBox');
+  _loadSettings(settingsBox);
+  await Hive.openBox<Course>('offshootBox');
+}
+
+/// Copies every Actual grade onto the Expected profile, across all semesters.
+Future<void> copyGrades() => copyProfile(1, 2);
+
+/// Fills the course box for the chosen discipline, replacing the old plan.
+Future<void> initializeCourses() async {
+  var settingsBox = await Hive.openBox('settingsBox');
+  final coursesBox = await Hive.openBox<Course>('coursesBox');
+  _loadSettings(settingsBox);
+  final rows = chartRows(batch);
+  if (erase == 1) {
+    await coursesBox.clear();
+    await coursesBox.putAll({
+      for (final c in seedCourses(selecteddiscipline, rows)) c.id: c,
+    });
+    setsort();
+  } else if (erase == 0) {
+    if (degree_selected && needsSeed(selecteddiscipline, coursesBox.values)) {
+      await coursesBox.putAll({
+        for (final c in seedCourses(selecteddiscipline, rows)) c.id: c,
+      });
+      setsort();
+    }
+  } else if (erase == 2) {
+    final plan = reseedSecondHalf(selecteddiscipline, coursesBox.toMap(), rows);
+    await coursesBox.deleteAll(plan.drop);
+    await coursesBox.putAll({for (final c in plan.add) c.id: c});
+  }
+  await placeDualPracticeSchool(coursesBox, selecteddiscipline);
+}
+
+/// Saves the batch, discipline and campus.
+Future<void> setdis() async {
+  var settingsBox = await Hive.openBox('settingsBox');
+  await settingsBox.put('batch', batch);
+  await settingsBox.put('selecteddiscipline', selecteddiscipline);
+  if (campus != null) await settingsBox.put('campus', campus!.name);
+  await settingsBox.put('degree_selected', true);
+}
+
+/// Sorts [sitems] in place by sort order [cs].
+void sort(List<Course> sitems, String cs) {
+  if (cs == customSortKey) {
+    final ordered = orderCourses(sitems, courseOrderFor(currentsem));
+    sitems.setAll(0, ordered);
+    return;
+  }
+  if (selectedprofile == 1) {
+    if (cs == "Sort by Credits(Asc)") {
+      sitems.sort((a, b) => a.credits.compareTo(b.credits));
+    } else if (cs == "Sort by Credits(Des)") {
+      sitems.sort((a, b) => b.credits.compareTo(a.credits));
+    } else if (cs == "Sort by Grades(Des)") {
+      sitems.sort((a, b) => b.grade1.compareTo(a.grade1));
+    } else if (cs == "Sort by Grades(Asc)") {
+      sitems.sort((a, b) => a.grade1.compareTo(b.grade1));
+    }
+  } else if (selectedprofile == 2) {
+    if (cs == "Sort by Credits(Asc)") {
+      sitems.sort((a, b) => a.credits.compareTo(b.credits));
+    } else if (cs == "Sort by Credits(Des)") {
+      sitems.sort((a, b) => b.credits.compareTo(a.credits));
+    } else if (cs == "Sort by Grades(Des)") {
+      sitems.sort((a, b) => b.grade2.compareTo(a.grade2));
+    } else if (cs == "Sort by Grades(Asc)") {
+      sitems.sort((a, b) => a.grade2.compareTo(b.grade2));
+    }
+  }
+}
+
+/// Saves [currentsort].
+Future<void> setsort() async {
+  var settingsBox = await Hive.openBox('settingsBox');
+  await settingsBox.put('currentsort', currentsort);
+}
+
+
+/// Saves [selected_theme].
+Future<void> settheme() async {
+  var settingsBox = await Hive.openBox('settingsBox');
+  await settingsBox.put('selected_theme', selected_theme);
+}
+
+/// Saves [currentsem].
+Future<void> setsem() async {
+  var settingsBox = await Hive.openBox('settingsBox');
+  await settingsBox.put('currentsem', currentsem);
+}
+
+/// Saves the profile names and the compared pair.
+Future<void> setprof() async {
+  var settingsBox = await Hive.openBox('settingsBox');
+  await settingsBox.put('profile1n', profile1n);
+  await settingsBox.put('profile2n', profile2n);
+  for (var id = 3; id <= profileCount; id++) {
+    await settingsBox.put('profile${id}n', moreProfileNames[id - 3]);
+  }
+  await settingsBox.put('comparePair', [comparePair.$1, comparePair.$2]);
+}
+
+
+/// Writes [course] to the course box under its id.
+Future<void> addOrUpdateCourse(Course course) async {
+  try {
+    var box = Hive.box<Course>('coursesBox');
+    await box.put(course.id, course);
+    await box.flush();
+  } catch (e) {}
+}
+
+/// Clears the grades of [sem]'s courses under profile id [profile].
+Future<void> clearSemesterGrades(String sem, int profile) async {
+  try {
+    var box = Hive.box<Course>('coursesBox');
+    List<Course> courses = box.values.where((c) => c.sem == sem).toList();
+    for (var course in courses) {
+      Course updatedCourse = course.withGrade(profile, -2);
+      await box.put(updatedCourse.id, updatedCourse);
+    }
+    await box.flush();
+  } catch (e) {}
+}
+
+/// The system bars follow the palette (UI.md T9.2): the nav bar takes the
+/// page background, and its icons and the status bar's contrast with it.
+void setnavcolor() {
+  final dark = thm.isDark;
+  SystemChrome.setSystemUIOverlayStyle(
+    (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
+      systemNavigationBarColor: thm.background,
+      systemNavigationBarIconBrightness:
+          dark ? Brightness.light : Brightness.dark,
+    ),
+  );
+}
+
+
+
+// GPA maths lives in core/grading/cgpa.dart. These keep the old names and the
+// globals for screens that have not been rebuilt yet.
+
+GpaTally _semTally(String sem, Profile p) => semesterTally(
+  Hive.box<Course>('coursesBox').values,
+  sem: sem,
+  discipline: selecteddiscipline,
+  profile: p,
+);
+
+GpaTally _cumTally(Profile p) => cumulativeTally(
+  Hive.box<Course>('coursesBox').values,
+  discipline: selecteddiscipline,
+  profile: p,
+);
+
+/// SGPA of [s] for the selected profile, rounded; -3.0 if no profile.
+double sgcalc(String s) {
+  final p = Profile.fromId(selectedprofile);
+  return p == null ? -3.0 : _semTally(s, p).rounded;
+}
+
+/// CGPA for the selected profile, rounded; -3.0 if no profile.
+double cgcalc() {
+  final p = Profile.fromId(selectedprofile);
+  return p == null ? -3.0 : _cumTally(p).rounded;
+}
+
+/// Credits shown beside the SGPA/CGPA, per profile, into the scred/ccred
+/// globals.
+void creditTotals() {
+  scred1 = _semTally(currentsem, Profile.actual).shownCredits;
+  scred2 = _semTally(currentsem, Profile.expected).shownCredits;
+  ccred1 = _cumTally(Profile.actual).shownCredits;
+  ccred2 = _cumTally(Profile.expected).shownCredits;
+}
+
+/// The palette of [selected_theme].
+var thm = AppPalette.byName(selected_theme);
+
+/// The current semester's GPA under the selected profile.
+double sgpa = 0.00;
+
+/// The cumulative GPA under the selected profile.
+double cgpa = 0.00;
+
+/// The two-digit batch year.
+int batch = 24;
+
+/// The discipline code, two two-letter halves ("B3A7"); "----" until chosen.
+String selecteddiscipline = "----"; //store
+
+/// Halves of [selecteddiscipline] as the first-run discipline dialog edits
+/// them.
+String selectdual = selecteddiscipline.substring(0, 2);
+
+/// The second half of the discipline code.
+String selecengg = selecteddiscipline.substring(2, 4);
+
+/// The id of the profile whose grades the screens show.
+int selectedprofile = 1;
+
+/// The semester label the home screen shows.
+String currentsem = "1 - 1"; // store
+
+/// Credits shown for the current semester under profiles 1 and 2.
+double scred1 = 0;
+double scred2 = 0;
+
+/// Credits shown cumulatively under profiles 1 and 2.
+double ccred1 = 0;
+double ccred2 = 0;
+
+/// The names of profiles 1 and 2.
+String profile1n = "Actual";
+String profile2n = "Expected";
+
+/// Actual and Expected, plus three profiles that only Compare shows.
+const profileCount = 5;
+/// The names of profiles 3 to 5.
+final moreProfileNames = ['Profile 3', 'Profile 4', 'Profile 5'];
+
+/// The two profiles Compare shows side by side, by id.
+(int, int) comparePair = (1, 2);
+
+/// Every profile's name, profile 1 first.
+List<String> get profileNames => [profile1n, profile2n, ...moreProfileNames];
+
+/// The chosen course sort order.
+String currentsort = "Sort by Credits(Asc)"; //store
+
+/// The chosen theme's name.
+String selected_theme = "White";
+
+/// Whether a discipline has been chosen.
+bool degree_selected = false;
+
+/// Read from the sign-in address at setup, or chosen; null until known.
+Campus? campus;
+
+/// Legacy counter of grade erasures.
+int erase = 0;
+
+/// The grades a grade picker offers.
+final List<String> grades = pickerGrades;
+
+/// The base semester labels.
+final List<String> sems = baseSemesters;
+/// Switches light or dark under the circle reveal and saves it. [then]
+/// runs with the change, while the old screen still covers it.
+Future<void> switchTheme(bool dark, {VoidCallback? then}) async {
+  final name = dark ? 'Black' : 'White';
+  if (name == selected_theme) return;
+  await ThemeReveal.run(() {
+    selected_theme = name;
+    thm = AppPalette.byName(selected_theme);
+    themeVersion.value++;
+    then?.call();
+  });
+  setnavcolor();
+  await settheme();
+}
+
+/// Bumped when [thm] changes, so the app rebuilds with the new theme.
+final themeVersion = ValueNotifier(0);
+
+/// Codes in [degreelist] not offered at Goa or Hyderabad (A9 Biotechnology,
+/// AB Manufacturing). Kept for anyone already on them, never offered anew.
+const notOfferedHere = {'A9', 'AB'};
+
+/// [degreelist] without [notOfferedHere], for pickers.
+List<String> get offeredDegrees =>
+    degreelist.where((d) => !notOfferedHere.contains(d)).toList();
+
+/// Every discipline half a student may pick.
+final List<String> degreelist = [
+  "B1",
+  "B2",
+  "B3",
+  "B4",
+  "B5",
+  "B7",
+  "A1",
+  "A2",
+  "A3",
+  "A4",
+  "A5",
+  "A7",
+  "A8",
+  "A9",
+  "AA",
+  "AB",
+  "AC",
+  "AD",
+  "AJ",
+];
+
+/// Renders the semester summary card to a PNG and downloads it, returning
+/// a confirmation message.
+Future<String> saveDataAsImage(
+    List<Map<String, dynamic>> data, {
+      required String semester,
+      required double thisSemCredits,
+      required double totalCredits,
+      required double gpa,
+      required double cgpa,
+      required bool isOffshoot,
+    }) async
+{
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+
+  final double scale = 4.0;
+  final double width = 700 * scale;
+  final double headerHeight = 56 * scale;
+  final double rowHeight = 40 * scale;
+  final int numberOfRows = data.length;
+
+  // Height reserved for summary info on top
+  final double infoHeight = 150 * scale;
+  final double height = infoHeight + headerHeight + numberOfRows * rowHeight;
+  final double borderRadius = 16 * scale;
+  final List<double> colWidths = [100 * scale, 400 * scale, 70 * scale];
+
+  // Shadow for card
+  final shadowPaint = Paint()
+    ..color = Color(0x11000000)
+    ..maskFilter = MaskFilter.blur(BlurStyle.normal, 12 * scale);
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(14 * scale, 18 * scale, width - 28 * scale, height + 42 * scale),
+      Radius.circular(borderRadius),
+    ),
+    shadowPaint,
+  );
+
+  // Card background
+  final cardPaint = Paint()..color = Color(0xFFF4F7FA);
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, width, height-2),
+      Radius.circular(borderRadius),
+    ),
+    cardPaint,
+  );
+
+  // Draw top info background
+  final infoBackgroundPaint = Paint()..color = Color(0xFFF3E8FE);
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, width, infoHeight),
+      Radius.circular(borderRadius),
+    ),
+    infoBackgroundPaint,
+  );
+
+  // Text painter for drawing text
+  final textPainter = TextPainter(
+    textDirection: TextDirection.ltr,
+    textAlign: TextAlign.left,
+  );
+
+  // Function to draw summary text lines with vertical spacing
+  double yOffset = 20 * scale;
+  double xOffset = 20 * scale;
+  void drawInfoText(String text, double y, double x) {
+    textPainter.text = TextSpan(
+      text: text,
+      style: TextStyle(
+        fontSize: 26 * scale,
+        color: Color(0xFF2D3E50),
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(x, y));
+  }
+
+  // Draw the additional details on top
+  yOffset=width*0.45;
+  if(isOffshoot){
+    drawInfoText("Minor", xOffset, yOffset);
+    yOffset=25*scale;
+    xOffset += 42 * scale;
+    drawInfoText("Offshoot: ${gpa.toStringAsFixed(2)}", xOffset,yOffset);
+    yOffset=width*0.82-40*scale;
+    yOffset=25*scale;
+    xOffset += 42 * scale;
+    drawInfoText("Credits: $thisSemCredits",xOffset, yOffset);
+    yOffset=width*0.82-40*scale;
+  }else{
+    drawInfoText("Semester: $semester", xOffset, yOffset);
+    yOffset=25*scale;
+    xOffset += 42 * scale;
+    drawInfoText("SGPA: ${gpa.toStringAsFixed(2)}", xOffset,yOffset);
+    yOffset=width*0.82-40*scale;
+    drawInfoText("CGPA: ${cgpa.toStringAsFixed(2)}", xOffset,yOffset);
+    yOffset=25*scale;
+    xOffset += 42 * scale;
+    drawInfoText("Credits: $thisSemCredits",xOffset, yOffset);
+    yOffset=width*0.82-40*scale;
+    drawInfoText("Credits: $totalCredits", xOffset,yOffset);
+  }
+
+
+
+  // Draw header gradient bar below info section
+  final headerGradient = Paint()
+    ..shader = ui.Gradient.linear(
+      Offset(3, infoHeight + 3), Offset(width - 8, infoHeight + 3),
+      [Color(0xB3C51499), Color(0xB34B02B0)],
+    );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(5, infoHeight + 8, width - 10, headerHeight - 16),
+      Radius.circular(borderRadius),
+    ),
+    headerGradient,
+  );
+
+  // Draw header text
+  double x = 0, y = infoHeight;
+  final headers = ['Credits', 'Course', 'Grade'];
+  for (int i = 0; i < headers.length; i++) {
+    textPainter.text = TextSpan(
+      text: headers[i],
+      style: TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 21 * scale,
+        color: Color(0xFFFFFFFF),
+        letterSpacing: 1.35 * scale,
+      ),
+    );
+    textPainter.layout(minWidth: colWidths[i], maxWidth: colWidths[i]);
+    textPainter.paint(canvas, Offset(x + 25 * scale, y + (headerHeight - textPainter.height) / 2));
+    x += colWidths[i];
+  }
+
+  y += headerHeight;
+  for (int rowIdx = 0; rowIdx < data.length; rowIdx++) {
+    var row = data[rowIdx];
+    x = 0;
+    final bool even = rowIdx % 2 == 0;
+
+    final rowPaint = Paint()..color = even ? Color(0xFFFFFFFF) : Color(
+        0xFFE9DFEF);
+    canvas.drawRect(Rect.fromLTWH(0, y, width, rowHeight), rowPaint);
+
+    final borderPaint = Paint()
+      ..color = Color(0xFFC7C6C6)
+      ..strokeWidth = 2.0 * scale;
+    canvas.drawLine(Offset(0, y), Offset(width, y), borderPaint);
+
+    final cellTexts = [
+      row['credits'].toString(),
+      row['name'],
+      (row['grade'] > -4 || row['grade'] == -6 || row['grade'] == -7)
+          ? gradecalc(row['grade'])
+          : "",// :  (row['grade'] == -2) ? "GD":"CLR",
+    ];
+    for (int i = 0; i < cellTexts.length; i++) {
+      textPainter.text = TextSpan(
+        text: cellTexts[i].toString(),
+        style: TextStyle(
+          fontWeight: FontWeight.normal,
+          fontSize: 19 * scale,
+          color: Color(0xFF34495E),
+        ),
+      );
+      textPainter.layout(minWidth: colWidths[i], maxWidth: colWidths[i]);
+      textPainter.paint(canvas, Offset(x + 25 * scale, y + (rowHeight - textPainter.height) / 2));
+      if (i < cellTexts.length - 1) {
+        canvas.drawLine(
+          Offset(x + colWidths[i], y + 7 * scale),
+          Offset(x + colWidths[i], y + rowHeight - 7 * scale),
+          borderPaint,
+        );
+      }
+      x += colWidths[i];
+    }
+    y += rowHeight;
+  }
+
+  final headerBorderPaint = Paint()
+    ..color = Color(0xFFB6C2CD)
+    ..strokeWidth = 3.0 * scale;
+  canvas.drawLine(Offset(0, infoHeight + headerHeight), Offset(width, infoHeight + headerHeight), headerBorderPaint);
+
+  // End recording, create image, and save as before
+  final picture = recorder.endRecording();
+  final img = await picture.toImage(width.toInt(), height.toInt());
+  final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+  final pngBytes = byteData!.buffer.asUint8List();
+  saveImageWeb(pngBytes, "Gradesheet.png");
+  return "Saved as Image";
+}

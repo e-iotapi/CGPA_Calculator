@@ -1,0 +1,24 @@
+# Deep links into the app (ARCHITECTURE.md §7, §16.1): one line per top-level
+# route segment. Never /calculator/* — Pages applies a rule even when a file
+# matches, so it would rewrite main.dart.js too. test/app/routes_test.dart
+# fails when a route has no line here.
+/calculator/stats /calculator/index.html 200
+/calculator/calendar /calculator/index.html 200
+/calculator/settings /calculator/index.html 200
+/calculator/course/* /calculator/index.html 200
+/calculator/resources /calculator/index.html 200
+/calculator/resources/* /calculator/index.html 200
+/calculator/reviews /calculator/index.html 200
+/calculator/more /calculator/index.html 200
+/calculator/representatives /calculator/index.html 200
+/calculator/leaderboard /calculator/index.html 200
+/calculator/contribute /calculator/index.html 200
+/calculator/contribute/* /calculator/index.html 200
+/calculator/reviews/* /calculator/index.html 200
+/calculator/roles /calculator/index.html 200
+/calculator/campus /calculator/index.html 200
+/calculator/welcome /calculator/index.html 200
+/calculator/setup/* /calculator/index.html 200
+/calculator/admin /calculator/index.html 200
+/calculator/admin/* /calculator/index.html 200
+/calculator/maintain/* /calculator/index.html 200

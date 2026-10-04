@@ -1,0 +1,24 @@
+# The app is deployed to Cloudflare Pages (.github/workflows/deploy.yml,
+# web/_headers). Netlify only sends visitors of the old address there.
+[build]
+  publish = "redirect"
+
+# Served, not redirected: a browser refuses a service worker update that
+# redirects, so an installed copy would keep running its old worker. This one
+# removes itself and reloads the page, and the reload follows the redirect.
+[[headers]]
+  for = "/flutter_service_worker.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[redirects]]
+  from = "/flutter_service_worker.js"
+  to = "/flutter_service_worker.js"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "https://pointer-bits-pilani.pages.dev/:splat"
+  status = 301
+  force = true

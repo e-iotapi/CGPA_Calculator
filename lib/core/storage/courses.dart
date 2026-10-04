@@ -1,0 +1,96 @@
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
+import 'package:cgpa_calculator/core/grading/requirements.dart';
+import 'package:cgpa_calculator/core/models/semesters.dart';
+import 'package:cgpa_calculator/course.dart';
+import 'package:hive_ce/hive.dart';
+
+/// The Hive box holding the student's courses.
+const coursesBoxName = 'coursesBox';
+
+/// Writes [course] back over the stored course with the same id and semester,
+/// under whatever key that one has.
+///
+/// Courses added through search are stored with `box.add`, so their key is an
+/// int; seeded ones are keyed by id. Writing with `put(course.id, …)` over an
+/// int-keyed course leaves the old one in place and duplicates it.
+Future<void> saveCourse(Course course) async {
+  final box = Hive.box<Course>(coursesBoxName);
+  final key = box.keys.firstWhere((k) {
+    final c = box.get(k);
+    return c != null && c.id == course.id && c.sem == course.sem;
+  }, orElse: () => course.id);
+  await box.put(key, course);
+  await box.flush();
+}
+
+/// Sets what [course] counts as, and pins it: a category set by hand is
+/// never moved by the department rules. "Counts as" on a course, and the
+/// Degree page's requirement and Unassigned lists, all come through here.
+Future<void> setCourseCategory(Course course, String tag) async {
+  await pinCategory(course.id);
+  await saveCourse(course.copyWith(elective: tag));
+}
+
+const _pinnedKey = 'pinned_categories';
+
+/// Reads the pinned ids into [pinnedCategories].
+void loadPinnedCategories(Box settings) {
+  final ids = settings.get(_pinnedKey);
+  pinnedCategories = {
+    if (ids is List)
+      for (final id in ids) '$id',
+  };
+}
+
+/// Pins category [id] to the top of the audit and persists the set.
+Future<void> pinCategory(String id) async {
+  pinnedCategories = {...pinnedCategories, id.trim()};
+  if (!Hive.isBoxOpen('settingsBox')) return;
+  await Hive.box('settingsBox').put(_pinnedKey, pinnedCategories.toList());
+}
+
+/// Copies profile [from]'s grade onto profile [to] for every course, in all
+/// semesters, under each course's existing key.
+Future<void> copyProfile(int from, int to) async {
+  final box = Hive.box<Course>(coursesBoxName);
+  for (final e in box.toMap().entries) {
+    await box.put(e.key, e.value.withGrade(to, e.value.gradeFor(from)));
+  }
+  await box.flush();
+}
+
+/// Whether profile [profile] has no grade on any course yet.
+bool profileIsEmpty(int profile) => Hive.box<Course>(
+  coursesBoxName,
+).values.every((c) => c.gradeFor(profile) == GradeCode.clr);
+
+/// Every stored course, for read-only screens.
+Iterable<Course> allCourses() => Hive.box<Course>(coursesBoxName).values;
+
+/// Hive key of a dual's second Practice School-II; its `id` stays
+/// `BITS F412`.
+const secondPsKey = 'BITS F412#2';
+
+/// A dual degree takes Practice School-II twice, at 5 - 1 and 5 - 2; the
+/// chart seeds one at 4 - 2. Idempotent, and never moves a graded row:
+/// one ungraded at 4 - 2 moves to 5 - 1 with a copy at 5 - 2; one at 5 - 2
+/// (from the old code) gains a copy at 5 - 1; two already there stay.
+Future<void> placeDualPracticeSchool(Box<Course> box, String discipline) async {
+  if (!isDualDiscipline(discipline)) return;
+  final ps = [
+    for (final e in box.toMap().entries)
+      if (e.value.id == 'BITS F412') e,
+  ];
+  if (ps.length != 1) return;
+  final MapEntry(:key, value: c) = ps.single;
+  final ungraded = c.grade1 == GradeCode.clr && c.grade2 == GradeCode.clr;
+  if (!ungraded) return;
+  if (c.sem == '4 - 2') {
+    await box.putAll({
+      key: c.copyWith(sem: '5 - 1'),
+      secondPsKey: c.copyWith(sem: '5 - 2'),
+    });
+  } else if (c.sem == '5 - 2') {
+    await box.put(secondPsKey, c.copyWith(sem: '5 - 1'));
+  }
+}

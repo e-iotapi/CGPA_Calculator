@@ -1,0 +1,30 @@
+name = "pointer-heads"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+PROJECT_ID = "cgpa-calculator-fb90c"
+ALLOWED_ORIGINS = "https://pointer-bits-pilani.pages.dev"
+
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "CampusHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CampusHub"]
+
+[env.staging]
+name = "pointer-heads-staging"
+
+[env.staging.vars]
+PROJECT_ID = "pointer-staging"
+ALLOWED_ORIGINS = "https://pointer-staging.web.app"
+
+[[env.staging.durable_objects.bindings]]
+name = "HUB"
+class_name = "CampusHub"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["CampusHub"]

@@ -1,0 +1,121 @@
+name: deploy-staging
+# Every push to pointer-dev redeploys https://pointer-staging.web.app, the
+# same steps as tools/test_env/staging.sh. The data is reseeded only when the
+# seed changed or on a manual run with "reseed" ticked, so a push never wipes
+# what testers set up. Staging only: the production project is never touched.
+# Put [reseed] in a push's head commit message to reseed anyway.
+on:
+  push:
+    branches: [pointer-dev]
+  workflow_dispatch:
+    inputs:
+      reseed:
+        description: Wipe and reseed the staging data
+        type: boolean
+        default: false
+
+# A newer push replaces a deploy still in progress.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Secrets present?
+        id: secrets
+        env:
+          SA: ${{ secrets.STAGING_DEPLOY_SA }}
+          PW: ${{ secrets.STAGING_PASSWORD }}
+        run: |
+          if [ -n "$SA" ] && [ -n "$PW" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"
+          else echo "::warning::STAGING_DEPLOY_SA or STAGING_PASSWORD is not set; skipping the staging deploy."; fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Reseed this time?
+        if: steps.secrets.outputs.ok == 'true'
+        id: reseed
+        env:
+          BEFORE: ${{ github.event.before }}
+          MANUAL: ${{ inputs.reseed }}
+          # workflow_dispatch only works once this file is on master, so a
+          # push asks for a reseed with [reseed] in its head commit message.
+          ASKED: ${{ contains(github.event.head_commit.message, '[reseed]') }}
+        run: |
+          if [ "$MANUAL" = "true" ] || [ "$ASKED" = "true" ]; then echo "yes=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BEFORE" 2>/dev/null \
+             || [ -n "$(git diff --name-only "$BEFORE" HEAD -- tools/test_env test_env)" ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: subosito/flutter-action@v2
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          flutter-version: 3.47.5
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          node-version: 22
+
+      - name: Credentials and tools
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          SA: ${{ secrets.STAGING_DEPLOY_SA }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/staging-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/staging-sa.json" >> "$GITHUB_ENV"
+          npm i -g firebase-tools@15 --no-fund --no-audit
+          (cd tools/test_env && npm ci --no-fund --no-audit)
+          flutter pub get
+
+      - name: Rules and indexes
+        if: steps.secrets.outputs.ok == 'true'
+        run: firebase deploy --only firestore:rules,firestore:indexes --project staging --non-interactive
+
+      # The sync snapshots the seed restores (tools/test_env/out/, gitignored).
+      - name: Build seed snapshots
+        if: steps.secrets.outputs.ok == 'true' && steps.reseed.outputs.yes == 'true'
+        run: POINTER_SEED=1 flutter test tools/test_env/build_snapshots_test.dart
+
+      - name: Reseed (wipes staging data)
+        if: steps.secrets.outputs.ok == 'true' && steps.reseed.outputs.yes == 'true'
+        env:
+          STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+        run: node tools/test_env/seed.mjs --project staging
+
+      - name: Test-account passwords match this build
+        if: steps.secrets.outputs.ok == 'true' && steps.reseed.outputs.yes != 'true'
+        env:
+          STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+        run: node tools/test_env/seed.mjs --project staging --passwords-only
+
+      - name: Build
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+        run: |
+          flutter build web --release \
+            --dart-define=POINTER_ENV=staging \
+            --dart-define=POINTER_HEADS_URL=${{ vars.POINTER_HEADS_URL }} \
+            --dart-define=POINTER_LIVE_URL=${{ vars.POINTER_LIVE_URL }} \
+            --dart-define=POINTER_TEST_PASSWORD="$STAGING_PASSWORD" \
+            --build-number="$(date +%s)"
+          # Staging serves the app at /, not /calculator/ (prod's path).
+          sed -i 's#"/calculator/"#"/"#g' build/web/manifest.json
+
+      - name: Deploy hosting
+        if: steps.secrets.outputs.ok == 'true'
+        run: firebase deploy --only hosting:staging --project staging --non-interactive
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/staging-sa.json"
