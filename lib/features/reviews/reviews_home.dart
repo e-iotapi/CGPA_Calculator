@@ -17,10 +17,13 @@ import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/features/reviews/mine_filter.dart';
+import 'package:cgpa_calculator/features/reviews/pick_sheet.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/review_form.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
@@ -94,6 +97,40 @@ class _ReviewsHomeState extends State<ReviewsHome> {
       () => CourseReviewsPage(courseId: id),
     );
     setState(() => _loads++);
+  }
+
+  /// Pick one of the courses the student took, then its review form (an
+  /// existing review of it opens from its course page instead).
+  Future<void> _writeAny() async {
+    final done = myReviewedCourses().toSet();
+    final took =
+        {
+            for (final c in allCourses())
+              if (!done.contains(c.id) && tookIt(c.id) != null) c.id,
+          }.toList()
+          ..sort();
+    if (took.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add the courses you took to your grades first, or you have '
+            'reviewed them all.',
+          ),
+        ),
+      );
+      return;
+    }
+    final v = await pickSheet<String>(
+      context,
+      title: 'Which course?',
+      searchHint: 'Search your courses',
+      options: [for (final id in took) (id, '$id · ${courseTitle(id)}')],
+    );
+    if (v == null || !mounted) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => ReviewFormPage(courseId: v.value)),
+    );
+    if (saved == true) setState(() => _loads++);
   }
 
   @override
@@ -284,6 +321,14 @@ class _ReviewsHomeState extends State<ReviewsHome> {
       builder:
           (context, data, _) => PageFrame(
             header: header,
+            bottom: BottomAction(
+              child: PrimaryButton(
+                label: 'Write a review',
+                icon: Icons.rate_review_outlined,
+                tall: true,
+                onPressed: _writeAny,
+              ),
+            ),
             children: [
               tabs,
               const SizedBox(height: Space.sm),

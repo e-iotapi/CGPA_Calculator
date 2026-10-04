@@ -414,6 +414,17 @@ void main() {
     },
   );
 
+  testWidgets('a course not in the grades still offers Review, and says how', (
+    t,
+  ) async {
+    await courses(t, []);
+    await t.pumpWidget(app(const CourseReviewsPage(courseId: course)));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Review $course'));
+    await t.pump();
+    expect(find.textContaining('to your grades'), findsOneWidget);
+  });
+
   testWidgets('no marks anywhere: no marks average', (t) async {
     await courses(t, []);
     await review('u1', text: 'one');
