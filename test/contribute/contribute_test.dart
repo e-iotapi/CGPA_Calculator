@@ -109,9 +109,9 @@ void main() {
       ),
     );
     await t.pumpWidget(view(() {}));
-    expect(find.text('Become a contributor'), findsOneWidget);
+    expect(find.text('Apply now'), findsOneWidget);
     await t.pumpWidget(view(null));
-    expect(find.text('Become a contributor'), findsNothing);
+    expect(find.text('Apply now'), findsNothing);
   });
 
   Future<void> open(WidgetTester t, As who, Widget page) async {
