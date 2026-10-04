@@ -4,6 +4,7 @@
 library;
 
 import 'package:cgpa_calculator/core/perf/frame_stats.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -107,8 +108,10 @@ class _FrameHudState extends State<FrameHud> {
           i + 1 < _moves.length ? (_moves[i + 1].$2 - _moves[i].$2).abs() : 0;
       (at, big, around) = (i, step, (prev + next) / 2);
     }
-    final where = _moves[at].$3 ? 'drag' : 'fling';
-    return 'touch→move $touch ms · lift→fling $lift ms\n'
+    final where =
+        _moves[at].$3 ? 'drag' : (fling < 0 ? 'fling' : 'fling+${at - fling}');
+    final resample = GestureBinding.instance.resamplingEnabled ? 'on' : 'off';
+    return 'touch→move $touch ms · lift→fling $lift ms · resample $resample\n'
         'jump ${big.round()} px ($where, around ${around.round()})';
   }
 
