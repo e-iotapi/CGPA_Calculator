@@ -87,7 +87,7 @@ class AppNav extends StatelessWidget {
             children: [
               Center(
                 child: PointerMark(
-                  color: p.isDark ? AppPalette.light.accent : p.hero,
+                  color: p.isDark ? p.onHero : p.hero,
                   size: 30,
                 ),
               ),
@@ -97,7 +97,7 @@ class AppNav extends StatelessWidget {
                   destinations[i],
                   _RailItem(
                     destination: destinations[i],
-                    light: p.isDark,
+                    onMint: p.isDark,
                     selected: i == selectedIndex,
                     onTap: () => onSelected(i),
                   ),
@@ -150,10 +150,9 @@ class AppNav extends StatelessWidget {
       label: 'Navigation',
       child: Container(
         decoration: BoxDecoration(
-          // In dark mode the rail is light, so it stands out (owner,
+          // In dark mode the rail is mint, so it stands out (owner,
           // 2026-10-04); the pill keeps the dark nav colour.
-          color:
-              vertical && p.isDark ? AppPalette.light.surface : p.navBackground,
+          color: vertical && p.isDark ? p.hero : p.navBackground,
           // On dark grounds the nav is only a shade lighter; a hairline keeps
           // its edge visible.
           border: p.isDark ? Border.all(color: p.divider) : null,
@@ -299,22 +298,25 @@ class _RailItem extends StatelessWidget {
   const _RailItem({
     required this.destination,
     required this.selected,
-    required this.light,
+    required this.onMint,
     required this.onTap,
   });
 
   final NavDestination destination;
   final bool selected;
 
-  /// Drawn on the light rail of dark mode: dark icons and labels.
-  final bool light;
+  /// Drawn on the mint rail of dark mode: dark icons and labels, and a
+  /// dark pill when selected (a mint one would vanish).
+  final bool onMint;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final fg =
-        selected ? p.onHero : (light ? AppPalette.light.icon : p.navIcon);
+        onMint
+            ? (selected ? p.hero : p.onHero)
+            : (selected ? p.onHero : p.navIcon);
     const shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(Radii.row)),
     );
@@ -322,7 +324,7 @@ class _RailItem extends StatelessWidget {
       button: true,
       selected: selected,
       child: Material(
-        color: selected ? p.hero : Colors.transparent,
+        color: selected ? (onMint ? p.onHero : p.hero) : Colors.transparent,
         shape: shape,
         child: InkWell(
           onTap: onTap,
