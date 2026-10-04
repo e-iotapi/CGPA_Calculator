@@ -525,3 +525,11 @@ describe('usernames and leaderboard', () => {
     await assertFails(b.commit());
   });
 });
+
+describe('first application', () => {
+  test('the applicant can read their missing request, then apply; others cannot read it', async () => {
+    await assertSucceeds(getDoc(doc(as(C), 'contributorRequests', reqId(C))));
+    await assertFails(getDoc(doc(as(C2), 'contributorRequests', reqId(C))));
+    await assertSucceeds(apply(as(C), C));
+  });
+});
