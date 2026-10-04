@@ -7,7 +7,6 @@ import 'package:cgpa_calculator/core/reviews/gate_store.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/reviews/compulsory_pick.dart';
-import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
 import 'package:cgpa_calculator/script.dart' as script;
 import 'package:flutter/material.dart';

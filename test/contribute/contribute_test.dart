@@ -16,7 +16,6 @@ import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
-import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show SetOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

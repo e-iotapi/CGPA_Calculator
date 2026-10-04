@@ -130,7 +130,8 @@ class ReviewTick extends StatelessWidget {
         borderRadius: BorderRadius.circular(7),
         border: on ? null : Border.all(color: p.outline, width: 1.5),
       ),
-      child: on ? Icon(Icons.check_rounded, size: 16, color: p.onInverse) : null,
+      child:
+          on ? Icon(Icons.check_rounded, size: 16, color: p.onInverse) : null,
     );
   }
 }
@@ -263,45 +264,43 @@ class LockedReviews extends StatelessWidget {
                       endIndent: 15,
                       color: p.divider,
                     ),
-                  Opacity(
-                    opacity: 0.5,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        spacing: 10,
-                        children: [
-                          const ReviewTick(on: true),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              spacing: 2,
-                              children: [
-                                Text(
-                                  c.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TypeScale.body.copyWith(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      spacing: 10,
+                      children: [
+                        const ReviewTick(on: true),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 2,
+                            children: [
+                              Text(
+                                c.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TypeScale.body.copyWith(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: p.text.withValues(alpha: .5),
                                 ),
-                                Text(
-                                  _posted(c),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TypeScale.caption.copyWith(
-                                    fontSize: 10.5,
-                                    color: p.textMuted,
-                                  ),
+                              ),
+                              Text(
+                                _posted(c),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TypeScale.caption.copyWith(
+                                  fontSize: 10.5,
+                                  color: p.textMuted.withValues(alpha: .5),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -324,8 +323,7 @@ class LockedReviews extends StatelessWidget {
     return [
       c.id,
       electiveCode(c.elective),
-      if (at > 0)
-        'posted ${shortDay(DateTime.fromMillisecondsSinceEpoch(at))}',
+      if (at > 0) 'posted ${shortDay(DateTime.fromMillisecondsSinceEpoch(at))}',
     ].join(' · ');
   }
 }
