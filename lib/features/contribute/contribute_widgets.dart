@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/features/contribute/apply_page.dart';
 import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
+import 'package:cgpa_calculator/shared/widgets/icon_dialog.dart' show SheetButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -285,51 +286,6 @@ class _PromptSheet extends StatelessWidget {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The 52-tall pill of a board sheet or dialog: outlined, ink, or [fill]
-/// with [fg] text (the red Revoke / Send).
-class SheetButton extends StatelessWidget {
-  const SheetButton(
-    this.label, {
-    super.key,
-    required this.onTap,
-    this.ink = false,
-    this.fill,
-    this.fg,
-  });
-  final String label;
-  final VoidCallback onTap;
-  final bool ink;
-  final Color? fill, fg;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Material(
-      color: fill ?? (ink ? p.inverse : p.surface),
-      shape: StadiumBorder(
-        side: ink || fill != null ? BorderSide.none : BorderSide(color: p.outline),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: SizedBox(
-          height: 52,
-          child: Center(
-            child: Text(
-              label,
-              style: TypeScale.body.copyWith(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: fg ?? (ink ? p.onInverse : p.text),
-              ),
-            ),
-          ),
         ),
       ),
     );

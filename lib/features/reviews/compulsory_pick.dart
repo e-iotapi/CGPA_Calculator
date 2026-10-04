@@ -15,7 +15,7 @@ import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
-import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/icon_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
@@ -77,7 +77,7 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
   final _drafts = <String, _Draft>{};
   final _ticked = <String>{};
   final _search = TextEditingController();
-  bool _busy = false;
+  bool _busy = false, _searching = false;
 
   @override
   void initState() {
@@ -165,12 +165,13 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
       context: context,
       barrierDismissible: false,
       builder:
-          (c) => AppDialog(
+          (_) => const IconDialog(
+            icon: Icons.check_rounded,
             title: 'Reviews unlocked',
-            body: 'Thank you. Every review on your campus is open to you now.',
-            actions: [
-              DialogAction('Done', ink: true, onTap: () => Navigator.pop(c)),
-            ],
+            body:
+                'You reviewed your electives. Every course’s reviews are open '
+                'to you now. Thank you.',
+            primary: 'See course reviews',
           ),
     );
     if (mounted) Navigator.of(context).pop(true);
@@ -208,8 +209,8 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
             ].take(5).toList();
     return PageFrame(
       header: const PageHeader(
-        eyebrow: 'COURSE REVIEWS',
-        title: 'Your electives',
+        eyebrow: 'COMPULSORY REVIEWS',
+        title: 'Pick electives',
       ),
       bottom: BottomAction(
         child: PrimaryButton(
@@ -217,9 +218,7 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
           label:
               _busy
                   ? 'Posting…'
-                  : chosen.length == 1
-                  ? 'Post 1 review'
-                  : 'Post ${chosen.length} reviews',
+                  : 'Review ${chosen.length} selected',
           onPressed:
               _busy || chosen.isEmpty || !chosen.every((d) => d.complete)
                   ? null
@@ -227,11 +226,12 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
         ),
       ),
       children: [
-        const Note(
-          'Tick the electives you have taken and rate each. Posted without '
-          'your name or ID.',
+        Text(
+          'We picked last semester’s electives. Fill the stars here; grade '
+          'and marks are optional and filled in when we know them.',
+          style: TypeScale.caption.copyWith(fontSize: 11.5, color: p.textMuted),
         ),
-        const SizedBox(height: Space.sm),
+        const SizedBox(height: Space.xs),
         for (final d in _drafts.values) ...[
           _Card(
             d: d,
@@ -248,12 +248,33 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
         ],
         if (_drafts.isEmpty)
           const Note('No electives left to review. Add one below.'),
-        const SizedBox(height: Space.sm),
-        SearchBox(
-          controller: _search,
-          hint: 'Add another elective',
-          onChanged: (_) => setState(() {}),
-        ),
+        if (!_searching)
+          InkWell(
+            onTap: () => setState(() => _searching = true),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: 1,
+                child: Text(
+                  'Not listed? Search for an elective',
+                  style: TypeScale.body.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: p.accent,
+                    decoration: TextDecoration.underline,
+                    decorationColor: p.accent,
+                  ),
+                ),
+              ),
+            ),
+          )
+        else
+          SearchBox(
+            controller: _search,
+            hint: 'Search for an elective',
+            onChanged: (_) => setState(() {}),
+          ),
         if (found.isNotEmpty) ...[
           const SizedBox(height: Space.xs),
           RowGroup(
@@ -285,8 +306,8 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
   }
 }
 
-/// One elective: the tick and name, and when ticked row 1 (stars and Yes or
-/// No) and row 2 (grade and marks).
+/// One elective: the tick, name and where it was taken, and when ticked its
+/// stars, would-take answer, grade and marks (board `PfForcedPick`).
 class _Card extends StatelessWidget {
   const _Card({
     required this.d,
@@ -306,6 +327,8 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return AppCard(
+      padding: EdgeInsets.symmetric(horizontal: 15, vertical: on ? 13 : 11),
+      radius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -313,11 +336,13 @@ class _Card extends StatelessWidget {
             children: [
               Semantics(
                 label: 'Review ${d.course.id}',
-                child: SizedBox.square(
-                  dimension: Sizes.minTouch,
-                  child: Checkbox(
-                    value: on,
-                    onChanged: (v) => onTick(v ?? false),
+                checked: on,
+                child: InkWell(
+                  onTap: () => onTick(!on),
+                  customBorder: const CircleBorder(),
+                  child: SizedBox.square(
+                    dimension: Sizes.minTouch,
+                    child: Center(child: ReviewTick(on: on)),
                   ),
                 ),
               ),
@@ -328,17 +353,44 @@ class _Card extends StatelessWidget {
                     constraints: const BoxConstraints(
                       minHeight: Sizes.minTouch,
                     ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '${d.course.id} · ${d.course.title}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TypeScale.body.copyWith(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            spacing: 2,
+                            children: [
+                              Text(
+                                '${d.course.id} · ${d.course.title}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TypeScale.body.copyWith(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                [
+                                  electiveCode(d.course.elective),
+                                  if (d.term != null) d.term!,
+                                ].join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TypeScale.caption.copyWith(
+                                  fontSize: 10.5,
+                                  color: p.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: p.textMuted,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -348,9 +400,9 @@ class _Card extends StatelessWidget {
           if (on) ...[
             const SizedBox(height: Space.xs),
             Wrap(
-              spacing: Space.sm,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.end,
               runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Stars(
                   value: d.stars,
@@ -360,6 +412,19 @@ class _Card extends StatelessWidget {
                     onChanged();
                   },
                 ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  spacing: 8,
+                  children: [_gradeField(context, p), _marksField(p)],
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.xs),
+            Wrap(
+              spacing: Space.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
                 for (final v in const [true, false])
                   PillButton(
                     label: v ? 'Yes' : 'No',
@@ -370,6 +435,13 @@ class _Card extends StatelessWidget {
                       onChanged();
                     },
                   ),
+                Text(
+                  'Will I take it',
+                  style: TypeScale.caption.copyWith(
+                    fontSize: 10.5,
+                    color: p.textMuted,
+                  ),
+                ),
               ],
             ),
             if ((d.profs?.length ?? 0) > 1) ...[
@@ -384,52 +456,100 @@ class _Card extends StatelessWidget {
                 },
               ),
             ],
-            const SizedBox(height: Space.sm),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SelectRow(
-                    text: gradeName(d.grade),
-                    onTap: () async {
-                      final v = await pickSheet<String>(
-                        context,
-                        title: 'Grade',
-                        selected: d.grade,
-                        options: [
-                          for (final g in reviewGrades) (g, gradeName(g)),
-                        ],
-                      );
-                      if (v != null) {
-                        d.grade = v.value;
-                        onChanged();
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: Space.sm),
-                SizedBox(
-                  width: 120,
-                  child: AppTextField(
-                    controller: d.marks,
-                    label: 'Marks',
-                    number: true,
-                    error: d.marksBad ? '0 to 1000' : null,
-                    onChanged: (_) => onChanged(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Tap the name to also write a few words.',
-              style: TypeScale.caption.copyWith(color: p.textMuted),
-            ),
           ],
         ],
       ),
     );
   }
+
+  Widget _cap(AppPalette p, String text) => SizedBox(
+    width: 70,
+    child: Text(
+      text,
+      style: TypeScale.label.copyWith(
+      fontSize: 8.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+      color: p.textMuted,
+    ),
+    ),
+  );
+
+  BoxDecoration _box(AppPalette p) => BoxDecoration(
+    color: p.surface,
+    borderRadius: BorderRadius.circular(14),
+    border: Border.all(color: p.outline),
+  );
+
+  Widget _gradeField(BuildContext context, AppPalette p) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    spacing: 2,
+    children: [
+      _cap(p, 'GRADE · OPTIONAL'),
+      InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () async {
+          final v = await pickSheet<String>(
+            context,
+            title: 'Grade',
+            selected: d.grade,
+            options: [for (final g in reviewGrades) (g, gradeName(g))],
+          );
+          if (v != null) {
+            d.grade = v.value;
+            onChanged();
+          }
+        },
+        child: Container(
+          width: 70,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: _box(p),
+          child: Text(
+            d.grade == 'ND' ? '—' : d.grade,
+            style: TypeScale.body.copyWith(
+              fontSize: 12,
+              fontWeight: d.grade == 'ND' ? FontWeight.w500 : FontWeight.w600,
+              color: d.grade == 'ND' ? p.textMuted : p.text,
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _marksField(AppPalette p) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    spacing: 2,
+    children: [
+      _cap(p, 'MARKS · OPTIONAL'),
+      Container(
+        width: 70,
+        height: 34,
+        decoration: _box(p),
+        child: TextField(
+          controller: d.marks,
+          textAlign: TextAlign.center,
+          textAlignVertical: TextAlignVertical.center,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => onChanged(),
+          style: TypeScale.body.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            hintText: '—',
+            hintStyle: TypeScale.body.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: p.textMuted,
+            ),
+            border: InputBorder.none,
+            isCollapsed: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+          ),
+        ),
+      ),
+      if (d.marksBad) Text('0 to 1000', style: TypeScale.caption.copyWith(fontSize: 9, color: p.rejectedTone.text)),
+    ],
+  );
 
   String _name(String id) =>
       ProfessorStore(roleStore!.db).peekResolved(id)?.name ?? id;
