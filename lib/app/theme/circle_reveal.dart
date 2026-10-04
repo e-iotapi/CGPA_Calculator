@@ -11,12 +11,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 /// The theme snapshot's pixel ratio: at most 1.5, and 1 on a low tier device
-/// or on iOS, where Safari caps canvas memory (UI_OPT O1.3, O8.1).
+/// or on iOS, where Safari caps canvas memory (UI_OPT O1.3, O8.1). A big
+/// window is captured at no more than [maxSnapshotPixels]: on the web the
+/// capture reads the screen back from the GPU on the main thread, so its
+/// cost grows with the pixels (2560x1440 took 80 to 230 ms).
 double snapshotRatio({
   required double dpr,
   required DeviceTier tier,
   required bool ios,
-}) => tier == DeviceTier.low || ios ? 1.0 : math.min(dpr, 1.5);
+  Size? size,
+}) {
+  final r = tier == DeviceTier.low || ios ? 1.0 : math.min(dpr, 1.5);
+  if (size == null || size.isEmpty) return r;
+  return math.min(r, math.sqrt(maxSnapshotPixels / (size.width * size.height)));
+}
+
+/// About a 1080p screen's worth.
+const double maxSnapshotPixels = 1920 * 1080;
 
 /// Read once: every iOS browser is Safari underneath.
 final bool _onIos = installTarget().device == InstallDevice.ios;
@@ -198,6 +209,13 @@ class ThemeReveal extends StatefulWidget {
   /// theme-toggle button.
   static void prepare() => _key.currentState?._prepare();
 
+  /// [child], a theme toggle, with [prepare] on hover and on press, so the
+  /// capture is done before the click rather than inside the animation.
+  static Widget warm(Widget child) => MouseRegion(
+    onEnter: (_) => prepare(),
+    child: Listener(onPointerDown: (_) => prepare(), child: child),
+  );
+
   /// How many snapshots have been captured (prepared or on-demand). Tests
   /// only.
   @visibleForTesting
@@ -258,6 +276,7 @@ class _ThemeRevealState extends State<ThemeReveal>
       dpr: MediaQuery.devicePixelRatioOf(context),
       tier: deviceTier,
       ios: _onIos,
+      size: box.size,
     );
     ThemeReveal.captures++;
     try {
