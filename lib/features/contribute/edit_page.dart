@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
@@ -7,6 +8,7 @@ import 'package:cgpa_calculator/features/resources/link_sheet.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
@@ -82,33 +84,36 @@ class _EditPageState extends State<EditPage> {
         }
         return PageFrame(
           header: header,
-          children: [
-            Note(
-              r.isCourse
-                  ? 'For ${r.fromCourse}'
-                  : 'For ${departmentName(r.department)}',
+          bottom: BottomAction(
+            child: PrimaryButton(
+              label: _busy ? 'Saving…' : 'Save',
+              onPressed: _busy ? null : () => _save(r),
             ),
-            const SizedBox(height: Space.sm),
+          ),
+          children: [
             AppTextField(
               controller: _title,
-              label: 'Name',
+              label: 'Title',
+              labelAbove: true,
+              fill: AppPalette.of(context).surface,
               error: _titleError,
             ),
             const SizedBox(height: Space.sm),
             AppTextField(
               controller: _url,
-              label: 'Link',
+              label: 'URL',
               hint: 'https://',
+              labelAbove: true,
+              fill: AppPalette.of(context).surface,
               error: _urlError,
             ),
             if (_error != null) ...[
               const SizedBox(height: Space.sm),
               Notice(warning: true, text: TextSpan(text: _error)),
             ],
-            const SizedBox(height: Space.md),
-            PrimaryButton(
-              label: _busy ? 'Saving…' : 'Save',
-              onPressed: _busy ? null : () => _save(r),
+            const Note(
+              'You can edit your links but not delete them. To remove one, '
+              'ask an approver.',
             ),
           ],
         );

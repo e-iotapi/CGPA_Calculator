@@ -17,6 +17,7 @@ class AppTextField extends StatelessWidget {
     this.suffix,
     this.labelAbove = false,
     this.error,
+    this.fill,
   });
 
   final TextEditingController controller;
@@ -35,6 +36,9 @@ class AppTextField extends StatelessWidget {
 
   /// Shown under the field in the notice colour; also switches the border.
   final String? error;
+
+  /// Overrides the fill (the contribute boards use white boxes).
+  final Color? fill;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +84,7 @@ class AppTextField extends StatelessWidget {
         suffixText: suffix,
         errorText: error,
         filled: true,
-        fillColor: labelAbove ? p.background : p.surface,
+        fillColor: fill ?? (labelAbove ? p.background : p.surface),
         contentPadding: EdgeInsets.symmetric(
           horizontal: dense ? 10 : 14,
           vertical: dense ? 11 : (labelAbove ? 16 : 14),
