@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/admin/widgets.dart' show Note, problem;
 import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/marks.dart';
@@ -479,7 +480,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   String get _unit => switch (_view) { _View.month => 'month', _View.week => 'week', _View.day => 'day' };
 
-  /// Week (Mon-Sat, Sunday only when it has something) or Day.
+  /// Week (Mon-Sun: some evals are on a Sunday) or Day.
   Widget _timeView(List<CalendarEntry> all) {
     final week = _view == _View.week;
     final from = week ? mondayOf(_focus) : _focus;
@@ -494,11 +495,15 @@ class _CalendarPageState extends State<CalendarPage> {
           if (e.kind == 'holiday') put(d, AllDayItem(e.title, 'holiday'));
         }
       }
-      for (final e in all) {
-        if (dayStr(e.date) == d) put(d, AllDayItem(e.label, 'eval', courseId: e.courseId));
-      }
     }
-    final timed = <Occurrence>[];
+    final marks = marksInSpan(_tt, _state, all, occs, from: from, to: to);
+    for (final e in marks.allDay) {
+      put(
+        dayStr(e.date),
+        AllDayItem('${e.courseId} · ${e.label}', 'eval', courseId: e.courseId, part: e.label),
+      );
+    }
+    final timed = <Occurrence>[...marks.timed];
     for (final o in occs) {
       if (o.kind != OccKind.event) {
         timed.add(o);
@@ -507,11 +512,7 @@ class _CalendarPageState extends State<CalendarPage> {
       }
     }
     final dates = [
-      if (week) ...[
-        for (var i = 0; i < 6; i++) addDays(from, i),
-        if (timed.any((o) => o.date == to) || (allDay[to] ?? const []).isNotEmpty) to,
-      ] else
-        from,
+      if (week) for (var i = 0; i < 7; i++) addDays(from, i) else from,
     ];
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -527,13 +528,18 @@ class _CalendarPageState extends State<CalendarPage> {
         today: _todayStr,
         now: () => widget.today ?? DateTime.now(),
         onBlock: _blockTap,
-        onAllDay: (d) => _allDaySheet(d, allDay[d] ?? const []),
+        onAllDay: (d) => _allDaySheet(d, allDay[d] ?? const [], [
+          for (final o in timed)
+            if (o.date == d && o.kind != OccKind.cls && o.kind != OccKind.custom && o.kind != OccKind.event) o,
+        ]),
       ),
     );
   }
 
-  Future<void> _allDaySheet(String date, List<AllDayItem> items) async {
-    final id = await showModalBottomSheet<String>(
+  /// The all-day lines of [date]. [exams] are the student's own midsem, compre
+  /// and Marks-time blocks that day, listed under the campus-wide exam event.
+  Future<void> _allDaySheet(String date, List<AllDayItem> items, List<Occurrence> exams) async {
+    final r = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       builder:
@@ -549,24 +555,63 @@ class _CalendarPageState extends State<CalendarPage> {
                   ),
                 ),
                 const SizedBox(height: Space.sm),
-                for (final i in items)
+                for (final i in items) ...[
                   CardRow(
                     title: i.label,
+                    titleLines: 2,
                     subtitle: switch (i.kind) {
                       'holiday' => 'Holiday',
-                      'eval' => 'From Marks',
-                      _ => 'Academic calendar',
+                      'eval' => 'Added by you',
+                      _ => 'Academic calendar · campus-wide',
                     },
                     onTap:
-                        i.courseId == null
+                        i.kind == 'eval'
+                            ? () => Navigator.pop(context, i)
+                            : i.courseId == null
                             ? null
                             : () => Navigator.pop(context, i.courseId),
                   ),
+                  if (i.kind == 'event' && i.label.toLowerCase().contains('exam'))
+                    for (final o in exams)
+                      CardRow(
+                        title: '${o.courseId} · ${o.kind == OccKind.mark ? o.title : o.kind == OccKind.compre ? 'Compre' : 'Midsem'}',
+                        titleLines: 2,
+                        subtitle: 'Your time · ${span(o.start, o.end)}',
+                        onTap: () => Navigator.pop(context, o),
+                      ),
+                ],
               ],
             ),
           ),
     );
-    if (id != null && mounted) await _openCourse(id);
+    if (!mounted) return;
+    if (r is String) {
+      await _openCourse(r);
+    } else if (r is AllDayItem) {
+      await _markTime(r.courseId!, r.part!, date);
+    } else if (r is Occurrence) {
+      await _blockTap(r);
+    }
+  }
+
+  /// A date from Marks gets a start and end (or goes back to all day).
+  Future<void> _markTime(String course, String label, String date) async {
+    final key = markKey(course, label, date);
+    final r = await showCalSheet<Object>(
+      context,
+      (_) => MarkTimeSheet(
+        courseId: course,
+        label: label,
+        date: date,
+        current: _state.markTimes[key],
+        canOpenCourse: allCourses().any((c) => c.id == course),
+      ),
+    );
+    if (r == null || !mounted) return;
+    if (r == 'open') return _openCourse(course);
+    if (r == 'clear') return _write((c) => c.clearMarkTime(key));
+    final t = r as MarkTime;
+    await _write((c) => c.setMarkTime(key, s: t.s, e: t.e));
   }
 
   Future<void> _add() async {
@@ -580,18 +625,45 @@ class _CalendarPageState extends State<CalendarPage> {
             timetable: t,
             state: _state,
             suggested: takingNow(),
+            catalogue: [for (final m in catalog.master) (id: m.id, title: m.title)],
             today: _focus,
           ),
     );
     if (r is CoursePick) {
-      await _write((c) => c.addCourse(r.course, r.keys));
+      if (r.course.sections.isEmpty) {
+        await _ownTimes(t, r.course);
+      } else {
+        await _write((c) => c.addCourse(r.course, r.keys));
+      }
       if (mounted && _view == _View.month) setState(() => _view = _View.week);
     } else if (r is CalendarCustom) {
       await _write((c) => c.addCustom(r));
     }
   }
 
+  /// A course with no published timetable: the student types its times.
+  Future<void> _ownTimes(Timetable t, TtCourse course) async {
+    final r = await showCalSheet<List<OwnTime>>(
+      context,
+      (_) => TimingsSheet.own(
+        course: course.id,
+        existing: [for (final c in _state.custom) if (c.course == course.id) c],
+      ),
+    );
+    if (r == null) return;
+    await _write(
+      (c) => c.setOwnCourse(
+        course.id,
+        course.title,
+        r,
+        from: t.semStart(),
+        until: _state.repeatUntil[course.id] ?? t.lastClassworkDay(),
+      ),
+    );
+  }
+
   Future<void> _blockTap(Occurrence o) async {
+    if (o.kind == OccKind.mark) return _markTime(o.courseId, o.title, o.date);
     final act = await showCalSheet<Object>(
       context,
       (_) => ClassSheet(
@@ -611,6 +683,9 @@ class _CalendarPageState extends State<CalendarPage> {
       case ClassAct.open:
         await _openCourse(o.courseId);
       case ClassAct.changeTime:
+        if (o.kind == OccKind.custom && _tt != null) {
+          return _ownTimes(_tt!, TtCourse(id: o.courseId, title: o.title));
+        }
         final sec = sectionOf(_tt, o);
         if (sec == null || sk == null) return;
         final r = await showCalSheet<TimingsResult>(

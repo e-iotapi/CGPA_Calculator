@@ -143,6 +143,22 @@ DateTime parseDate(String d) => DateTime.parse('${d}T00:00:00Z');
 /// UTC midnight -> `YYYY-MM-DD`.
 String fmtDate(DateTime d) => d.toIso8601String().substring(0, 10);
 
+/// Courses of [all] whose id or title has every word of [q] as a word prefix;
+/// ids that start with the query first, at most 50.
+List<TtCourse> searchCourses(Iterable<TtCourse> all, String q) {
+  final words = q.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+  if (words.isEmpty) return const [];
+  final flat = q.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+  bool hit(TtCourse c) {
+    final hay = '${c.id} ${c.title}'.toLowerCase().split(RegExp(r'\s+'));
+    return words.every((w) => hay.any((h) => h.startsWith(w)));
+  }
+
+  final found = all.where(hit).toList();
+  bool idFirst(TtCourse c) => c.id.toLowerCase().replaceAll(' ', '').startsWith(flat);
+  return [...found.where(idFirst), ...found.where((c) => !idFirst(c))].take(50).toList();
+}
+
 class Timetable {
   Timetable({
     required this.campus,
@@ -201,24 +217,8 @@ class Timetable {
     'courses': {for (final e in courses.entries) e.key: e.value.toJson()},
   };
 
-  /// Courses whose id or title has every word of [q] as a word prefix; ids
-  /// that start with the query first, at most 50.
-  List<TtCourse> search(String q) {
-    final words = q.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-    if (words.isEmpty) return const [];
-    final flat = q.toLowerCase().replaceAll(RegExp(r'\s+'), '');
-    bool hit(TtCourse c) {
-      final hay = '${c.id} ${c.title}'.toLowerCase().split(RegExp(r'\s+'));
-      return words.every((w) => hay.any((h) => h.startsWith(w)));
-    }
-
-    final all = courses.values.where(hit).toList();
-    bool idFirst(TtCourse c) =>
-        c.id.toLowerCase().replaceAll(' ', '').startsWith(flat);
-    return [...all.where(idFirst), ...all.where((c) => !idFirst(c))]
-        .take(50)
-        .toList();
-  }
+  /// [searchCourses] over the published courses.
+  List<TtCourse> search(String q) => searchCourses(courses.values, q);
 
   /// First day of instruction: an event titled "instruction ... begin", else
   /// the earliest term event, else a guess from the semester name.

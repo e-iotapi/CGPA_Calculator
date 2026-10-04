@@ -238,7 +238,10 @@ class ClassSheet extends StatelessWidget {
         ],
         if (o.kind == OccKind.midsem || o.kind == OccKind.compre)
           action('Hide this course\'s exams', ClassAct.hideExams),
-        if (o.kind == OccKind.custom)
+        if (o.kind == OccKind.custom && o.courseId.isNotEmpty) ...[
+          action('Change times', ClassAct.changeTime),
+          action('Remove from my timetable', ClassAct.removeCourse, danger: true),
+        ] else if (o.kind == OccKind.custom)
           action('Remove this event', ClassAct.removeCustom, danger: true),
       ],
     );
