@@ -65,7 +65,14 @@ class _ApplyPageState extends State<ApplyPage> {
       } else if (mounted) {
         setState(() {
           _busy = false;
-          _nameError = 'Use 3 to 20 letters, numbers or underscores.';
+          _nameError = switch (e.code) {
+            'notBits' =>
+              'Sign in with your BITS student email to choose a username.',
+            'campus' => 'Usernames are claimed on your own campus.',
+            'hasName' =>
+              'You already have a username. Reopen this page to use it.',
+            _ => 'Use 3 to 20 letters, numbers or underscores.',
+          };
         });
       }
     } catch (e) {

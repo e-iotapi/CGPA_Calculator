@@ -43,6 +43,19 @@ class AppTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    if (dense && !labelAbove) {
+      return BoxedField(
+        controller: controller,
+        label: label,
+        height: 44,
+        radius: 14,
+        number: number,
+        onChanged: onChanged,
+        suffix: suffix,
+        error: error,
+        fill: fill ?? p.surface,
+      );
+    }
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: p.outline),
@@ -86,10 +99,8 @@ class AppTextField extends StatelessWidget {
         filled: true,
         fillColor: fill ?? (labelAbove ? p.background : p.surface),
         contentPadding: EdgeInsets.symmetric(
-          horizontal: dense ? 12 : 14,
-          // ponytail: padding sized for 13px Montserrat to reach 44 (dense)
-          // and 48; `constraints` grows the box but not its outline.
-          vertical: dense ? 14 : (labelAbove ? 16 : 14),
+          horizontal: 14,
+          vertical: labelAbove ? 16 : 14,
         ),
         labelStyle: TypeScale.caption.copyWith(color: p.textMuted),
         floatingLabelStyle: TypeScale.caption.copyWith(color: p.textMuted),
@@ -129,6 +140,135 @@ class AppTextField extends StatelessWidget {
   }
 }
 
+/// A one-line field whose box is drawn by a fixed-height container, not by
+/// the TextField's border: a TextField's outline hugs its text (web most of
+/// all), so boxes beside pills and selectors came out shorter. The label is
+/// the placeholder and stays announced; [error] shows under the box.
+class BoxedField extends StatefulWidget {
+  const BoxedField({
+    super.key,
+    required this.controller,
+    required this.height,
+    required this.radius,
+    this.label,
+    this.hint,
+    this.number = false,
+    this.onChanged,
+    this.suffix,
+    this.error,
+    this.errorOutline = false,
+    this.fill,
+    this.center = false,
+    this.fontSize = 13,
+    this.width,
+  });
+
+  final TextEditingController controller;
+  final double height, radius, fontSize;
+  final double? width;
+  final String? label, hint, suffix, error;
+  final bool number, center;
+
+  /// Red outline with no text under it (a 36-tall grid has no room).
+  final bool errorOutline;
+  final ValueChanged<String>? onChanged;
+  final Color? fill;
+
+  @override
+  State<BoxedField> createState() => _BoxedFieldState();
+}
+
+class _BoxedFieldState extends State<BoxedField> {
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final w = widget;
+    final bad = w.error != null || w.errorOutline;
+    final box = Container(
+      width: w.width,
+      height: w.height,
+      alignment: Alignment.center,
+      padding: EdgeInsets.symmetric(horizontal: w.center ? 4 : 12),
+      decoration: BoxDecoration(
+        color: w.fill ?? p.surface,
+        borderRadius: BorderRadius.circular(w.radius),
+        border: Border.all(
+          color: bad ? p.behind : (_focus.hasFocus ? p.text : p.outline),
+          width: bad || _focus.hasFocus ? 1.5 : 1,
+        ),
+      ),
+      child: Semantics(
+        label: w.label,
+        textField: true,
+        child: TextField(
+          controller: w.controller,
+          focusNode: _focus,
+          onChanged: w.onChanged,
+          maxLines: 1,
+          textAlign: w.center ? TextAlign.center : TextAlign.start,
+          keyboardType:
+              w.number
+                  ? const TextInputType.numberWithOptions(decimal: true)
+                  : null,
+          inputFormatters:
+              w.number
+                  ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+                  : null,
+          style: TypeScale.body.copyWith(
+            fontSize: w.fontSize,
+            fontWeight: FontWeight.w600,
+            color: p.text,
+          ),
+          cursorColor: p.text,
+          decoration: InputDecoration(
+            isCollapsed: true,
+            border: InputBorder.none,
+            hintText: w.hint ?? w.label,
+            hintMaxLines: 1,
+            hintStyle: TypeScale.caption.copyWith(
+              fontSize: w.fontSize - 1.5,
+              fontWeight: FontWeight.w600,
+              color: p.textMuted,
+            ),
+            suffixText: w.suffix,
+            suffixStyle: TypeScale.caption.copyWith(color: p.textMuted),
+          ),
+        ),
+      ),
+    );
+    if (w.error == null) return box;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        box,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+          child: Text(
+            w.error!,
+            maxLines: 2,
+            style: TypeScale.caption.copyWith(fontSize: 11, color: p.behind),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// A number box shaped like a `CountPill` (38 tall, stadium, outline), for a
 /// value typed in a row of pills.
 class PillField extends StatelessWidget {
@@ -144,44 +284,17 @@ class PillField extends StatelessWidget {
   final double width;
 
   @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(19),
-      borderSide: BorderSide(color: p.outline),
-    );
-    return SizedBox(
-      width: width,
-      height: 38,
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        expands: true,
-        maxLines: null,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-        ],
-        textAlign: TextAlign.center,
-        textAlignVertical: TextAlignVertical.center,
-        style: TypeScale.caption.copyWith(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w700,
-          color: p.text,
-        ),
-        cursorColor: p.text,
-        decoration: InputDecoration(
-          isCollapsed: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-          border: border,
-          enabledBorder: border,
-          focusedBorder: border.copyWith(
-            borderSide: BorderSide(color: p.text, width: 1.5),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => BoxedField(
+    controller: controller,
+    onChanged: onChanged,
+    width: width,
+    height: 38,
+    radius: 19,
+    number: true,
+    center: true,
+    fontSize: 12.5,
+    fill: Colors.transparent,
+  );
 }
 
 /// The value grid on Edit evaluative (§3.19): 36 tall, radius 11. An
@@ -238,54 +351,15 @@ class CompactField extends StatelessWidget {
         ),
       );
     }
-    return SizedBox(
+    return BoxedField(
+      controller: c,
+      hint: hint,
+      onChanged: onChanged,
       height: 36,
-      child: TextField(
-        controller: c,
-        onChanged: onChanged,
-        textAlignVertical: TextAlignVertical.center,
-        textAlign: TextAlign.center,
-        style: TypeScale.body.copyWith(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: p.text,
-        ),
-        cursorColor: p.text,
-        decoration: InputDecoration(
-          isDense: true,
-          filled: true,
-          // Was a hardcoded near-white fill, so dark mode's near-white text
-          // (p.text) sat on a near-white box: invisible "You"/"Out of"
-          // marks (BUG-09). p.surface is the same token the working
-          // Component name field fills with.
-          fillColor: p.surface,
-          hintText: hint,
-          hintStyle: TypeScale.caption.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: p.textMuted,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 4,
-            vertical: 10,
-          ),
-          // Outlined like a pill, so a box reads on a white card too.
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide:
-                error
-                    ? BorderSide(color: p.behind, width: 1.5)
-                    : BorderSide(color: p.outline),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: BorderSide(
-              color: error ? p.behind : p.text,
-              width: 1.5,
-            ),
-          ),
-        ),
-      ),
+      radius: 11,
+      center: true,
+      fontSize: 12,
+      errorOutline: error,
     );
   }
 }
