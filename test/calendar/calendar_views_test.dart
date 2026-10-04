@@ -139,13 +139,13 @@ void main() {
       expect(find.text('September 2026'), findsOneWidget);
       expect(find.text('Next up'), findsOneWidget);
       await tab(t, 'Week');
-      expect(find.text('21 – 27 Sep 2026'), findsOneWidget);
+      expect(find.text('21 – 27 Sep'), findsOneWidget);
       expect(find.text('Next up'), findsNothing);
       await tab(t, 'Day');
-      expect(find.text('Wed 23 Sep 2026'), findsOneWidget);
+      expect(find.text('Wed 23 Sep'), findsOneWidget);
       await t.tap(find.byTooltip('Next day'));
       await t.pumpAndSettle();
-      expect(find.text('Thu 24 Sep 2026'), findsOneWidget);
+      expect(find.text('Thu 24 Sep'), findsOneWidget);
       await tab(t, 'Month');
       expect(find.text('September 2026'), findsOneWidget);
     });
@@ -155,14 +155,14 @@ void main() {
       (t) async {
         await pump(t);
         await tab(t, 'Week');
-        for (final d in ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']) {
+        for (final d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) {
           expect(find.text(d), findsOneWidget);
         }
-        expect(find.text('SUN'), findsNothing);
+        expect(find.text('Sun'), findsNothing);
         // L1 on Mon, Wed, Fri and the tutorial on Thu.
         expect(find.text(_aaa), findsNWidgets(4));
-        expect(find.text('Founders day'), findsOneWidget);
-        expect(find.text('Fees due'), findsOneWidget);
+        expect(find.textContaining('Founders day'), findsOneWidget);
+        expect(find.textContaining('Fees due'), findsOneWidget);
         expect(t.takeException(), isNull);
       },
     );
@@ -181,12 +181,12 @@ void main() {
       );
       await pump(t);
       await tab(t, 'Week');
-      expect(find.text('SUN'), findsOneWidget);
+      expect(find.text('Sun'), findsOneWidget);
       expect(find.text('Study group'), findsOneWidget);
       await t.tap(find.byTooltip('Next week'));
       await t.pumpAndSettle();
-      expect(find.text('SUN'), findsNothing);
-      expect(find.text('28 Sep – 4 Oct 2026'), findsOneWidget);
+      expect(find.text('Sun'), findsNothing);
+      expect(find.text('28 Sep – 4 Oct'), findsOneWidget);
     });
 
     testWidgets(
@@ -200,7 +200,7 @@ void main() {
         expect(find.bySemanticsLabel(RegExp('^Now')), findsNothing);
         await t.tap(find.text('Today'));
         await t.pumpAndSettle();
-        expect(find.text('21 – 27 Sep 2026'), findsOneWidget);
+        expect(find.text('21 – 27 Sep'), findsOneWidget);
       },
     );
 
@@ -209,17 +209,17 @@ void main() {
       await tab(t, 'Week');
       await t.fling(find.byType(WeekView), const Offset(-300, 0), 1000);
       await t.pumpAndSettle();
-      expect(find.text('28 Sep – 4 Oct 2026'), findsOneWidget);
+      expect(find.text('28 Sep – 4 Oct'), findsOneWidget);
     });
 
     testWidgets('one edit moves every weekly time, Reset puts them back', (
       t,
     ) async {
-      await pump(t);
+      await pump(t, size: const Size(390, 1400));
       await tab(t, 'Week');
       await t.tap(find.text(_aaa).first);
       await t.pumpAndSettle();
-      expect(find.textContaining('Mon 9:00 AM – 10:00 AM'), findsOneWidget);
+      expect(find.text('9:00 – 10:00'), findsOneWidget);
       await t.tap(find.text('Change time, only for me'));
       await t.pumpAndSettle();
       final fields = find.byType(TextField);
@@ -231,15 +231,15 @@ void main() {
       await t.tap(find.text('Save'));
       await t.pumpAndSettle();
       expect(cal.state.slotOverrides.length, 3);
-      expect(find.text('10:00–11:00'), findsNWidgets(3));
-      expect(find.text('9:00–10:00'), findsNothing);
+      expect(find.text('10–11'), findsNWidgets(3));
+      expect(find.text('9–10'), findsNothing);
       await t.tap(find.text(_aaa).first);
       await t.pumpAndSettle();
       expect(find.text('YOUR TIME'), findsOneWidget);
       await t.tap(find.text('Reset to the published time'));
       await t.pumpAndSettle();
       expect(cal.state.slotOverrides, isEmpty);
-      expect(find.text('9:00–10:00'), findsNWidgets(3));
+      expect(find.text('9–10'), findsNWidgets(3));
     });
 
     testWidgets('Section switch moves every lecture to the other section', (
@@ -263,13 +263,13 @@ void main() {
       await t.tap(find.text(_aaa).first);
       await t.pumpAndSettle();
       // Only the lecture has a second section: one Section list, the tutorial is not offered.
-      expect(find.text('Section'), findsOneWidget);
+      expect(find.text('SECTION'), findsOneWidget);
       await t.tap(find.textContaining('Lecture 2'));
       await t.pumpAndSettle();
       expect(cal.state.picks[_aaa], ['$_aaa|L2', '$_aaa|T1']);
-      expect(find.text('9:00–10:00'), findsNothing); // no L1 left
+      expect(find.text('9–10'), findsNothing); // no L1 left
       expect(
-        find.text('11:00–12:00'),
+        find.text('11–12'),
         findsNWidgets(3),
       ); // L2 Tue and Thu, T1 Thu
     });
@@ -312,7 +312,7 @@ void main() {
       await t.tap(find.text('Remove this day only'));
       await t.pumpAndSettle();
       expect(find.text('Remove this day?'), findsOneWidget);
-      await t.tap(find.text('Cancel'));
+      await t.tap(find.text('Keep'));
       await t.pumpAndSettle();
       expect(cal.state.removed, isEmpty);
       await t.tap(find.text(_aaa).first);
@@ -434,7 +434,7 @@ void main() {
       expect(find.text('Next up'), findsOneWidget);
       expect(find.text('Add'), findsNothing);
       await tab(t, 'Week');
-      expect(find.text('MON'), findsOneWidget);
+      expect(find.text('Mon'), findsOneWidget);
     });
 
     testWidgets('a failed load says so, and Try again loads it', (t) async {
