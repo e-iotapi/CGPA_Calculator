@@ -47,8 +47,11 @@ class _ApplyPageState extends State<ApplyPage> {
     });
     final store = contributorStore!;
     try {
-      if (have == null) await store.claimUsername(campus, name);
-      await store.apply(campus, dept);
+      if (have == null) {
+        await store.claimUsername(campus, name, applyTo: dept);
+      } else {
+        await store.apply(campus, dept);
+      }
       await refreshContribState();
       if (mounted) setState(() => _sent = true);
     } on UsernameTaken {

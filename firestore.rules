@@ -38,7 +38,7 @@ service cloud.firestore {
     // Departments are keyed by course prefix; electronics is one (§4). A
     // prefix no department owns belongs to GEN, the electives department (B2).
     function deptOf(course) {
-      let p = course.split(' ')[0];
+      let p = course.trim().upper().split(' ')[0];
       return p in ['EEE', 'ECE', 'INSTR', 'ECOM'] ? 'ELEC'
         : p == 'FIN' ? 'ECON'
         : p in ['BIO', 'BIOT', 'CE', 'CHE', 'CHEM', 'CS', 'ECON', 'ELEC', 'ENVS',
@@ -701,6 +701,27 @@ service cloud.firestore {
             : email == me() && a.get('approved', true) == true);
     }
 
+    // Who may hold a username (#7): a contributor, active or revoked (they
+    // keep the grant doc), or an applicant whose request for dept `d` is
+    // pending after this write (the app claims it beside the request).
+    function mayHoldName(campus, d) {
+      return exists(grantPath('contributor', campus, campus, me()))
+        || (d is string && d.size() > 0 && d.size() <= 8
+            && getAfter(contribDoc('contributorRequests/' + campus + '|' + d + '|' + me()))
+                 .data.status == 'pending');
+    }
+
+    // A declined applicant's username goes back (#7): cleared beside the
+    // decline of their request, unless they ever held the grant.
+    // ponytail: keyed by the dept they first claimed with; a withdraw and a
+    // re-apply elsewhere keeps the name until that request is declined too.
+    function declinedNow(campus, d, email) {
+      let r = contribDoc('contributorRequests/' + campus + '|' + d + '|' + email);
+      return d is string && d.size() > 0 && approves(campus, d)
+        && get(r).data.status == 'pending' && getAfter(r).data.status == 'declined'
+        && !exists(grantPath('contributor', campus, campus, email));
+    }
+
     function nameFree(campus, u) {
       let p = contribDoc('usernames/' + campus + '|' + u);
       return u.matches('^[a-z0-9_]{3,20}$') && existsAfter(p) && !exists(p)
@@ -713,9 +734,10 @@ service cloud.firestore {
       allow get: if resource == null ? mayUse()
         : (signedIn() && email == me()) || readsRoster(resource.data.campus);
       allow create: if isBits() && email == me()
-        && request.resource.data.keys().hasOnly(['username', 'campus', 'points'])
+        && request.resource.data.keys().hasOnly(['username', 'campus', 'points', 'd'])
         && request.resource.data.points == 0
         && request.resource.data.campus == campusOf(me())
+        && mayHoldName(request.resource.data.campus, request.resource.data.get('d', ''))
         && nameFree(request.resource.data.campus, request.resource.data.username);
       allow create: if mayUse()
         && request.resource.data.keys().hasOnly(['campus', 'points', 'lastLink'])
@@ -724,7 +746,8 @@ service cloud.firestore {
         && pointsMoved(email, request.resource.data.campus);
       allow update: if isBits() && email == me()
         && resource.data.get('username', null) == null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'd'])
+        && mayHoldName(resource.data.campus, request.resource.data.get('d', ''))
         && nameFree(resource.data.campus, request.resource.data.username);
       allow update: if mayUse()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'lastLink'])
@@ -736,6 +759,10 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'auditId'])
         && !('username' in request.resource.data)
         && audited('contributors/' + email);
+      allow update: if mayUse() && resource.data.get('username', null) != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username'])
+        && !('username' in request.resource.data)
+        && declinedNow(resource.data.campus, resource.data.get('d', ''), email);
       allow delete: if false;
     }
 
@@ -752,7 +779,10 @@ service cloud.firestore {
         && getAfter(contribDoc('contributors/' + me())).data.get('username', null)
              == pendingId(id, 1);
       allow delete: if mayUse()
-        && (isOwner() || isAdmin() || isPresidentOn(pendingId(id, 0)))
+        && (isOwner() || isAdmin() || isPresidentOn(pendingId(id, 0))
+            || declinedNow(pendingId(id, 0),
+                 get(contribDoc('contributors/' + resource.data.email)).data.get('d', ''),
+                 resource.data.email))
         && getAfter(contribDoc('contributors/' + resource.data.email)).data
              .get('username', null) != pendingId(id, 1);
       allow update: if false;

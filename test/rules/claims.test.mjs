@@ -68,6 +68,9 @@ test('claims need the audit, the marker, a GEN-prefix course and a real departme
   await assertFails(claim(as(PRES), PRES, { audit: false }));
   await assertFails(claim(as(PRES), PRES, { marker: false }));
   await assertFails(claim(as(PRES), PRES, { course: 'EEE F111' }));
+  // deptOf reads the prefix trimmed and upper-cased, as the app does (#9).
+  await assertFails(claim(as(PRES), PRES, { course: 'eee F111' }));
+  await assertFails(claim(as(PRES), PRES, { course: ' EEE F111' }));
   await assertFails(claim(as(PRES), PRES, { dept: 'GEN' }));
   await assertFails(claim(as(PRES), PRES, { dept: 'CS' })); // not their department
 });

@@ -162,10 +162,18 @@ class ContributorStore {
   /// Applies for [dept] (the student's branch department). Throws
   /// `ContribError('exists')` while a request is pending or approved.
   Future<void> apply(String campus, String dept) async {
+    final b = _db.batch();
+    await _stageApply(b, campus, dept);
+    await b.commit();
+    await _changed(dept);
+  }
+
+  /// Adds my request for [dept] to [b]. Throws `ContribError('exists')`
+  /// while one is pending or approved.
+  Future<void> _stageApply(WriteBatch b, String campus, String dept) async {
     final ref = _request(campus, dept, roles.me);
     final old = (await ref.get()).data()?['status'];
     if (old == 'pending' || old == 'approved') throw const ContribError('exists');
-    final b = _db.batch();
     b.set(ref, {
       'name': roles.myName,
       'email': roles.me,
@@ -175,8 +183,6 @@ class ContributorStore {
       'createdAt': FieldValue.serverTimestamp(),
     });
     bumpPath(b, _db, campus, Paths.contribRequests(dept));
-    await b.commit();
-    await _changed(dept);
   }
 
   /// Withdraws my pending request.
@@ -287,8 +293,27 @@ class ContributorStore {
         'reason': reason.trim().length > 200 ? reason.trim().substring(0, 200) : reason.trim(),
     });
     bumpPath(b, _db, r.campus, Paths.contribRequests(r.dept));
+    await _stageRelease(b, r);
     await b.commit();
     await _changed(r.dept);
+  }
+
+  /// Gives a declined applicant's username back (#7), in the decline's
+  /// batch: only when it was claimed with this request and they never held
+  /// the grant. Best effort: a refused read declines without it.
+  Future<void> _stageRelease(WriteBatch b, ContributorRequest r) async {
+    try {
+      final mine = _db.collection('contributors').doc(r.email);
+      final c = (await mine.get()).data();
+      final u = c?['username'] as String?;
+      if (u == null || c?['d'] != r.dept) return;
+      final g = grantId(GrantRole.contributor, r.campus, r.campus, r.email);
+      if ((await _db.collection('grants').doc(g).get()).exists) return;
+      b.update(mine, {'username': FieldValue.delete()});
+      b.delete(_db.collection('usernames').doc('${r.campus}|$u'));
+    } on FirebaseException {
+      return;
+    }
   }
 
   /// Revokes contributor grant [g]. (No staff entry: it would make the
@@ -350,8 +375,14 @@ class ContributorStore {
       peekCache('me-ct|$email', MyContributor.fromMap);
 
   /// Claims [name] on [campus]. Throws `ContribError('badName')` or
-  /// [UsernameTaken].
-  Future<void> claimUsername(String campus, String name) async {
+  /// [UsernameTaken]. Only a contributor (active or revoked) or an applicant
+  /// may hold one, so a first claim goes with the request for [applyTo], in
+  /// one batch; a decline gives the name back.
+  Future<void> claimUsername(
+    String campus,
+    String name, {
+    String? applyTo,
+  }) async {
     final n = name.trim().toLowerCase();
     if (!validUsername(n)) throw const ContribError('badName');
     final taken = _db.collection('usernames').doc('$campus|$n');
@@ -371,14 +402,16 @@ class ContributorStore {
     final mine = _db.collection('contributors').doc(roles.me);
     final has = (await mine.get()).exists;
     final b = _db.batch();
+    if (applyTo != null) await _stageApply(b, campus, applyTo);
     b.set(taken, {
       'email': roles.me,
       'claimedAt': FieldValue.serverTimestamp(),
     });
+    final d = {if (applyTo != null) 'd': applyTo};
     if (has) {
-      b.update(mine, {'username': n});
+      b.update(mine, {'username': n, ...d});
     } else {
-      b.set(mine, {'username': n, 'campus': campus, 'points': 0});
+      b.set(mine, {'username': n, 'campus': campus, 'points': 0, ...d});
     }
     try {
       await b.commit();
@@ -397,5 +430,6 @@ class ContributorStore {
       rethrow;
     }
     await forget('me-ct|');
+    if (applyTo != null) await _changed(applyTo);
   }
 }
