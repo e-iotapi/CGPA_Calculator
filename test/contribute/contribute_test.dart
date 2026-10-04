@@ -201,20 +201,17 @@ void main() {
       ),
     );
     await settle(t);
-    for (final l in ['All', 'Awaiting', 'Approved', 'Rejected']) {
-      expect(find.text(l), findsWidgets);
-    }
-    expect(find.text('Add links'), findsOneWidget);
-    await t.tap(find.text('Rejected'));
-    await t.pump();
-    expect(find.text('No links yet'), findsOneWidget);
+    // No links yet: the card and its button, no filters.
+    expect(find.text('Your links'), findsOneWidget);
+    expect(find.text('Add your first link'), findsOneWidget);
+    expect(find.text('Add a link'), findsOneWidget);
   });
 
   testWidgets('Contribute: staff publish directly, no states', (t) async {
     await open(t, As.president2, const ContributePage());
-    expect(find.textContaining('go live at once'), findsOneWidget);
-    expect(find.text('Awaiting'), findsNothing);
-    expect(find.text('Add links'), findsOneWidget);
+    expect(find.textContaining('publish at once'), findsOneWidget);
+    expect(find.text('Waiting'), findsNothing);
+    expect(find.byTooltip('Add a link'), findsOneWidget);
   });
 
   testWidgets('Add links: Department or a course, Another link', (t) async {
