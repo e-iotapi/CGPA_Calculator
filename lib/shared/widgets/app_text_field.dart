@@ -65,12 +65,8 @@ class AppTextField extends StatelessWidget {
         color: p.text,
       ),
       cursorColor: p.text,
-      // A dense field stands 44 tall, text centred, level with the 44-tall
-      // SelectRow and SegmentedPair beside it.
-      textAlignVertical: dense ? TextAlignVertical.center : null,
       decoration: InputDecoration(
         isDense: true,
-        constraints: dense ? const BoxConstraints(minHeight: 44) : null,
         // labelAbove shows the label as its own Text above the box, so the
         // box itself keeps no internal label (hintText carries the
         // placeholder instead). Otherwise: always labelText, never a bare
@@ -91,7 +87,9 @@ class AppTextField extends StatelessWidget {
         fillColor: fill ?? (labelAbove ? p.background : p.surface),
         contentPadding: EdgeInsets.symmetric(
           horizontal: dense ? 12 : 14,
-          vertical: dense ? 0 : (labelAbove ? 16 : 14),
+          // ponytail: padding sized for 13px Montserrat to reach 44 (dense)
+          // and 48; `constraints` grows the box but not its outline.
+          vertical: dense ? 14 : (labelAbove ? 16 : 14),
         ),
         labelStyle: TypeScale.caption.copyWith(color: p.textMuted),
         floatingLabelStyle: TypeScale.caption.copyWith(color: p.textMuted),
