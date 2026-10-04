@@ -2,9 +2,8 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
-import 'package:cgpa_calculator/core/professors/professor_store.dart';
+import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/reviews/gate.dart';
-import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
@@ -43,8 +42,8 @@ class _Draft {
   bool? recommend;
   String grade;
 
-  /// The offering's professors once read; null until then.
-  List<String>? profs;
+  /// Who the review can name ([reviewProfessors]) once read; null until then.
+  List<Professor>? profs;
   String? profId;
 
   num? get marksValue {
@@ -57,7 +56,6 @@ class _Draft {
   bool get complete =>
       term != null &&
       profs != null &&
-      (profs!.length < 2 || profId != null) &&
       stars > 0 &&
       recommend != null &&
       !marksBad;
@@ -111,15 +109,15 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
 
   Future<void> _read(_Draft d) async {
     if (d.profs != null || d.term == null) return;
-    var ids = const <String>[];
     try {
-      final off = await offeringSource?.get(d.course.id, myCampus!, d.term!);
-      ids = off?.professors ?? const <String>[];
+      final r =
+          peekReviewProfessors(d.course.id, myCampus!, d.term!) ??
+          await reviewProfessors(d.course.id, myCampus!, d.term!);
+      d.profs = r.list;
+      d.profId = r.taught;
     } catch (_) {
-      // Read again when posting; none named means the course alone.
+      d.profs = const []; // none to pick: the course alone
     }
-    d.profs = ids;
-    if (ids.length == 1) d.profId = ids.first;
     if (mounted) setState(() {});
   }
 
@@ -372,15 +370,26 @@ class _Card extends StatelessWidget {
                   ),
               ],
             ),
-            if ((d.profs?.length ?? 0) > 1) ...[
+            if (d.profs case final profs? when profs.isNotEmpty) ...[
               const SizedBox(height: Space.sm),
-              ChoicePills<String>(
-                values: d.profs!,
-                selected: d.profId,
-                label: (id) => _name(id),
-                onSelected: (id) {
-                  d.profId = id;
-                  onChanged();
+              SelectRow(
+                text: _name(d) ?? 'Not sure who taught it',
+                placeholder: d.profId == null,
+                onTap: () async {
+                  final v = await pickSheet<String?>(
+                    context,
+                    title: 'Professor',
+                    selected: d.profId,
+                    searchHint: 'Search professors',
+                    options: [
+                      (null, 'Not sure who taught it'),
+                      for (final x in profs) (x.id, x.name),
+                    ],
+                  );
+                  if (v != null) {
+                    d.profId = v.value;
+                    onChanged();
+                  }
                 },
               ),
             ],
@@ -431,6 +440,6 @@ class _Card extends StatelessWidget {
     );
   }
 
-  String _name(String id) =>
-      ProfessorStore(roleStore!.db).peekResolved(id)?.name ?? id;
+  String? _name(_Draft d) =>
+      d.profs?.where((x) => x.id == d.profId).firstOrNull?.name;
 }

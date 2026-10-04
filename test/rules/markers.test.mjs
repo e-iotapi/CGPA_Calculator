@@ -245,7 +245,7 @@ describe('a marker moves by exactly one, on the right path', () => {
   });
 
   test('reviewIndex moves reviews; the campus copy moves reviews/<course>', async () => {
-    await seed((db) => setDoc(doc(db, 'courses', C, 'offerings', 'goa_2025-26-2'), { professors: ['p1'] }));
+    await seed((db) => setDoc(doc(db, 'professors', 'p1'), { name: 'p1', campus: 'goa', department: 'ELEC' }));
     const id = hash(STUDENT, C);
     const post = (paths) => {
       const db = as(STUDENT);
