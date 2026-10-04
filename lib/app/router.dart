@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cgpa_calculator/admin/admin.dart' deferred as admin;
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
@@ -6,10 +8,19 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
 import 'package:cgpa_calculator/features/marks/marks_page.dart';
+import 'package:cgpa_calculator/features/contribute/add_page.dart';
+import 'package:cgpa_calculator/features/contribute/apply_page.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_page.dart';
+import 'package:cgpa_calculator/features/contribute/edit_page.dart';
+import 'package:cgpa_calculator/features/contribute/leaderboard_page.dart';
 import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/more/representatives_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
+import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/roles/rep_profile.dart';
+import 'package:cgpa_calculator/features/reviews/compulsory_pick.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/professor_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
@@ -17,7 +28,10 @@ import 'package:cgpa_calculator/features/roles/role_switch_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
 import 'package:cgpa_calculator/home_page.dart';
+import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
 import 'package:cgpa_calculator/script.dart';
+import 'package:cgpa_calculator/shared/widgets/not_found_page.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -27,15 +41,41 @@ export 'package:cgpa_calculator/app/routes.dart';
 /// it and Back behaves exactly as the old pushed routes did.
 final GoRouter appRouter = GoRouter(
   routes: appRoutes,
-  refreshListenable: profileDue,
-  redirect: (_, s) => profileGate(s.matchedLocation),
+  refreshListenable: Listenable.merge([profileDue, ownerSetupDue]),
+  redirect: (_, s) {
+    leaveRoleOutside(s.matchedLocation);
+    return profileGate(s.matchedLocation);
+  },
+  errorBuilder: (_, _) => const NotFoundPage(),
 );
+
+/// The pages a role works in; everything else is a student's.
+const _rolePaths = ['/admin', '/maintain', '/roles', '/campus'];
+
+/// Whether [location] is one of the role pages.
+bool onRolePath(String location) =>
+    _rolePaths.any((p) => location == p || location.startsWith('$p/'));
+
+/// On a student page, a president or CR is a student again and an owner is
+/// the owner again (not a role they opened as): Switch role and Open as hold
+/// only while their pages are open.
+void leaveRoleOutside(String location) {
+  if (onRolePath(location)) return;
+  if (workingAs.value != null) unawaited(setWorkingAs(null));
+  viewAs.value = null;
+}
 
 /// RepProfile comes first after an appointment (§16.3 fix 8): while it is
 /// due, every location resolves to it.
-String? profileGate(String location) =>
-    profileDue.value && location != Routes.welcome ? Routes.welcome : null;
+/// A non-BITS owner sets campus and batch before anything else (§10.21).
+String? profileGate(String location) {
+  if (ownerSetupDue.value) {
+    return location == Routes.ownerSetup ? null : Routes.ownerSetup;
+  }
+  return profileDue.value && location != Routes.welcome ? Routes.welcome : null;
+}
 
+/// Every route of the app, for the router in `main.dart`.
 final List<RouteBase> appRoutes = [
   GoRoute(
     path: Routes.home,
@@ -49,15 +89,55 @@ final List<RouteBase> appRoutes = [
       GoRoute(path: 'settings', builder: (_, _) => const SettingsPage()),
       GoRoute(
         path: 'resources',
-        builder:
-            (c, _) => ResourcesPage(
-              onRepresentatives: () => c.push(Routes.representatives),
-            ),
+        builder: (_, _) => const ResourcesPage(),
+        routes: [
+          GoRoute(
+            path: 'degree/:code',
+            builder:
+                (c, s) => ResourceDegreePage(
+                  code: s.pathParameters['code']!,
+                  onRepresentatives: () => c.push(Routes.representatives),
+                ),
+          ),
+          GoRoute(
+            path: 'courses',
+            builder: (_, _) => const ResourceCoursesPage(),
+          ),
+          GoRoute(
+            path: 'course/:id',
+            builder:
+                (_, s) => ResourceCoursePage(courseId: s.pathParameters['id']!),
+          ),
+        ],
       ),
       GoRoute(path: 'more', builder: (_, _) => const MorePage()),
+      GoRoute(path: 'leaderboard', builder: (_, _) => const LeaderboardPage()),
+      GoRoute(
+        path: 'contribute',
+        builder: (_, _) => const ContributePage(),
+        routes: [
+          GoRoute(path: 'apply', builder: (_, _) => const ApplyPage()),
+          GoRoute(path: 'add', builder: (_, _) => const AddPage()),
+          GoRoute(
+            path: 'edit/:id',
+            builder: (_, s) => EditPage(id: s.pathParameters['id']!),
+          ),
+        ],
+      ),
       GoRoute(
         path: 'representatives',
         builder: (_, _) => const RepresentativesPage(),
+      ),
+      GoRoute(
+        path: 'setup/owner',
+        builder:
+            (c, _) => OwnerSetupPage(
+              email: myRoles.value.email,
+              onDone: () {
+                ownerSetupDue.value = false;
+                c.go(Routes.home);
+              },
+            ),
       ),
       GoRoute(
         path: 'welcome',
@@ -69,6 +149,11 @@ final List<RouteBase> appRoutes = [
         builder: (_, _) => const ReviewsHome(),
         routes: [
           // Before :courseId: no course code is "professor".
+          GoRoute(
+            path: 'compulsory',
+            redirect: (_, _) => viewCampus() == null ? Routes.reviews : null,
+            builder: (_, _) => const CompulsoryPickPage(),
+          ),
           GoRoute(
             path: 'professor/:id',
             builder:
@@ -96,6 +181,11 @@ final List<RouteBase> appRoutes = [
             ),
       ),
       GoRoute(
+        path: 'campus',
+        redirect: (_, _) => myRoles.value.owner ? null : Routes.home,
+        builder: (_, _) => const CampusPickPage(),
+      ),
+      GoRoute(
         path: 'roles',
         redirect: (_, _) => myRoles.value.privileged ? null : Routes.home,
         builder: (_, _) => const RoleSwitchPage(),
@@ -112,9 +202,18 @@ final List<RouteBase> appRoutes = [
             () => _adminOnly() || myRoles.value.presidencies.isNotEmpty,
           ),
           _admin('owners', () => admin.OwnersPage(), _ownerOnly),
+          _admin('analytics', () => admin.SiteAnalytics(), _ownerOnly),
           _admin('terms', () => admin.TermsPage(), _adminOnly),
           _admin('contact', () => admin.PublicContactPage(), _adminOnly),
           _admin('audit', () => admin.AuditLogPage(), _staff),
+          _admin(
+            'roster/volunteers',
+            () => admin.RosterPage(
+              initialVolunteers: true,
+              volunteersTab: (c) => admin.VolunteersTab(campus: c),
+            ),
+            _staff,
+          ),
           _admin(
             'roster',
             () => admin.RosterPage(
@@ -122,8 +221,15 @@ final List<RouteBase> appRoutes = [
             ),
             _staff,
           ),
+          _admin(
+            'open-as/department',
+            () => admin.ViewAsDeptPage(),
+            _ownerOnly,
+          ),
+          _admin('open-as/course', () => admin.ViewAsCoursePage(), _ownerOnly),
           _admin('open-as', () => admin.OpenAsPage(), _ownerOnly),
           _admin('publish', () => admin.PublishPage(), _ownerOnly),
+          _admin('approvals', () => admin.Approvals(), _adminOnly),
           _admin('professors/merge', () => admin.ProfessorMerge(), _staff),
         ],
       ),
@@ -152,6 +258,16 @@ final List<RouteBase> appRoutes = [
             ),
         routes: [
           GoRoute(
+            path: 'approvals',
+            builder:
+                (_, s) => _deferred(
+                  () => admin.Approvals(
+                    campus: s.pathParameters['campus']!,
+                    dept: s.pathParameters['dept']!,
+                  ),
+                ),
+          ),
+          GoRoute(
             path: 'professors',
             builder:
                 (_, s) => _deferred(
@@ -160,6 +276,19 @@ final List<RouteBase> appRoutes = [
                     dept: s.pathParameters['dept']!,
                   ),
                 ),
+            routes: [
+              GoRoute(
+                path: 'add',
+                builder:
+                    (_, s) => _deferred(
+                      () => admin.ProfessorAdd(
+                        campus: s.pathParameters['campus']!,
+                        dept: s.pathParameters['dept']!,
+                        initial: s.uri.queryParameters['name'] ?? '',
+                      ),
+                    ),
+              ),
+            ],
           ),
           GoRoute(
             path: 'succession',
@@ -179,6 +308,7 @@ final List<RouteBase> appRoutes = [
                         campus: s.pathParameters['campus']!,
                         dept: s.pathParameters['dept']!,
                         to: s.uri.queryParameters['to'] ?? '',
+                        secretary: s.uri.queryParameters['sec'],
                       ),
                     ),
               ),
@@ -241,25 +371,54 @@ GoRoute _admin(String path, Widget Function() page, bool Function() may) =>
 
 /// Admin screens live in a deferred library (§13): loaded on first visit.
 Widget _deferred(Widget Function() page) =>
-    DeferredPage(load: _adminLoad ??= admin.loadLibrary(), page: page);
+    DeferredPage(load: _loadAdmin(), loaded: _adminReady, page: page);
 Future<void>? _adminLoad;
+bool _adminReady = false;
+Future<void> _loadAdmin() =>
+    _adminLoad ??= admin.loadLibrary().then((_) => _adminReady = true);
 
+/// For a department president: loads the admin code and their board's data
+/// in the background, so the department pages open with data (TM-16).
+Future<void> prefetchPresidentPages() async {
+  final presidencies = myRoles.value.presidencies;
+  if (presidencies.isEmpty) return;
+  await _loadAdmin();
+  admin.prefetchDeptScreens(presidencies);
+}
+
+/// Shows [page] once the deferred library behind [load] has loaded.
 class DeferredPage extends StatelessWidget {
-  const DeferredPage({super.key, required this.load, required this.page});
+  const DeferredPage({
+    super.key,
+    required this.load,
+    required this.page,
+    this.loaded = false,
+  });
+
+  /// True once [load] has completed: [page] then draws in the first frame
+  /// (a FutureBuilder on a done future still shows one waiting frame).
+  final bool loaded;
+
+  /// Completes when the library is loaded.
   final Future<void> load;
+
+  /// Builds the page; called only after [load] completes.
   final Widget Function() page;
 
   @override
-  Widget build(BuildContext context) => FutureBuilder(
-    future: load,
-    builder:
-        (context, s) =>
-            s.connectionState == ConnectionState.done
-                ? page()
-                : const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                ),
-  );
+  Widget build(BuildContext context) =>
+      loaded
+          ? page()
+          : FutureBuilder(
+            future: load,
+            builder:
+                (context, s) =>
+                    s.connectionState == ConnectionState.done
+                        ? page()
+                        : const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        ),
+          );
 }
 
 Course? _course(GoRouterState s) {

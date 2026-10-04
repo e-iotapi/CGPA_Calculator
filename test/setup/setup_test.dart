@@ -7,9 +7,11 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/import/erp_import_page.dart';
 import 'package:cgpa_calculator/features/setup/degree_setup_page.dart';
 import 'package:cgpa_calculator/script.dart' as app;
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 Future<void> _pump(
   WidgetTester t,
@@ -25,9 +27,11 @@ Future<void> _pump(
       theme: AppPalette.light.materialTheme,
       builder:
           (c, child) => MediaQuery(
-            data: MediaQuery.of(
-              c,
-            ).copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(c).copyWith(
+              textScaler: TextScaler.linear(scale),
+              // The install card's nudge never settles.
+              disableAnimations: true,
+            ),
             child: child!,
           ),
       home: KeyedSubtree(key: UniqueKey(), child: child),
@@ -109,15 +113,15 @@ void main() {
 
       await t.tap(find.text('Dual degree'));
       await t.pumpAndSettle();
-      await t.tap(find.bySemanticsLabel(RegExp('^FIRST DEGREE')));
+      await t.tap(find.bySemanticsLabel(RegExp('^DUAL DEGREE')));
       await t.pumpAndSettle();
       // The pick page: Goa's M.Sc. programmes, by name.
-      expect(find.text('FIRST DEGREE · GOA'), findsOneWidget);
+      expect(find.text('DUAL DEGREE · GOA'), findsOneWidget);
       expect(find.text('B.E. Computer Science'), findsNothing);
       await t.tap(find.text('M.Sc. Economics'));
       await t.pumpAndSettle();
 
-      await t.tap(find.bySemanticsLabel(RegExp('^SECOND DEGREE')));
+      await t.tap(find.bySemanticsLabel(RegExp('^DISCIPLINE')));
       await t.pumpAndSettle();
       expect(find.text('B.Pharm.'), findsNothing);
       await t.enterText(find.byType(TextField), 'computer sc');
@@ -220,17 +224,66 @@ void main() {
       expect(find.textContaining('still being built'), findsOneWidget);
     });
 
+    testWidgets('2+2 shows the notice and keeps the choice', (t) async {
+      await _pump(
+        t,
+        DegreeSetupPage(
+          email: 'f20230123@goa.bits-pilani.ac.in',
+          onDone: () {},
+        ),
+      );
+      expect(find.byType(Notice), findsNothing);
+      await t.tap(find.text('2+2'));
+      await t.pump();
+      expect(find.byType(Notice), findsOneWidget);
+      expect(find.text('Single degree'), findsOneWidget);
+    });
+
+    testWidgets('button waits for the programme', (t) async {
+      await _pump(
+        t,
+        DegreeSetupPage(
+          email: 'f20230123@goa.bits-pilani.ac.in',
+          onDone: () {},
+        ),
+      );
+      final button = t.widget<PrimaryButton>(find.byType(PrimaryButton));
+      expect(button.onPressed, isNull);
+      expect(button.label, 'Pick your degree');
+    });
+
+    testWidgets('second degree lists only B.E.', (t) async {
+      await _pump(
+        t,
+        DegreeSetupPage(
+          email: 'f20230123@goa.bits-pilani.ac.in',
+          onDone: () {},
+        ),
+      );
+      await t.tap(find.text('Dual degree'));
+      await t.pumpAndSettle();
+      await t.tap(find.bySemanticsLabel(RegExp('^DUAL DEGREE')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('M.Sc. Economics'));
+      await t.pumpAndSettle();
+
+      await t.tap(find.bySemanticsLabel(RegExp('^DISCIPLINE')));
+      await t.pumpAndSettle();
+      expect(find.text('B3'), findsNothing);
+      expect(find.text('A7'), findsOneWidget);
+    });
+
     testWidgets('setup ends with the install offer, unless installed', (
       t,
     ) async {
       await _pump(t, ErpImportPage(onDone: () {}, installable: true));
       await t.scrollUntilVisible(find.text('Install'), 200);
-      expect(find.text('Keep Pointer on your home screen'), findsOneWidget);
+      expect(find.text('Install Pointer'), findsOneWidget);
       await _pump(t, ErpImportPage(onDone: () {}, installable: false));
-      expect(find.text('Keep Pointer on your home screen'), findsNothing);
+      expect(find.text('Install Pointer'), findsNothing);
       // Settings' import is not the end of setup.
       await _pump(t, const ErpImportPage(installable: true));
-      expect(find.text('Keep Pointer on your home screen'), findsNothing);
+      expect(find.text('Install Pointer'), findsNothing);
       await _pump(
         t,
         ErpImportPage(onDone: () {}, installable: true),

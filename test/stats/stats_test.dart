@@ -11,10 +11,11 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/stats/stats_controller.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
+import 'package:cgpa_calculator/features/stats/widgets/cgpa_chart.dart';
 import 'package:cgpa_calculator/features/stats/widgets/degree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 import '../helpers/fonts.dart';
 import '../helpers/transcript.dart';
@@ -52,6 +53,7 @@ Future<void> _pump(
   AppPalette palette = AppPalette.light,
   VoidCallback? onEditTotal,
   AssignCourse? onAssign,
+  void Function(String, bool)? onInclude,
 }) async {
   t.view.physicalSize = size * (_shots == null ? 1 : 2);
   t.view.devicePixelRatio = _shots == null ? 1 : 2;
@@ -74,6 +76,7 @@ Future<void> _pump(
           onViewChanged: (_) {},
           onTargetChanged: (_) {},
           onPlanChanged: (_, _) {},
+          onIncludeChanged: onInclude ?? (_, _) {},
           onBack: () {},
           onAssign: onAssign,
           onEditTotal: onEditTotal,
@@ -131,6 +134,49 @@ void main() {
       expect(d.actual.last.cgpa, d.cgpa);
     });
 
+    // Board `Stats`: an unticked semester keeps its SGPA but moves nothing.
+    test('a semester ticked out of the forecast is skipped', () {
+      final d = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3--',
+        target: 9,
+        plan: {'2 - 1': 10, '2 - 2': 6},
+        skipped: {'2 - 1'},
+      );
+      expect(d.planned.map((p) => p.included), [false, true]);
+      expect(d.planned.map((p) => p.cgpaAfter), [9, (99 + 24) / 15]);
+      expect(d.finish, (99 + 24) / 15);
+      expect(d.forecast.map((f) => f.sem), [d.actual.last.sem, '2 - 2']);
+    });
+
+    testWidgets('tick boxes report the semester and its new state', (t) async {
+      final calls = <(String, bool)>[];
+      final d = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3--',
+        target: 9,
+        skipped: {'2 - 2'},
+      );
+      await _pump(
+        t,
+        d,
+        StatsView.progression,
+        size: const Size(390, 1400),
+        onInclude: (s, on) => calls.add((s, on)),
+      );
+      expect(find.text('Tick what to forecast'), findsOneWidget);
+      expect(
+        find.text('Not in this forecast · tick to include'),
+        findsOneWidget,
+      );
+      Finder box(String sem) => find.byWidgetPredicate(
+        (w) => w is Checkbox && w.semanticLabel == 'Forecast $sem',
+      );
+      await t.tap(box('2 - 1'));
+      await t.tap(box('2 - 2'));
+      expect(calls, [('2 - 1', false), ('2 - 2', true)]);
+    });
+
     test(
       'real transcript: 8.66 over 68 credits, chart ends on the home CGPA',
       skip: transcriptSkip,
@@ -147,6 +193,94 @@ void main() {
         expect(d.audit.totalCredits + d.remaining, 226);
       },
     );
+
+    test('a new user with no CGPA gets a reachable default target (BUG-07)', () {
+      expect(StatsData.defaultTarget(0), 7.5);
+      // Unchanged for someone who already has a CGPA.
+      expect(StatsData.defaultTarget(8.2), 8.5);
+    });
+
+    test(
+      'finish vs today is the gap between the two rounded figures shown, '
+      'not the raw gap (BUG-52)',
+      () {
+        final d = StatsData.from(
+          all: [
+            _c('1 - 1', 999, 8), // B
+            _c('1 - 1', 1, 9), // A-
+            _c('1 - 2', 200, GradeCode.clr), // outstanding
+          ],
+          discipline: 'B3--',
+          target: 9,
+          plan: {'1 - 2': 8.0256},
+        );
+        // Raw: cgpa 8.001 rounds to "8.00", finish 8.0051 rounds to
+        // "8.01" — a real 0.01 rise once rounded, though the raw gap
+        // (0.0041) is under 0.005 and would round to "0.00" on its own.
+        expect(d.cgpa, closeTo(8.001, 1e-9));
+        expect(d.finish, closeTo(8.0051, 1e-6));
+        expect(d.delta, closeTo(0.01, 1e-9));
+      },
+    );
+
+    test(
+      'the "not with a repeat of X" caveat only follows a reachable '
+      'verdict — appending it to "a stretch" contradicted itself (BUG-23)',
+      () {
+        final courses = [
+          _c('1 - 1', 1, 9), // term SGPA 9.00
+          _c('1 - 2', 1, 5), // term SGPA 5.00 — the weak one
+          _c('2 - 1', 2, GradeCode.clr), // outstanding, so req is defined
+        ];
+        // avg of the two terms is 7.00; target 6.5 needs 6.00 (reachable,
+        // but the weak term alone would not have been enough).
+        final reachable = StatsData.from(
+          all: courses,
+          discipline: 'B3--',
+          target: 6.5,
+        );
+        expect(reachable.required, 6);
+        expect(reachable.note, contains('reachable'));
+        expect(reachable.note, contains('but not with a repeat of 1 - 2'));
+
+        // Target 7.5 needs 8.00 — a stretch even the best average misses,
+        // so singling out the weak term as "the" problem is misleading.
+        final stretch = StatsData.from(
+          all: courses,
+          discipline: 'B3--',
+          target: 7.5,
+        );
+        expect(stretch.required, 8);
+        expect(stretch.note, contains('a stretch'));
+        expect(stretch.note, isNot(contains('but not with a repeat')));
+      },
+    );
+  });
+
+  group('chart axes (board Stats)', () {
+    test('yRange spans the whole numbers the data spans', () {
+      expect(yRange([8.76, 7.28, 7.71, 8.10, 8.0]), (7.0, 9.0));
+      expect(yRange([8.2, 8.4]), (8.0, 9.0));
+      expect(yRange([9.0, 9.0]), (9.0, 10.0));
+      expect(yRange([10.0]), (9.0, 10.0));
+    });
+
+    test('xLabels picks first, current, last and a landmark', () {
+      const sems = [
+        '1 - 1',
+        '1 - 2',
+        '2 - 1',
+        '2 - 2',
+        'PS 1',
+        '3 - 1',
+        '3 - 2',
+        '4 - 1',
+        '4 - 2',
+        '5 - 1',
+      ];
+      expect(xLabels(sems, 7), [0, 7, 9, 4]);
+      expect(xLabels(['1 - 1', '1 - 2'], -1), [0, 1]);
+    });
   });
 
   group('StatsScreen', () {
@@ -166,7 +300,7 @@ void main() {
     testWidgets('degree shows requirement cards', (t) async {
       await _pump(t, d, StatsView.degree);
       expect(find.text('CREDITS EARNED'), findsOneWidget);
-      expect(find.text('CDC (B3)'), findsOneWidget);
+      expect(find.text('B3 Core · CDC1', findRichText: true), findsOneWidget);
     });
 
     test('a total set by hand decides what is left', () {
@@ -227,7 +361,7 @@ void main() {
         expect(d.audit.ongoingCredits, 4);
         expect(d.audit.totalCredits, 4 + 4 + 3 + 3 + 2);
         final core = d.audit.categories.firstWhere(
-          (a) => a.label == 'CDC (A7)',
+          (a) => a.label == 'A7 Core',
         );
         // Its own core, and the common courses as the first degree's.
         expect(core.credits, 14);
@@ -260,11 +394,11 @@ void main() {
         );
         final scroll = find.byType(Scrollable).first;
         await t.scrollUntilVisible(
-          find.text('CDC (A7)'),
+          find.text('A7 Core'),
           200,
           scrollable: scroll,
         );
-        await t.tap(find.text('CDC (A7)'));
+        await t.tap(find.text('A7 Core'));
         await t.pumpAndSettle();
         expect(
           find.textContaining('CS F212', findRichText: true),
@@ -294,7 +428,7 @@ void main() {
         expect(t.takeException(), isNull);
       });
 
-      test('common courses count as the first degree\'s core', () {
+      test('common courses are not the dual\'s first-degree core (BUG-31)', () {
         final dual = StatsData.from(
           all: [
             for (final m in all)
@@ -312,10 +446,11 @@ void main() {
           discipline: 'B3A7',
         );
         final b3 = dual.audit.categories.firstWhere(
-          (a) => a.label == 'CDC (B3)',
+          (a) => a.label == 'B3 Core · CDC1',
         );
-        expect(b3.members.map((m) => m.id), ['MATH F111', 'BITS F111']);
-        final a7 = d.audit.categories.firstWhere((a) => a.label == 'CDC (A7)');
+        expect(b3.members.map((m) => m.id), isNot(contains('MATH F111')));
+        expect(b3.members.map((m) => m.id), isNot(contains('BITS F111')));
+        final a7 = d.audit.categories.firstWhere((a) => a.label == 'A7 Core');
         expect(a7.members.map((m) => m.id), containsAll(['MATH F111']));
       });
 
@@ -352,8 +487,9 @@ void main() {
             all: loadTranscript(),
             discipline: 'B3A7',
             target: 8,
+            skipped: {'5 - 1'},
           );
-          await _pump(t, real, v, size: const Size(390, 844), palette: palette);
+          await _pump(t, real, v, size: const Size(390, 950), palette: palette);
           await t.runAsync(() async {
             final img = await captureImage(
               t.element(find.byType(RepaintBoundary).first),
@@ -406,12 +542,12 @@ void main() {
       expect(idsIn('Open Electives'), ['EEE F311']);
       final eee = allCourses().firstWhere((m) => m.id == 'EEE F311');
       await setCourseCategory(eee, Elective.del2.tag);
-      expect(idsIn('Disciplinary Electives (A7)'), ['EEE F311']);
+      expect(idsIn('Disciplinary Electives'), ['EEE F311']);
       expect(idsIn('Open Electives'), isEmpty);
       // Survives a reload of the settings.
       pinnedCategories = {};
       loadPinnedCategories(Hive.box('settingsBox'));
-      expect(idsIn('Disciplinary Electives (A7)'), ['EEE F311']);
+      expect(idsIn('Disciplinary Electives'), ['EEE F311']);
     });
 
     testWidgets('the Unassigned course moves once assigned', (t) async {
@@ -472,6 +608,68 @@ void main() {
       await t.tap(find.text('Open Electives'));
       await t.pumpAndSettle();
       expect(find.textContaining('XYZ F101', findRichText: true), findsWidgets);
+    });
+  });
+
+  group('UI_OPT O3.5', () {
+    testWidgets('dragging the slider writes the plan once, on release', (t) async {
+      final d = StatsData.from(
+        all: _synthetic,
+        discipline: 'B3--',
+        target: 9,
+        plan: {'2 - 1': 7, '2 - 2': 7},
+      );
+      var ticks = 0;
+      final writes = <(String, double)>[];
+      t.view.physicalSize = const Size(390, 1400);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          home: StatsScreen(
+            data: d,
+            view: StatsView.progression,
+            onViewChanged: (_) {},
+            onTargetChanged: (_) {},
+            onPlanChanged: (_, _) => ticks++,
+            onPlanChangeEnd: (sem, v) => writes.add((sem, v)),
+            onBack: () {},
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      final slider = find.byType(Slider).first;
+      await t.ensureVisible(slider);
+      await t.pumpAndSettle();
+      final w = t.getSize(slider).width;
+      final g = await t.startGesture(t.getCenter(slider));
+      for (var i = 0; i < 10; i++) {
+        await g.moveBy(Offset(w / 30, 0));
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      await g.up();
+      await t.pumpAndSettle();
+      expect(ticks, greaterThan(1));
+      expect(writes, hasLength(1));
+      expect(writes.single.$1, '2 - 1');
+    });
+
+    test('chart repaints on a palette change', () {
+      CgpaChartPainter painter({Color grid = Colors.grey}) => CgpaChartPainter(
+        actual: const [(sem: '1 - 1', cgpa: 8.0)],
+        forecast: const [],
+        target: 9,
+        line: Colors.black,
+        forecastLine: Colors.teal,
+        targetLine: Colors.amber,
+        grid: grid,
+        label: Colors.black54,
+        surface: Colors.white,
+      );
+      final a = painter();
+      expect(painter().shouldRepaint(a), isFalse);
+      expect(painter(grid: Colors.red).shouldRepaint(a), isTrue);
     });
   });
 }

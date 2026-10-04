@@ -5,13 +5,17 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
+import 'package:cgpa_calculator/core/reviews/gate.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
+import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
+import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
 
 typedef _Taught = ({String courseId, List<String> terms, ReviewStats stats});
@@ -44,19 +48,55 @@ class ProfessorReviewsPage extends StatelessWidget {
     return (p, out);
   }
 
+  /// [_load] from the saved copies; null if any part is not saved.
+  (Professor?, List<_Taught>)? _peek() {
+    final campus = myCampus!;
+    final p = ProfessorStore(roleStore!.db).peekResolved(professorId);
+    if (p == null) {
+      // Known to be gone: what _load shows; never looked up: no copy.
+      return ProfessorStore(roleStore!.db).peekSaved(professorId)
+          ? (null, const <_Taught>[])
+          : null;
+    }
+    final taught = ProfessorStore(roleStore!.db).peekTaught(p, campus);
+    if (taught == null) return null;
+    final out = <_Taught>[];
+    for (final e in taught.entries) {
+      final stats = reviewStore!.peekStats(
+        e.key,
+        campus,
+        professorIds: p.allIds,
+      );
+      if (stats == null) return null;
+      out.add((courseId: e.key, terms: e.value, stats: stats));
+    }
+    out.sort((a, b) => b.terms.first.compareTo(a.terms.first));
+    return (p, out);
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     if (roleStore == null || myCampus == null) {
       return PageFrame(
         header: const PageHeader(eyebrow: 'PROFESSOR', title: 'Reviews'),
-        children: const [
-          Note('Sign in with your BITS account to read reviews.'),
+        children: [
+          if (roleStore != null)
+            campusPrompt(context)
+          else
+            const Note('Sign in with your BITS account to read reviews.'),
         ],
+      );
+    }
+    if (myGate(myCampus!) == GateState.locked) {
+      return PageFrame(
+        header: const PageHeader(eyebrow: 'PROFESSOR', title: 'Reviews'),
+        children: [LockedReviews(onBack: () => Navigator.of(context).maybePop())],
       );
     }
     return Loaded<(Professor?, List<_Taught>)>(
       load: _load,
+      peek: _peek,
       builder: (context, data, _) {
         final (prof, taught) = data;
         final header = PageHeader(
@@ -77,9 +117,11 @@ class ProfessorReviewsPage extends StatelessWidget {
                 stats: all,
                 note:
                     all.count == 0
-                        ? null
+                        ? 'No reviews yet. Reviews of the courses they '
+                            'teach are counted here.'
                         : 'Across ${taught.length} '
-                            'course${taught.length == 1 ? '' : 's'}.',
+                            'course${taught.length == 1 ? '' : 's'}, '
+                            '${all.count} review${all.count == 1 ? '' : 's'}.',
               ),
               const SectionLabel('Courses taught'),
               if (taught.isEmpty)
@@ -88,32 +130,36 @@ class ProfessorReviewsPage extends StatelessWidget {
                   'CR or department adds who teaches each term.',
                 )
               else
-                RowGroup(
-                  children: [
-                    for (final t in taught)
-                      NavRow(
-                        icon: Icons.menu_book_outlined,
-                        title:
-                            '${t.courseId} · '
-                            '${catalog.master.where((m) => m.id == t.courseId).firstOrNull?.title ?? ''}',
-                        subtitle:
-                            '${[for (final x in t.terms.take(3)) termLabel(x)].join(', ')}'
-                            '${t.terms.length > 3 ? ' and ${t.terms.length - 3} more' : ''}'
-                            ' · ${t.stats.count} review${t.stats.count == 1 ? '' : 's'}',
-                        onTap:
-                            () => openRoute(
-                              context,
-                              Routes.courseReviews(
-                                t.courseId,
-                                professor: prof.id,
+                AppCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: Column(
+                    children: [
+                      for (final (i, t) in taught.indexed) ...[
+                        if (i > 0) Divider(height: 1, color: p.divider),
+                        _CourseRow(
+                          title:
+                              '${t.courseId} · '
+                              '${catalog.master.where((m) => m.id == t.courseId).firstOrNull?.title ?? ''}',
+                          subtitle:
+                              '${[for (final x in t.terms.take(3)) termLabel(x)].join(', ')}'
+                              '${t.terms.length > 3 ? ' and ${t.terms.length - 3} more' : ''}'
+                              ' · ${t.stats.count} review${t.stats.count == 1 ? '' : 's'}',
+                          onTap:
+                              () => openRoute(
+                                context,
+                                Routes.courseReviews(
+                                  t.courseId,
+                                  professor: prof.id,
+                                ),
+                                () => CourseReviewsPage(
+                                  courseId: t.courseId,
+                                  professorId: prof.id,
+                                ),
                               ),
-                              () => CourseReviewsPage(
-                                courseId: t.courseId,
-                                professorId: prof.id,
-                              ),
-                            ),
-                      ),
-                  ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               const SizedBox(height: Space.sm),
               Text(
@@ -124,6 +170,59 @@ class ProfessorReviewsPage extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// A 64 px row: the course on one line over its terms and review count.
+class _CourseRow extends StatelessWidget {
+  const _CourseRow({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final String title, subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TypeScale.body.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: p.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: p.icon),
+          ],
+        ),
+      ),
     );
   }
 }

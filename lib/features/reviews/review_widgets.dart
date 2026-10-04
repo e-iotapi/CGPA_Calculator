@@ -1,25 +1,31 @@
-import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/admin/widgets.dart' show problem;
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/reviews/review.dart';
+import 'package:cgpa_calculator/core/reviews/review_stats.dart';
 import 'package:cgpa_calculator/core/reviews/review_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
+/// The signed-in user's review store, or `null` before sign-in.
 ReviewStore? get reviewStore => switch (roleStore) {
   final r? => ReviewStore(r.db, uid: myUid, roles: r),
   null => null,
 };
 
 /// The signed-in student's campus, from their address.
-String? get myCampus => campusOfAddress(roleStore?.me ?? '');
+String? get myCampus => viewCampus();
 
 // ---- Your reviews (§16.3 fix 4): course ids in the user's own data --------
 
@@ -28,10 +34,13 @@ const _myReviewsKey = 'myReviews';
 Box? get _settings =>
     Hive.isBoxOpen('settingsBox') ? Hive.box('settingsBox') : null;
 
+/// The courses this device has reviewed, remembered locally so the UI can
+/// say "Edit your review" without a Firestore read.
 List<String> myReviewedCourses() => [
   for (final c in _settings?.get(_myReviewsKey) as List? ?? const []) '$c',
 ];
 
+/// Adds [courseId] to [myReviewedCourses].
 Future<void> rememberReview(String courseId) async {
   final s = _settings;
   if (s == null) return;
@@ -52,6 +61,47 @@ Future<void> rememberReview(String courseId) async {
     }
   }
   return null;
+}
+
+/// The grades a review can carry; `ND` is "not disclosed".
+const reviewGrades = [
+  'A',
+  'A-',
+  'B',
+  'B-',
+  'C',
+  'C-',
+  'D',
+  'E',
+  'NC',
+  'RC',
+  'W',
+  'ND',
+];
+
+/// [g] as shown: `ND` in words.
+String gradeName(String g) => g == 'ND' ? 'Not disclosed' : g;
+
+/// Marks as typed or shown: no trailing ".0".
+String marksText(num m) => m == m.roundToDouble() ? '${m.round()}' : '$m';
+
+/// The student's own (Actual) grade for [courseId], when it is one a review
+/// can carry; the form prefills it.
+String? ownGrade(String courseId) {
+  final g = switch (tookIt(courseId)) {
+    final t? => gradecalc(t.course.grade1),
+    _ => null,
+  };
+  return g != null && g != 'ND' && reviewGrades.contains(g) ? g : null;
+}
+
+/// The student's total marks for [courseId] once every component is graded;
+/// null before that, so a part-way total is never offered as the result.
+num? ownMarks(String courseId) {
+  if (!Hive.isBoxOpen(marksBoxName)) return null;
+  final s = summaryFor(courseId);
+  if (s.gradedWeight <= 0 || s.gradedShare < 0.999) return null;
+  return (s.shownSecured * 10).round() / 10;
 }
 
 /// Five stars, tappable when [onChanged] is set.
@@ -87,71 +137,226 @@ class Stars extends StatelessWidget {
   }
 }
 
-/// The big number: average of five and how many would take it again.
+/// The overall rating on the review form (board `ReviewWrite` §8.8): five
+/// 48 × 48 buttons spread across the width, the chosen ones mint.
+class StarPicker extends StatelessWidget {
+  const StarPicker({super.key, required this.value, required this.onChanged});
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          Semantics(
+            button: true,
+            selected: i <= value,
+            label: '$i of 5 stars',
+            excludeSemantics: true,
+            onTap: () => onChanged(i),
+            child: Material(
+              color: i <= value ? p.hero : p.background,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => onChanged(i),
+                child: SizedBox.square(
+                  dimension: 48,
+                  child: Icon(
+                    i <= value ? Icons.star_rounded : Icons.star_border_rounded,
+                    size: 24,
+                    color: i <= value ? p.onHero : p.textMuted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The summary card (boards `ProfessorReviews`, `Reviews`): the average of
+/// five with stars, how many would take it, and a mint bar of that share.
+/// White, and the right column scales down rather than overflow (N27).
 class StatsCard extends StatelessWidget {
-  const StatsCard({super.key, required this.stats, this.note});
+  const StatsCard({
+    super.key,
+    required this.stats,
+    this.note,
+    this.label,
+    this.summary,
+  });
   final ReviewStats stats;
   final String? note;
+
+  /// When set, adds the average grade and (if anyone shared it) marks.
+  final ReviewSummary? summary;
+
+  /// "CS F301 · GOA · 41 REVIEWS", above the number.
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final avg = stats.average;
+    final share = stats.recommendPercent;
     return AppCard(
-      color: p.inverse,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (label != null) ...[
+            Text(
+              label!.toUpperCase(),
+              style: TypeScale.label.copyWith(color: p.textMuted),
+            ),
+            const SizedBox(height: 6),
+          ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 avg == null ? '—' : avg.toStringAsFixed(1),
                 style: TypeScale.title.copyWith(
-                  fontSize: 30,
+                  fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: p.onInverse,
+                  letterSpacing: -0.9,
                 ),
               ),
-              Text(' / 5', style: TextStyle(color: p.onInverse)),
+              Text(
+                ' / 5',
+                style: TypeScale.caption.copyWith(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: p.textMuted,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Stars(value: (avg ?? 0).round(), size: 13),
+              ),
               const Spacer(),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    stats.recommendPercent == null
-                        ? '—'
-                        : '${stats.recommendPercent}%',
-                    style: TypeScale.title.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: p.onInverse,
-                    ),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        share == null ? '—' : '$share%',
+                        style: TypeScale.body.copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'WOULD TAKE IT',
+                        style: TypeScale.label.copyWith(
+                          fontSize: 9,
+                          letterSpacing: 0.3,
+                          color: p.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    'WOULD TAKE IT',
-                    style: TypeScale.label.copyWith(
-                      color: p.onInverse.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
-          if (note != null)
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: SizedBox(
+              height: 6,
+              child: LinearProgressIndicator(
+                value: (share ?? 0) / 100,
+                backgroundColor: const Color(0xFF4A4A40),
+                color: p.hero,
+              ),
+            ),
+          ),
+          if (summary?.avgGradeLetter != null || summary?.avgMarks != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              [
+                if (summary!.avgGradeLetter != null)
+                  'Average grade ${summary!.avgGradeLetter}',
+                if (summary!.avgMarks != null)
+                  '${summary!.avgGradeLetter == null ? 'Average' : 'average'} '
+                      'marks ${marksText(double.parse(summary!.avgMarks!.toStringAsFixed(1)))}'
+                      '${summary!.marksOutOf == null ? '' : '/${marksText(summary!.marksOutOf!)}'}',
+              ].join(' · '),
+              style: TypeScale.caption.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'From reviewers who shared them. Follows the filters above.',
+              style: TypeScale.caption.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                height: 1.45,
+                color: p.textMuted,
+              ),
+            ),
+          ],
+          if (note != null) ...[
+            const SizedBox(height: 8),
             Text(
               note!,
               style: TypeScale.caption.copyWith(
-                color: p.onInverse.withValues(alpha: 0.7),
+                fontSize: 10,
+                color: p.textMuted,
               ),
             ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// One review as students see it: take it or skip it, the term, the
-/// professor, the text, Helpful and Report.
+/// A 20 tall chip: the term, the professor, or (mint) the course.
+class _Chip extends StatelessWidget {
+  const _Chip(this.text, {this.ink = false});
+  final String text;
+  final bool ink;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Container(
+      constraints: const BoxConstraints(minHeight: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: ink ? p.hero : p.surfaceSunken,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        widthFactor: 1,
+        child: Text(
+          text,
+          style: TypeScale.label.copyWith(
+            fontSize: 9.5,
+            color: ink ? p.onHero : (p.isDark ? p.text : p.textMuted),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One review as students see it (board `Reviews` §8.7): stars and a TAKE IT
+/// or SKIP IT tag, chips for the term and professor, the text, then a
+/// "Helpful · n" chip and Report.
 class ReviewTile extends StatelessWidget {
   const ReviewTile({
     super.key,
@@ -161,6 +366,7 @@ class ReviewTile extends StatelessWidget {
     this.onReport,
     this.onTap,
     this.showCourse = false,
+    this.showGrade = false,
     this.footer,
   });
 
@@ -168,62 +374,196 @@ class ReviewTile extends StatelessWidget {
   final String? professor;
   final VoidCallback? onHelpful, onReport, onTap;
   final bool showCourse;
+
+  /// Chips for the reviewer's grade, and marks when given.
+  final bool showGrade;
   final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final muted = TypeScale.caption.copyWith(color: p.textMuted);
+    final take = r.recommend;
     return AppCard(
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: Space.sm,
-            runSpacing: Space.xs,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
-              TierTag(r.recommend ? 'TAKE IT' : 'SKIP IT', strong: r.recommend),
-              if (showCourse)
-                Text(
-                  r.courseId,
-                  style: TypeScale.label.copyWith(fontWeight: FontWeight.w700),
-                ),
-              Text(termLabel(r.term).toUpperCase(), style: muted),
-              if (professor != null)
-                Text(professor!.toUpperCase(), style: muted),
               Stars(value: r.stars, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                '${r.stars} of 5',
+                style: TypeScale.caption.copyWith(color: p.textMuted),
+              ),
+              const Spacer(),
+              Container(
+                constraints: const BoxConstraints(minHeight: 22),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: take ? p.hero : p.surfaceSunken,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Text(
+                  take ? 'TAKE IT' : 'SKIP IT',
+                  style: TypeScale.label.copyWith(
+                    fontSize: 9.5,
+                    color: take ? p.onHero : p.textMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (showCourse) _Chip(r.courseId, ink: true),
+              _Chip(termLabel(r.term).toUpperCase()),
+              if (professor != null) _Chip(professor!.toUpperCase()),
+              if (showGrade && r.grade != null)
+                _Chip('GRADE ${gradeName(r.grade!).toUpperCase()}'),
+              if (showGrade && r.marks != null)
+                _Chip('MARKS ${marksText(r.marks!)}'),
             ],
           ),
           if (r.text != null) ...[
-            const SizedBox(height: Space.xs),
-            Text(r.text!, style: TypeScale.body.copyWith(height: 1.4)),
-          ],
-          const SizedBox(height: Space.xs),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  [
-                    if (r.helpful > 0) '${r.helpful} found it helpful',
-                    if (r.edited) 'edited',
-                  ].join(' · '),
-                  style: muted,
-                ),
+            const SizedBox(height: 8),
+            Text(
+              r.text!,
+              style: TypeScale.body.copyWith(
+                fontSize: 12.5,
+                height: 1.45,
+                color: p.text,
               ),
-              if (onHelpful != null)
-                TextButton(
-                  onPressed: onHelpful,
-                  child: Text('Helpful ${r.helpful}'),
-                ),
-              if (onReport != null)
-                TextButton(onPressed: onReport, child: const Text('Report')),
-            ],
-          ),
+            ),
+          ],
+          if (showCourse && onHelpful == null && r.helpful > 0) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${r.helpful} found it helpful',
+              style: TypeScale.caption.copyWith(color: p.textMuted),
+            ),
+          ],
+          if (r.edited) ...[
+            const SizedBox(height: 4),
+            Text(
+              'edited',
+              style: TypeScale.caption.copyWith(color: p.textMuted),
+            ),
+          ],
+          if (onHelpful != null || onReport != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (onHelpful != null)
+                  Material(
+                    color: Colors.transparent,
+                    shape: StadiumBorder(side: BorderSide(color: p.outline)),
+                    child: InkWell(
+                      onTap: onHelpful,
+                      customBorder: const StadiumBorder(),
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 26),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 2,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Helpful · ${r.helpful}',
+                          style: TypeScale.caption.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: p.text,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                const Spacer(),
+                if (onReport != null)
+                  InkWell(
+                    onTap: onReport,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
+                      child: Text(
+                        'Report',
+                        style: TypeScale.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: p.textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
           if (footer != null) footer!,
         ],
       ),
+    );
+  }
+}
+
+/// The sort row: four equal pills on the board, wrapping once text is large.
+class SortPills extends StatelessWidget {
+  const SortPills({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.onAll,
+  });
+
+  /// Null selects "All" (when [onAll] is set).
+  final ReviewOrder? value;
+  final ValueChanged<ReviewOrder> onChanged;
+
+  /// Adds a leading "All" pill, the unsorted default.
+  final VoidCallback? onAll;
+
+  @override
+  Widget build(BuildContext context) {
+    PillButton pill(ReviewOrder o, {double padding = 15}) => PillButton(
+      label: o.label,
+      height: 30,
+      padding: padding,
+      selected: value == o,
+      onPressed: () => onChanged(o),
+    );
+    PillButton all({double padding = 15}) => PillButton(
+      label: 'All',
+      height: 30,
+      padding: padding,
+      selected: value == null,
+      onPressed: onAll,
+    );
+    if (MediaQuery.textScalerOf(context).scale(10) > 13) {
+      return Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          if (onAll != null) all(),
+          for (final o in ReviewOrder.values) pill(o),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        if (onAll != null) ...[
+          Expanded(child: all(padding: 4)),
+          const SizedBox(width: 6),
+        ],
+        for (final (i, o) in ReviewOrder.values.indexed) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(child: pill(o, padding: 4)),
+        ],
+      ],
     );
   }
 }

@@ -1,0 +1,10 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"ADMIN\" 1.47:1, needs 3.0 (15.0 px)",
+  "contrast: \"CR\" 1.47:1, needs 3.0 (15.0 px)",
+  "tap: \"Back\" 42x42",
+  "truncated: \"OWNER · TESTING AND DEVELOPMENT\"",
+  "truncated: \"Your own grades, as any student sees the…\""
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"\" 32x32",
+  "tap: \"Back\" 42x42",
+  "tap: \"NC\" 70x34",
+  "tap: \"No\" 59x36",
+  "tap: \"Yes\" 64x36",
+  "tap: \"—\" 68x32",
+  "truncated: \"ECON F355 · Business Analysis and Valuat…\"",
+  "unlabeled: tappable at (111, 92) has no label",
+  "unlabeled: tappable at (143, 92) has no label",
+  "unlabeled: tappable at (15, 92) has no label",
+  "unlabeled: tappable at (47, 92) has no label",
+  "unlabeled: tappable at (79, 92) has no label",
+  "word-break: \"OPTIONAL\" split across lines in \"GRADE · OPTIONAL\"",
+  "word-break: \"OPTIONAL\" split across lines in \"MARKS · OPTIONAL\""
+ ]
+}

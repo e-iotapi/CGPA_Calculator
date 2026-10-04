@@ -1,13 +1,20 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
+import 'package:cgpa_calculator/features/resources/link_sheet.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
+import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/sliver_row_group.dart';
+import 'package:cgpa_calculator/shared/widgets/dashed_outline.dart';
 import 'package:flutter/material.dart';
 
 ResourceStore get _store => resourceStore!;
@@ -17,182 +24,52 @@ void _say(BuildContext context, String text) =>
       ..clearSnackBars()
       ..showSnackBar(SnackBar(content: Text(text)));
 
-/// Adds or edits a link. [course] makes it a course link (a CR's, or a
-/// president adding for a course); [existing] edits in place. [department]
-/// is what the rollup is checked against.
-Future<bool> editLink(
-  BuildContext context, {
-  required String campus,
-  required String dept,
-  required List<Resource> department,
-  String? course,
-  String? actingFor,
-  Resource? existing,
-  bool fixing = false,
-}) async {
-  final saved = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    builder:
-        (_) => _LinkSheet(
-          campus: campus,
-          dept: dept,
-          department: department,
-          course: course,
-          actingFor: actingFor,
-          existing: existing,
-          fixing: fixing,
-        ),
-  );
-  return saved == true;
-}
+/// Drives a reported pulse: runs only while [active] and its page is on top
+/// (a pushed page pauses it). Under reduced motion it keeps a slower, dot-only
+/// pulse, 1 ↔ 0.4 over 2400 ms: the board keeps the Reported dot pulsing
+/// (UI.md §10.1.2; UI_OPT O6.1).
+mixin _Pulse<T extends StatefulWidget>
+    on State<T>, SingleTickerProviderStateMixin<T> {
+  late final pulse = AnimationController(vsync: this);
+  bool still = false;
 
-class _LinkSheet extends StatefulWidget {
-  const _LinkSheet({
-    required this.campus,
-    required this.dept,
-    required this.department,
-    this.course,
-    this.actingFor,
-    this.existing,
-    this.fixing = false,
-  });
+  bool get active;
+  Duration get period;
 
-  final String campus, dept;
-  final List<Resource> department;
-  final String? course, actingFor;
-  final Resource? existing;
-  final bool fixing;
+  /// Runs there and back rather than restarting; always under reduced motion.
+  bool get bounce => still;
 
   @override
-  State<_LinkSheet> createState() => _LinkSheetState();
-}
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    syncPulse();
+  }
 
-class _LinkSheetState extends State<_LinkSheet> {
-  late final _title = TextEditingController(text: widget.existing?.title);
-  late final _url = TextEditingController(text: widget.existing?.url);
-  bool _busy = false;
-  String? _error;
+  void syncPulse() {
+    final s = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final shown = ModalRoute.isCurrentOf(context) ?? true;
+    if (s != still || pulse.duration == null) {
+      still = s;
+      pulse.stop();
+      pulse.duration = s ? const Duration(milliseconds: 2400) : period;
+    }
+    if (active && shown) {
+      if (!pulse.isAnimating) pulse.repeat(reverse: bounce);
+    } else {
+      pulse.stop();
+    }
+  }
 
   @override
   void dispose() {
-    _title.dispose();
-    _url.dispose();
+    pulse.dispose();
     super.dispose();
-  }
-
-  Future<void> _save() async {
-    final title = _title.text.trim();
-    final url = _url.text.trim();
-    if (title.isEmpty) return setState(() => _error = 'Give it a name.');
-    if (allowedHostOf(url) == null) {
-      return setState(
-        () =>
-            _error =
-                'Use an https link to Drive, Docs, YouTube, GitHub, Notion, '
-                'OneDrive or Dropbox.',
-      );
-    }
-    setState(() => _busy = true);
-    try {
-      final e = widget.existing;
-      if (e == null) {
-        final c = widget.course;
-        await _store.add(
-          Resource(
-            id: '',
-            title: title,
-            url: url,
-            campus: widget.campus,
-            department: widget.dept,
-            scope: c == null ? 'department' : 'course',
-            courseIds: c == null ? const [] : [c],
-            pinnedToDepartment:
-                c != null && shouldRollUp(widget.department, url),
-          ),
-          actingFor: widget.actingFor,
-        );
-      } else {
-        await _store.update(
-          e,
-          e.copyWith(title: title, url: url),
-          widget.fixing
-              ? 'Fixed the reported link “$title”'
-              : 'Edited “$title”',
-          actingFor: widget.actingFor,
-          closeFlag: widget.fixing,
-        );
-      }
-      if (mounted) Navigator.of(context).pop(true);
-    } catch (err) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = problem(err);
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    final head =
-        widget.fixing
-            ? 'Fix the link'
-            : widget.existing != null
-            ? 'Edit link'
-            : 'Add a link${widget.course == null ? '' : ' to ${widget.course}'}';
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        Space.gutter,
-        Space.lg,
-        Space.gutter,
-        MediaQuery.viewInsetsOf(context).bottom + Space.lg,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(head, style: TypeScale.title),
-          const SizedBox(height: Space.sm),
-          AppTextField(
-            controller: _title,
-            label: 'Name',
-            hint: 'Past papers — all years',
-          ),
-          const SizedBox(height: Space.sm),
-          AppTextField(
-            controller: _url,
-            label: 'Link',
-            hint: 'https://drive.google.com/…',
-          ),
-          if (widget.existing?.rolledUp ?? false)
-            Text(
-              'One link, listed twice — editing it here changes it on '
-              '${widget.existing!.fromCourse} as well.',
-              style: TypeScale.caption.copyWith(color: p.textMuted),
-            ),
-          if (widget.fixing)
-            Text(
-              'Saving closes its reports. Both are logged.',
-              style: TypeScale.caption.copyWith(color: p.textMuted),
-            ),
-          if (_error != null)
-            Text(_error!, style: TypeScale.caption.copyWith(color: p.behind)),
-          const SizedBox(height: Space.md),
-          PrimaryButton(
-            label: _busy ? 'Saving…' : 'Save',
-            onPressed: _busy ? null : _save,
-          ),
-        ],
-      ),
-    );
   }
 }
 
 /// A tab label that turns amber and pulses while anything is reported
-/// (§16.3 fix 17); still under reduced motion.
+/// (§16.3 fix 17). Only a ring layer and the dot animate, by transform and
+/// opacity; the pill itself never rebuilds per tick (UI_OPT O6.1).
 class PulsingTab extends StatefulWidget {
   const PulsingTab({super.key, required this.label, required this.active});
   final String label;
@@ -203,38 +80,17 @@ class PulsingTab extends StatefulWidget {
 }
 
 class _PulsingTabState extends State<PulsingTab>
-    with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
+    with SingleTickerProviderStateMixin, _Pulse {
+  @override
+  bool get active => widget.active;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
+  Duration get period => const Duration(milliseconds: 1800);
 
   @override
   void didUpdateWidget(PulsingTab old) {
     super.didUpdateWidget(old);
-    _sync();
-  }
-
-  void _sync() {
-    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (widget.active && !still) {
-      if (!_c.isAnimating) _c.repeat();
-    } else {
-      _c.stop();
-      _c.value = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
+    syncPulse();
   }
 
   @override
@@ -242,44 +98,246 @@ class _PulsingTabState extends State<PulsingTab>
     final p = AppPalette.of(context);
     if (!widget.active) return Text(widget.label);
     final t = p.noticeTone;
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final v = _c.value;
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: t.fill,
-            borderRadius: BorderRadius.circular(99),
-            boxShadow: [
-              BoxShadow(
-                color: t.text.withValues(alpha: 0.35 * (1 - v)),
-                spreadRadius: 6 * v,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: t.text.withValues(alpha: 0.5 + 0.5 * (1 - v)),
-                  shape: BoxShape.circle,
+    final shape = BorderRadius.circular(99);
+    final pill = DecoratedBox(
+      decoration: BoxDecoration(color: t.fill, borderRadius: shape),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FadeTransition(
+              opacity: Tween(begin: 1.0, end: still ? 0.4 : 0.5).animate(pulse),
+              child: SizedBox.square(
+                dimension: 7,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: t.text,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
-              const SizedBox(width: 6),
-              Text(widget.label, style: TextStyle(color: t.text)),
-            ],
-          ),
-        );
-      },
+            ),
+            const SizedBox(width: 6),
+            Text(widget.label, style: TextStyle(color: t.text)),
+          ],
+        ),
+      ),
+    );
+    return RepaintBoundary(
+      child: Stack(
+        fit: StackFit.passthrough,
+        clipBehavior: Clip.none,
+        children: [
+          // The ring: grows 6 px past the pill and fades, as the old
+          // spreading shadow did, by transform and opacity only.
+          if (!still)
+            Positioned.fill(
+              child: FadeTransition(
+                opacity: Tween(begin: 0.35, end: 0.0).animate(pulse),
+                child: LayoutBuilder(
+                  builder:
+                      (_, c) => AnimatedBuilder(
+                        animation: pulse,
+                        builder:
+                            (_, ring) => Transform(
+                              alignment: Alignment.center,
+                              transform: Matrix4.diagonal3Values(
+                                1 + 12 * pulse.value / c.maxWidth,
+                                1 + 12 * pulse.value / c.maxHeight,
+                                1,
+                              ),
+                              child: ring,
+                            ),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: t.text,
+                            borderRadius: shape,
+                          ),
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          pill,
+        ],
+      ),
     );
   }
 }
 
+/// Department Resources' tabs: equal pills that ease between states. The
+/// last one is Reported; while anything is reported it is amber with a
+/// pulsing dot, and amber-filled when selected.
+class _Tabs extends StatefulWidget {
+  const _Tabs({
+    required this.tabs,
+    required this.selected,
+    required this.reported,
+    required this.onSelected,
+  });
+  final List<String> tabs;
+  final int selected;
+  final bool reported;
+  final ValueChanged<int> onSelected;
+
+  @override
+  State<_Tabs> createState() => _TabsState();
+}
+
+class _TabsState extends State<_Tabs>
+    with SingleTickerProviderStateMixin, _Pulse {
+  @override
+  bool get active => widget.reported;
+
+  @override
+  Duration get period => const Duration(milliseconds: 1400);
+
+  @override
+  bool get bounce => true;
+
+  @override
+  void didUpdateWidget(_Tabs old) {
+    super.didUpdateWidget(old);
+    syncPulse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final t = p.noticeTone;
+    Widget pill(int i) {
+      final on = i == widget.selected;
+      final amber = widget.reported && i == widget.tabs.length - 1;
+      final fill =
+          on
+              ? (amber ? t.text : p.inverse)
+              : (amber ? t.fill : p.inverse.withValues(alpha: 0));
+      final ink =
+          on ? (amber ? t.fill : p.onInverse) : (amber ? t.text : p.text);
+      final edge = on || amber ? fill : p.border;
+      return Semantics(
+        selected: on,
+        button: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => widget.onSelected(i),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: Sizes.pill,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: ShapeDecoration(
+              color: fill,
+              shape: StadiumBorder(side: BorderSide(color: edge)),
+            ),
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (amber) ...[
+                      // Its own layer: only the dot's opacity moves.
+                      RepaintBoundary(
+                        child: FadeTransition(
+                          opacity: Tween(
+                            begin: still ? 0.4 : 0.35,
+                            end: 1.0,
+                          ).animate(pulse),
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: ink,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 220),
+                      style: TypeScale.body.copyWith(
+                        fontSize: 12.5,
+                        fontWeight: on ? FontWeight.w700 : FontWeight.w600,
+                        color: ink,
+                      ),
+                      child: Text(widget.tabs[i], maxLines: 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        for (var i = 0; i < widget.tabs.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(child: pill(i)),
+        ],
+      ],
+    );
+  }
+}
+
+/// A link a CR's course rolled up into the department list: a mint wash.
+class _RolledUp extends StatelessWidget {
+  const _RolledUp({required this.on, required this.child});
+  final bool on;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      on
+          ? ColoredBox(
+            color: AppPalette.of(context).hero.withValues(alpha: 0.35),
+            child: child,
+          )
+          : child;
+}
+
+/// The ink card that says how course links roll up.
+class _RollupCard extends StatelessWidget {
+  const _RollupCard();
+
+  @override
+  Widget build(BuildContext context) => const InkCard(
+    eyebrow: 'ROLLUP',
+    text:
+        'A link a CR adds to a course appears here too, unless the '
+        'department already has it. Matching is on the address, not the '
+        'name. Unpin removes it from this list only.',
+  );
+}
+
 typedef _Data = ({List<Resource> links, List<ResourceFlag> flags});
+
+Map<String, dynamic> _encodeData(_Data d) => {
+  'links': [for (final r in d.links) r.toMap()],
+  'flags': [
+    for (final f in d.flags) {'id': f.resourceId, ...f.toMap()},
+  ],
+};
+
+_Data _decodeData(Object? o) {
+  final m = o as Map;
+  return (
+    links: [for (final r in m['links'] as List) Resource.fromMap(r as Map)],
+    flags: [
+      for (final f in m['flags'] as List)
+        ResourceFlag.fromMap('${(f as Map)['id']}', f),
+    ],
+  );
+}
+
+String _lastKey(String what, String campus, String dept, String? course) =>
+    'last|$what|${roleStore!.me}|$campus|$dept|$course';
 
 /// Boards `DeptResources` and `DeptResourcesReported`: the department's
 /// links, its courses' links, and every open report (§16.3 fix 17). A CR
@@ -314,18 +372,55 @@ class _DeptResourcesState extends State<DeptResources> {
         c == null
             ? await _store.flags(widget.campus, widget.dept)
             : await _store.courseFlags(widget.campus, c);
-    return (links: links, flags: flags);
+    // A report can outlive its link (removed, or moved departments); drop
+    // it here so every count on this screen agrees with what is listed
+    // (BUG-13: "Reported 4" over a list of 1).
+    final ids = {for (final r in links) r.id};
+    return (
+      links: links,
+      flags: [
+        for (final f in flags)
+          if (ids.contains(f.resourceId)) f,
+      ],
+    );
   }
 
   void _reload() => setState(() => _loads++);
+
+  /// True while the data on screen is the saved copy: every write waits.
+  bool _saved = false;
+
+  VoidCallback? _w(VoidCallback f) => _saved ? null : f;
+
+  /// Saves a one-tap change to [r]; a refusal is said, not swallowed.
+  Future<void> _change(Resource r, Resource next, String summary) async {
+    try {
+      await _store.update(r, next, summary);
+    } catch (e) {
+      if (mounted) _say(context, problem(e));
+    }
+    if (mounted) _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
     final course = widget.course;
     return Loaded<_Data>(
+      cacheKey: 'dept-resources|${widget.campus}|${widget.dept}|${widget.course}',
       key: ValueKey(_loads),
-      load: _load,
-      builder: (context, data, _) {
+      load: remembered(
+        _lastKey('dept-resources', widget.campus, widget.dept, widget.course),
+        _load,
+        _encodeData,
+      ),
+      peek:
+          () => peekCache<_Data>(
+            _lastKey('dept-resources', widget.campus, widget.dept, widget.course),
+            _decodeData,
+          ),
+      // Last list: the actions wait for the fresh one.
+      gated: (context, data, _, saved) {
+        _saved = saved;
         final dept = departmentList(data.links);
         final reported = data.flags.length;
         final tabs = [
@@ -342,20 +437,31 @@ class _DeptResourcesState extends State<DeptResources> {
                 '${course ?? widget.dept}',
             title: 'Resources',
           ),
+          bottom:
+              course == null && tab == 0
+                  ? BottomAction(
+                    child: PrimaryButton(
+                      label: 'Add a link',
+                      icon: Icons.add_rounded,
+                      onPressed: _w(() async {
+                        if (await editLink(
+                          context,
+                          campus: widget.campus,
+                          dept: widget.dept,
+                          department: data.links,
+                        )) {
+                          _reload();
+                        }
+                      }),
+                    ),
+                  )
+                  : null,
           children: [
-            Wrap(
-              spacing: Space.xs,
-              children: [
-                for (var i = 0; i < tabs.length; i++)
-                  ChoiceChip(
-                    selected: i == tab,
-                    onSelected: (_) => setState(() => _tab = i),
-                    label:
-                        i == tabs.length - 1
-                            ? PulsingTab(label: tabs[i], active: reported > 0)
-                            : Text(tabs[i]),
-                  ),
-              ],
+            _Tabs(
+              tabs: tabs,
+              selected: tab,
+              reported: reported > 0,
+              onSelected: (i) => setState(() => _tab = i),
             ),
             const SizedBox(height: Space.md),
             if (reportedTab)
@@ -371,13 +477,16 @@ class _DeptResourcesState extends State<DeptResources> {
   }
 
   List<Widget> _dept(BuildContext context, _Data data, List<Resource> dept) => [
-    RowGroup(
-      children: [
-        for (final r in dept)
-          LinkRow(
+    SliverRowGroup(
+      count: dept.length,
+      row: (context, i) {
+        final r = dept[i];
+        return _RolledUp(
+          on: r.rolledUp,
+          child: LinkRow(
             r: r,
             tag: r.rolledUp ? 'ROLLED UP' : null,
-            onTap: () async {
+            onTap: _w(() async {
               if (await editLink(
                 context,
                 campus: widget.campus,
@@ -387,56 +496,37 @@ class _DeptResourcesState extends State<DeptResources> {
               )) {
                 _reload();
               }
-            },
+            }),
             trailing:
                 r.rolledUp
-                    ? TextButton(
-                      onPressed: () async {
-                        await _store.update(
+                    ? TextLink(
+                      'Unpin',
+                      onTap: _w(
+                        () => _change(
                           r,
                           r.copyWith(pinnedToDepartment: false),
                           'Unpinned “${r.title}” from ${widget.dept}',
-                        );
-                        _reload();
-                      },
-                      child: const Text('Unpin'),
+                        ),
+                      ),
                     )
                     : IconButton(
                       tooltip: 'Remove',
                       icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      onPressed: () async {
-                        await _store.update(
+                      onPressed: _w(
+                        () => _change(
                           r,
                           r.copyWith(removed: true),
                           'Removed “${r.title}” from ${widget.dept}',
-                        );
-                        _reload();
-                      },
+                        ),
+                      ),
                     ),
           ),
-      ],
-    ),
-    if (dept.isEmpty) const Note('No department links yet.'),
-    const Note(
-      'A link a CR adds to a course appears here too, unless the department '
-      'already has it. Matching is on the address, not the name. Unpin '
-      'removes it from this list only.',
-    ),
-    const SizedBox(height: Space.sm),
-    PrimaryButton(
-      label: 'Add a link',
-      icon: Icons.add_rounded,
-      onPressed: () async {
-        if (await editLink(
-          context,
-          campus: widget.campus,
-          dept: widget.dept,
-          department: data.links,
-        )) {
-          _reload();
-        }
+        );
       },
     ),
+    if (dept.isEmpty) const Note('No department links yet.'),
+    const SizedBox(height: Space.md),
+    const _RollupCard(),
   ];
 
   List<Widget> _byCourse(BuildContext context, _Data data) {
@@ -456,7 +546,7 @@ class _DeptResourcesState extends State<DeptResources> {
               LinkRow(
                 r: r,
                 tag: r.isCourse ? null : 'IN DEPT',
-                onTap: () async {
+                onTap: _w(() async {
                   if (await editLink(
                     context,
                     campus: widget.campus,
@@ -466,7 +556,7 @@ class _DeptResourcesState extends State<DeptResources> {
                   )) {
                     _reload();
                   }
-                },
+                }),
               ),
           ],
         ),
@@ -477,56 +567,83 @@ class _DeptResourcesState extends State<DeptResources> {
 
   List<Widget> _reported(BuildContext context, _Data data) {
     final byId = {for (final r in data.links) r.id: r};
+    final t = AppPalette.of(context).noticeTone;
     return [
-      if (data.flags.isNotEmpty)
-        SectionLabel(
-          '${data.flags.length} link${data.flags.length == 1 ? '' : 's'} '
-          'reported',
+      if (data.flags.isNotEmpty) ...[
+        AppCard(
+          color: t.fill,
+          child: Text(
+            '${data.flags.length} LINK${data.flags.length == 1 ? '' : 'S'} '
+            'REPORTED · '
+            '${widget.course ?? 'DEPARTMENT AND ROLLED-UP COURSE LINKS'}',
+            style: TypeScale.label.copyWith(
+              color: t.text,
+              letterSpacing: 1,
+              height: 1.4,
+            ),
+          ),
         ),
+        const SizedBox(height: Space.sm),
+      ],
       for (final f in data.flags)
         if (byId[f.resourceId] case final r?) ...[
           AppCard(
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 15),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 LinkRow(r: r, showAdder: false),
-                Text(
-                  '${f.top.label} · ${f.count} report${f.count == 1 ? '' : 's'}'
-                  '${r.fromCourse == null ? '' : ' · from ${r.fromCourse}'}',
-                  style: TypeScale.caption.copyWith(
-                    color: AppPalette.of(context).noticeTone.text,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${f.top.label} · ${f.count} report${f.count == 1 ? '' : 's'}'
+                        '${r.fromCourse == null ? '' : ' · from ${r.fromCourse}'}',
+                        style: TypeScale.caption.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: t.text,
+                        ),
+                      ),
+                      const SizedBox(height: Space.sm),
+                      Wrap(
+                        spacing: Space.sm,
+                        runSpacing: Space.sm,
+                        children: [
+                          PillButton(
+                            label: 'Fix the link',
+                            selected: true,
+                            height: 34,
+                            onPressed: _w(() async {
+                              if (await editLink(
+                                context,
+                                campus: widget.campus,
+                                dept: widget.dept,
+                                department: data.links,
+                                existing: r,
+                                actingFor: widget.course,
+                                fixing: true,
+                              )) {
+                                _reload();
+                              }
+                            }),
+                          ),
+                          AmberPill(
+                            'It works · dismiss',
+                            onTap: _w(() async {
+                              try {
+                                await _store.dismiss(f, r.title);
+                                _reload();
+                              } catch (e) {
+                                if (context.mounted) _say(context, problem(e));
+                              }
+                            }),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () async {
-                        if (await editLink(
-                          context,
-                          campus: widget.campus,
-                          dept: widget.dept,
-                          department: data.links,
-                          existing: r,
-                          actingFor: widget.course,
-                          fixing: true,
-                        )) {
-                          _reload();
-                        }
-                      },
-                      child: const Text('Fix the link'),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        try {
-                          await _store.dismiss(f, r.title);
-                          _reload();
-                        } catch (e) {
-                          if (context.mounted) _say(context, problem(e));
-                        }
-                      },
-                      child: const Text('It works · dismiss'),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -611,9 +728,21 @@ class _CourseResourcesState extends State<CourseResources> {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return Loaded<_Data>(
+      cacheKey: 'course-resources|${widget.campus}|$_dept|${widget.courseId}',
       key: ValueKey(_loads),
-      load: _load,
-      builder: (context, data, _) {
+      load: remembered(
+        _lastKey('course-resources', widget.campus, _dept, widget.courseId),
+        _load,
+        _encodeData,
+      ),
+      peek:
+          () => peekCache<_Data>(
+            _lastKey('course-resources', widget.campus, _dept, widget.courseId),
+            _decodeData,
+          ),
+      // Last list: the actions wait for the fresh one.
+      gated: (context, data, _, saved) {
+        VoidCallback? w(VoidCallback f) => saved ? null : f;
         final mine = courseList(data.links, widget.courseId);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,8 +750,9 @@ class _CourseResourcesState extends State<CourseResources> {
             Row(
               children: [
                 const Expanded(child: SectionLabel('Course resources')),
-                TextButton(
-                  onPressed: () async {
+                TextLink(
+                  'Add',
+                  onTap: w(() async {
                     if (await editLink(
                       context,
                       campus: widget.campus,
@@ -633,8 +763,7 @@ class _CourseResourcesState extends State<CourseResources> {
                     )) {
                       setState(() => _loads++);
                     }
-                  },
-                  child: const Text('Add'),
+                  }),
                 ),
               ],
             ),
@@ -649,6 +778,7 @@ class _CourseResourcesState extends State<CourseResources> {
                             campus: widget.campus,
                             dept: _dept,
                             course: widget.courseId,
+                            initialTab: 2,
                           ),
                     ),
                   );
@@ -664,7 +794,18 @@ class _CourseResourcesState extends State<CourseResources> {
                         active: true,
                       ),
                     ),
-                    Text('Open', style: TextStyle(color: p.noticeTone.text)),
+                    Text(
+                      'Open',
+                      style: TypeScale.caption.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: p.noticeTone.text,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: p.noticeTone.text,
+                    ),
                   ],
                 ),
               ),
@@ -676,7 +817,9 @@ class _CourseResourcesState extends State<CourseResources> {
                     r: r,
                     tag: r.isCourse ? null : 'IN DEPT',
                     onTap:
-                        r.isCourse && r.fromCourse == widget.courseId
+                        !saved &&
+                                r.isCourse &&
+                                r.fromCourse == widget.courseId
                             ? () async {
                               if (await editLink(
                                 context,
@@ -694,10 +837,39 @@ class _CourseResourcesState extends State<CourseResources> {
               ],
             ),
             if (mine.isEmpty) const Note('No links for this course yet.'),
-            TextButton.icon(
-              onPressed: () => _pick(data.links),
-              icon: const Icon(Icons.playlist_add_rounded),
-              label: const Text('Pick from department resources'),
+            const SizedBox(height: Space.sm),
+            DashedOutline(
+              color: p.textMuted,
+              radius: 22,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: w(() => _pick(data.links)),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.playlist_add_rounded,
+                          size: 18,
+                          color: p.text,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Pick from department resources',
+                            style: TypeScale.body.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         );

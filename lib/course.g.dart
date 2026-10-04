@@ -1,4 +1,5 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
+
 part of 'course.dart';
 
 // **************************************************************************
@@ -7,7 +8,7 @@ part of 'course.dart';
 
 class CourseAdapter extends TypeAdapter<Course> {
   @override
-  final int typeId = 0;
+  final typeId = 0;
 
   @override
   Course read(BinaryReader reader) {
@@ -19,8 +20,8 @@ class CourseAdapter extends TypeAdapter<Course> {
       title: fields[0] as String,
       sem: fields[6] as String,
       id: fields[1] as String,
-      grade1: fields[3] as int,
-      grade2: fields[4] as int,
+      grade1: (fields[3] as num).toInt(),
+      grade2: (fields[4] as num).toInt(),
       discipline: fields[5] as String,
       credits: (fields[2] as num).toDouble(),
       elective: fields[7] == null ? 'CDC' : fields[7] as String,

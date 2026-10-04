@@ -1,0 +1,17 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"ALL 2\" 4.35:1, needs 4.5 (9.5 px)",
+  "dead: button \"Assignment 0, 6.00 secured, 6 percent\" has no tap action",
+  "dead: button \"Compre, not graded yet, 30 percent\" has no tap action",
+  "dead: button \"In-Lab Quiz, 3.00 secured, 4 percent, dr…\" has no tap action",
+  "dead: button \"Kernel Assignments, 14.00 secured, 20 pe…\" has no tap action",
+  "dead: button \"Mid Semester, not graded yet, 25 percent\" has no tap action",
+  "dead: button \"Secured so far 23 of 30. 30% of the cour…\" has no tap action",
+  "tap: \"Back\" 42x42",
+  "tap: \"Delete course\" 42x42",
+  "tap: \"Edit scheme\" 42x42",
+  "tap: \"TAKEN BY · 2026-27 SEM 1\\nRamesh Menon\\n…\" 354x42",
+  "tap: \"class avg 63.50\\nAverages\" 354x30"
+ ]
+}

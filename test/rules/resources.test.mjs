@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
-import { OTHER, OWNER, PRES, STUDENT, as, days, name, seed, useEmulator } from './helpers.mjs';
+import { OTHER, OWNER, PRES, STUDENT, as, bump as mark, days, name, seed, useEmulator } from './helpers.mjs';
 
 useEmulator();
 
@@ -40,7 +40,7 @@ function base(extra = {}) {
 }
 
 /// A resource write the way the app makes it: resource, audit, version bump.
-async function put(db, actor, id, data, { update = false, bump = true, auditPath } = {}) {
+async function put(db, actor, id, data, { update = false, bump = true, auditPath, link } = {}) {
   const b = writeBatch(db);
   const a = doc(collection(db, 'audit'));
   const ref = doc(db, 'resources', id);
@@ -58,9 +58,13 @@ async function put(db, actor, id, data, { update = false, bump = true, auditPath
     actor: { email: actor, name: name(actor), role: 'test' },
     action: 'resource', path: auditPath ?? `resources/${id}`, campus: 'goa', at: serverTimestamp(),
   });
+  mark(b, db, 'goa', 'resources');
   if (bump) {
     const v = (await getDoc(doc(db, 'resourceVersions', 'goa'))).data()?.v ?? 0;
-    b.set(doc(db, 'resourceVersions', 'goa'), { v: v + 1 });
+    const copy = link ?? (update ? null : (({ title, url, department, scope, courseIds, pinnedToDepartment }) =>
+      ({ title, url, department, scope, courseIds, pinnedToDepartment }))(data));
+    b.set(doc(db, 'resourceVersions', 'goa'),
+      copy ? { v: v + 1, k: id, links: { [id]: copy } } : { v: v + 1 }, { merge: true });
   }
   return b.commit();
 }
@@ -86,10 +90,13 @@ function report(db, uid, rid, count, reason = 'broken') {
 }
 
 describe('resources', () => {
-  test('a president adds to their department; the host is checked', async () => {
+  test('a president adds to their department; any http(s) website', async () => {
     await assertSucceeds(put(as(PRES), PRES, 'r1', base()));
-    await assertFails(put(as(PRES), PRES, 'r2', base({ url: 'https://evil.example.com/x' })));
-    await assertFails(put(as(PRES), PRES, 'r3', base({ url: 'http://drive.google.com/x' })));
+    await assertSucceeds(put(as(PRES), PRES, 'r2', base({ url: 'https://en.wikipedia.org/wiki/X' })));
+    await assertSucceeds(put(as(PRES), PRES, 'r3', base({ url: 'http://example.edu/notes.pdf' })));
+    await assertFails(put(as(PRES), PRES, 'r6', base({ url: 'javascript:alert(1)' })));
+    await assertFails(put(as(PRES), PRES, 'r7', base({ url: 'https://localhost/x' })));
+    await assertFails(put(as(PRES), PRES, 'r8', base({ url: 'ftp://files.example.com/x' })));
     await assertFails(put(as(PRES), PRES, 'r4', base({ department: 'CS' })));
     await assertFails(put(as(STUDENT), STUDENT, 'r5', base()));
   });
@@ -97,6 +104,14 @@ describe('resources', () => {
   test('every write moves the campus version and is audited', async () => {
     await assertFails(put(as(PRES), PRES, 'r1', base(), { bump: false }));
     await assertFails(put(as(PRES), PRES, 'r1', base(), { auditPath: 'resources/other' }));
+  });
+
+  test('the campus copy of a link matches the link', async () => {
+    const b = base();
+    await assertFails(put(as(PRES), PRES, 'r1', b, { link: { ...b, url: 'https://evil.example.com/' } }));
+    await assertSucceeds(put(as(PRES), PRES, 'r1', b));
+    const v = await getDoc(doc(as(STUDENT), 'resourceVersions', 'goa'));
+    if (v.data().links.r1.url !== b.url) throw new Error('no copy');
   });
 
   test('a CR adds course links for their own course only', async () => {

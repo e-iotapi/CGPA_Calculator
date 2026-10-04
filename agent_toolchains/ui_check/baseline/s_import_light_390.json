@@ -1,0 +1,8 @@
+{
+ "errors": [],
+ "issues": [
+  "anim: frames still scheduled after settling",
+  "dead: button \"Choose your performance sheet, PDF\" has no tap action",
+  "stretch: OutlinedPill \"Open ERP\" 320 of 390 wide"
+ ]
+}

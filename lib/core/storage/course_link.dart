@@ -14,7 +14,7 @@ library;
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/models/course_names.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// The catalogue's title and credits for [id]: the newest chart row, else the
 /// master list. Null for an id the catalogue has never had.
@@ -112,9 +112,9 @@ Future<void> relinkStoredCourses(Catalog previous, Catalog next) async {
   for (final name in const ['coursesBox', 'offshootBox']) {
     if (!Hive.isBoxOpen(name)) continue;
     final box = Hive.box<Course>(name);
-    for (final e in box.toMap().entries) {
-      final moved = relink(e.value, previous, next);
-      if (moved != null) await box.put(e.key, moved);
-    }
+    await box.putAll({
+      for (final e in box.toMap().entries)
+        if (relink(e.value, previous, next) case final moved?) e.key: moved,
+    });
   }
 }

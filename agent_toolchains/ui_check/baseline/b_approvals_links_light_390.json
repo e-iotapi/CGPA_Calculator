@@ -1,0 +1,14 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Applications · 2\" 174x38",
+  "tap: \"Approve\" 159x42",
+  "tap: \"Back\" 42x42",
+  "tap: \"Lecture notes, weeks 1–6\" 326x28",
+  "tap: \"Links · 2\" 174x38",
+  "tap: \"Old slides\" 326x28",
+  "tap: \"Past quizzes\" 326x28",
+  "tap: \"Reject\" 159x42",
+  "tap: \"Slides 7–12\" 326x28"
+ ]
+}

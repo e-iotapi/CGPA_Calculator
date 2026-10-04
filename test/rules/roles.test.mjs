@@ -16,23 +16,35 @@ import {
 } from 'firebase/firestore';
 import {
   ADMIN, FACULTY, NEVER, OTHER, OWNER, PRES, STUDENT,
-  appoint, as, days, grantId, name, seed, useEmulator,
+  appoint, as, bump, days, grantId, name, seed, useEmulator,
 } from './helpers.mjs';
 
 useEmulator();
 
 describe('people', () => {
+  test('a faculty address is refused a read and a write; student and owner pass', async () => {
+    const F = 'testfaculty@goa.bits-pilani.ac.in';
+    await assertFails(setDoc(doc(as(F), 'people', F), { name: 'Me', campus: 'goa', firstSignIn: 1 }));
+    await assertFails(getDoc(doc(as(FACULTY), 'config', 'grantTerms')));
+    await assertSucceeds(getDoc(doc(as(STUDENT), 'config', 'grantTerms')));
+    await assertSucceeds(getDoc(doc(as(OWNER), 'config', 'grantTerms')));
+  });
+
   test('a user writes only their own entry', async () => {
     await assertSucceeds(setDoc(doc(as(NEVER), 'people', NEVER), { name: 'Me', campus: 'goa', firstSignIn: 1 }));
     await assertFails(setDoc(doc(as(STUDENT), 'people', NEVER), { name: 'Me', campus: 'goa', firstSignIn: 1 }));
     await assertFails(setDoc(doc(as(NEVER), 'people', NEVER), { name: 'Me', campus: 'pilani', firstSignIn: 1 }));
   });
 
-  test('checked by owners, admins and presidents; never browsed', async () => {
-    await assertSucceeds(getDoc(doc(as(OWNER), 'people', STUDENT)));
+  test('checked by owners, admins and presidents; browsed by owners only', async () => {
+    await assertSucceeds(getDoc(doc(as(OWNER), 'config', 'grantTerms')));
     await assertSucceeds(getDoc(doc(as(PRES), 'people', STUDENT)));
     await assertFails(getDoc(doc(as(STUDENT), 'people', OTHER)));
-    await assertFails(getDocs(collection(as(OWNER), 'people')));
+    // Owners list people for site analytics' count(), which rules treat
+    // as a listing; nobody else browses.
+    await assertSucceeds(getDocs(collection(as(OWNER), 'people')));
+    await assertFails(getDocs(collection(as(ADMIN), 'people')));
+    await assertFails(getDocs(collection(as(PRES), 'people')));
   });
 });
 
@@ -68,6 +80,21 @@ describe('grants', () => {
     await assertFails(appoint(as(PRES), PRES, { ...cr, email: FACULTY }, { courses: ['EEE F211'] }));
     await assertFails(appoint(as(PRES), PRES, { ...cr, email: NEVER }, { courses: ['EEE F211'] }));
     await assertFails(appoint(as(OWNER), OWNER, { ...pres, campus: 'hyderabad' }, { presidentOf: ['CS'] }));
+  });
+
+  test('a president appoints a secretary, who cannot appoint another', async () => {
+    const S3 = 'f20230777@goa.bits-pilani.ac.in';
+    await seed((db) => setDoc(doc(db, 'people', S3), { name: name(S3), campus: 'goa', firstSignIn: 1 }));
+    const sec = { role: 'dept', campus: 'goa', scope: 'ELEC', programme: 'A3', email: STUDENT, secretary: true };
+    // The secretary serves the president's own branch, A3.
+    await assertFails(appoint(as(PRES), PRES, { ...sec, programme: 'A8' }, { presidentOf: ['ELEC'] }));
+    await assertFails(appoint(as(PRES), PRES, { ...sec, programme: null }, { presidentOf: ['ELEC'] }));
+    await assertFails(appoint(as(PRES), PRES, { ...sec, scope: 'CS' }, { presidentOf: ['CS'] }));
+    await assertSucceeds(appoint(as(PRES), PRES, sec, { presidentOf: ['ELEC'] }));
+    // The secretary appoints CRs like a president, never a secretary.
+    const cr = { role: 'course', campus: 'goa', scope: 'EEE F211', email: S3 };
+    await assertSucceeds(appoint(as(STUDENT), STUDENT, cr, { courses: ['EEE F211'] }));
+    await assertFails(appoint(as(STUDENT), STUDENT, { ...sec, email: S3 }, { presidentOf: ['ELEC'] }));
   });
 
   test('admins appoint presidents; only owners appoint admins', async () => {
@@ -109,6 +136,7 @@ describe('grants', () => {
       const b = writeBatch(db);
       const a = doc(collection(db, 'audit'));
       b.update(doc(db, 'grants', id), { active: false, auditId: a.id });
+      bump(b, db, g.campus, 'grants');
       b.update(doc(db, 'staff', g.email), { ...staff, lastGrant: id });
       b.set(a, {
         actor: { email: actor, name: name(actor), role: 'x' }, action: 'revoke',
@@ -121,6 +149,46 @@ describe('grants', () => {
     const self = { role: 'dept', campus: 'goa', scope: 'ELEC', email: PRES };
     await assertFails(revoke(as(PRES), PRES, self, { presidentOf: [] }));
     await assertSucceeds(revoke(as(ADMIN), ADMIN, self, { presidentOf: [] }));
+  });
+
+  test('renewing a president from before branches were kept records one', async () => {
+    const id = `dept|goa|CS|${STUDENT}`;
+    await seed((db) => setDoc(doc(db, 'grants', id), {
+      role: 'dept', campus: 'goa', scope: 'CS', email: STUDENT, name: name(STUDENT),
+      active: false, expiresAt: days(-5),
+    }));
+    const renew = (extra) => {
+      const db = as(ADMIN);
+      const b = writeBatch(db);
+      const a = doc(collection(db, 'audit'));
+      b.update(doc(db, 'grants', id), { active: true, expiresAt: days(100), auditId: a.id, ...extra });
+      bump(b, db, 'goa', 'grants');
+      b.set(doc(db, 'staff', STUDENT), {
+        name: name(STUDENT), email: STUDENT, campus: 'goa', owner: false, admin: false,
+        presidentOf: ['CS'], courses: [], expiresAt: days(100), lastGrant: id,
+      });
+      b.set(a, {
+        actor: { email: ADMIN, name: name(ADMIN), role: 'x' }, action: 'renew',
+        path: `grants/${id}`, campus: 'goa', at: serverTimestamp(),
+      });
+      return b.commit();
+    };
+    await assertFails(renew({}));
+    await assertSucceeds(renew({ programme: 'A7' }));
+  });
+
+  // RoleStore.appoint() first get()s the grant doc to tell a fresh
+  // appointment from a renewal; that doc does not exist yet for a first
+  // appointment. A get() on a not-yet-existing grant must not error
+  // (BUG-02/BUG-49: readsRoster() used to dereference resource.data
+  // unconditionally, so any non-owner/admin appointer's pre-read failed).
+  test('a get() on a not-yet-existing grant does not error', async () => {
+    const id = `course|goa|EEE F211|${STUDENT}`;
+    await assertSucceeds(getDoc(doc(as(PRES), 'grants', id)));
+    await assertSucceeds(getDoc(doc(as(ADMIN), 'grants', id)));
+    // Nothing to leak when there is no document: any mayUse() reader may
+    // see that it is absent.
+    await assertSucceeds(getDoc(doc(as(OTHER), 'grants', id)));
   });
 
   test('nobody writes their own staff index to look like a president', async () => {
@@ -169,6 +237,7 @@ describe('owners', () => {
     const b = writeBatch(db);
     const a = doc(collection(db, 'audit'));
     b.set(doc(db, 'owners', email), { auditId: a.id, ...data });
+    bump(b, db, 'goa', 'owners');
     b.set(a, {
       actor: { email: actor, name: name(actor), role: 'owner' }, action: 'owner',
       path: `owners/${email}`, campus: 'all', at: serverTimestamp(),
@@ -182,11 +251,19 @@ describe('owners', () => {
     await assertFails(addOwner(as(ADMIN), ADMIN, 'three@gmail.com', { ...data, email: 'three@gmail.com', addedBy: { email: ADMIN } }));
   });
 
+  test('the roster lists owners for presidents and admins, not students', async () => {
+    for (const who of [OWNER, ADMIN, PRES]) {
+      await assertSucceeds(getDocs(collection(as(who), 'owners')));
+    }
+    await assertFails(getDocs(collection(as(STUDENT), 'owners')));
+  });
+
   test('an owner never deactivates themselves', async () => {
     const off = (db, actor, email) => {
       const b = writeBatch(db);
       const a = doc(collection(db, 'audit'));
       b.update(doc(db, 'owners', email), { active: false, auditId: a.id });
+      bump(b, db, 'goa', 'owners');
       b.set(a, {
         actor: { email: actor, name: name(actor), role: 'owner' }, action: 'owner',
         path: `owners/${email}`, campus: 'all', at: serverTimestamp(),
@@ -204,6 +281,7 @@ describe('config', () => {
     const b = writeBatch(db);
     const a = doc(collection(db, 'audit'));
     b.set(doc(db, 'config', id), { ...data, auditId: a.id });
+    if (id === 'grantTerms') bump(b, db, 'goa', 'terms');
     b.set(a, {
       actor: { email: actor, name: name(actor), role: 'x' }, action: 'config',
       path: `config/${id}`, campus: 'all', at: serverTimestamp(),

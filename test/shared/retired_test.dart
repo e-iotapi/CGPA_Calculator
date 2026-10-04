@@ -133,7 +133,7 @@ void main() {
       );
       await t.pumpAndSettle();
       final scroll = find.byType(Scrollable).first;
-      for (final label in ['CDC (A7)', 'Unassigned']) {
+      for (final label in ['A7 Core', 'Unassigned']) {
         await t.scrollUntilVisible(find.text(label), 200, scrollable: scroll);
         await Scrollable.ensureVisible(
           t.element(find.text(label)),

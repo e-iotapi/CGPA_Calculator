@@ -9,6 +9,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   query,
   serverTimestamp,
   setDoc,
@@ -38,13 +39,29 @@ export async function seed(fn) {
   await env.withSecurityRulesDisabled((c) => fn(c.firestore()));
 }
 
+/// In a batch: moves [path]'s marker on [campus]'s head by one (the app's
+/// bumpPath). Campus 'all' is the goa head, where the rules check owners,
+/// terms and admin grants; the app bumps every head.
+export function bump(b, db, campus, path, by = 1) {
+  b.set(doc(db, 'heads', campus === 'all' ? 'goa' : campus), { v: { [path]: increment(by) } }, { merge: true });
+}
+
+/// One doc written with its marker bump, in one batch.
+export function putBumped(db, campus, path, ref, data) {
+  const b = writeBatch(db);
+  b.set(ref, data);
+  bump(b, db, campus, path);
+  return b.commit();
+}
+
 export const grantId = (g) => `${g.role}|${g.campus}|${g.scope}|${g.email}`;
 
 /// One appointment: the grant, the staff index and the audit entry, in one
 /// batch — the shape the app writes.
-export function appoint(db, actor, g, staff, { audit = true, auditPath } = {}) {
+export function appoint(db, actor, g, staff, { audit = true, auditPath, marker = true } = {}) {
   const id = grantId(g);
   const b = writeBatch(db);
+  if (marker) bump(b, db, g.campus, 'grants');
   const a = doc(collection(db, 'audit'));
   b.set(doc(db, 'grants', id), {
     name: name(g.email),
@@ -87,11 +104,11 @@ export function appoint(db, actor, g, staff, { audit = true, auditPath } = {}) {
 export function useEmulator() {
 before(async () => {
   env = await initializeTestEnvironment({
-    projectId: 'demo-pointer',
+    projectId: process.env.RULES_PROJECT ?? 'demo-pointer', // warm runs use their own, sparing up.sh's seed
     firestore: {
       rules: readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8'),
       host: '127.0.0.1',
-      port: 8085,
+      port: Number(process.env.RULES_PORT ?? 8085),
     },
   });
 });

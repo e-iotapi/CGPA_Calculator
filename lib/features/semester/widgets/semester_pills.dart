@@ -107,7 +107,9 @@ class _SemesterPillsState extends State<SemesterPills> {
                 setState(() {});
                 return false;
               },
-              child: strip,
+              // It scrolls on its own; the page around it doesn't repaint
+              // (UI_OPT O4.3).
+              child: RepaintBoundary(child: strip),
             ),
           ),
           ListenableBuilder(
@@ -159,26 +161,27 @@ class _ScrollArrow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final on = onPressed != null;
+    Color dim(Color c) => c.withValues(alpha: c.a * 0.4);
     return Semantics(
       button: true,
       enabled: on,
       label: left ? 'Scroll semesters left' : 'Scroll semesters right',
       excludeSemantics: true,
-      child: Opacity(
-        opacity: on ? 1 : 0.4,
-        child: Material(
-          type: MaterialType.transparency,
-          shape: CircleBorder(side: BorderSide(color: p.outline)),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onPressed,
-            child: SizedBox.square(
-              dimension: 30,
-              child: Icon(
-                left ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-                size: 18,
-                color: on ? p.text : p.navIcon,
-              ),
+      // Disabled at 40%, in colour rather than an Opacity layer (O4.1).
+      child: Material(
+        type: MaterialType.transparency,
+        shape: CircleBorder(
+          side: BorderSide(color: on ? p.outline : dim(p.outline)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: SizedBox.square(
+            dimension: 30,
+            child: Icon(
+              left ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+              size: 18,
+              color: on ? p.text : dim(p.navIcon),
             ),
           ),
         ),

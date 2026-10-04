@@ -1,6 +1,11 @@
 import 'dart:io';
 
+import 'package:cgpa_calculator/admin/roster.dart';
 import 'package:cgpa_calculator/app/router.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/shared/widgets/not_found_page.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
@@ -42,5 +47,52 @@ void main() {
   test('no catch-all rule rewrites the app\'s own files', () {
     expect(sources, isNot(contains('/calculator/*')));
     expect(sources.where((s) => s.startsWith('/calculator/:')), isEmpty);
+  });
+
+  group('T3.4: router error page and the volunteers route', () {
+    setUp(() => myRoles.value = MyRoles.none);
+    tearDown(() => myRoles.value = MyRoles.none);
+
+    // The real 'admin' GoRoute, re-rooted straight under '/': every screen
+    // is nested under Home in the live app (see router.dart's own comment),
+    // so pumping appRoutes as-is always mounts MyHomePage too, which needs
+    // FirebaseAuth.instance and has no fake in this harness. Re-rooting
+    // reuses the same route/redirect/builder objects the router.dart wires,
+    // just without Home in the stack.
+    testWidgets(
+      '/admin/roster/volunteers resolves to RosterPage with initialVolunteers',
+      (t) async {
+        myRoles.value = const MyRoles(email: 'owner@example.com', owner: true);
+        final admin = home.routes.whereType<GoRoute>().firstWhere(
+          (r) => r.path == 'admin',
+        );
+        final router = GoRouter(
+          initialLocation: '/admin/roster/volunteers',
+          routes: [
+            GoRoute(
+              path: '/admin',
+              redirect: admin.redirect,
+              builder: admin.builder,
+              routes: admin.routes,
+            ),
+          ],
+        );
+        await t.pumpWidget(MaterialApp.router(routerConfig: router));
+        await t.pumpAndSettle();
+        final page = t.widget<RosterPage>(find.byType(RosterPage));
+        expect(page.initialVolunteers, isTrue);
+      },
+    );
+
+    testWidgets('/nope builds NotFoundPage', (t) async {
+      final router = GoRouter(
+        routes: appRoutes,
+        initialLocation: '/nope',
+        errorBuilder: (_, _) => const NotFoundPage(),
+      );
+      await t.pumpWidget(MaterialApp.router(routerConfig: router));
+      await t.pumpAndSettle();
+      expect(find.byType(NotFoundPage), findsOneWidget);
+    });
   });
 }

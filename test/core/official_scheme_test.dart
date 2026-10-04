@@ -10,7 +10,7 @@ import 'package:cgpa_calculator/core/storage/overrides.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 const _id = 'CS F372';
 
@@ -197,6 +197,38 @@ void main() {
       expect(later.config!.classAverage, 58);
     });
 
+    test('the scale: students follow Graded out of, unless theirs differs '
+        'on first sight or they made it theirs', () {
+      final off = _off([_comp('m', 'Mid Semester', 30)]).copyWith(outOf: 200);
+      expect(
+        _apply(
+          [],
+          off,
+          config: CourseConfig(courseId: _id),
+        ).config!.displayOutOf,
+        200,
+      );
+      final first = _apply(
+        [],
+        off,
+        config: CourseConfig(courseId: _id, displayOutOf: 300),
+        seen: false,
+      );
+      expect(first.detach, {outOfGranule: 0});
+      final kept = _apply(
+        [],
+        off,
+        config: CourseConfig(courseId: _id, displayOutOf: 300),
+        detached: {outOfGranule: 1},
+      );
+      expect(kept.config, isNull);
+      final noScheme = _off([]).copyWith(outOf: 200);
+      expect(
+        _apply([], noScheme, config: CourseConfig(courseId: _id)).config,
+        isNull,
+      );
+    });
+
     test('an edit names what it changes', () {
       final a = _mine('Mid Semester', 25);
       expect(
@@ -300,10 +332,37 @@ void main() {
         _id,
         'goa',
         '2026-27-1',
-        now: t0.add(const Duration(hours: 13)),
+        now: t0.add(const Duration(hours: 25)),
       );
       expect(reads, 2);
     });
+
+    test(
+      'with a head version, an offering is re-read only when it moves',
+      () async {
+        var reads = 0;
+        final source = _Source(() {
+          reads++;
+          return _off([_comp('mid', 'Mid Semester', 30)]);
+        });
+        final t0 = DateTime(2026, 9, 27, 10);
+        Future<void> at(int hours, int version) => refreshOffering(
+          source,
+          _id,
+          'goa',
+          '2026-27-1',
+          version: version,
+          now: t0.add(Duration(hours: hours)),
+        );
+        await at(0, 1);
+        await at(30, 1); // past the 24 h age, same version: no read
+        expect(reads, 1);
+        await at(31, 2); // a CR saved: read at once
+        expect(reads, 2);
+        await at(31 + 24 * 8, 2); // a week on, re-checked anyway
+        expect(reads, 3);
+      },
+    );
   });
 }
 

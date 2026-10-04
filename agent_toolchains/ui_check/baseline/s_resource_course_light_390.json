@@ -1,0 +1,10 @@
+{
+ "errors": [],
+ "issues": [
+  "stretch: OutlinedPill \"Email\" 354 of 390 wide",
+  "stretch: OutlinedPill \"WhatsApp\" 354 of 390 wide",
+  "tap: \"Back\" 42x42",
+  "tap: \"Email\" 354x42",
+  "tap: \"WhatsApp\" 354x42"
+ ]
+}

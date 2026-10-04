@@ -1,0 +1,15 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"Several parts\" 1.08:1, needs 3.0 (18.8 px)",
+  "tap: \"\" 154x22",
+  "tap: \"\" 160x36",
+  "tap: \"\" 50x22",
+  "tap: \"All 3\" 71x38",
+  "tap: \"Best 1 of 3\" 129x38",
+  "tap: \"Best 2 of 3\" 133x38",
+  "tap: \"Close\" 42x42",
+  "truncated: \"CS F372 · EDIT COMPONENT\"",
+  "truncated: \"Kernel Assignments\""
+ ]
+}

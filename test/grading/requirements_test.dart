@@ -99,15 +99,34 @@ void main() {
         degreeAudit([], d).categories.map((c) => c.label).toList();
     expect(labels('----'), isEmpty);
     expect(labels('--A7'), [
-      'CDC (A7)',
-      'Disciplinary Electives (A7)',
+      'A7 Core',
+      'Disciplinary Electives',
       'Humanity Electives',
       'Open Electives',
     ]);
     expect(labels('B3A7').length, 6);
-    expect(labels('B3--').first, 'CDC (B3)');
+    expect(labels('B3--').first, 'B3 Core · CDC1');
     final bMinus = degreeAudit([], 'B-A7').categories;
-    expect(bMinus[2].requiredCredits, isNull); // CDC1 on a B- shows no target
+    expect(bMinus[0].requiredCredits, isNull); // CDC1 on a B- shows no target
+  });
+
+  test('dual degree order and names', () {
+    List<String> labels(String d) =>
+        degreeAudit([], d).categories.map((c) => c.label).toList();
+    expect(labels('B3A7'), [
+      'B3 Core · CDC1',
+      'Disciplinary Elective 1',
+      'A7 Core · CDC2',
+      'Disciplinary Elective 2',
+      'Humanity Electives',
+      'Open Electives',
+    ]);
+    expect(labels('--A7'), [
+      'A7 Core',
+      'Disciplinary Electives',
+      'Humanity Electives',
+      'Open Electives',
+    ]);
   });
 
   group('needs from a performance sheet', () {
@@ -123,7 +142,7 @@ void main() {
       );
       final a = degreeAudit([], '--A7', needs: needs);
       expect(card(a, 'Humanity Electives').requiredCredits, 6);
-      expect(card(a, 'Disciplinary Electives (A7)').requiredCourses, 5);
+      expect(card(a, 'Disciplinary Electives').requiredCourses, 5);
       // Nothing required: totals only.
       expect(card(a, 'Open Electives').requiredCredits, isNull);
     });
@@ -138,8 +157,8 @@ void main() {
     test('a dual keeps a card per half, with the table\'s share', () {
       const needs = DegreeNeeds(degree: 'B3A7', del: (courses: 9, units: 27));
       final a = degreeAudit([], 'B3A7', needs: needs);
-      expect(card(a, 'Disciplinary Electives (B3)').requiredCredits, 18);
-      expect(card(a, 'Disciplinary Electives (A7)').requiredCredits, 12);
+      expect(card(a, 'Disciplinary Elective 1').requiredCredits, 18);
+      expect(card(a, 'Disciplinary Elective 2').requiredCredits, 12);
     });
 
     test('bring one core card, counting every core course', () {
@@ -204,6 +223,16 @@ void main() {
       expect(of(el('BITS F382', 'Open Elective')), Elective.open);
     });
 
+    test('the degree\'s own projects are DELs, even tagged open', () {
+      // Tester report: CS study/lab/design projects counted as OPELs for A7.
+      for (final id in ['CS F266', 'CS F366', 'CS F376', 'CS F491']) {
+        expect(of(el(id, 'Open Elective'), 'A7--'), Elective.del1, reason: id);
+        expect(of(el(id, 'Open Elective')), Elective.del2, reason: id);
+      }
+      // Another department's project stays an open elective.
+      expect(of(el('ME F376', 'Open Elective'), 'A7--'), Elective.open);
+    });
+
     test('GS and HSS are humanities', () {
       expect(of(el('GS F211', 'Open Elective')), Elective.humanity);
       expect(of(el('HSS F334', 'Disciplinary Elective1')), Elective.humanity);
@@ -230,8 +259,10 @@ void main() {
       expect(of(el('BITS F399', 'CDCN')), Elective.open);
       // The same course under the degree's own code is its DEL.
       expect(of(el('ECON F355', 'Disciplinary Elective1')), Elective.del1);
-      // Common core stays core.
-      expect(of(el('BITS F111', 'CDCN')), Elective.cdc1);
+      // Common core stays core for a single degree, common for a dual's
+      // half (BUG-31).
+      expect(of(el('BITS F111', 'CDCN'), 'B7--'), Elective.cdc1);
+      expect(of(el('BITS F111', 'CDCN')), isNull);
     });
 
     test('HELs past their credits count as open electives', () {
@@ -264,20 +295,60 @@ void main() {
       AuditCategory at(String l) =>
           a.categories.singleWhere((c) => c.label == l);
       // A7 needs 12 credits of DEL: four 3-credit courses.
-      expect(at('Disciplinary Electives (A7)').credits, 12);
+      expect(at('Disciplinary Electives').credits, 12);
       expect(at('Open Electives').credits, 6);
       expect(at('Open Electives').spilled, hasLength(2));
     });
+
+    test('CDCs past their credits spill to open electives, and completion '
+        'needs every required course too (BUG-12)', () {
+      // A3 needs 15 courses / 49 credits of CDC2. 16 four-credit courses
+      // clears the credits at course 13 but not the course count.
+      final cdcs = [
+        for (var i = 1; i <= 16; i++)
+          el(
+            'EEE F4${i.toString().padLeft(2, '0')}',
+            'CDC2',
+            'A3',
+          ).copyWith(credits: 4),
+      ];
+      final a = degreeAudit(cdcs, '--A3');
+      final core = a.categories.singleWhere((c) => c.label == 'A3 Core');
+      expect(core.credits, lessThanOrEqualTo(52)); // capped near 49, not 64
+      expect(core.courses, 13);
+      expect(core.complete, isFalse); // 13 of 15 courses, still short
+      final open = a.categories.singleWhere((c) => c.label == 'Open Electives');
+      expect(open.spilled, hasLength(3));
+      // The top "credits left" figure agrees with each card's own shortfall.
+      expect(a.creditsLeft, isNotNull);
+    });
+
+    test(
+      'first-year and PS courses do not become B3 core in a dual (BUG-31)',
+      () {
+        final a = degreeAudit([
+          el('MATH F111', 'CDCN'), // B3's copy of the shared first year
+          el('ECON F211', 'CDC1'), // B3's own core
+        ], 'B3A7');
+        final b3Core = a.categories.singleWhere(
+          (c) => c.label == 'B3 Core · CDC1',
+        );
+        expect(b3Core.members.map((c) => c.id), ['ECON F211']);
+        expect(a.unassigned, isEmpty); // common, not "needs assigning" either
+      },
+    );
 
     test('core courses are left alone', () {
       expect(of(el('EEE F111', 'CDC2')), Elective.cdc2);
       expect(of(el('XYZ F101', 'CDCN')), isNull);
     });
 
-    test('common courses are the first degree\'s core', () {
-      expect(of(el('HSS F101', 'CDCN')), Elective.cdc1);
-      expect(of(el('MATH F111', 'CDCN')), Elective.cdc1);
+    test('common courses are a single degree\'s core, neither half\'s in a '
+        'dual (BUG-31)', () {
       expect(of(el('MATH F111', 'CDCN'), '--A7'), Elective.cdc2);
+      expect(of(el('MATH F111', 'CDCN'), 'B7--'), Elective.cdc1);
+      expect(of(el('HSS F101', 'CDCN')), isNull);
+      expect(of(el('MATH F111', 'CDCN')), isNull);
     });
 
     test('a category set by hand is never moved', () {
@@ -290,11 +361,12 @@ void main() {
 
     test('and count where they are placed', () {
       final a = degreeAudit([el('CS F266', 'Disciplinary Elective1')], 'B3A7');
-      int del(String half) =>
-          a.categories
-              .singleWhere((c) => c.label == 'Disciplinary Electives ($half)')
-              .courses;
-      expect((del('A7'), del('B3')), (1, 0));
+      int del(String label) =>
+          a.categories.singleWhere((c) => c.label == label).courses;
+      expect(
+        (del('Disciplinary Elective 2'), del('Disciplinary Elective 1')),
+        (1, 0),
+      );
     });
   });
 

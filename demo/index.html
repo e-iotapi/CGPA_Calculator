@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>Pointer UI Demo</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root{--bg:#F2F2EF;--ink:#17170F}
+    @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0D0D0C;--ink:#F4F4EF}}
+    :root[data-theme="dark"]{--bg:#0D0D0C;--ink:#F4F4EF}
+    html,body{margin:0;height:100%;background:var(--bg)}
+    #l{position:fixed;inset:0;display:grid;place-items:center;color:var(--ink);font:600 14px system-ui,sans-serif;transition:opacity .3s}
+    #l.d{opacity:0;pointer-events:none}
+    /* iOS zooms the page into any input under 16px and Flutter's canvas
+       cannot pinch back out. Flutter's hidden editing inputs copy the
+       field's 13px style; they are invisible (Flutter paints the text), so
+       16px changes nothing on screen and stops the zoom. */
+    flt-text-editing-host input, flt-text-editing-host textarea,
+    input.flt-text-editing, textarea.flt-text-editing,
+    flt-semantics input, flt-semantics textarea {
+      font-size: 16px !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="l">Loading the Pointer demo…</div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('l').classList.add('d');
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

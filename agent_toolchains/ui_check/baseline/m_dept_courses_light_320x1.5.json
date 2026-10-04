@@ -1,0 +1,9 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Back\" 42x42",
+  "tap: \"Choose a file\" 184x36",
+  "tap: \"Copy\" 96x30",
+  "tap: \"Paste\" 86x36"
+ ]
+}

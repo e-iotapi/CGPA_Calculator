@@ -1,0 +1,10 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Applications · 2\" 139x38",
+  "tap: \"Approve\" 124x42",
+  "tap: \"Back\" 42x42",
+  "tap: \"Decline\" 124x42",
+  "tap: \"Links · 2\" 139x38"
+ ]
+}

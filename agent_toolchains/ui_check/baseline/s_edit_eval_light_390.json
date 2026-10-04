@@ -1,0 +1,22 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"PART 1\" 4.08:1, needs 4.5 (9.5 px)",
+  "contrast: \"PART 2\" 4.08:1, needs 4.5 (9.5 px)",
+  "contrast: \"PART 3 · DROPPED\" 4.08:1, needs 4.5 (9.5 px)",
+  "dead: button \"Add a part\" has no tap action",
+  "tap: \"\" 229x15",
+  "tap: \"\" 230x36",
+  "tap: \"\" 30x15",
+  "tap: \"\" 36x15",
+  "tap: \"\" 50x15",
+  "tap: \"All 3\" 57x38",
+  "tap: \"Avg\" 36x15",
+  "tap: \"Best 1 of 3\" 96x38",
+  "tap: \"Best 2 of 3\" 99x38",
+  "tap: \"Close\" 42x42",
+  "tap: \"Part 1 date\" 52x36",
+  "tap: \"Part 2 date\" 52x36",
+  "tap: \"Part 3 date\" 52x36"
+ ]
+}

@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:cgpa_calculator/core/models/offering.dart';
 
+/// The `schema` value an eval-scheme JSON file must carry.
 const evalSchema = 'pointer.eval.v1';
 
 /// Shipped beside the upload button. Verbatim from §13.2 — do not paraphrase:
@@ -16,7 +17,7 @@ const evalSchema = 'pointer.eval.v1';
 const evalPrompt =
     '''Read every attached course handout and return one JSON object and nothing else. No prose, no markdown fences, no explanation.
 
-Use exactly this shape: `{"schema":"pointer.eval.v1","campus":…,"term":…,"courses":[…]}`. Each course is `{"code","professors","weighted","totalMarks","components","notes"}` and each component is `{"name","weight","outOf","date","rule","parts"}`.
+Use exactly this shape: `{"schema":"pointer.eval.v1","campus":…,"term":…,"courses":[…]}`. Each course is `{"code","professors","weighted","totalMarks","gradedOutOf","components","notes"}` and each component is `{"name","weight","outOf","date","rule","parts"}`.
 
 Rules you must follow:
 - **Never invent a value.** If the handout does not state something, leave the field out. Do not infer a weight from the other components, and do not assume a standard BITS split.
@@ -25,6 +26,7 @@ Rules you must follow:
 - `weighted` is true when components carry percentages, false when the course is marked out of a single total.
 - `rule` is `{"type":"all"}` unless the handout says best N of M, which is `{"type":"bestNofM","n":N,"m":M}`.
 - `outOf` is that component's own maximum, never a shared divisor.
+- `gradedOutOf` is the scale the whole course's final total is reported out of (e.g. 200), only if the handout states one.
 - Dates are `YYYY-MM-DD`. Omit the field if the handout gives no date.
 - If weights do not sum to 100 on a weighted course, still return them as printed and say so in `notes`. Do not adjust them to fit.
 - One entry per course. If a handout covers two sections with different schemes, return one course entry per scheme and note which section each is.''';
@@ -32,6 +34,8 @@ Rules you must follow:
 /// The file failed a check; nothing is imported. [message] names the row.
 class EvalImportError implements Exception {
   const EvalImportError(this.message);
+
+  /// What is wrong, naming the row.
   final String message;
   @override
   String toString() => message;
@@ -46,30 +50,45 @@ class ImportedScheme {
     required this.components,
     this.notes,
     this.professorNames = const [],
+    this.outOf,
   });
 
+  /// The course the scheme is for.
   final String courseId;
+
+  /// The course's "Graded out of" (`"gradedOutOf"` in the file), or null.
+  final double? outOf;
+  /// Whether component weights are percentages.
   final bool weighted;
+
+  /// The total marks when the course is not weighted.
   final double totalMarks;
 
   /// Ids are blank until [schemeFor] matches them against the offering.
   final List<OfferedComponent> components;
+
+  /// Remarks from the handout reader, shown before import.
   final String? notes;
 
   /// As typed in the handout. Professors are picked from the department list
   /// (§10.1), so these are shown, never stored.
   final List<String> professorNames;
 
+  /// The sum of the component weights.
   double get assigned => components.fold(0.0, (s, c) => s + c.weight);
 }
 
+/// A parsed eval-scheme file: one campus and term, and its courses.
 class EvalFile {
   const EvalFile({
     required this.campus,
     required this.term,
     required this.courses,
   });
+  /// The campus key and term the file applies to.
   final String campus, term;
+
+  /// The schemes in the file.
   final List<ImportedScheme> courses;
 }
 
@@ -144,6 +163,10 @@ EvalFile parseEvalFile(
     if (total is! num || total <= 0) {
       throw EvalImportError('$at: "totalMarks" must be a positive number.');
     }
+    final gradedOutOf = row['gradedOutOf'];
+    if (gradedOutOf != null && (gradedOutOf is! num || gradedOutOf <= 0)) {
+      throw EvalImportError('$at: "gradedOutOf" must be a positive number.');
+    }
     final comps = row['components'];
     if (comps is! List || comps.isEmpty) {
       throw EvalImportError('$at: "components" must be a non-empty list.');
@@ -163,6 +186,7 @@ EvalFile parseEvalFile(
         weighted: weighted,
         totalMarks: total.toDouble(),
         components: components,
+        outOf: (gradedOutOf as num?)?.toDouble(),
         notes: switch (row['notes']) {
           final String n when n.trim().isNotEmpty => n.trim(),
           _ => null,
@@ -304,6 +328,7 @@ Offering schemeFor(
         }(),
     ],
     courseAverage: existing?.courseAverage,
+    outOf: imported.outOf ?? existing?.outOf,
     professors: existing?.professors ?? const [],
     updatedAt: existing?.updatedAt ?? 0,
   );
@@ -319,6 +344,7 @@ String schemeKey(Offering? o) =>
         : jsonEncode({
           'w': o.weighted,
           't': o.totalMarks,
+          'o': o.outOf,
           'c': [
             for (final c in o.components)
               [
@@ -333,6 +359,7 @@ String schemeKey(Offering? o) =>
           ],
         });
 
+/// What importing [next] does to the [existing] offering.
 ImportEffect effectOf(Offering next, Offering? existing) =>
     existing == null || !existing.hasScheme
         ? ImportEffect.create

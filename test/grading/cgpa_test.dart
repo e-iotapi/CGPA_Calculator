@@ -111,18 +111,64 @@ void main() {
     });
   });
 
-  test('GD passes but carries no weight; NC, RC and W are not shown', () {
-    final t = tally([
-      _course('1 - 1', 4, 10, 0), // A: 40 points
-      _course('1 - 1', 3, GradeCode.gd, 0), // shown, not weighted
+  test('GD shows its credits but stays out of the GPA ("Credits count, the '
+      'CGPA does not change"); NC, RC and W are not shown', () {
+    final courses = [
+      _course('1 - 1', 4, 10, 0), // A: 40 points, 4 credits
+      _course('1 - 1', 3, GradeCode.gd, 0), // GD: shown, not weighted
       _course('1 - 1', 2, GradeCode.nc, 0),
       _course('1 - 1', 2, GradeCode.rc, 0),
       _course('1 - 1', 2, GradeCode.w, 0),
-    ], Profile.actual);
+      _course('1 - 1', 5, 0, 0), // ungraded: not in denominator or shown
+    ];
+    final t = tally(courses, Profile.actual);
     expect(t.points, 40);
-    expect(t.gradedCredits, 4);
-    expect(t.shownCredits, 7);
+    expect(t.gradedCredits, 4); // A only
+    // Shown: everything except a non-GD negative code — the ungraded
+    // course's 5 credits still show (it just isn't in the GPA yet).
+    expect(t.shownCredits, 12); // A's 4 + GD's 3 + ungraded's 5
     expect(t.rounded, 10);
+
+    // SGPA must equal the sum over the visible, graded courses: same
+    // course set, same discipline filter, as semesterTally uses.
+    const d = 'B3A7';
+    final visible = courses.where((c) => inDiscipline(c, d));
+    expect(
+      semesterTally(
+        courses,
+        sem: '1 - 1',
+        discipline: d,
+        profile: Profile.actual,
+      ).rounded,
+      tally(visible, Profile.actual).rounded,
+    );
+  });
+
+  test('a course counted in SGPA/CGPA is never hidden from the visible list '
+      '(BUG-40): inDiscipline matches "--" the same way regardless of which '
+      'half of the discipline code holds it', () {
+    final open = _course('2 - 1', 3, 9, 9, '--'); // catalogue open elective
+    final real = _course('2 - 1', 3, 10, 10, 'A7');
+    final courses = [open, real];
+
+    // Single degree stored either as "A7--" or "--A7" must treat "--"
+    // identically: both halves are checked, in either order.
+    for (final discipline in ['A7--', '--A7']) {
+      final visible = courses.where((c) => inDiscipline(c, discipline));
+      expect(
+        visible,
+        containsAll([open, real]),
+        reason: 'discipline "$discipline" hid a course it still counts',
+      );
+      final gpa = semesterTally(
+        courses,
+        sem: '2 - 1',
+        discipline: discipline,
+        profile: Profile.actual,
+      );
+      // Every course the GPA counts must be in the visible set.
+      expect(gpa.gradedCredits, tally(visible, Profile.actual).gradedCredits);
+    }
   });
 
   test('nothing graded reads as 0 and "0"', () {

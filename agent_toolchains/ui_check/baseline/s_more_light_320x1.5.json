@@ -1,0 +1,6 @@
+{
+ "errors": [],
+ "issues": [
+  "word-break: \"Representatives\" split across lines in \"Representatives\""
+ ]
+}

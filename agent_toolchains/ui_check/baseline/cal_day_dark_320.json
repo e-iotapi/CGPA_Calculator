@@ -1,0 +1,15 @@
+{
+ "errors": [],
+ "issues": [
+  "dead: button \"Intro Widgets, AAA F111, F101, 9:00 AM –…\" has no tap action",
+  "overlap: \"September 2026\" over \"4 AM\"",
+  "overlap: \"Wed 23 Sep\" over \"6 AM\"",
+  "tap: \"Add\" 60x42",
+  "tap: \"Back\" 40x40",
+  "tap: \"Day\" 91x38",
+  "tap: \"Month\" 91x38",
+  "tap: \"Next day\" 38x38",
+  "tap: \"Previous day\" 38x38",
+  "tap: \"Week\" 91x38"
+ ]
+}

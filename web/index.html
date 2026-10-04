@@ -4,14 +4,165 @@
   <base href="$FLUTTER_BASE_HREF">
 
 
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3Q30MVTZ45"></script>
+  <!-- Google tag (gtag.js). The page view is queued now, but the 174 KB
+       script loads only after the app's first frame (or after 30 s), so it
+       no longer competes with the app for a slow connection. -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
-    gtag('config', 'G-3Q30MVTZ45');
+    // Strip ?as=<role>: it's how an owner "Open as"-views another role, not
+    // a page identity, and it should not end up in analytics as a role key.
+    var gaUrl = new URL(location.href);
+    gaUrl.searchParams.delete('as');
+    gtag('config', 'G-3Q30MVTZ45', { page_location: gaUrl.toString() });
+
+    (function() {
+      var loaded = false;
+      function loadGtag() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-3Q30MVTZ45';
+        document.head.appendChild(s);
+      }
+      window.addEventListener('flutter-first-frame', loadGtag);
+      setTimeout(loadGtag, 30000);
+    })();
+  </script>
+
+  <!-- TM-14: a 3x phone screen made the engine redraw ~3M pixels a frame and
+       iPhone scrolling juddered, so it was capped at 2x. Most of that cost
+       was staging's semantics tree; without it the owner wants the full,
+       sharper resolution (2026-10-04), so there is no cap by default.
+       ?dpr=<n> caps it for a comparison, e.g. ?dpr=2. The engine reads
+       devicePixelRatio, so the cap is applied here. -->
+  <script>
+    (function() {
+      var cap = Number(new URLSearchParams(location.search).get('dpr'));
+      if (!cap) return;
+      var d = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio') ||
+          Object.getOwnPropertyDescriptor(Window.prototype, 'devicePixelRatio');
+      if (!d || !d.get) return;
+      Object.defineProperty(window, 'devicePixelRatio', {
+        configurable: true,
+        get: function() { return Math.min(d.get.call(window), cap); },
+      });
+    })();
+  </script>
+  <!-- UT-3: while a field is edited the engine keeps the app at full size
+       and reports the keyboard as a bottom inset, so each screen lays out
+       above it and scrolls the field into view itself. Every mobile browser
+       (Safari, Chrome, Firefox) also pans the page to the engine's hidden
+       input, which lifts the whole app and leaves a black band under it. The
+       page is kept unpanned on touch screens. ?pan=1 turns this off to
+       compare; ?kbdebug=1 shows the viewport numbers on screen. -->
+  <script>
+    (function() {
+      var q = new URLSearchParams(location.search), vv = window.visualViewport;
+      var touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+      if (!vv || !touch) return;
+      var box;
+      var show = function() {
+        if (!q.get('kbdebug')) return;
+        if (!box) {
+          box = document.createElement('pre');
+          box.style.cssText = 'position:fixed;left:0;top:0;z-index:99;margin:0;' +
+              'padding:4px;font:11px monospace;background:#ff0;color:#000;pointer-events:none';
+          document.documentElement.appendChild(box);
+        }
+        box.textContent = 'inner ' + innerHeight + ' client ' +
+            document.documentElement.clientHeight + ' vv ' + Math.round(vv.height) +
+            ' vvTop ' + Math.round(vv.offsetTop) + ' scrollY ' + Math.round(scrollY);
+      };
+      var reset = function() {
+        if (q.get('pan') !== '1' && (window.scrollY || vv.offsetTop)) {
+          window.scrollTo(0, 0);
+          document.documentElement.scrollTop = document.body ? (document.body.scrollTop = 0) : 0;
+        }
+        show();
+      };
+      vv.addEventListener('resize', reset);
+      vv.addEventListener('scroll', reset);
+      window.addEventListener('scroll', reset);
+    })();
+  </script>
+
+  <!-- The Firebase JS SDK that FlutterFire imports once main() starts
+       (firebase_core_web's supportedFirebaseJsSdkVersion; checked by
+       test/env/index_html_test.dart). Preloaded so it downloads during the
+       engine download instead of after it. -->
+  <!-- The engine downloads every font before main() runs, but only once it
+       has started; on 3G that tail was ~8 s between the engine being ready
+       and main() (TM-12). Fetched here they start with the page. as="fetch"
+       + crossorigin match the engine's own fetch, so nothing downloads twice.
+       test/env/index_html_test.dart keeps this list equal to the manifest. -->
+  <link rel="preload" as="fetch" crossorigin href="assets/FontManifest.json" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/MaterialIcons-Regular.otf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-Regular.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-Medium.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-SemiBold.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-Bold.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/fonts/Montserrat-ExtraBold.ttf" />
+  <link rel="preload" as="fetch" crossorigin href="assets/packages/cupertino_icons/assets/CupertinoIcons.ttf" />
+  <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js" />
+  <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" />
+  <link rel="modulepreload" crossorigin href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-pipelines.js" />
+  <!-- The saved-user check (Firebase Auth re-verifies it with Google) used to
+       start only after main.dart.js loaded, and Home waits for it (TM-5,
+       TM-12). Started here, it runs alongside the engine download. FlutterFire
+       reuses the app and auth: window.firebase_core is set, so it injects no
+       scripts, and the options below equal its own (checked by
+       test/env/index_html_test.dart; a mismatch is a duplicate-app error).
+       Other hosts, or any failure here, leave everything to FlutterFire. -->
+  <script type="module">
+    const STAGING = {
+      apiKey: 'AIzaSyD5aVnFDmzOQKjnuumyArZxFornqqrKHww',
+      appId: '1:8768962364:web:339acd421cd0b1d990a839',
+      messagingSenderId: '8768962364',
+      projectId: 'pointer-staging',
+      authDomain: 'pointer-staging.firebaseapp.com',
+      storageBucket: 'pointer-staging.firebasestorage.app',
+    };
+    const PROD = {
+      apiKey: 'AIzaSyAEcrEp6rYOXXTIduG9r76NhpT0KWOxbH8',
+      appId: '1:58021557107:web:06ac1c3f63c3d290984b06',
+      messagingSenderId: '58021557107',
+      projectId: 'cgpa-calculator-fb90c',
+      authDomain: 'pointer-bits-pilani.pages.dev',
+      storageBucket: 'cgpa-calculator-fb90c.firebasestorage.app',
+      measurementId: 'G-T4151XF1CT',
+    };
+    const h = location.hostname;
+    const options =
+      /^pointer-staging(--[\w-]+)?\.web\.app$/.test(h) || h === 'pointer-staging.firebaseapp.com' ? STAGING
+      : h === 'pointer-bits-pilani.pages.dev' ? PROD
+      : null;
+    if (options) {
+      try {
+        // app first: importing it alongside the others trips a WebKit TDZ bug.
+        const app = await import('https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js');
+        const [auth, firestore] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js'),
+          import('https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-pipelines.js'),
+        ]);
+        const a = app.getApps().length ? app.getApp() : app.initializeApp(options);
+        // Mirrors firebase_auth_web's getAuthInstance; returns the same
+        // instance if FlutterFire got there first.
+        auth.initializeAuth(a, {
+          errorMap: auth.debugErrorMap,
+          persistence: [auth.indexedDBLocalPersistence, auth.browserLocalPersistence, auth.browserSessionPersistence],
+          popupRedirectResolver: auth.browserPopupRedirectResolver,
+        });
+        window.firebase_auth = auth;
+        window.firebase_firestore = firestore;
+        window.firebase_core = app; // last: FlutterFire's cue to skip loading
+      } catch (e) {
+        console.debug('Firebase early start skipped', e);
+      }
+    }
   </script>
 
   <meta charset="UTF-8" />
@@ -153,43 +304,70 @@
         sessionStorage.setItem('ptr-gl-reload', String(Date.now()));
         location.reload();
       }
-      function hook(root) {
-        root.querySelectorAll('*').forEach(function(el) {
-          if (el.tagName === 'CANVAS' && !el.dataset.ptrHooked) {
-            el.dataset.ptrHooked = '1';
-            el.addEventListener('webglcontextlost', onLost);
-          }
-          if (el.shadowRoot) hook(el.shadowRoot);
-        });
+      // UI_OPT O7.2: hook once, watch only the Flutter view's own shadow
+      // root for a new canvas (the engine recreates one on context loss),
+      // and stop watching once nothing new has shown up for 10s — instead
+      // of walking the whole document on every DOM mutation.
+      var viewRoot = document;
+      function hookEl(el) {
+        if (el.tagName === 'CANVAS' && !el.dataset.ptrHooked) {
+          el.dataset.ptrHooked = '1';
+          el.addEventListener('webglcontextlost', onLost);
+        }
+      }
+      function hookAll(root) {
+        hookEl(root);
+        if (root.querySelectorAll) root.querySelectorAll('canvas').forEach(hookEl);
       }
       window.addEventListener('flutter-first-frame', function() {
-        hook(document);
-        new MutationObserver(function() { hook(document); })
-          .observe(document.body, {childList: true, subtree: true});
+        var view = document.querySelector('flutter-view');
+        viewRoot = (view && view.shadowRoot) || document;
+        hookAll(viewRoot);
+        var lastNewCanvas = Date.now();
+        var observer = new MutationObserver(function(mutations) {
+          var sawCanvas = false;
+          mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(n) {
+              if (n.nodeType !== 1) return;
+              hookAll(n);
+              if (n.tagName === 'CANVAS' || (n.querySelector && n.querySelector('canvas'))) {
+                sawCanvas = true;
+              }
+            });
+          });
+          if (sawCanvas) lastNewCanvas = Date.now();
+        });
+        observer.observe(viewRoot, {childList: true});
+        (function checkIdle() {
+          if (Date.now() - lastNewCanvas > 10000) { observer.disconnect(); return; }
+          setTimeout(checkIdle, 2000);
+        })();
       });
       document.addEventListener('visibilitychange', function() {
         if (document.visibilityState !== 'visible') return;
         if (lost) { reloadOnce(); return; }
-        hook(document);
+        hookAll(viewRoot);
         window.dispatchEvent(new Event('resize'));
       });
     })();
   </script>
 
 
-  <!-- Montserrat: preconnect + display=swap so the font never blocks first paint. -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;800&display=swap" rel="stylesheet">
+  <!-- Montserrat ships bundled (pubspec.yaml fonts:), so there is no Google
+       Fonts request here — a remote copy of the same family would just be
+       downloaded twice. The splash below falls back to system-ui until the
+       engine paints. -->
 
   <!-- Loading screen: pure CSS, paints before the engine boots. Compositor-only
        animations (transform/opacity) for slow connections. -->
   <style>
     :root { --bg: #F2F2EF; --ink: #17170F; --soft: #45453C; --muted: #55554C;
-            --quiet: #8A8A7E; --quieter: #9E9E92; --track: #E2E2DA; --bead: #2C7A62; }
+            --quiet: #8A8A7E; --quieter: #9E9E92; --track: #E2E2DA; --bead: #2C7A62;
+            --foot-muted: #6E6E63; }
     @media (prefers-color-scheme: dark) {
       :root { --bg: #0D0D0C; --ink: #F4F4EF; --soft: #BDBDB2; --muted: #ADADA2;
-              --quiet: #84847A; --quieter: #6E6E63; --track: #2A2A26; --bead: #7FC9A8; }
+              --quiet: #84847A; --quieter: #6E6E63; --track: #2A2A26; --bead: #7FC9A8;
+              --foot-muted: #9E9E92; }
     }
     html, body { margin: 0; padding: 0; background: var(--bg); }
     #ptr-loading { position: fixed; inset: 0; z-index: 10; background: var(--bg); color: var(--ink);
@@ -209,6 +387,8 @@
     .ptr-dots { display: flex; gap: 3px; }
     .ptr-dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
     .ptr-seo { position: absolute; left: 32px; right: 32px; bottom: 40px; text-align: center; }
+    .ptr-by { margin: 0 0 14px; font-size: 11.5px; font-weight: 700; color: var(--ink); }
+    .ptr-private { margin: 0 0 5px; font-size: 10.5px; font-weight: 500; color: var(--foot-muted); }
     .ptr-seo h1 { margin: 0 0 5px; font-size: 11.5px; font-weight: 600; color: var(--quiet); line-height: 1.45; }
     .ptr-seo p { margin: 0; font-size: 10.5px; font-weight: 500; color: var(--quieter); line-height: 1.5; }
 
@@ -232,6 +412,15 @@
        blocks pinch-out, leaving the page stuck zoomed. Flutter draws the text
        itself; this only sizes its hidden input, so nothing visible changes. */
     input, textarea { font-size: 16px !important; }
+    /* iOS zooms the page into any input under 16px and Flutter's canvas
+       cannot pinch back out. Flutter's hidden editing inputs copy the
+       field's 13px style; they are invisible (Flutter paints the text), so
+       16px changes nothing on screen and stops the zoom. */
+    flt-text-editing-host input, flt-text-editing-host textarea,
+    input.flt-text-editing, textarea.flt-text-editing,
+    flt-semantics input, flt-semantics textarea {
+      font-size: 16px !important;
+    }
   </style>
 </head>
 <body>
@@ -252,6 +441,8 @@
   <div class="ptr-status">Loading <span class="ptr-dots"><span class="ptr-dot"></span><span class="ptr-dot"></span><span class="ptr-dot"></span></span></div>
   <!-- Crawlable fallback: kept in the DOM for search, visually quiet. -->
   <div class="ptr-seo" id="seo-fallback-content">
+    <p class="ptr-by">Built By Siddharth Mishra</p>
+    <p class="ptr-private">Your grades stay private to your account.</p>
     <h1>CGPA Calculator for BITS Pilani, Goa and Hyderabad</h1>
     <p>Enter your grades for instant SGPA and CGPA across every semester, track evaluative marks, and see how much of your degree is done.</p>
   </div>

@@ -1,8 +1,10 @@
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/requirements.dart';
+import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
+/// The Hive box holding the student's courses.
 const coursesBoxName = 'coursesBox';
 
 /// Writes [course] back over the stored course with the same id and semester,
@@ -40,6 +42,7 @@ void loadPinnedCategories(Box settings) {
   };
 }
 
+/// Pins category [id] to the top of the audit and persists the set.
 Future<void> pinCategory(String id) async {
   pinnedCategories = {...pinnedCategories, id.trim()};
   if (!Hive.isBoxOpen('settingsBox')) return;
@@ -64,18 +67,30 @@ bool profileIsEmpty(int profile) => Hive.box<Course>(
 /// Every stored course, for read-only screens.
 Iterable<Course> allCourses() => Hive.box<Course>(coursesBoxName).values;
 
-/// A dual degree takes Practice School-II in its fifth year, not the fourth
-/// the chart row is seeded in. Moves only a seeded, ungraded row.
+/// Hive key of a dual's second Practice School-II; its `id` stays
+/// `BITS F412`.
+const secondPsKey = 'BITS F412#2';
+
+/// A dual degree takes Practice School-II twice, at 5 - 1 and 5 - 2; the
+/// chart seeds one at 4 - 2. Idempotent, and never moves a graded row:
+/// one ungraded at 4 - 2 moves to 5 - 1 with a copy at 5 - 2; one at 5 - 2
+/// (from the old code) gains a copy at 5 - 1; two already there stay.
 Future<void> placeDualPracticeSchool(Box<Course> box, String discipline) async {
-  final dual = discipline.startsWith('B') && discipline.substring(2) != '--';
-  if (!dual) return;
-  for (final e in box.toMap().entries) {
-    final c = e.value;
-    if (c.id == 'BITS F412' &&
-        c.sem == '4 - 2' &&
-        c.grade1 == GradeCode.clr &&
-        c.grade2 == GradeCode.clr) {
-      await box.put(e.key, c.copyWith(sem: '5 - 2'));
-    }
+  if (!isDualDiscipline(discipline)) return;
+  final ps = [
+    for (final e in box.toMap().entries)
+      if (e.value.id == 'BITS F412') e,
+  ];
+  if (ps.length != 1) return;
+  final MapEntry(:key, value: c) = ps.single;
+  final ungraded = c.grade1 == GradeCode.clr && c.grade2 == GradeCode.clr;
+  if (!ungraded) return;
+  if (c.sem == '4 - 2') {
+    await box.putAll({
+      key: c.copyWith(sem: '5 - 1'),
+      secondPsKey: c.copyWith(sem: '5 - 2'),
+    });
+  } else if (c.sem == '5 - 2') {
+    await box.put(secondPsKey, c.copyWith(sem: '5 - 1'));
   }
 }

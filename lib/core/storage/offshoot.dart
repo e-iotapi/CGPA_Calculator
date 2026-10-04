@@ -2,7 +2,7 @@ import 'package:cgpa_calculator/core/grading/offshoot.dart';
 import 'package:cgpa_calculator/core/models/course_graph.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 Box get _settings => Hive.box('settingsBox');
 
@@ -13,9 +13,11 @@ Set<String> get offshootExcluded {
   return s.isEmpty ? <String>{} : s.split(',').toSet();
 }
 
+/// Stores the ids of the offshoot courses the user unticked.
 Future<void> setOffshootExcluded(Set<String> ids) async =>
     _settings.put('offshoot_excluded', ids.join(','));
 
+/// Flips whether offshoot course [id] is excluded.
 Future<void> toggleOffshootExcluded(String id) async {
   final ex = offshootExcluded;
   ex.contains(id) ? ex.remove(id) : ex.add(id);
@@ -28,6 +30,7 @@ int get offshootOutOf {
   return (v is int && offshootDenominators.contains(v)) ? v : 50;
 }
 
+/// Stores the offshoot denominator [v], 50 or 60.
 Future<void> setOffshootOutOf(int v) async =>
     _settings.put('offshoot_outof', v);
 

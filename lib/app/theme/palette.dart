@@ -1,20 +1,23 @@
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
+import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Fill and text colour for one grade chip.
 @immutable
 class GradeTone {
   const GradeTone(this.fill, this.text);
+  /// The chip's background.
   final Color fill;
+
+  /// The chip's label colour.
   final Color text;
 }
 
 /// Every colour the app paints with, by role.
 ///
 /// Reaches widgets as a [ThemeExtension], so new code reads it with
-/// [AppPalette.of]. Old code still reads the global `thm` through the legacy
-/// getters at the bottom (`backcolor`, `textcolor`…), which map onto the roles
-/// one-to-one; they go once the globals are migrated.
+/// [AppPalette.of]. Code above the app's Theme (the sign-in snackbar, the
+/// system bars) reads the global `thm` by the same role names.
 @immutable
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
@@ -41,6 +44,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.behind,
   });
 
+  /// The theme's name, `light` or `dark`.
   final String name;
 
   /// Page ground.
@@ -55,8 +59,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// Wells set into a surface, e.g. the credits badge on a course row.
   final Color surfaceSunken;
 
+  /// Primary text.
   final Color text;
+
+  /// Secondary text.
   final Color textMuted;
+
+  /// Separator lines between rows.
   final Color divider;
 
   /// Strong border, usually drawn at low alpha.
@@ -67,28 +76,42 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Highlight for text and icons that need to stand out.
   final Color accent;
+
+  /// Default icon colour.
   final Color icon;
 
   /// The high-contrast fill of a selected pill, and its label.
   final Color inverse;
+
+  /// Text and icons on [inverse].
   final Color onInverse;
 
   /// The one accent-filled card per screen (SGPA, offshoot total).
   final Color hero;
+
+  /// Text and icons on [hero].
   final Color onHero;
+
+  /// Secondary text on [hero].
   final Color onHeroMuted;
 
+  /// The bottom navigation bar's background.
   final Color navBackground;
+
+  /// The bottom navigation bar's icon colour.
   final Color navIcon;
 
   /// Class-average delta. Green/orange rather than green/red so colour-blind
   /// readers can separate them — and the arrow and word carry it regardless.
   final Color ahead;
+  /// Class-average delta when below the average; see [ahead].
   final Color behind;
 
+  /// Whether the palette is dark.
   bool get isDark =>
       ThemeData.estimateBrightnessForColor(background) == Brightness.dark;
 
+  /// The chip colours for [grade], or the blank grade's when unknown.
   GradeTone gradeTone(String grade) {
     final tones = isDark ? _darkTones : _lightTones;
     return tones[grade] ?? tones['']!;
@@ -101,21 +124,167 @@ class AppPalette extends ThemeExtension<AppPalette> {
           ? const GradeTone(Color(0xFF3B2F16), Color(0xFFF1C77A))
           : const GradeTone(Color(0xFFFAEFD8), Color(0xFF7A5410));
 
+  /// A link waiting for approval (Your links board): amber, a little deeper
+  /// in dark than [noticeTone].
+  GradeTone get waitingTone =>
+      isDark
+          ? const GradeTone(Color(0xFF2E2616), Color(0xFFE6C06F))
+          : const GradeTone(Color(0xFFFAEFD8), Color(0xFF7A5410));
+
+  /// A rejected link, and the reason beside it.
+  GradeTone get rejectedTone =>
+      isDark
+          ? const GradeTone(Color(0xFF3A1F1B), Color(0xFFF2A79B))
+          : const GradeTone(Color(0xFFF3E0DC), Color(0xFF9B2C1F));
+
+  /// Fill of a small tag chip (a branch beside a name).
+  Color get chipFill => isDark ? surfaceSunken : const Color(0xFFE4E4DC);
+
   /// Tone for a course that exists but does not count (e.g. a dropped
   /// offshoot course).
   GradeTone get mutedTone => (isDark ? _darkTones : _lightTones)['']!;
 
-  ThemeData get materialTheme => ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: accent),
-    extensions: [this],
-    pageTransitionsTheme: PageTransitionsTheme(
-      builders: {
-        for (final p in TargetPlatform.values)
-          p: const CircleRevealTransitionsBuilder(),
-      },
-    ),
-  );
+  /// The Calendar's NOW line and its label (boards FlS_CalendarWeek).
+  Color get nowLine => isDark ? const Color(0xFFE8845A) : const Color(0xFFC8501A);
 
+  /// Hour labels on the week grid, fainter than [textMuted].
+  Color get faint => isDark ? const Color(0xFF8F8F85) : const Color(0xFF84847A);
+
+  /// A destructive action's ink, and the wash behind its icon.
+  Color get danger => isDark ? const Color(0xFFE8928A) : const Color(0xFF9B2C1F);
+  Color get dangerSoft => isDark ? const Color(0xFF3A201C) : const Color(0xFFF3E0DC);
+
+  /// A bottom sheet's or a small dialog's fill (boards PfCalSheet and
+  /// PfCalSheetDark) and the round close button on it.
+  Color get sheetFill => isDark ? const Color(0xFF161614) : const Color(0xFFF6F6F2);
+  Color get closeFill => isDark ? surfaceSunken : const Color(0xFFE8E8E1);
+
+  /// What dims the page behind a sheet or dialog.
+  Color get scrim => isDark ? const Color(0x9E000000) : const Color(0x5717170F);
+
+  static final _themes = <String, ThemeData>{};
+
+  /// Cached per palette [name] (the palettes are `const` singletons):
+  /// UI_OPT O1.2, so a theme switch never rebuilds `ColorScheme.fromSeed`.
+  ThemeData get materialTheme => _themes[name] ??= _buildTheme();
+
+  ThemeData _buildTheme() {
+    final b = isDark ? Brightness.dark : Brightness.light;
+    final scheme = ColorScheme.fromSeed(
+      seedColor: accent,
+      brightness: b,
+    ).copyWith(
+      primary: inverse,
+      onPrimary: onInverse,
+      secondary: accent,
+      surface: surface,
+      onSurface: text,
+      onSurfaceVariant: textMuted,
+      outline: outline,
+      outlineVariant: divider,
+      error: behind,
+    );
+    final base = ThemeData(
+      brightness: b,
+      colorScheme: scheme,
+      fontFamily: TypeScale.family,
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {
+          for (final p in TargetPlatform.values)
+            p: const CircleRevealTransitionsBuilder(),
+        },
+      ),
+    );
+    TextStyle btn(Color c) =>
+        TypeScale.button.copyWith(fontWeight: FontWeight.w700, color: c);
+    return base.copyWith(
+      scaffoldBackgroundColor: background,
+      textTheme: base.textTheme.apply(
+        fontFamily: TypeScale.family,
+        bodyColor: text,
+        displayColor: text,
+      ),
+      primaryTextTheme: base.primaryTextTheme.apply(
+        fontFamily: TypeScale.family,
+      ),
+      iconTheme: IconThemeData(color: icon),
+      dividerColor: divider,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: accent,
+          textStyle: btn(accent),
+          minimumSize: const Size(Sizes.minTouch, Sizes.minTouch),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: inverse,
+          foregroundColor: onInverse,
+          textStyle: btn(onInverse),
+          shape: const StadiumBorder(),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: text,
+          side: BorderSide(color: text, width: 1.5),
+          textStyle: btn(text),
+          shape: const StadiumBorder(),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? hero : surface,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? inverse : divider,
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? inverse : null,
+        ),
+        checkColor: WidgetStatePropertyAll(onInverse),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.row),
+        ),
+        titleTextStyle: TypeScale.section.copyWith(color: text),
+        contentTextStyle: TypeScale.body.copyWith(
+          color: textMuted,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: background,
+        dragHandleColor: outline,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: inverse,
+        behavior: SnackBarBehavior.floating,
+        contentTextStyle: TypeScale.body.copyWith(color: onInverse),
+      ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: surface,
+        headerForegroundColor: text,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TypeScale.body.copyWith(
+          color: textMuted,
+          fontWeight: FontWeight.w500,
+        ),
+        labelStyle: TypeScale.body.copyWith(color: textMuted),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: text),
+      extensions: [this],
+      pageTransitionsTheme: base.pageTransitionsTheme,
+    );
+  }
+
+  /// The palette of the theme at [context], or [light] without one.
   static AppPalette of(BuildContext context) =>
       Theme.of(context).extension<AppPalette>() ?? light;
 
@@ -151,14 +320,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
   AppPalette lerp(AppPalette? other, double t) =>
       other == null || t < 0.5 ? this : other;
 
-  // Legacy names still read by the remaining legacy screens.
+  /// Legacy name of [name], still read by the remaining legacy screens.
   String get theme => name;
-  Color get backcolor => background;
-  Color get textcolor => text;
-  Color get sepcolor => divider;
-  Color get highcolor => accent;
-  Color get cardcolor => surface;
-  Color get bordcolor => border;
 
   /// The redesign's light mode.
   static const light = AppPalette(
@@ -256,5 +419,35 @@ const _darkTones = {
   'D': GradeTone(Color(0xFF4A3122), Color(0xFFE0A272)),
   'E': GradeTone(Color(0xFF4A3122), Color(0xFFE0A272)),
   'NC': GradeTone(Color(0xFF4A3122), Color(0xFFE0A272)),
-  '': GradeTone(Color(0xFF232320), Color(0xFFADADA2)),
+  // Matches AppPalette.dark.surfaceSunken/textMuted (BUG-27): the old fill
+  // was a hair off surface (0xFF1C1C1A), so GD/W/"–" badges were invisible.
+  '': GradeTone(Color(0xFF262622), Color(0xFFBDBDB2)),
 };
+
+/// One leaderboard medal: a 135-degree gradient and the ink on it. The
+/// boards draw it the same in light and dark.
+@immutable
+class Medal {
+  const Medal(this.colors, this.ink, [this.stops]);
+  final List<Color> colors;
+  final Color ink;
+  final List<double>? stops;
+}
+
+/// Places 1 to 5 on the leaderboard page (board PfLeaderboard).
+const pageMedals = [
+  Medal([Color(0xFFFBE9A0), Color(0xFFE5B232), Color(0xFFF8E08C)], Color(0xFF3A2A05), [0, .55, 1]),
+  Medal([Color(0xFFF6F8FA), Color(0xFFB4BDC6), Color(0xFFE8ECEF)], Color(0xFF20262C), [0, .55, 1]),
+  Medal([Color(0xFFF7D6B3), Color(0xFFC6824A), Color(0xFFEDBB8E)], Color(0xFF38200A), [0, .55, 1]),
+  Medal([Color(0xFFEFE9FB), Color(0xFFC8B6EE)], Color(0xFF2B1F4A)),
+  Medal([Color(0xFFF1ECFB), Color(0xFFCDBFF0)], Color(0xFF2B1F4A)),
+];
+
+/// Places 1 to 5 on More's leaderboard card (board FlS_More).
+const cardMedals = [
+  Medal([Color(0xFFF3D66B), Color(0xFFE3B53A)], Color(0xFF17170F)),
+  Medal([Color(0xFFDADDE2), Color(0xFFB9BEC6)], Color(0xFF17170F)),
+  Medal([Color(0xFFE7B48A), Color(0xFFC98B5B)], Color(0xFF17170F)),
+  Medal([Color(0xFFE4DBF7), Color(0xFFCFC1F0)], Color(0xFF17170F)),
+  Medal([Color(0xFFEDE7FA), Color(0xFFDCD2F4)], Color(0xFF17170F)),
+];

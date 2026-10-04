@@ -4,15 +4,29 @@
 /// chose to show the students of their campus.
 library;
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/heads/paths.dart';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
+import 'package:cgpa_calculator/core/perf/perf.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// A phone or WhatsApp number as typed: digits, spaces, +, - and brackets.
 final phonePattern = RegExp(r'^[+0-9 ()-]{7,20}$');
 
 /// One role as the directory lists it, with the expiry it had when written.
-typedef ListedRole = ({GrantRole role, String scope, DateTime until});
+/// `programme` is a president's branch, when their department has several.
+typedef ListedRole =
+    ({
+      GrantRole role,
+      String scope,
+      String? programme,
+      DateTime until,
+      bool secretary,
+    });
 
 /// `directory/{email}`.
 class DirectoryEntry {
@@ -26,8 +40,13 @@ class DirectoryEntry {
     this.phone,
   });
 
+  /// The person's address, name and campus key.
   final String email, name, campus;
+
+  /// The roles listed for the person.
   final List<ListedRole> roles;
+
+  /// The contact channels the person chose to show students.
   final String? shownEmail, whatsapp, phone;
 
   /// Roles still live at [now]; a lapsed one is never listed.
@@ -41,6 +60,26 @@ class DirectoryEntry {
     if (phone != null) 'Phone',
   ].join(', ');
 
+  /// JSON-safe, for `cacheFirst`: the document shape with expiries as millis.
+  Map<String, dynamic> toMap() => {
+    'name': name,
+    'campus': campus,
+    'roles': [
+      for (final r in roles)
+        {
+          'role': r.role.key,
+          'scope': r.scope,
+          if (r.programme != null) 'programme': r.programme,
+          'until': r.until.millisecondsSinceEpoch,
+          if (r.secretary) 'secretary': true,
+        },
+    ],
+    'email': shownEmail,
+    'whatsapp': whatsapp,
+    'phone': phone,
+  };
+
+  /// Reads the directory document of [email].
   static DirectoryEntry fromMap(String email, Map<String, dynamic> m) =>
       DirectoryEntry(
         email: email,
@@ -52,7 +91,9 @@ class DirectoryEntry {
               (
                 role: GrantRole.of(r['role'] as String),
                 scope: r['scope'] as String,
+                programme: r['programme'] as String?,
                 until: asDate(r['until']) ?? DateTime(1970),
+                secretary: r['secretary'] == true,
               ),
         ],
         shownEmail: m['email'] as String?,
@@ -66,8 +107,30 @@ class DirectoryEntry {
 List<ListedRole> listedRoles(MyRoles r) => [
   for (final g in r.grants)
     if (g.role != GrantRole.admin)
-      (role: g.role, scope: g.scope, until: g.expiresAt),
+      (
+        role: g.role,
+        scope: g.scope,
+        programme: g.programme,
+        until: g.expiresAt,
+        secretary: g.secretary,
+      ),
 ];
+
+/// The departments whose officers a student sees: those of the courses
+/// they take, and of their own degree programmes (codes like "A7", "B3").
+List<String> myDepartments(
+  Iterable<String> courses,
+  Iterable<String> degrees,
+) =>
+    {
+        // deptOf("BITS F412") is "BITS", the common-course prefix, not a
+        // department — drop anything that isn't a real one (BUG-34).
+        for (final c in courses)
+          if (departments.containsKey(deptOf(c))) deptOf(c),
+        for (final d in degrees)
+          if (departmentOfProgramme(d) case final x?) x,
+      }.toList()
+      ..sort();
 
 /// Whether RepProfile must be served first (fix 8): a privileged person
 /// without staff contacts, or a president or CR whose directory entry lacks
@@ -88,6 +151,7 @@ bool needsProfile(
           (d) =>
               d.role == w.role &&
               d.scope == w.scope &&
+              d.programme == w.programme &&
               d.until.millisecondsSinceEpoch == w.until.millisecondsSinceEpoch,
         ),
   );
@@ -105,12 +169,20 @@ class Volunteer {
     this.createdAt,
   });
 
+  /// The volunteer's address and name, and the offer's campus, course and
+  /// term.
   final String email, name, campus, courseId, term;
+
+  /// Whether the offer still stands.
   final bool open;
+
+  /// When the offer was made.
   final DateTime? createdAt;
 
+  /// The document id, see [volunteerId].
   String get id => volunteerId(campus, courseId, email);
 
+  /// Reads a volunteer document's data.
   static Volunteer fromMap(Map<String, dynamic> m) => Volunteer(
     email: m['email'] as String,
     name: m['name'] as String? ?? '',
@@ -120,16 +192,31 @@ class Volunteer {
     open: m['open'] as bool? ?? false,
     createdAt: asDate(m['createdAt']),
   );
+
+  /// JSON-safe, for `cacheFirst` (P1): `createdAt` as millis, not a Timestamp.
+  Map<String, dynamic> toMap() => {
+    'email': email,
+    'name': name,
+    'campus': campus,
+    'courseId': courseId,
+    'term': term,
+    'open': open,
+    'createdAt': createdAt?.millisecondsSinceEpoch,
+  };
 }
 
+/// The volunteer document id: `campus|courseId|email`.
 String volunteerId(String campus, String courseId, String email) =>
     '$campus|$courseId|$email';
 
-/// Reads and writes contact details and volunteer offers as [roles.me].
+/// Reads and writes contact details and volunteer offers as [RoleStore.me].
 class ContactStore {
   ContactStore(this.roles);
 
+  /// The store whose identity the reads and writes use.
   final RoleStore roles;
+
+  /// The Firestore instance of [roles].
   FirebaseFirestore get db => roles.db;
 
   DocumentReference<Map<String, dynamic>> _staffContact(String email) =>
@@ -137,21 +224,66 @@ class ContactStore {
   DocumentReference<Map<String, dynamic>> _directory(String email) =>
       db.collection('directory').doc(email);
 
-  /// The signed-in person's staff contact: name and phone.
-  Future<({String name, String phone})?> myStaffContact() async {
-    final m = (await _staffContact(roles.me).get()).data();
-    return m == null
-        ? null
-        : (
-          name: m['name'] as String? ?? '',
-          phone: m['phone'] as String? ?? '',
-        );
-  }
+  /// The campus whose head counts the signed-in person's contact: their own
+  /// for a student, goa's otherwise (the staffContacts rule).
+  String get _staffCampus =>
+      isStudentAddress(roles.me) ? campusOfAddress(roles.me)! : 'goa';
 
-  Future<DirectoryEntry?> myDirectory() async {
-    final m = (await _directory(roles.me).get()).data();
-    return m == null ? null : DirectoryEntry.fromMap(roles.me, m);
-  }
+  /// The staff marker of the signed-in person's contact.
+  Future<String?> _staffMarker() => markerOf(db, _staffCampus, Paths.staff);
+
+  /// The signed-in person's staff contact: name and phone.
+  Future<({String name, String phone})?> myStaffContact() async =>
+      cacheFirst<({String name, String phone})?>(
+        key: 'staffme|${roles.me}',
+        maxAge: repsMaxAge,
+        version: await _staffMarker(),
+        fetch: () async {
+          final m = (await _staffContact(roles.me).get()).data();
+          return m == null
+              ? null
+              : (
+                name: m['name'] as String? ?? '',
+                phone: m['phone'] as String? ?? '',
+              );
+        },
+        encode: (c) => c == null ? null : {'name': c.name, 'phone': c.phone},
+        decode: _decodeStaff,
+      );
+
+  static ({String name, String phone})? _decodeStaff(Object? o) =>
+      o == null
+          ? null
+          : (
+            name: (o as Map)['name'] as String,
+            phone: o['phone'] as String,
+          );
+
+  /// The saved [myStaffContact], read synchronously; null when none is saved.
+  ({String name, String phone})? peekMyStaffContact() =>
+      peekCache<({String name, String phone})?>('staffme|${roles.me}', _decodeStaff);
+
+  /// Reads the signed-in person's directory entry, or `null` if none.
+  Future<DirectoryEntry?> myDirectory() async => cacheFirst<DirectoryEntry?>(
+    key: 'dirme|${roles.me}',
+    maxAge: repsMaxAge,
+    version: await _staffMarker(),
+    fetch: () async {
+      final m = (await _directory(roles.me).get()).data();
+      return m == null ? null : DirectoryEntry.fromMap(roles.me, m);
+    },
+    encode: (e) => e?.toMap(),
+    decode: _decodeMine,
+  );
+
+  DirectoryEntry? _decodeMine(Object? o) =>
+      o == null
+          ? null
+          : DirectoryEntry.fromMap(roles.me, Map<String, dynamic>.from(o as Map));
+
+  /// The saved [myDirectory], read synchronously; null when none is saved.
+  DirectoryEntry? peekMyDirectory() =>
+      peekCache<DirectoryEntry?>('dirme|${roles.me}', _decodeMine);
 
   /// Whether RepProfile must come first for [r].
   Future<bool> profileDue(MyRoles r) async {
@@ -180,10 +312,12 @@ class ContactStore {
           'email': roles.me,
           'updatedAt': FieldValue.serverTimestamp(),
         });
+    // The rules count anyone but a student's contact on goa's head.
+    bumpPath(b, db, _staffCampus, Paths.staff);
     final listed = listedRoles(r);
     if (listed.isNotEmpty) {
       final wa = whatsapp?.trim();
-      b.set(_directory(roles.me), {
+      final entry = {
         'name': name.trim(),
         'campus': campusOfAddress(roles.me),
         'roles': [
@@ -191,58 +325,151 @@ class ContactStore {
             {
               'role': x.role.key,
               'scope': x.scope,
+              if (x.programme != null) 'programme': x.programme,
               'until': Timestamp.fromDate(x.until),
+              if (x.secretary) 'secretary': true,
             },
         ],
         if (showEmail) 'email': roles.me,
         if (wa != null && wa.isNotEmpty) 'whatsapp': wa,
         if (showPhone) 'phone': phone.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+      final campus = campusOfAddress(roles.me) ?? '';
+      b.set(_directory(roles.me), entry);
+      await roles.putRepCopy(b, campus, roles.me, entry);
     }
     await b.commit();
+    LiveHeads.poke(Paths.staff);
+    if (listed.isNotEmpty) LiveHeads.poke(Paths.reps);
+    await sharedCacheBox?.delete('reps|${campusOfAddress(roles.me) ?? ''}');
+    await forget('dirme|');
+    await forget('staffme|');
+    await forget('staffall');
   }
 
   /// Every staff phone number, by address: the roster shows them to other
   /// privileged roles (fix 8). Empty for anyone the rules keep out.
   Future<Map<String, String>> staffPhones() async {
     try {
-      final q = await db.collection('staffContacts').get();
-      return {
-        for (final d in q.docs)
-          if (d.data()['phone'] case final String p) d.id: p,
-      };
+      return await cacheFirst<Map<String, String>>(
+        key: 'staffall',
+        maxAge: repsMaxAge,
+        fetch: () async {
+          final q = await db.collection('staffContacts').get();
+          return {
+            for (final d in q.docs)
+              if (d.data()['phone'] case final String p) d.id: p,
+          };
+        },
+        encode: (m) => m,
+        decode: _decodePhones,
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') return const {};
       rethrow;
     }
   }
 
-  /// Every president and CR listed on [campus].
-  Future<List<DirectoryEntry>> directory(String campus) async {
-    final q =
-        await db
-            .collection('directory')
-            .where('campus', isEqualTo: campus)
-            .get();
-    return [for (final d in q.docs) DirectoryEntry.fromMap(d.id, d.data())];
+  static Map<String, String> _decodePhones(Object? o) => {
+    for (final e in (o as Map).entries) '${e.key}': '${e.value}',
+  };
+
+  /// The saved [staffPhones], read synchronously; null when none is saved.
+  Map<String, String>? peekStaffPhones() => peekCache('staffall', _decodePhones);
+
+  DocumentReference<Map<String, dynamic>> _repIndex(String campus) =>
+      db.collection('repIndex').doc(campus);
+
+  /// Every president and CR listed on [campus], from one doc
+  /// (`repIndex/{campus}`), cached 6 h; [fresh] reads it live.
+  // ponytail: one doc per campus caps near 3,000 listed people.
+  Future<List<DirectoryEntry>> directory(
+    String campus, {
+    bool fresh = false,
+  }) async {
+    Future<Map<String, dynamic>> fetch() async {
+      final d = await Perf.time(
+        'contacts.directory',
+        () => _repIndex(campus).get(),
+      );
+      return {
+        for (final e in ((d.data()?['p'] as Map?) ?? const {}).entries)
+          '${e.key}': _jsonSafe(e.value),
+      };
+    }
+
+    final m =
+        fresh
+            ? await fetch()
+            : await cacheFirst<Map<String, dynamic>>(
+              key: 'reps|$campus',
+              maxAge: repsMaxAge,
+              version: await markerOf(db, campus, Paths.reps),
+              fetch: fetch,
+              encode: (m) => m,
+              decode: (o) => Map<String, dynamic>.from(o as Map),
+            );
+    return _entries(m);
   }
+
+  static List<DirectoryEntry> _entries(Map<String, dynamic> m) => [
+    for (final e in m.entries)
+      DirectoryEntry.fromMap(e.key, Map<String, dynamic>.from(e.value)),
+  ];
+
+  /// The saved [directory], read synchronously; null when none is saved.
+  List<DirectoryEntry>? peekDirectory(String campus) => peekCache(
+    'reps|$campus',
+    (o) => _entries(Map<String, dynamic>.from(o as Map)),
+  );
+
+  /// Timestamps as millis, so the entry caches as JSON.
+  static Object? _jsonSafe(Object? v) => switch (v) {
+    Timestamp t => t.millisecondsSinceEpoch,
+    Map m => {for (final e in m.entries) '${e.key}': _jsonSafe(e.value)},
+    List l => [for (final x in l) _jsonSafe(x)],
+    _ => v,
+  };
 
   // ---- Volunteers (fix 16) -------------------------------------------------
 
   DocumentReference<Map<String, dynamic>> _offer(String id) =>
       db.collection('volunteers').doc(id);
 
+  // Budget: 1 read per course with no CR, per representatives_page.dart
+  // visit, until P2b's helper (P0). 24 h cache (P2): `volunteer`/`withdraw`
+  // invalidate their own campus.
+  /// Reads the signed-in person's volunteer offer for [courseId] on
+  /// [campus], or `null` if none.
   Future<Volunteer?> myOffer(String campus, String courseId) async {
     try {
-      final m =
-          (await _offer(volunteerId(campus, courseId, roles.me)).get()).data();
-      return m == null ? null : Volunteer.fromMap(m);
+      return await cacheFirst<Volunteer?>(
+        key: 'offer|$campus|$courseId|${roles.me}',
+        maxAge: offerMaxAge,
+        version: await markerOf(db, campus, Paths.volunteers(deptOf(courseId))),
+        fetch: () async {
+          final m =
+              (await Perf.time(
+                'contacts.myOffer',
+                () => _offer(volunteerId(campus, courseId, roles.me)).get(),
+              )).data();
+          return m == null ? null : Volunteer.fromMap(m);
+        },
+        encode: (v) => v?.toMap(),
+        decode: (v) => v == null ? null : Volunteer.fromMap((v as Map).cast()),
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') return null;
       rethrow;
     }
   }
+
+  /// The saved [myOffer], read synchronously; null when none is saved.
+  Volunteer? peekMyOffer(String campus, String courseId) => peekCache<Volunteer?>(
+    'offer|$campus|$courseId|${roles.me}',
+    (v) => v == null ? null : Volunteer.fromMap((v as Map).cast()),
+  );
 
   /// A student offers to be CR for [courseId] this term.
   Future<void> volunteer(
@@ -250,48 +477,95 @@ class ContactStore {
     String courseId, {
     required String name,
     required String term,
-  }) => _offer(volunteerId(campus, courseId, roles.me)).set({
-    'name': name,
-    'email': roles.me,
-    'campus': campus,
-    'courseId': courseId,
-    'dept': deptOf(courseId),
-    'term': term,
-    'open': true,
-    'createdAt': FieldValue.serverTimestamp(),
-  });
+  }) async {
+    final b = db.batch();
+    b.set(_offer(volunteerId(campus, courseId, roles.me)), {
+      'name': name,
+      'email': roles.me,
+      'campus': campus,
+      'courseId': courseId,
+      'dept': deptOf(courseId),
+      'term': term,
+      'open': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    bumpPath(b, db, campus, Paths.volunteers(deptOf(courseId)));
+    await b.commit();
+    LiveHeads.poke(Paths.volunteers(deptOf(courseId)));
+    await forget('offer|$campus|');
+    await forget('vol|');
+  }
 
   /// The student takes the offer back.
-  Future<void> withdraw(Volunteer v) => _offer(v.id).update({'open': false});
+  Future<void> withdraw(Volunteer v) async {
+    final b = db.batch();
+    b.update(_offer(v.id), {'open': false});
+    bumpPath(b, db, v.campus, Paths.volunteers(deptOf(v.courseId)));
+    await b.commit();
+    LiveHeads.poke(Paths.volunteers(deptOf(v.courseId)));
+    await forget('offer|${v.campus}|');
+    await forget('vol|');
+  }
 
   /// Open offers in [dept] on [campus] in [term], by course.
   Future<Map<String, List<Volunteer>>> offers(
     String campus,
     String dept, {
     required String term,
-  }) async {
-    final q =
-        await db
-            .collection('volunteers')
-            .where('campus', isEqualTo: campus)
-            .where('dept', isEqualTo: dept)
-            .where('open', isEqualTo: true)
-            .get();
-    final out = <String, List<Volunteer>>{};
-    for (final d in q.docs) {
-      final v = Volunteer.fromMap(d.data());
-      // Offers close when the term ends.
-      if (v.term == term) (out[v.courseId] ??= []).add(v);
-    }
-    for (final l in out.values) {
-      l.sort((a, b) => a.name.compareTo(b.name));
-    }
-    return out;
-  }
+  }) async => cacheFirst<Map<String, List<Volunteer>>>(
+    key: 'vol|$campus|$dept|$term',
+    maxAge: repsMaxAge,
+    version: await markerOf(db, campus, Paths.volunteers(dept)),
+    fetch: () async {
+      final q =
+          await db
+              .collection('volunteers')
+              .where('campus', isEqualTo: campus)
+              .where('dept', isEqualTo: dept)
+              .where('open', isEqualTo: true)
+              .get();
+      final out = <String, List<Volunteer>>{};
+      for (final d in q.docs) {
+        final v = Volunteer.fromMap(d.data());
+        // Offers close when the term ends.
+        if (v.term == term) (out[v.courseId] ??= []).add(v);
+      }
+      for (final l in out.values) {
+        l.sort((a, b) => a.name.compareTo(b.name));
+      }
+      return out;
+    },
+    encode:
+        (m) => {
+          for (final e in m.entries) e.key: [for (final v in e.value) v.toMap()],
+        },
+    decode: _decodeOffers,
+  );
+
+  static Map<String, List<Volunteer>> _decodeOffers(Object? o) => {
+    for (final e in (o as Map).entries)
+      '${e.key}': [
+        for (final v in e.value as List) Volunteer.fromMap((v as Map).cast()),
+      ],
+  };
+
+  /// The saved [offers], read synchronously; null when none is saved.
+  Map<String, List<Volunteer>>? peekOffers(
+    String campus,
+    String dept, {
+    required String term,
+  }) => peekCache('vol|$campus|$dept|$term', _decodeOffers);
 
   /// A president dismisses one offer.
-  Future<void> dismiss(Volunteer v) => _offer(v.id).update({
-    'open': false,
-    'closedBy': {'email': roles.me, 'name': roles.myName},
-  });
+  Future<void> dismiss(Volunteer v) async {
+    final b = db.batch();
+    b.update(_offer(v.id), {
+      'open': false,
+      'closedBy': {'email': roles.me, 'name': roles.myName},
+    });
+    bumpPath(b, db, v.campus, Paths.volunteers(deptOf(v.courseId)));
+    await b.commit();
+    LiveHeads.poke(Paths.volunteers(deptOf(v.courseId)));
+    await forget('vol|');
+  }
 }

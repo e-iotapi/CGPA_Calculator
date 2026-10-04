@@ -64,6 +64,45 @@ double? componentDelta(Evaluative e) {
   return parts.fold(0.0, (s, p) => s + (p.marks ?? 0)) - avg.value;
 }
 
+/// Shared field validation for the marks editor and the CR scheme editor
+/// (BUG-04, BUG-05): the same rule, checked in one place, so the two forms
+/// never disagree on what an "impossible value" is. Each returns the error
+/// text for the field, or null when the value is fine (a blank field is
+/// never an error here — "required" is each form's own business).
+
+/// A weight, out-of or course total: must be more than 0 once typed, never
+/// negative.
+String? positiveError(double? v) {
+  if (v == null) return null;
+  if (v < 0) return "Can't be negative.";
+  if (v == 0) return 'Must be more than 0.';
+  return null;
+}
+
+/// A weight or percentage capped at 100, on top of [positiveError].
+String? percentError(double? v) {
+  final base = positiveError(v);
+  if (base != null) return base;
+  return v != null && v > 100 ? "Can't be more than 100." : null;
+}
+
+/// A score or class average against its maximum: 0 ≤ [v] ≤ [outOf]. Silent
+/// when [outOf] itself isn't a valid maximum yet — that field carries its
+/// own error.
+String? boundedError(double? v, double? outOf) {
+  if (v == null) return null;
+  if (v < 0) return "Can't be negative.";
+  if (outOf != null && outOf > 0 && v > outOf) return 'More than the out of.';
+  return null;
+}
+
+/// A running total (weights assigned so far) against its cap — 100 for a
+/// weighted course, the course total otherwise.
+String? totalError(double assigned, double cap) =>
+    cap > 0 && assigned > cap
+        ? "Adds up to more than the course's total."
+        : null;
+
 /// "Quiz 1" → "Quiz 2", "Lab" → "Lab 2": the name for a copy.
 String nextName(String name) {
   final m = RegExp(r'^(.*?)(\d+)$').firstMatch(name.trim());
@@ -86,7 +125,10 @@ class MarksSummary {
   MarksSummary(this.evaluatives, CourseConfig? config)
     : config = config ?? CourseConfig(courseId: '');
 
+  /// The course's components.
   final List<Evaluative> evaluatives;
+
+  /// How the course is marked.
   final CourseConfig config;
 
   /// Σ contributions, in course units (percent when weighted).
@@ -98,8 +140,10 @@ class MarksSummary {
       .where((e) => contribution(e) != null)
       .fold(0.0, (s, e) => s + e.weight);
 
+  /// The sum of every component's weight.
   double get assignedWeight => evaluatives.fold(0.0, (s, e) => s + e.weight);
 
+  /// What the course is marked out of: 100 when weighted.
   double get courseTotal =>
       config.weighted
           ? 100
@@ -108,7 +152,10 @@ class MarksSummary {
   /// Display rescale; marks stay stored as entered.
   double get factor => courseTotal == 0 ? 1 : config.displayOutOf / courseTotal;
 
+  /// [secured] on the displayed scale.
   double get shownSecured => secured * factor;
+
+  /// [gradedWeight] on the displayed scale.
   double get shownGraded => gradedWeight * factor;
 
   /// Share of the course graded, 0–1.

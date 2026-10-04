@@ -1,7 +1,9 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:flutter/material.dart';
 
 /// A pushed, searchable list of programmes: code badge and full name. Pops
@@ -14,6 +16,7 @@ class ProgrammePickPage extends StatefulWidget {
     this.selected,
     this.trailing,
     this.note,
+    this.extras = const [],
   });
 
   /// "SECOND DEGREE · GOA".
@@ -21,11 +24,14 @@ class ProgrammePickPage extends StatefulWidget {
   final List<Programme> options;
   final String? selected;
 
-  /// Beside each row, e.g. "10 sem".
+  /// Beside each row, e.g. "4 sem listed": the semesters the catalogue has courses for.
   final String Function(Programme)? trailing;
 
   /// Under the list: what runs on another campus.
   final String? note;
+
+  /// Choices that are not programmes, as (code, label): "Other", "None".
+  final List<(String, String)> extras;
 
   @override
   State<ProgrammePickPage> createState() => _ProgrammePickPageState();
@@ -33,6 +39,15 @@ class ProgrammePickPage extends StatefulWidget {
 
 class _ProgrammePickPageState extends State<ProgrammePickPage> {
   var _query = '';
+
+  /// The list follows the search after a pause in typing (UI_OPT O5.2).
+  final _typed = Debouncer();
+
+  @override
+  void dispose() {
+    _typed.dispose();
+    super.dispose();
+  }
 
   List<Programme> get _shown {
     final q = _query.trim().toLowerCase();
@@ -97,10 +112,13 @@ class _ProgrammePickPageState extends State<ProgrammePickPage> {
                 ),
                 const SizedBox(height: Space.md),
                 TextField(
-                  onChanged: (v) => setState(() => _query = v),
+                  onChanged:
+                      (v) => _typed(() {
+                        if (mounted) setState(() => _query = v);
+                      }),
                   style: TypeScale.body.copyWith(fontSize: 13, color: p.text),
                   decoration: InputDecoration(
-                    hintText: 'Code or name — A7, mechanical…',
+                    hintText: 'Code or name',
                     hintStyle: TypeScale.body.copyWith(
                       fontSize: 13,
                       color: p.textMuted,
@@ -141,6 +159,23 @@ class _ProgrammePickPageState extends State<ProgrammePickPage> {
                             onTap: () => Navigator.pop(context, prog.code),
                           ),
                         ],
+                        if (_query.trim().isEmpty)
+                          for (final (code, label) in widget.extras) ...[
+                            Divider(
+                              height: 1,
+                              indent: 13,
+                              endIndent: 13,
+                              color: p.divider,
+                            ),
+                            CardRow(
+                              title: label,
+                              trailing:
+                                  code == widget.selected
+                                      ? Icon(Icons.check_rounded, color: p.text)
+                                      : const SizedBox.shrink(),
+                              onTap: () => Navigator.pop(context, code),
+                            ),
+                          ],
                         if (shown.isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(Space.lg),

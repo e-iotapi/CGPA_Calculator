@@ -17,8 +17,8 @@ const specialGrades = [
 
 /// The rule for the four codes above, in one line under them.
 const specialGradesNote =
-    'RC and W drop the credits from your CGPA. GD keeps them but not the '
-    'points.';
+    'RC and W drop the credits. GD keeps them for your degree but not your '
+    'CGPA.';
 
 /// What Ongoing does, where it is offered.
 const ongoingNote =
@@ -114,12 +114,18 @@ class GradeMenu extends StatelessWidget {
       return Semantics(
         button: true,
         selected: on,
+        label: 'Grade ${text ?? letter}',
         child: Material(
           color: on ? p.inverse : p.surfaceSunken,
           borderRadius: BorderRadius.circular(10),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: () => Navigator.pop(context, value),
+            // The selected grade again clears it, as the edit card says.
+            onTap:
+                () => Navigator.pop(
+                  context,
+                  on && value != GradeCode.clr ? GradeCode.clr : value,
+                ),
             child: Container(
               constraints: const BoxConstraints(minHeight: 32),
               alignment: Alignment.center,
@@ -161,74 +167,84 @@ class GradeMenu extends StatelessWidget {
     );
     Widget rule() => Container(height: 1, color: p.divider);
 
-    return Container(
-      width: 216 * scale,
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2E17170F),
-            blurRadius: 34,
-            offset: Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(11),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Text('CHANGE GRADE', style: small),
-              ),
-              const SizedBox(height: 9),
-              grid(letterGrades),
-              const SizedBox(height: 9),
-              rule(),
-              const SizedBox(height: 9),
-              grid([for (final (g, _) in specialGrades) g], quiet: true),
-              const SizedBox(height: 9),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Text(
-                  specialGradesNote,
-                  style: small.copyWith(
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0,
-                    height: 1.45,
+    // The open animation scales a cached layer instead of re-blurring the
+    // 34 px shadow each frame (UI_OPT O4.4).
+    return RepaintBoundary(
+      child: Container(
+        width: 216 * scale,
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(20),
+          // A shadow alone doesn't read on a dark ground (BUG-27); the
+          // existing outline token keeps the popup visible on both themes.
+          border: Border.all(color: p.outline),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x2E17170F),
+              blurRadius: 34,
+              offset: Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Text('CHANGE GRADE', style: small),
+                ),
+                const SizedBox(height: 9),
+                grid(letterGrades),
+                const SizedBox(height: 9),
+                rule(),
+                const SizedBox(height: 9),
+                grid([for (final (g, _) in specialGrades) g], quiet: true),
+                const SizedBox(height: 9),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Text(
+                    specialGradesNote,
+                    style: small.copyWith(
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0,
+                      height: 1.45,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 9),
-              rule(),
-              const SizedBox(height: 9),
-              Row(
-                children: [
-                  Expanded(child: pill('ONG', quiet: true, text: 'Ongoing')),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: pill('', quiet: true, text: 'Not graded yet'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 7),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Text(
-                  ongoingNote,
-                  style: small.copyWith(
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0,
-                    height: 1.45,
+                const SizedBox(height: 9),
+                rule(),
+                const SizedBox(height: 9),
+                Row(
+                  children: [
+                    Expanded(child: pill('ONG', quiet: true, text: 'Ongoing')),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Tooltip(
+                        message: 'Not graded yet',
+                        child: pill('', quiet: true, text: 'Not yet'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Text(
+                    ongoingNote,
+                    style: small.copyWith(
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0,
+                      height: 1.45,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

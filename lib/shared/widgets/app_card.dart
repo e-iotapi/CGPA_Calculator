@@ -13,6 +13,7 @@ class AppCard extends StatelessWidget {
     this.color,
     this.border,
     this.onTap,
+    this.clip,
   });
 
   final Widget child;
@@ -24,6 +25,12 @@ class AppCard extends StatelessWidget {
   final BorderSide? border;
   final VoidCallback? onTap;
 
+  /// Clip the content to the rounded corners, for content that reaches the
+  /// edge. By default only a card with no padding clips: its rows run edge
+  /// to edge and their press highlight must stay inside the corners. A
+  /// padded card doesn't, which saves a clip layer per card (UI_OPT O4.2).
+  final bool? clip;
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -34,7 +41,10 @@ class AppCard extends StatelessWidget {
     return Material(
       color: color ?? p.surface,
       shape: shape,
-      clipBehavior: Clip.antiAlias,
+      // The shape rounds the card and InkWell's customBorder clips its own
+      // splash; only edge-to-edge content needs the clip.
+      clipBehavior:
+          (clip ?? padding == EdgeInsets.zero) ? Clip.antiAlias : Clip.none,
       child: InkWell(
         onTap: onTap,
         customBorder: shape,

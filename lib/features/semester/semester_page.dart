@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -5,6 +6,7 @@ import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/widgets/course_row.dart';
 import 'package:cgpa_calculator/features/semester/widgets/semester_pills.dart';
 import 'package:cgpa_calculator/shared/layout/breakpoints.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
@@ -60,11 +62,11 @@ class SemesterView extends StatefulWidget {
   final void Function(Course course, int index) onCourseTap;
   final void Function(Course course, int grade) onGradePicked;
 
-  /// A grade set from a Compare column, for profile id [profile].
+  /// A grade set from a Compare column, for profile id `profile`.
   final void Function(Course course, int profile, int grade)?
   onCompareGradePicked;
 
-  /// Compare's [slot] (0 left, 1 right) now shows profile id [profile].
+  /// Compare's `slot` (0 left, 1 right) now shows profile id `profile`.
   final void Function(int slot, int profile)? onCompareChanged;
 
   /// The user held a pull-down at the top of the list.
@@ -102,6 +104,11 @@ class _SemesterViewState extends State<SemesterView> {
   }
 
   SemesterData get d => widget.data;
+
+  /// Marks [w] for the guided tour. Keys are per profile: the outgoing and
+  /// incoming pages of a profile switch are mounted together.
+  Widget _t(String id, Widget w) =>
+      KeyedSubtree(key: tourKey(id, d.mode.index + 1), child: w);
 
   bool get _single =>
       d.mode == SemesterMode.actual || d.mode == SemesterMode.expected;
@@ -143,7 +150,11 @@ class _SemesterViewState extends State<SemesterView> {
         builder: (context, c) {
           final wide = Breakpoints.of(c.maxWidth) != WindowSize.compact;
           return AnimatedSwitcher(
-            duration: Motion.slow,
+            // Reduced motion switches profile at once (UI.md §1.3 rule 2).
+            duration:
+                MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : Motion.slow,
             switchInCurve: Motion.curve,
             switchOutCurve: Motion.exitCurve,
             transitionBuilder:
@@ -157,12 +168,33 @@ class _SemesterViewState extends State<SemesterView> {
                     child: child,
                   ),
                 ),
+            // The outgoing page takes no taps. Both pages are wrapped the
+            // same way, keyed as the switcher keys them, so the outgoing
+            // one keeps its element (UI_OPT O3.4).
+            layoutBuilder:
+                (current, previous) => Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    for (final w in previous)
+                      IgnorePointer(key: w.key, child: w),
+                    if (current != null)
+                      IgnorePointer(
+                        key: current.key,
+                        ignoring: false,
+                        child: current,
+                      ),
+                  ],
+                ),
+            // Each page rasterises once; the fade and slide move two cached
+            // layers.
             child: KeyedSubtree(
               key: ValueKey(d.mode),
-              child:
-                  d.mode == SemesterMode.offshoot && widget.offshoot != null
-                      ? _offshootLayout()
-                      : _listLayout(wide),
+              child: RepaintBoundary(
+                child:
+                    d.mode == SemesterMode.offshoot && widget.offshoot != null
+                        ? _offshootLayout()
+                        : _listLayout(wide),
+              ),
             ),
           );
         },
@@ -225,44 +257,56 @@ class _SemesterViewState extends State<SemesterView> {
                 order.insert(to, order.removeAt(from));
                 widget.onReorder?.call(order);
               },
+              // Keyed by the Hive key, not the code: a dual degree holds two
+              // BITS F412 rows (UI_OPT O3.3).
               itemBuilder:
-                  (_, i) => Padding(
-                    key: ObjectKey(d.courses[i]),
-                    padding: EdgeInsets.only(
-                      bottom: i == d.courses.length - 1 ? 0 : 9,
-                    ),
-                    child: _draggable(
-                      i,
-                      CourseRow(
-                        course: d.courses[i],
-                        mode: d.mode,
-                        classDelta: widget.classDeltas[d.courses[i].id],
-                        onTap: () => widget.onCourseTap(d.courses[i], i),
-                        onGradePicked:
-                            (g) => widget.onGradePicked(d.courses[i], g),
-                        compared: d.compared,
-                        onCompareGradePicked:
-                            widget.onCompareGradePicked == null
-                                ? null
-                                : (profile, g) => widget.onCompareGradePicked!(
-                                  d.courses[i],
-                                  profile,
-                                  g,
-                                ),
+                  (_, i) => RepaintBoundary(
+                    key: rowKey(d.courses[i]),
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i == d.courses.length - 1 ? 0 : 9,
+                      ),
+                      child: _draggable(
+                        i,
+                        CourseRow(
+                          key: i == 0 ? tourKey('row', d.mode.index + 1) : null,
+                          chipKey:
+                              i == 0 ? tourKey('chip', d.mode.index + 1) : null,
+                          course: d.courses[i],
+                          mode: d.mode,
+                          classDelta: widget.classDeltas[d.courses[i].id],
+                          onTap: () => widget.onCourseTap(d.courses[i], i),
+                          onGradePicked:
+                              (g) => widget.onGradePicked(d.courses[i], g),
+                          compared: d.compared,
+                          onCompareGradePicked:
+                              widget.onCompareGradePicked == null
+                                  ? null
+                                  : (profile, g) =>
+                                      widget.onCompareGradePicked!(
+                                        d.courses[i],
+                                        profile,
+                                        g,
+                                      ),
+                        ),
                       ),
                     ),
                   ),
             ),
           ),
+          // Clears the floating nav pill.
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               Space.gutter,
               9,
               Space.gutter,
-              Space.xxl,
+              Space.xxl + MediaQuery.paddingOf(context).bottom,
             ),
             sliver: SliverToBoxAdapter(
-              child: _single ? _addCard() : const SizedBox.shrink(),
+              child:
+                  _single && d.courses.isEmpty
+                      ? _addCard()
+                      : const SizedBox.shrink(),
             ),
           ),
         ],
@@ -349,32 +393,44 @@ class _SemesterViewState extends State<SemesterView> {
           ),
         ),
         const SizedBox(width: Space.md),
-        CircleIconButton(
-          icon: Icons.calendar_today_outlined,
-          tooltip: 'Calendar',
-          onPressed: widget.onOpenCalendar,
-          size: btn,
+        _t(
+          'calendar',
+          CircleIconButton(
+            icon: Icons.calendar_today_outlined,
+            tooltip: 'Calendar',
+            onPressed: widget.onOpenCalendar,
+            size: btn,
+          ),
         ),
         const SizedBox(width: Space.sm),
-        CircleIconButton(
-          icon: Icons.insert_chart_outlined_rounded,
-          tooltip: 'Stats',
-          onPressed: widget.onOpenAnalytics,
-          size: btn,
+        _t(
+          'statsbtn',
+          CircleIconButton(
+            icon: Icons.show_chart_rounded,
+            tooltip: 'Stats',
+            onPressed: widget.onOpenAnalytics,
+            size: btn,
+          ),
         ),
         const SizedBox(width: Space.sm),
-        CircleIconButton(
-          icon: p.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-          tooltip: p.isDark ? 'Switch to light mode' : 'Switch to dark mode',
-          onPressed: widget.onToggleTheme,
-          size: btn,
+        ThemeReveal.warm(
+          CircleIconButton(
+            icon:
+                p.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+            tooltip: p.isDark ? 'Switch to light mode' : 'Switch to dark mode',
+            onPressed: widget.onToggleTheme,
+            size: btn,
+          ),
         ),
         const SizedBox(width: Space.sm),
-        CircleIconButton(
-          icon: Icons.settings_outlined,
-          tooltip: 'Settings',
-          onPressed: widget.onOpenSettings,
-          size: btn,
+        _t(
+          'settingsbtn',
+          CircleIconButton(
+            icon: Icons.settings_outlined,
+            tooltip: 'Settings',
+            onPressed: widget.onOpenSettings,
+            size: btn,
+          ),
         ),
       ],
     );
@@ -402,7 +458,9 @@ class _SemesterViewState extends State<SemesterView> {
     );
   }
 
-  Widget _stats(bool stacked) {
+  Widget _stats(bool stacked) => _t('summary', _statsBody(stacked));
+
+  Widget _statsBody(bool stacked) {
     final List<Widget> cards;
     if (d.mode == SemesterMode.compare) {
       StatCard card(int slot) {
@@ -511,13 +569,18 @@ class _SemesterViewState extends State<SemesterView> {
     }
   }
 
-  Widget _semesterPills() => SemesterPills(
-    semesters: d.semesters,
-    selected: d.sem,
-    onSelected: widget.onSemesterSelected,
+  Widget _semesterPills() => _t(
+    'pills',
+    SemesterPills(
+      semesters: d.semesters,
+      selected: d.sem,
+      onSelected: widget.onSemesterSelected,
+    ),
   );
 
-  Widget _sectionHeader() {
+  Widget _sectionHeader() => _t('section', _sectionHeaderBody());
+
+  Widget _sectionHeaderBody() {
     final p = AppPalette.of(context);
     final n = d.courses.length;
     final title = Expanded(
@@ -552,34 +615,68 @@ class _SemesterViewState extends State<SemesterView> {
       );
     }
 
-    return Row(
+    // The count and the pills share a line while they fit; on a narrow
+    // phone or at large text the pills drop below and wrap themselves.
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: Space.sm,
       children: [
-        title,
-        MenuAnchor(
-          menuChildren: [
-            for (final s in CourseSort.values)
-              MenuItemButton(
-                onPressed: () => widget.onSortSelected(s),
-                leadingIcon: Icon(
-                  s == d.sort ? Icons.check_rounded : null,
-                  size: 18,
-                ),
-                child: Text(s.label, style: TypeScale.button),
-              ),
-          ],
-          builder:
-              (_, menu, _) => PillButton(
-                label: d.sort.label,
-                icon: Icons.sort_rounded,
-                height: Sizes.pillSmall,
-                onPressed: () => menu.isOpen ? menu.close() : menu.open(),
-              ),
+        Text(
+          '$n course${n == 1 ? '' : 's'}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TypeScale.section.copyWith(color: p.text),
         ),
-        const SizedBox(width: Space.sm),
-        PillButton.icon(
-          icon: Icons.download_rounded,
-          semanticLabel: 'Export gradesheet',
-          onPressed: widget.onExport,
+        Wrap(
+          spacing: Space.sm,
+          runSpacing: Space.sm,
+          children: [
+            if (_single)
+              _t(
+                'add',
+                PillButton(
+                  label: 'Add',
+                  icon: Icons.add_rounded,
+                  selected: true,
+                  height: Sizes.pillSmall,
+                  padding: 13,
+                  onPressed: widget.onAddCourse,
+                ),
+              ),
+            _t(
+              'sort',
+              MenuAnchor(
+                menuChildren: [
+                  for (final s in CourseSort.values)
+                    MenuItemButton(
+                      onPressed: () => widget.onSortSelected(s),
+                      leadingIcon: Icon(
+                        s == d.sort ? Icons.check_rounded : null,
+                        size: 18,
+                      ),
+                      child: Text(s.label, style: TypeScale.button),
+                    ),
+                ],
+                builder:
+                    (_, menu, _) => PillButton(
+                      label: d.sort.label,
+                      icon: Icons.sort_rounded,
+                      height: Sizes.pillSmall,
+                      padding: 13,
+                      onPressed: () => menu.isOpen ? menu.close() : menu.open(),
+                    ),
+              ),
+            ),
+            _t(
+              'export',
+              PillButton.icon(
+                icon: Icons.download_rounded,
+                semanticLabel: 'Export gradesheet',
+                onPressed: widget.onExport,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -611,6 +708,8 @@ class _SemesterViewState extends State<SemesterView> {
             index: i,
             child: Tooltip(
               message: 'Drag to reorder',
+              // A long-press starts the drag; it must not open the tooltip.
+              triggerMode: TooltipTriggerMode.manual,
               child: SizedBox(
                 width: 22,
                 height: Sizes.minTouch,
@@ -643,7 +742,7 @@ class _SemesterViewState extends State<SemesterView> {
             child: Text(
               d.courses.isEmpty
                   ? 'No courses in ${d.sem} yet — add some'
-                  : 'Add courses',
+                  : 'Add a course',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TypeScale.body.copyWith(color: p.text),
@@ -654,3 +753,6 @@ class _SemesterViewState extends State<SemesterView> {
     );
   }
 }
+
+/// A course row's list key: its Hive key once saved, else the object.
+Key rowKey(Course c) => c.isInBox ? ValueKey(c.key) : ObjectKey(c);

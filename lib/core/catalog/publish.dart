@@ -3,7 +3,9 @@
 /// presses Publish, which writes the next `catalog/v{n}` and moves the marker.
 library;
 
+import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
@@ -20,14 +22,22 @@ class CourseEdit {
     this.elective,
   });
 
+  /// The course id.
   final String id;
+
+  /// The new title, if changed.
   final String? title;
+
+  /// The new credits, if changed.
   final double? credits;
+
+  /// Whether the course is retired, if changed.
   final bool? retired;
 
   /// The default elective tag on chart rows.
   final String? elective;
 
+  /// Serialises the edit, leaving out unchanged fields.
   Map<String, dynamic> toMap() => {
     'id': id,
     if (title != null) 'title': title,
@@ -36,6 +46,7 @@ class CourseEdit {
     if (elective != null) 'elective': elective,
   };
 
+  /// Reads an edit from its [toMap] form.
   static CourseEdit fromMap(Map m) => CourseEdit(
     id: m['id'] as String,
     title: m['title'] as String?,
@@ -97,7 +108,28 @@ Catalog applyEdits(Catalog live, Iterable<CourseEdit> edits) {
   );
 }
 
+final _codeShape = RegExp(r'^[A-Z]{2,6} [A-Z0-9]{3,6}$');
+
+/// Why a brand new course's draft can't be saved, or null when it is fine
+/// (BUG-48: negative credits and a made-up department went straight
+/// through). An existing course's code, department and credit range are
+/// already real, so only a new id is checked.
+String? newCourseError(String code, double credits, Catalog live) {
+  if (!_codeShape.hasMatch(code)) return 'Course codes look like "CS F211".';
+  final dept = code.split(' ').first;
+  if (!live.master.any((c) => c.id.split(' ').first == dept)) {
+    return '"$dept" is not a department Pointer knows.';
+  }
+  if (credits < 0.5 || credits > 25) {
+    return 'Credits must be between 0.5 and 25.';
+  }
+  return null;
+}
+
+/// A course whose credits move from `from` to `to`.
 typedef CreditChange = ({String id, String title, double from, double to});
+
+/// A course and a phrase saying what happens to it.
 typedef CourseLine = ({String id, String title, String what});
 
 /// What a publish changes, in the order the owner reads it (§11): credits
@@ -106,19 +138,31 @@ class CatalogDiff {
   const CatalogDiff({
     required this.credits,
     required this.retired,
+    required this.added,
     required this.cosmetic,
   });
 
+  /// Courses whose credits change.
   final List<CreditChange> credits;
+
+  /// Courses being retired.
   final List<CourseLine> retired;
 
-  /// Titles, default tags, new courses and restored ones.
+  /// Brand new course ids (BUG-48/52: not a cosmetic change).
+  final List<CourseLine> added;
+
+  /// Titles, default tags and restored ones.
   final List<CourseLine> cosmetic;
 
-  int get count => credits.length + retired.length + cosmetic.length;
+  /// The total number of changes.
+  int get count =>
+      credits.length + retired.length + added.length + cosmetic.length;
+
+  /// Whether nothing changes.
   bool get isEmpty => count == 0;
 }
 
+/// Lists what publishing [next] over [live] changes.
 CatalogDiff diffCatalog(Catalog live, Catalog next) {
   final a = {for (final m in live.master) m.id: m};
   final b = {for (final m in next.master) m.id: m};
@@ -129,11 +173,12 @@ CatalogDiff diffCatalog(Catalog live, Catalog next) {
     for (final c in [...next.chartOld, ...next.chartNew]) c.id: c.elective,
   };
   final credits = <CreditChange>[];
+  final added = <CourseLine>[];
   final cosmetic = <CourseLine>[];
   for (final m in b.values) {
     final old = a[m.id];
     if (old == null) {
-      cosmetic.add((id: m.id, title: m.title, what: 'New course'));
+      added.add((id: m.id, title: m.title, what: 'New course'));
       continue;
     }
     if (old.credits != m.credits) {
@@ -166,16 +211,24 @@ CatalogDiff diffCatalog(Catalog live, Catalog next) {
     cosmetic.add((id: id, title: b[id]?.title ?? id, what: 'Back on offer'));
   }
   credits.sort((x, y) => x.id.compareTo(y.id));
+  added.sort((x, y) => x.id.compareTo(y.id));
   cosmetic.sort((x, y) => x.id.compareTo(y.id));
-  return CatalogDiff(credits: credits, retired: retired, cosmetic: cosmetic);
+  return CatalogDiff(
+    credits: credits,
+    retired: retired,
+    added: added,
+    cosmetic: cosmetic,
+  );
 }
 
 /// `courses/{id}` drafts and the live bundle, for the owner's Publish page.
 class CatalogStore {
   CatalogStore(this.roles);
+  /// The store whose identity and audit log the writes use.
   final RoleStore roles;
   FirebaseFirestore get _db => roles.db;
 
+  /// Reads the draft edits, one query.
   Future<List<CourseEdit>> drafts() async {
     final q =
         await _db.collection('courses').where('draft', isEqualTo: true).get();
@@ -216,12 +269,14 @@ class CatalogStore {
       path: 'catalog/marker',
       summary:
           'Published catalogue v${next.version}: ${diff.credits.length} credit, '
-          '${diff.retired.length} retired, ${diff.cosmetic.length} other',
+          '${diff.retired.length} retired, ${diff.added.length} new, '
+          '${diff.cosmetic.length} other',
       campus: 'all',
       after: {
         'version': next.version,
         'credits': [for (final c in diff.credits) c.id],
         'retired': [for (final c in diff.retired) c.id],
+        'added': [for (final c in diff.added) c.id],
       },
     );
     b.set(_db.collection('catalog').doc('v${next.version}'), {
@@ -234,9 +289,19 @@ class CatalogStore {
       'schema': next.schema,
       'auditId': id,
     });
+    setOnAllHeads(b, _db, {
+      'catalog': next.version,
+      'catalogSchema': next.schema,
+    });
     for (final e in from) {
       b.update(_db.collection('courses').doc(e.id), {'draft': false});
     }
     await b.commit();
+    // The head cache (heads.dart) is stale-while-revalidate for up to 6h:
+    // on this device, the very next catalogue read — this owner's own
+    // "did it publish" check included — would otherwise still see the old
+    // version until that window passes (BUG-48).
+    await forget('head|');
+    skipWorkerUntil = DateTime.now().add(const Duration(minutes: 3));
   }
 }

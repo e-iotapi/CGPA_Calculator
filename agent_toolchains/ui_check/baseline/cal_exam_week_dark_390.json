@@ -1,0 +1,23 @@
+{
+ "errors": [],
+ "issues": [
+  "dead: button \"All day on Mon 12 Oct: Midsem exams\" has no tap action",
+  "dead: button \"All day on Mon 12 Oct: ZZZ F999 · Midsem\" has no tap action",
+  "dead: button \"All day on Tue 13 Oct: Midsem exams\" has no tap action",
+  "dead: button \"Intro Widgets Midsem, AAA F111, 9:30 AM …\" has no tap action",
+  "dead: button \"Intro Widgets, AAA F111, 11:00 AM – 12:0…\" has no tap action",
+  "dead: button \"Intro Widgets, AAA F111, F101, 9:00 AM –…\" has no tap action",
+  "overlap: \"Week of\" over \"3 AM\"",
+  "overlap: \"What is coming\" over \"1 AM\"",
+  "tap: \"+5 more all-day\" 97x19",
+  "tap: \"Add\" 60x42",
+  "tap: \"Back\" 40x40",
+  "tap: \"Day\" 115x38",
+  "tap: \"Month\" 115x38",
+  "tap: \"Next week\" 38x38",
+  "tap: \"Previous week\" 38x38",
+  "tap: \"Week\" 115x38",
+  "truncated: \"Intro Widgets Midsem\"",
+  "truncated: \"Intro Widgets\""
+ ]
+}

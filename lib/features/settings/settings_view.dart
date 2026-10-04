@@ -1,7 +1,10 @@
+import 'package:cgpa_calculator/app/theme/circle_reveal.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/features/settings/settings_controller.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
+import 'package:cgpa_calculator/shared/short_email.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:flutter/material.dart';
 
 /// Settings, board `Settings`. Stateless: the page owns every action.
@@ -20,7 +23,6 @@ class SettingsView extends StatelessWidget {
     required this.onTheme,
     required this.onRenameProfile,
     required this.onExport,
-    required this.onImportBackup,
     required this.onImportOld,
     this.onImportErp,
     required this.onReport,
@@ -32,9 +34,13 @@ class SettingsView extends StatelessWidget {
     this.onGithub,
     this.workingAs,
     this.onWorkingAs,
+    this.onContribute,
     this.contactSummary,
     this.onContact,
     this.onControls,
+    this.showOffshoot = true,
+    this.onShowOffshoot,
+    this.onReplayTour,
   });
 
   final String name;
@@ -62,7 +68,6 @@ class SettingsView extends StatelessWidget {
   /// 1 or 2.
   final ValueChanged<int> onRenameProfile;
   final VoidCallback onExport;
-  final VoidCallback onImportBackup;
   final VoidCallback onImportOld;
 
   /// Imports grades from the ERP performance sheet PDF; web only.
@@ -85,12 +90,22 @@ class SettingsView extends StatelessWidget {
   final String? workingAs;
   final VoidCallback? onWorkingAs;
 
+  /// "Become a contributor": null while applied or approved.
+  final VoidCallback? onContribute;
+
   /// "Email, WhatsApp": what RepProfile holds.
   final String? contactSummary;
   final VoidCallback? onContact;
 
   /// Owners and admins: the /admin controls.
   final VoidCallback? onControls;
+
+  /// The "Show Offshoot tab" switch (B1 pref); null hides the row.
+  final bool showOffshoot;
+  final ValueChanged<bool>? onShowOffshoot;
+
+  /// "Replay the tour" (U8): null for roles and owners, who never get it.
+  final VoidCallback? onReplayTour;
 
   @override
   Widget build(BuildContext context) {
@@ -107,23 +122,26 @@ class SettingsView extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(18, Space.lg, 18, Space.xxl),
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Semantics(
-                        header: true,
-                        child: Text(
-                          'Settings',
-                          style: TypeScale.title.copyWith(color: p.text),
+                KeyedSubtree(
+                  key: tourKey('page.settings'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          header: true,
+                          child: Text(
+                            'Settings',
+                            style: TypeScale.title.copyWith(color: p.text),
+                          ),
                         ),
                       ),
-                    ),
-                    CircleIconButton(
-                      icon: Icons.close_rounded,
-                      tooltip: 'Close',
-                      onPressed: onClose,
-                    ),
-                  ],
+                      CircleIconButton(
+                        icon: Icons.close_rounded,
+                        tooltip: 'Close',
+                        onPressed: onClose,
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: Space.md),
                 _account(p),
@@ -157,27 +175,28 @@ class SettingsView extends StatelessWidget {
                 _Group([
                   _Item(
                     label: 'Discipline',
-                    value: disciplineLabel(second, dual: false),
+                    value: shortProgrammeLabel(second),
+                    valueTooltip: disciplineLabel(second, dual: false),
                     strong: true,
                     onTap: () => onPickDiscipline(false),
                   ),
                   _Item(
                     label: 'Dual degree',
-                    value: disciplineLabel(first, dual: true),
+                    value: shortProgrammeLabel(first),
+                    valueTooltip: disciplineLabel(first, dual: true),
                     strong: true,
                     onTap: () => onPickDiscipline(true),
                   ),
+                  _Item(label: 'Campus', value: campus ?? 'Not set'),
                   _Item(
                     label: 'Batch',
                     value: '20${batch.toString().padLeft(2, '0')}',
                   ),
-                  _Item(label: 'Campus', value: campus ?? 'Not set'),
                 ]),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, Space.xs, 4, 0),
                   child: Text(
-                    'Changing a discipline reloads the course list and clears '
-                    'grades.',
+                    'Changing the first discipline clears your grades.',
                     style: TypeScale.caption.copyWith(
                       fontSize: 10.5,
                       color: p.behind,
@@ -185,51 +204,101 @@ class SettingsView extends StatelessWidget {
                   ),
                 ),
                 _SectionLabel('APPEARANCE'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _Choice(
-                        icon: Icons.light_mode_outlined,
-                        label: 'Light',
-                        on: !isDark,
-                        onTap: () => onTheme(false),
+                KeyedSubtree(
+                  key: tourKey('set.appearance'),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _warmIf(
+                              isDark,
+                              _Choice(
+                                icon: Icons.light_mode_outlined,
+                                label: 'Light',
+                                on: !isDark,
+                                onTap: () => onTheme(false),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: Space.sm),
+                          Expanded(
+                            child: _warmIf(
+                              !isDark,
+                              _Choice(
+                                icon: Icons.dark_mode_outlined,
+                                label: 'Dark',
+                                on: isDark,
+                                onTap: () => onTheme(true),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: Space.sm),
-                    Expanded(
-                      child: _Choice(
-                        icon: Icons.dark_mode_outlined,
-                        label: 'Dark',
-                        on: isDark,
-                        onTap: () => onTheme(true),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 _SectionLabel('GRADE PROFILES'),
-                _Group([
-                  for (final (i, name) in profiles.indexed)
-                    _Item(
-                      swatch: switch (i) {
-                        0 => p.hero,
-                        1 => p.gradeTone('B-').fill,
-                        _ => p.outline,
-                      },
-                      label: i < 2 ? 'Profile ${i + 1}' : 'Compare only',
-                      value: name,
-                      strong: true,
-                      onTap: () => onRenameProfile(i + 1),
-                    ),
-                ]),
-                if (onInstall != null) ...[
+                KeyedSubtree(
+                  key: tourKey('set.profiles'),
+                  child: _Group([
+                    for (final (i, name) in profiles.indexed)
+                      _Item(
+                        swatch: switch (i) {
+                          0 => p.hero,
+                          1 => p.gradeTone('B-').fill,
+                          _ => p.outline,
+                        },
+                        label: i < 2 ? 'Profile ${i + 1}' : 'Compare only',
+                        value: name,
+                        strong: true,
+                        onTap: () => onRenameProfile(i + 1),
+                      ),
+                  ]),
+                ),
+                // Board FlS_Settings: one APP card.
+                if (onInstall != null ||
+                    onReplayTour != null ||
+                    onShowOffshoot != null ||
+                    onContribute != null) ...[
                   _SectionLabel('APP'),
                   _Group([
-                    _Item(
-                      icon: Icons.install_mobile_rounded,
-                      label: 'Install app',
-                      value: installed ? 'Installed' : 'Home screen',
-                      onTap: onInstall!,
-                    ),
+                    if (onInstall != null)
+                      KeyedSubtree(
+                        key: tourKey('set.install'),
+                        child: _Item(
+                          icon: Icons.install_mobile_rounded,
+                          label: 'Install app',
+                          value: installed ? 'Installed' : 'Home screen',
+                          onTap: onInstall!,
+                        ),
+                      ),
+                    if (onShowOffshoot != null)
+                      _SwitchItem(
+                        icon: Icons.visibility_outlined,
+                        label: 'Show Offshoot tab',
+                        subtitle: 'On by default. Off puts More in its place.',
+                        value: showOffshoot,
+                        onChanged: onShowOffshoot!,
+                      ),
+                    if (onReplayTour != null)
+                      KeyedSubtree(
+                        key: tourKey('set.replay'),
+                        child: _Item(
+                          icon: Icons.play_circle_outline_rounded,
+                          label: 'Replay the tour',
+                          subtitle: 'Whole tour or one chapter',
+                          onTap: onReplayTour!,
+                        ),
+                      ),
+                    if (onContribute != null)
+                      _Item(
+                        icon: Icons.add_rounded,
+                        label: 'Become a contributor',
+                        subtitle:
+                            'Add links for any course. Hidden once applied.',
+                        onTap: onContribute!,
+                      ),
                   ]),
                 ],
                 _SectionLabel('YOUR DATA'),
@@ -241,20 +310,16 @@ class SettingsView extends StatelessWidget {
                     chevron: false,
                     onTap: onExport,
                   ),
-                  _Item(
-                    icon: Icons.upload_rounded,
-                    label: 'Import backup',
-                    value: '.json',
-                    chevron: false,
-                    onTap: onImportBackup,
-                  ),
                   if (onImportErp != null)
-                    _Item(
-                      icon: Icons.school_outlined,
-                      label: 'Import grades from ERP',
-                      value: '.pdf',
-                      chevron: false,
-                      onTap: onImportErp!,
+                    KeyedSubtree(
+                      key: tourKey('set.erp'),
+                      child: _Item(
+                        icon: Icons.school_outlined,
+                        label: 'Import grades from ERP',
+                        value: '.pdf',
+                        chevron: false,
+                        onTap: onImportErp!,
+                      ),
                     ),
                   _Item(
                     icon: Icons.content_paste_rounded,
@@ -302,11 +367,25 @@ class SettingsView extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: Space.sm),
-                  child: Text(
-                    'Pointer by Siddharth Mishra',
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Built By Siddharth Mishra',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: p.text,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: ' · your grades stay private to your account',
+                        ),
+                      ],
+                    ),
                     textAlign: TextAlign.center,
                     style: TypeScale.caption.copyWith(
                       fontSize: 10,
+                      height: 1.5,
                       color: p.textMuted,
                     ),
                   ),
@@ -363,7 +442,7 @@ class SettingsView extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  email,
+                  shortEmail(email),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TypeScale.caption.copyWith(color: p.onHeroMuted),
@@ -453,19 +532,109 @@ class _Group extends StatelessWidget {
   }
 }
 
+/// A row with a switch; the whole row toggles it.
+class _SwitchItem extends StatelessWidget {
+  const _SwitchItem({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.subtitle,
+    this.icon,
+  });
+
+  final String label;
+  final String? subtitle;
+  final IconData? icon;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return MergeSemantics(
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: Sizes.minTouch),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: p.text),
+                  const SizedBox(width: 11),
+                ],
+                Expanded(
+                  child: _Subtitled(
+                    subtitle,
+                    Text(
+                      label,
+                      style: TypeScale.body.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: p.text,
+                      ),
+                    ),
+                  ),
+                ),
+                Switch(value: value, onChanged: onChanged),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// [child] with a muted line under it, when there is one (Settings board).
+class _Subtitled extends StatelessWidget {
+  const _Subtitled(this.subtitle, this.child);
+  final String? subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = subtitle;
+    if (s == null) return child;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        child,
+        const SizedBox(height: 2),
+        Text(
+          s,
+          style: TypeScale.caption.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: AppPalette.of(context).textMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _Item extends StatelessWidget {
   const _Item({
     required this.label,
     this.onTap,
     this.value,
+    this.valueTooltip,
     this.strong = false,
     this.icon,
     this.swatch,
     this.chevron = true,
+    this.subtitle,
   });
 
   final String label;
+  final String? subtitle;
   final String? value;
+
+  /// The full text, when [value] is shortened (e.g. the discipline code).
+  final String? valueTooltip;
 
   /// Accent the value, for the settings that define the degree.
   final bool strong;
@@ -501,32 +670,16 @@ class _Item extends StatelessWidget {
               const SizedBox(width: 10),
             ],
             Expanded(
-              child: Text(
-                label,
-                style: TypeScale.body.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: p.text,
+              child: _Subtitled(
+                subtitle,
+                _LabelValue(
+                  label: label,
+                  value: value,
+                  valueTooltip: valueTooltip,
+                  strong: strong,
                 ),
               ),
             ),
-            if (value case final v?) ...[
-              const SizedBox(width: Space.sm),
-              // Capped rather than flexed, so it sits at the right edge.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 150),
-                child: Text(
-                  v,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TypeScale.caption.copyWith(
-                    fontSize: 12.5,
-                    fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
-                    color: strong ? p.accent : p.textMuted,
-                  ),
-                ),
-              ),
-            ],
             if (chevron && onTap != null) ...[
               const SizedBox(width: Space.xs),
               Icon(Icons.chevron_right_rounded, size: 18, color: p.textMuted),
@@ -613,3 +766,85 @@ class _Choice extends StatelessWidget {
     );
   }
 }
+
+/// A settings label and its value on one line. The label keeps its natural
+/// width (up to 60% of the row) so a word like "Discipline" never breaks
+/// mid-word; the value takes the rest, right-aligned, and ellipsizes.
+class _LabelValue extends StatelessWidget {
+  const _LabelValue({
+    required this.label,
+    this.value,
+    this.valueTooltip,
+    this.strong = false,
+  });
+
+  final String label;
+  final String? value;
+
+  /// The full text, when [value] is shortened (e.g. the discipline code).
+  final String? valueTooltip;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final labelStyle = TypeScale.body.copyWith(
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: p.text,
+    );
+    final v = value;
+    if (v == null) return Text(label, style: labelStyle);
+    return LayoutBuilder(
+      builder: (context, c) {
+        final painter = TextPainter(
+          // Merged as Text merges it, or the measure misses the theme's
+          // letter spacing.
+          text: TextSpan(
+            text: label,
+            style: DefaultTextStyle.of(context).style.merge(labelStyle),
+          ),
+          maxLines: 1,
+          textScaler: MediaQuery.textScalerOf(context),
+          textDirection: Directionality.of(context),
+        )..layout();
+        final natural = painter.width + 1;
+        painter.dispose();
+        return Row(
+          children: [
+            SizedBox(
+              width: natural.clamp(0, c.maxWidth * 0.6).toDouble(),
+              child: Text(label, style: labelStyle),
+            ),
+            const SizedBox(width: Space.sm),
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  final text = Text(
+                    v,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    semanticsLabel: valueTooltip ?? v,
+                    style: TypeScale.caption.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
+                      color: strong ? p.accent : p.textMuted,
+                    ),
+                  );
+                  return valueTooltip == null
+                      ? text
+                      : Tooltip(message: valueTooltip, child: text);
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Only the choice that would switch the theme captures ahead of the click.
+Widget _warmIf(bool switches, Widget child) =>
+    switches ? ThemeReveal.warm(child) : child;

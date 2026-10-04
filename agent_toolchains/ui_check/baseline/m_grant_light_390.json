@@ -1,0 +1,17 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"A3\" 77x36",
+  "tap: \"A8\" 77x36",
+  "tap: \"AA\" 77x36",
+  "tap: \"AC\" 77x36",
+  "tap: \"Admin\" 73x36",
+  "tap: \"Back\" 42x42",
+  "tap: \"CR\" 47x36",
+  "tap: \"Earlier date\" 105x36",
+  "tap: \"Electives\" 88x36",
+  "tap: \"Full term · 1 year\" 139x36",
+  "tap: \"President\" 94x36",
+  "tap: \"Secretary\" 91x36"
+ ]
+}

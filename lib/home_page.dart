@@ -18,7 +18,7 @@ import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
 import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -26,12 +26,33 @@ import 'package:cgpa_calculator/core/models/semesters.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/semester/semester_controller.dart';
 import 'package:cgpa_calculator/features/semester/semester_page.dart';
+import 'package:cgpa_calculator/features/semester/home_persist.dart';
+import 'package:cgpa_calculator/features/semester/widgets/copy_profile_button.dart';
 import 'package:cgpa_calculator/features/semester/add_course_sheet.dart';
 import 'package:cgpa_calculator/features/semester/edit_course_sheet.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/layout/responsive.dart';
 import 'package:cgpa_calculator/shared/widgets/app_nav.dart';
+import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
+import 'package:cgpa_calculator/features/tour/tour.dart';
+import 'package:cgpa_calculator/shared/tour_key.dart';
 
+/// Nav ids in display order: 1..4 are the profiles (Actual, Expected,
+/// Compare, Offshoot), 0 is More. Hiding Offshoot drops id 4 only, so
+/// [selectedprofile] and More keep their meaning (U3).
+@visibleForTesting
+List<int> homeNavIds(bool offshoot) => [1, 2, 3, if (offshoot) 4, 0];
+
+/// The profile a swipe by [delta] lands on, or null at either end. A hidden
+/// Offshoot is not the end of the line: the line is one shorter.
+@visibleForTesting
+int? homeNextProfile(int current, int delta, bool offshoot) {
+  final next = current + delta;
+  return next < 1 || next > (offshoot ? 4 : 3) ? null : next;
+}
+
+/// The home screen: the course list, SGPA and CGPA.
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
   final String title;
@@ -41,34 +62,111 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  bool _showFab = true;
-
+  // Same discipline filter the GPA tallies use (core/grading/cgpa.dart), so
+  // the visible list and SGPA/CGPA never disagree on which courses count
+  // (BUG-40: a catalogue open elective with discipline "--" used to match
+  // this getter's own hand-rolled check only when "--" was the *second*
+  // half of selecteddiscipline, while cgpa.dart's inDiscipline checked both
+  // halves unconditionally — so a "--" course was hidden from the list but
+  // still counted in SGPA/CGPA whenever "--" was the first half).
   List<Course> get items =>
       Hive.box<Course>('coursesBox').values
           .where(
             (course) =>
                 course.sem == currentsem &&
-                (course.discipline ==
-                        ((selecteddiscipline.substring(0, 2) != "--")
-                            ? selecteddiscipline.substring(0, 2)
-                            : selecteddiscipline.substring(2, 4)) ||
-                    course.discipline ==
-                        ((selecteddiscipline.substring(0, 2) != "--")
-                            ? selecteddiscipline.substring(2, 4)
-                            : "ccccc")),
+                inDiscipline(course, selecteddiscipline),
           )
           .toList();
 
   bool _isrightswipe = true;
-  void setfab() {
-    _showFab = true;
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _showFab = false);
-      } else {
-        _showFab = false;
+
+  /// The copy button's height and the gap above it, kept clear under the
+  /// course list on Expected.
+  static const double _copyButtonRoom = 72;
+
+  @override
+  void initState() {
+    super.initState();
+    setnavcolor();
+    offshootHiddenNow.addListener(_offshootChanged);
+    // A saved Offshoot profile from before it was hidden (or from another
+    // device): land on Actual instead of an unhighlighted nav.
+    if (selectedprofile == 4 && offshootHiddenNow.value) selectedprofile = 1;
+    // The guided tour: first sign-in after setup, and its profile switches.
+    tourSelectProfile = _tourSelectProfile;
+    maybeStartFirstTour();
+  }
+
+  /// The tour looks at a profile without saving the choice.
+  void _tourSelectProfile(int id) {
+    if (!mounted) return;
+    setState(() {
+      _isrightswipe = id > selectedprofile;
+      selectedprofile = id;
+    });
+  }
+
+  @override
+  void dispose() {
+    offshootHiddenNow.removeListener(_offshootChanged);
+    if (tourSelectProfile == _tourSelectProfile) tourSelectProfile = null;
+    super.dispose();
+  }
+
+  /// The Show Offshoot tab switch (Settings) or a pull changed. Only Home
+  /// rebuilds, and only for this.
+  void _offshootChanged() {
+    if (!mounted) return;
+    setState(() {
+      if (selectedprofile == 4 && offshootHiddenNow.value) {
+        selectedprofile = 1;
+        _persist(HomeChange.profile);
       }
     });
+  }
+
+  List<int> get _navIds => homeNavIds(!offshootHiddenNow.value);
+
+  NavDestination _navDestination(int id) => switch (id) {
+    1 => NavDestination(
+      icon: Icons.home_outlined,
+      label: profile1n,
+      tourId: 'nav.1',
+    ),
+    2 => NavDestination(
+      icon: Icons.bar_chart_rounded,
+      label: profile2n,
+      tourId: 'nav.2',
+    ),
+    3 => const NavDestination(
+      icon: Icons.open_in_full_rounded,
+      label: 'Compare',
+      tourId: 'nav.3',
+    ),
+    4 => const NavDestination(
+      icon: Icons.workspace_premium_outlined,
+      label: 'Offshoot',
+      tourId: 'nav.4',
+    ),
+    _ => const NavDestination(
+      icon: Icons.more_horiz_rounded,
+      label: 'More',
+      tourId: 'nav.0',
+    ),
+  };
+
+  /// Saves what [c] changed. Build saves nothing (UI_OPT O3.1).
+  void _persist(HomeChange c) {
+    for (final w in writesFor(c)) {
+      switch (w) {
+        case HomeWrite.sem:
+          setsem();
+        case HomeWrite.sort:
+          setsort();
+        case HomeWrite.profile:
+          setprof();
+      }
+    }
   }
 
   @override
@@ -77,154 +175,90 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!degree_selected) {
       return DegreeSetupPage(
         email: FirebaseAuth.instance.currentUser?.email,
-        onDone: () => setState(() => degree_selected = true),
+        onDone: () {
+          setState(() => degree_selected = true);
+          maybeStartFirstTour();
+        },
       );
     }
     List<Course> sitems = items.toList();
     sort(sitems, currentsort);
-    setdis();
-    setsort();
-    setsem();
-    setprof();
-    settheme();
-    setnavcolor();
     sgpa = sgcalc(currentsem);
     cgpa = cgcalc();
     creditTotals();
-    // The current palette is re-injected on every build: settings change the
-    // `thm` global and setState here, but MyApp above never rebuilds.
-    return Theme(
-      data: Theme.of(context).copyWith(extensions: [thm]),
-      child: PopScope(
-        canPop: false,
-        child: ResponsiveScaffold(
-          selectedIndex: selectedprofile - 1,
-          onSelected: (index) {
-            // More is a hub above the profiles, not a fifth profile.
-            if (index == 4) {
-              openRoute(context, Routes.more, () => const MorePage());
-              return;
+    // No Theme of its own: the app theme already carries the palette and is
+    // rebuilt on every switch. A copy cached here stopped listening once the
+    // Working-as strip moved the page, and the theme stopped switching.
+    return PopScope(
+      canPop: false,
+      child: ResponsiveScaffold(
+        selectedIndex: _navIds.indexOf(selectedprofile),
+        onSelected: (index) {
+          final id = _navIds[index];
+          // More is a hub above the profiles, not a fifth profile.
+          if (id == 0) {
+            openRoute(context, Routes.more, () => const MorePage());
+            return;
+          }
+          setState(() {
+            _isrightswipe = id > selectedprofile;
+            selectedprofile = id;
+          });
+          _persist(HomeChange.profile);
+        },
+        destinations: [for (final id in _navIds) _navDestination(id)],
+        body: LayoutBuilder(
+          builder: (context, c) {
+            // The legacy screens below size and centre themselves off
+            // MediaQuery's width, assuming they fill the window. Beside the
+            // rail they do not, so they are shown the body's width instead.
+            // Height is left alone until the MediaQuery × n sizing goes.
+            // Size only: a keyboard opening in a sheet re-runs _Resized
+            // below, not this builder (UI_OPT O3.2).
+            var wid = c.maxWidth;
+            final hei = MediaQuery.sizeOf(context).height;
+            if (kIsWeb && hei < wid) {
+              // Landscape browser: keep the phone layout readable.
+              wid = wid.clamp(0, 600).toDouble();
             }
-            setState(() {
-              if (index + 1 > selectedprofile) {
-                _isrightswipe = true;
-              } else {
-                _isrightswipe = false;
-              }
-              selectedprofile = index + 1;
-              if (selectedprofile == 2) {
-                _showFab = true;
-                setfab();
-              }
-            });
+            return _Resized(
+              size: Size(c.maxWidth, hei),
+              // Expected keeps the copy button up; the list scrolls clear
+              // of it.
+              extraBottom: selectedprofile == 2 ? _copyButtonRoom : 0,
+              child: _semesterView(sitems, wid, hei),
+            );
           },
-          destinations: [
-            NavDestination(icon: Icons.home_outlined, label: profile1n),
-            NavDestination(icon: Icons.bar_chart_rounded, label: profile2n),
-            const NavDestination(
-              icon: Icons.compare_arrows_rounded,
-              label: 'Compare',
-            ),
-            const NavDestination(
-              icon: Icons.workspace_premium_outlined,
-              label: 'Offshoot',
-            ),
-            const NavDestination(icon: Icons.more_horiz_rounded, label: 'More'),
-          ],
-          body: LayoutBuilder(
-            builder: (context, c) {
-              // The legacy screens below size and centre themselves off
-              // MediaQuery's width, assuming they fill the window. Beside the
-              // rail they do not, so they are shown the body's width instead.
-              // Height is left alone until the MediaQuery × n sizing goes.
-              final mq = MediaQuery.of(context);
-              var wid = c.maxWidth;
-              final hei = mq.size.height;
-              if (kIsWeb && hei < wid) {
-                // Landscape browser: keep the phone layout readable.
-                wid = wid.clamp(0, 600).toDouble();
-              }
-              return MediaQuery(
-                data: mq.copyWith(size: Size(c.maxWidth, hei)),
-                child: _semesterView(sitems, wid, hei),
-              );
-            },
-          ),
-          floatingActionButton: AnimatedSwitcher(
-            duration: Duration(milliseconds: 100),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) {
-              final tween = Tween<Offset>(
-                begin: const Offset(0, 0.3),
-                end: Offset.zero,
-              ).chain(CurveTween(curve: Curves.easeOut));
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
-            child:
-                (selectedprofile == 2 && _showFab)
-                    ? FloatingActionButton(
-                      key: const ValueKey("Button"),
-                      elevation: 10,
-                      backgroundColor:
-                          (selected_theme == "Black" ||
-                                  selected_theme == "Blue")
-                              ? thm.sepcolor
-                              : thm.backcolor,
-                      onPressed: () async {
-                        final ok = await showDialog<bool>(
-                          context: context,
-                          builder:
-                              (ctx) => AlertDialog(
-                                backgroundColor: thm.backcolor,
-                                title: Text(
-                                  'Import from $profile1n?',
-                                  style: TextStyle(
-                                    color: thm.textcolor,
-                                    fontFamily: 'Montserrat',
-                                  ),
-                                ),
-                                content: Text(
-                                  'Every $profile1n grade, in all semesters, will '
-                                  'be copied over your $profile2n grades. '
-                                  'This cannot be undone.',
-                                  style: TextStyle(
-                                    color: thm.textcolor,
-                                    fontSize: 14,
-                                    fontFamily: 'Montserrat',
-                                  ),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed:
-                                        () => Navigator.of(ctx).pop(false),
-                                    child: Text(
-                                      'Cancel',
-                                      style: TextStyle(color: thm.textcolor),
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed:
-                                        () => Navigator.of(ctx).pop(true),
-                                    child: Text(
-                                      'Import',
-                                      style: TextStyle(color: thm.highcolor),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                        );
-                        if (ok != true) return;
-                        await copyGrades();
-                        setState(() {});
-                      },
-                      child: Icon(Icons.copy, color: thm.textcolor),
-                    )
-                    : SizedBox.shrink(),
-          ),
+        ),
+        floatingActionButton: KeyedSubtree(
+          key: tourKey('copy'),
+          child: AnimatedSwitcher(
+          duration: Duration(milliseconds: 100),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) {
+            final tween = Tween<Offset>(
+              begin: const Offset(0, 0.3),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeOut));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          child:
+              selectedprofile == 2
+                  ? CopyProfileButton(
+                    key: const ValueKey("Button"),
+                    from: profile1n,
+                    to: profile2n,
+                    onCopy: () async {
+                      await copyGrades();
+                      if (mounted) setState(() {});
+                    },
+                  )
+                  : SizedBox.shrink(),
+        ),
         ),
       ),
     );
@@ -249,22 +283,18 @@ class _MyHomePageState extends State<MyHomePage> {
     final from = await showDialog<int>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: Text('Start ${names[profile - 1]} from…'),
-            content: const Text(
-              'It has no grades yet. Copy another profile\'s grades, in every '
-              'semester, as a starting point?',
-            ),
+          (c) => AppDialog(
+            title: 'Start ${names[profile - 1]} from…',
+            body:
+                'It has no grades yet. Copy another profile\'s grades, in every '
+                'semester, as a starting point?',
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('Start empty'),
-              ),
+              DialogAction('Start empty', onTap: () => Navigator.pop(c)),
               for (var id = 1; id <= profileCount; id++)
                 if (id != profile && !profileIsEmpty(id))
-                  TextButton(
-                    onPressed: () => Navigator.pop(c, id),
-                    child: Text(names[id - 1]),
+                  DialogAction(
+                    names[id - 1],
+                    onTap: () => Navigator.pop(c, id),
                   ),
             ],
           ),
@@ -291,16 +321,23 @@ class _MyHomePageState extends State<MyHomePage> {
       greeting: parts.first,
       name: parts.skip(1).join(', '),
       slideFromRight: _isrightswipe,
-      onSemesterSelected:
-          (s) => setState(() {
-            currentsem = s;
-            sgpa = sgcalc(s);
-            cgpa = cgcalc();
-          }),
-      onSortSelected: (s) => setState(() => currentsort = s.key),
+      onSemesterSelected: (s) {
+        setState(() {
+          currentsem = s;
+          sgpa = sgcalc(s);
+          cgpa = cgcalc();
+        });
+        _persist(HomeChange.semester);
+      },
+      onSortSelected: (s) {
+        setState(() => currentsort = s.key);
+        _persist(HomeChange.sort);
+      },
       onReorder: (order) async {
         await setCourseOrder(currentsem, [for (final c in order) c.id]);
-        if (mounted) setState(() => currentsort = CourseSort.custom.key);
+        if (!mounted) return;
+        setState(() => currentsort = CourseSort.custom.key);
+        _persist(HomeChange.sort);
       },
       onExport: () => _exportSemester(sitems),
       onAddCourse: () async {
@@ -340,13 +377,19 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           }
         }
+
         await openRoute(
           context,
           Routes.course(c.id),
           () => MarksPage(course: c, onEditCourse: edit),
           extra: edit,
         );
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            sgpa = sgcalc(currentsem);
+            cgpa = cgcalc();
+          });
+        }
       },
       classDeltas: classDeltas(),
       onGradePicked: (c, g) async {
@@ -359,13 +402,19 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       onCompareChanged: _changeCompared,
       onClearRequested: _confirmClearSemester,
-      onSwipe:
-          (delta) => setState(() {
-            final next = selectedprofile + delta;
-            if (next < 1 || next > 4) return;
-            _isrightswipe = delta > 0;
-            selectedprofile = next;
-          }),
+      onSwipe: (delta) {
+        final next = homeNextProfile(
+          selectedprofile,
+          delta,
+          !offshootHiddenNow.value,
+        );
+        if (next == null) return;
+        setState(() {
+          _isrightswipe = delta > 0;
+          selectedprofile = next;
+        });
+        _persist(HomeChange.profile);
+      },
       onOpenAnalytics:
           () => openRoute(
             context,
@@ -377,13 +426,9 @@ class _MyHomePageState extends State<MyHomePage> {
         if (mounted) setState(() {});
       },
       onOpenSettings: _openSettings,
-      onToggleTheme:
-          () => switchTheme(
-            !thm.isDark,
-            then: () {
-              if (mounted) setState(() {});
-            },
-          ),
+      // UI_OPT O1.7: no Home rebuild here until O3.1 makes that build cheap;
+      // the theme still flips because MyApp rebuilds this subtree already.
+      onToggleTheme: () => switchTheme(!thm.isDark),
       offshoot:
           selectedprofile == 4
               ? OffshootTab(
@@ -422,22 +467,23 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _openSettings() async {
     erase = 0;
-    await openRoute(context, Routes.settings, () => const SettingsPage())
-        .then((value) async {
-          selected_theme = selected_theme;
-          thm = AppPalette.byName(selected_theme);
-          profile1n = profile1n;
-          profile2n = profile2n;
-          currentsem = currentsem;
-          batch = batch;
-          selecteddiscipline = selecteddiscipline;
-          await setdis();
-          await initializeCourses();
-          setnavcolor();
-          setState(() {
-            thm = AppPalette.byName(selected_theme);
-          });
-        });
+    await openRoute(context, Routes.settings, () => const SettingsPage()).then((
+      value,
+    ) async {
+      selected_theme = selected_theme;
+      thm = AppPalette.byName(selected_theme);
+      profile1n = profile1n;
+      profile2n = profile2n;
+      currentsem = currentsem;
+      batch = batch;
+      selecteddiscipline = selecteddiscipline;
+      await setdis();
+      await initializeCourses();
+      setnavcolor();
+      setState(() {
+        thm = AppPalette.byName(selected_theme);
+      });
+    });
   }
 
   Future<void> _exportSemester(List<Course> sitems) async {
@@ -477,48 +523,48 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _confirmClearSemester() async {
-    final clear = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: thm.backcolor,
-            title: Text(
-              "Clear Grades",
-              style: TextStyle(fontFamily: "Montserrat", color: thm.textcolor),
-            ),
-            content: Text(
-              "Are you sure you want to clear all grades for this semester?",
-              style: TextStyle(fontFamily: "Montserrat", color: thm.textcolor),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(
-                  "Cancel",
-                  style: TextStyle(
-                    fontFamily: "Montserrat",
-                    color: thm.textcolor,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(
-                  "Clear",
-                  style: TextStyle(
-                    fontFamily: "Montserrat",
-                    color: thm.highcolor,
-                  ),
-                ),
-              ),
-            ],
-          ),
+    final clear = await confirmDialog(
+      context,
+      title: 'Clear grades?',
+      body: 'Every grade in this semester is cleared. The courses stay.',
+      action: 'Clear',
+      danger: true,
     );
-    if (clear != true) return;
+    if (!clear) return;
     await clearSemesterGrades(currentsem, selectedprofile);
     setState(() {
       sgpa = sgcalc(currentsem);
       cgpa = cgcalc();
     });
+  }
+}
+
+/// Shows [child] the body's [size] and [extraBottom] more bottom padding.
+/// It reads the whole MediaQuery to copy it, so it rebuilds on any change
+/// (a keyboard opening); [child] is built above and is not rebuilt with it.
+class _Resized extends StatelessWidget {
+  const _Resized({
+    required this.size,
+    required this.extraBottom,
+    required this.child,
+  });
+
+  final Size size;
+  final double extraBottom;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return MediaQuery(
+      data: mq.copyWith(
+        size: size,
+        padding:
+            extraBottom == 0
+                ? mq.padding
+                : mq.padding.copyWith(bottom: mq.padding.bottom + extraBottom),
+      ),
+      child: child,
+    );
   }
 }

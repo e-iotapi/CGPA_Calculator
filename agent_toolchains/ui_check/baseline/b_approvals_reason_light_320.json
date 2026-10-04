@@ -1,0 +1,17 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"Applications · 2\" 1.25:1, needs 4.5 (12.5 px)",
+  "contrast: \"Approve all\" 2.95:1, needs 4.5 (13.0 px)",
+  "contrast: \"Approve\" 1.04:1, needs 4.5 (12.5 px)",
+  "contrast: \"Approve\" 1.08:1, needs 4.5 (12.5 px)",
+  "contrast: \"CS Department · 2 days left\" 1.42:1, needs 4.5 (10.5 px)",
+  "contrast: \"GOA · CS\" 1.30:1, needs 4.5 (11.0 px)",
+  "contrast: \"Old slides\" 1.69:1, needs 4.5 (12.0 px)",
+  "contrast: \"URGENT\" 1.37:1, needs 4.5 (9.5 px)",
+  "contrast: \"bitsbyte · 1 link\" 3.91:1, needs 4.5 (13.0 px)",
+  "contrast: \"\" 2.95:1, needs 3.0 (18.0 px)",
+  "contrast: \"\" 1.69:1, needs 4.5 (14.0 px)",
+  "unlabeled: tappable at (256, 27) has no label"
+ ]
+}

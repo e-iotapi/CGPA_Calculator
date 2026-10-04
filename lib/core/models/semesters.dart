@@ -12,9 +12,14 @@ const baseSemesters = [
   '4 - 2',
 ];
 
-/// The semesters offered for [discipline]. Dual-degree codes (B first) run
-/// a fifth year.
+/// A dual degree: both halves of the code are programmes ("B3A7"), where a
+/// single degree leaves one as "--" ("B3--", "--A7").
+bool isDualDiscipline(String d) =>
+    d.length == 4 && d.substring(0, 2) != '--' && d.substring(2) != '--';
+
+/// The semesters offered for [discipline]. Only a dual degree runs a fifth
+/// year; a single M.Sc. ends at 4 - 2 like a B.E.
 List<String> semestersFor(String discipline) => [
   ...baseSemesters,
-  if (discipline.startsWith('B')) ...['ST 2', '5 - 1', '5 - 2'],
+  if (isDualDiscipline(discipline)) ...['ST 2', '5 - 1', '5 - 2'],
 ];

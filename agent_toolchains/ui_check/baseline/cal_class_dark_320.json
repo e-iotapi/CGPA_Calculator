@@ -1,0 +1,11 @@
+{
+ "errors": [],
+ "issues": [
+  "contrast: \"ALL DAY\" 1.02:1, needs 4.5 (8.5 px)",
+  "contrast: \"Fees due · Tue 22 Sep\" 1.02:1, needs 4.5 (10.5 px)",
+  "contrast: \"Founders day · Thu 24 Sep\" 1.02:1, needs 4.5 (10.5 px)",
+  "contrast: \"Week\" 1.14:1, needs 4.5 (12.5 px)",
+  "dead: button \"Close\" has no tap action",
+  "truncated: \"Intro Widgets\""
+ ]
+}

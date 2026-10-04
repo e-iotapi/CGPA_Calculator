@@ -39,13 +39,19 @@ class OfferedPart {
     this.average,
   });
 
+  /// The part's name.
   final String name;
+
+  /// The marks the part is out of.
   final double outOf;
 
   /// ISO-8601 date ("2026-09-08").
   final String? date;
+
+  /// The mean mark scored, if known.
   final double? average;
 
+  /// Serialises the part for Firestore and the Hive cache.
   Map<String, dynamic> toMap() => {
     'name': name,
     'outOf': outOf,
@@ -53,6 +59,7 @@ class OfferedPart {
     if (average != null) 'average': average,
   };
 
+  /// Reads a part from its map.
   static OfferedPart fromMap(Map m) => OfferedPart(
     name: m['name'] as String? ?? '',
     outOf: (m['outOf'] as num).toDouble(),
@@ -73,17 +80,25 @@ class OfferedComponent {
     this.average,
   });
 
+  /// The stable component id.
   final String id;
+
+  /// The component's display name.
   final String name;
 
   /// Percent when the course is weighted, else marks.
   final double weight;
+
+  /// The parts making up the component.
   final List<OfferedPart> parts;
 
   /// 0 = every part counts, else the best N.
   final int countBest;
+
+  /// The mean over the component, if known.
   final double? average;
 
+  /// Serialises the component for Firestore and the Hive cache.
   Map<String, dynamic> toMap() => {
     'id': id,
     'name': name,
@@ -93,6 +108,7 @@ class OfferedComponent {
     if (average != null) 'average': average,
   };
 
+  /// Reads a component from its map.
   static OfferedComponent fromMap(Map m) => OfferedComponent(
     id: m['id'] as String,
     name: m['name'] as String,
@@ -105,6 +121,7 @@ class OfferedComponent {
   );
 }
 
+/// A course's published scheme on one campus in one term.
 class Offering {
   const Offering({
     required this.courseId,
@@ -115,16 +132,31 @@ class Offering {
     this.weighted = true,
     this.totalMarks = 100,
     this.courseAverage,
+    this.outOf,
     this.professors = const [],
     this.updatedByName = '',
     this.updatedByEmail = '',
   });
 
+  /// The course id, campus key and term this scheme is for.
   final String courseId, campus, term;
+
+  /// Whether component weights are percentages of the total.
   final bool weighted;
+
+  /// The total marks when the course is not weighted.
   final double totalMarks;
+
+  /// The scheme's components.
   final List<OfferedComponent> components;
+
+  /// The mean over the whole course, if known.
   final double? courseAverage;
+
+  /// The scale a weighted course is graded out of (e.g. 200), set by whoever
+  /// maintains it; students' "Shown out of" follows it (UI_REBUILD_HANDOFF
+  /// §3.2). Null: the course's own units.
+  final double? outOf;
 
   /// Professor ids (§10.1); a course can have two in one term.
   final List<String> professors;
@@ -132,13 +164,34 @@ class Offering {
   /// Milliseconds since the epoch. An override records the value it was
   /// detached from (`basedOn`, §16.3 fix 9).
   final int updatedAt;
+
+  /// Who last changed the scheme.
   final String updatedByName, updatedByEmail;
 
+  /// Whether the offering has any components.
   bool get hasScheme => components.isNotEmpty;
 
+  /// This offering with [outOf] replaced (null clears it).
+  Offering copyWith({required double? outOf}) => Offering(
+    courseId: courseId,
+    campus: campus,
+    term: term,
+    components: components,
+    updatedAt: updatedAt,
+    weighted: weighted,
+    totalMarks: totalMarks,
+    courseAverage: courseAverage,
+    outOf: outOf,
+    professors: professors,
+    updatedByName: updatedByName,
+    updatedByEmail: updatedByEmail,
+  );
+
+  /// The component with [id], or `null`.
   OfferedComponent? component(String id) =>
       components.where((c) => c.id == id).firstOrNull;
 
+  /// Serialises the offering for Firestore and the Hive cache.
   Map<String, dynamic> toMap() => {
     'courseId': courseId,
     'campus': campus,
@@ -147,11 +200,13 @@ class Offering {
     'totalMarks': totalMarks,
     'components': [for (final c in components) c.toMap()],
     if (courseAverage != null) 'courseAverage': courseAverage,
+    if (outOf != null) 'outOf': outOf,
     'professors': professors,
     'updatedAt': updatedAt,
     'updatedBy': {'name': updatedByName, 'email': updatedByEmail},
   };
 
+  /// Reads an offering from its map.
   static Offering fromMap(Map m) {
     final by = m['updatedBy'] as Map? ?? const {};
     final at = m['updatedAt'];
@@ -166,6 +221,7 @@ class Offering {
           OfferedComponent.fromMap(c),
       ],
       courseAverage: (m['courseAverage'] as num?)?.toDouble(),
+      outOf: (m['outOf'] as num?)?.toDouble(),
       professors: [for (final p in m['professors'] as List? ?? const []) '$p'],
       // A Firestore Timestamp in the database, an int in the cache.
       updatedAt:

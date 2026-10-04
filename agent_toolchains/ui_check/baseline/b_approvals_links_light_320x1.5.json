@@ -1,0 +1,17 @@
+{
+ "errors": [],
+ "issues": [
+  "tap: \"Applications · 2\" 139x38",
+  "tap: \"Approve\" 124x42",
+  "tap: \"Back\" 42x42",
+  "tap: \"Lecture notes, weeks 1–6\" 256x28",
+  "tap: \"Links · 2\" 139x38",
+  "tap: \"Old slides\" 256x28",
+  "tap: \"Past quizzes\" 256x28",
+  "tap: \"Reject\" 124x42",
+  "tap: \"Slides 7–12\" 256x28",
+  "truncated: \"CS Department · 11 days left\"",
+  "truncated: \"CS Department · 2 days left\"",
+  "truncated: \"quietfalcon42 · 3 links\""
+ ]
+}

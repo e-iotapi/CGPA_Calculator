@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/grading/minor_progress.dart';
@@ -10,9 +11,12 @@ import 'package:cgpa_calculator/features/stats/widgets/minor_view.dart';
 import 'package:cgpa_calculator/features/stats/widgets/progression_view.dart';
 import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
+import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// The three tabs of Stats.
 enum StatsView { progression, degree, minor }
 
 /// Stats: where the CGPA is heading, and how much of the degree is done.
@@ -31,12 +35,14 @@ class _StatsPageState extends State<StatsPage> {
   var _view = StatsView.progression;
   late double? _target = statsTarget;
   late final Map<String, double> _plan = statsPlan;
+  late final Set<String> _skipped = statsSkipped;
 
   StatsData get _data => StatsData.from(
     all: allCourses(),
     discipline: widget.discipline,
     target: _target,
     plan: _plan,
+    skipped: _skipped,
     needs: degreeNeeds,
     totalSet: degreeTotalFor(widget.discipline),
   );
@@ -49,48 +55,40 @@ class _StatsPageState extends State<StatsPage> {
     final result = await showDialog<(int?,)>(
       context: context,
       builder:
-          (c) => AlertDialog(
-            title: const Text('Credits your degree needs'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pointer works this out from your courses or your ERP '
-                  'sheet. If yours is different, set it here.',
-                ),
-                const SizedBox(height: Space.md),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    suffixText: 'credits',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) {
-                    if ((read() ?? 0) > 0) Navigator.pop(c, (read(),));
-                  },
-                ),
-              ],
+          (c) => AppDialog(
+            title: 'Credits your degree needs',
+            body:
+                'Pointer works this out from your courses or your ERP '
+                'sheet. If yours is different, set it here.',
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: appFieldStyle(AppPalette.of(c)),
+              cursorColor: AppPalette.of(c).text,
+              decoration: appFieldDecoration(
+                AppPalette.of(c),
+                suffix: 'credits',
+              ),
+              onSubmitted: (_) {
+                if ((read() ?? 0) > 0) Navigator.pop(c, (read(),));
+              },
             ),
             actions: [
-              if (data.totalSet != null)
-                TextButton(
-                  onPressed: () => Navigator.pop(c, (null,)),
-                  child: const Text('Use Pointer\'s'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
+              DialogAction(
+                'Save',
+                onTap: () {
                   if ((read() ?? 0) > 0) Navigator.pop(c, (read(),));
                 },
-                child: const Text('Save'),
+                ink: true,
               ),
+              if (data.totalSet != null)
+                DialogAction(
+                  'Use Pointer\'s',
+                  onTap: () => Navigator.pop(c, (null,)),
+                ),
+              DialogAction('Cancel', onTap: () => Navigator.pop(c)),
             ],
           ),
     );
@@ -101,17 +99,25 @@ class _StatsPageState extends State<StatsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Built once per build (UI_OPT O3.5); refactor P5 memoises it.
+    final data = _data;
     return StatsScreen(
-      data: _data,
+      data: data,
       view: _view,
       onViewChanged: (v) => setState(() => _view = v),
       onTargetChanged: (t) {
         setState(() => _target = t);
         setStatsTarget(t);
       },
-      onPlanChanged: (sem, sgpa) {
-        setState(() => _plan[sem] = sgpa);
+      // Redraw on every tick; save once, when the slider is let go.
+      onPlanChanged: (sem, sgpa) => setState(() => _plan[sem] = sgpa),
+      onPlanChangeEnd: (sem, sgpa) {
+        _plan[sem] = sgpa;
         setStatsPlan(_plan);
+      },
+      onIncludeChanged: (sem, on) {
+        setState(() => on ? _skipped.remove(sem) : _skipped.add(sem));
+        setStatsSkipped(_skipped);
       },
       onBack: () => Navigator.of(context).maybePop(),
       onEditTotal: _editTotal,
@@ -136,6 +142,8 @@ class StatsScreen extends StatelessWidget {
     required this.onViewChanged,
     required this.onTargetChanged,
     required this.onPlanChanged,
+    this.onPlanChangeEnd,
+    this.onIncludeChanged,
     required this.onBack,
     this.onEditTotal,
     this.onAssign,
@@ -147,6 +155,12 @@ class StatsScreen extends StatelessWidget {
   final ValueChanged<StatsView> onViewChanged;
   final ValueChanged<double> onTargetChanged;
   final void Function(String sem, double sgpa) onPlanChanged;
+
+  /// A plan slider let go: the one time the plan is saved.
+  final void Function(String sem, double sgpa)? onPlanChangeEnd;
+
+  /// A future semester ticked into, or out of, the forecast.
+  final void Function(String sem, bool included)? onIncludeChanged;
   final VoidCallback onBack;
   final VoidCallback? onEditTotal;
   final AssignCourse? onAssign;
@@ -213,7 +227,9 @@ class StatsScreen extends StatelessWidget {
                                 StatsView.degree => 'Degree progress',
                                 StatsView.minor => 'Minor requirements',
                               },
-                              maxLines: 1,
+                              // Two lines at large text rather than a cut
+                              // (T9.1).
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TypeScale.title.copyWith(color: p.text),
                             ),
@@ -240,16 +256,23 @@ class StatsScreen extends StatelessWidget {
                           if (v != StatsView.values.first)
                             const SizedBox(width: 7),
                           Expanded(
-                            child: PillButton(
-                              label: switch (v) {
-                                StatsView.progression => 'Progression',
-                                StatsView.degree => 'Degree',
-                                StatsView.minor => 'Minor',
-                              },
-                              selected: shown == v,
-                              onPressed: () => onViewChanged(v),
-                              height: 38,
-                              expand: true,
+                            child: KeyedSubtree(
+                              key:
+                                  v == StatsView.degree
+                                      ? tourKey('stats.degree')
+                                      : null,
+                              child: PillButton(
+                                label: switch (v) {
+                                  // Short enough for three tabs at 320 × 1.5.
+                                  StatsView.progression => 'Progress',
+                                  StatsView.degree => 'Degree',
+                                  StatsView.minor => 'Minor',
+                                },
+                                selected: shown == v,
+                                onPressed: () => onViewChanged(v),
+                                height: 38,
+                                expand: true,
+                              ),
                             ),
                           ),
                         ],
@@ -271,6 +294,8 @@ class StatsScreen extends StatelessWidget {
                             data: data,
                             onTargetChanged: onTargetChanged,
                             onPlanChanged: onPlanChanged,
+                            onPlanChangeEnd: onPlanChangeEnd,
+                            onIncludeChanged: onIncludeChanged,
                           ),
                 ),
               ],
@@ -289,11 +314,16 @@ class StatsFooter extends StatelessWidget {
     required this.label,
     required this.value,
     required this.trailing,
+    this.emphasis = false,
   });
 
   final String label;
   final String value;
   final Widget trailing;
+
+  /// The value is the headline (board `Stats`: "8.10 CGPA", large, mint);
+  /// otherwise it is a line of detail and [trailing] is the number.
+  final bool emphasis;
 
   @override
   Widget build(BuildContext context) {
@@ -324,10 +354,19 @@ class StatsFooter extends StatelessWidget {
                   value,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TypeScale.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: p.isDark ? p.text : p.onInverse,
-                  ),
+                  style:
+                      emphasis
+                          ? TypeScale.title.copyWith(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                            color: p.hero,
+                          )
+                          : TypeScale.body.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: p.isDark ? p.text : p.onInverse,
+                          ),
                 ),
               ],
             ),
