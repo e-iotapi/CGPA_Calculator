@@ -2,6 +2,8 @@
 // the board comparison:
 //
 //   SHOTS_DIR=/some/dir flutter test test/ui/calendar_screens_test.dart
+import 'package:cgpa_calculator/core/models/marks.dart';
+import 'package:cgpa_calculator/core/storage/marks.dart';
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
 import 'package:cgpa_calculator/core/timetable/timetable.dart';
 import 'package:cgpa_calculator/features/calendar/calendar_page.dart';
@@ -50,6 +52,7 @@ void main() {
     String name, {
     Timetable? tt,
     bool published = true,
+    DateTime? now,
     Future<void> Function(WidgetTester t)? open,
   }) async {
     final cal = await store();
@@ -57,7 +60,7 @@ void main() {
       t,
       name,
       () => CalendarPage(
-        today: _now,
+        today: now ?? _now,
         timetables: FakeTimetableStore(
           published ? (tt ?? fakeTimetable()) : null,
         ),
@@ -136,4 +139,61 @@ void main() {
     'cal_add',
     (t) => run(t, 'cal_add', open: (t) => t.tap(find.text('Add'))),
   );
+
+  // Exam week (Mon 12 Oct is AAA F111's published midsem). These run last:
+  // they leave dated Marks parts in the shared box, which Month would list.
+  final examWeek = DateTime(2026, 10, 12, 8);
+
+  Future<void> examParts(WidgetTester t) => t.runAsync(
+    () => saveEvaluative(
+      Evaluative(
+        courseId: 'ZZZ F999',
+        name: 'Midsem',
+        weight: 30,
+        parts: [EvalPart(name: 'Midsem', outOf: 90, date: '2026-10-12')],
+      ),
+      key: 'zzz-midsem',
+    ),
+  );
+
+  testWidgets('cal_exam_week', (t) async {
+    await examParts(t);
+    await run(
+      t,
+      'cal_exam_week',
+      now: examWeek,
+      tt: fakeTimetable(midsemWeek: true),
+      open: (t) => tab(t, 'Week'),
+    );
+  });
+  testWidgets('cal_exam_time', (t) async {
+    await examParts(t);
+    await run(
+      t,
+      'cal_exam_time',
+      now: examWeek,
+      tt: fakeTimetable(midsemWeek: true),
+      open: (t) async {
+        await tab(t, 'Week');
+        await settle(t);
+        await t.tap(find.textContaining('ZZZ F999 · Midsem'));
+        await settle(t);
+        await t.tap(find.text('ZZZ F999 · Midsem').last);
+      },
+    );
+  });
+  testWidgets('cal_exam_campus', (t) async {
+    await examParts(t);
+    await run(
+      t,
+      'cal_exam_campus',
+      now: examWeek,
+      tt: fakeTimetable(midsemWeek: true),
+      open: (t) async {
+        await tab(t, 'Week');
+        await settle(t);
+        await t.tap(find.textContaining('Midsem exams').first);
+      },
+    );
+  });
 }
