@@ -124,6 +124,19 @@ class AppPalette extends ThemeExtension<AppPalette> {
           ? const GradeTone(Color(0xFF3B2F16), Color(0xFFF1C77A))
           : const GradeTone(Color(0xFFFAEFD8), Color(0xFF7A5410));
 
+  /// A link waiting for approval (Your links board): amber, a little deeper
+  /// in dark than [noticeTone].
+  GradeTone get waitingTone =>
+      isDark
+          ? const GradeTone(Color(0xFF2E2616), Color(0xFFE6C06F))
+          : const GradeTone(Color(0xFFFAEFD8), Color(0xFF7A5410));
+
+  /// A rejected link, and the reason beside it.
+  GradeTone get rejectedTone =>
+      isDark
+          ? const GradeTone(Color(0xFF3A1F1B), Color(0xFFF2A79B))
+          : const GradeTone(Color(0xFFF3E0DC), Color(0xFF9B2C1F));
+
   /// Fill of a small tag chip (a branch beside a name).
   Color get chipFill => isDark ? surfaceSunken : const Color(0xFFE4E4DC);
 
