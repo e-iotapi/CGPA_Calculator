@@ -1,7 +1,0 @@
-{
- "errors": [],
- "issues": [
-  "contrast: \"open\" 2.97:1, needs 4.5 (13.0 px)",
-  "unlabeled: tappable at (326, 544) has no label"
- ]
-}

@@ -93,6 +93,9 @@ class WeekView extends StatefulWidget {
 class _WeekViewState extends State<WeekView> {
   late final ScrollController _scroll;
 
+  /// Campus lines tapped open to their whole title.
+  final _open = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -214,52 +217,60 @@ class _WeekViewState extends State<WeekView> {
     );
   }
 
-  /// One all-day line: ALL DAY, then the item and its date.
-  Widget _strip(AppPalette p, String d, AllDayItem i) => Padding(
-    padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
-    child: Semantics(
-      button: true,
-      label: 'All day on ${dateLabel(d)}: ${i.label}',
-      excludeSemantics: true,
-      child: Material(
-        color: p.hero,
-        borderRadius: BorderRadius.circular(12),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => widget.onAllDay(d),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: Row(
-              children: [
-                Text(
-                  'ALL DAY',
-                  style: TypeScale.label.copyWith(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4,
-                    color: p.onHero,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${i.label} · ${dateLabel(d)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.caption.copyWith(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
+  /// One all-day line: ALL DAY, then the item and its date. A campus line
+  /// opens to its whole title on a tap; a Marks date opens its sheet.
+  Widget _strip(AppPalette p, String d, AllDayItem i) {
+    final key = '$d|${i.label}';
+    final open = _open.contains(key);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+      child: Semantics(
+        button: true,
+        label: 'All day on ${dateLabel(d)}: ${i.label}',
+        excludeSemantics: true,
+        child: Material(
+          color: p.hero,
+          borderRadius: BorderRadius.circular(12),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap:
+                i.kind == 'eval'
+                    ? () => widget.onAllDay(d)
+                    : () => setState(() => open ? _open.remove(key) : _open.add(key)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Row(
+                children: [
+                  Text(
+                    'ALL DAY',
+                    style: TypeScale.label.copyWith(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
                       color: p.onHero,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${i.label} · ${dateLabel(d)}',
+                      maxLines: open ? null : 1,
+                      overflow: open ? null : TextOverflow.ellipsis,
+                      style: TypeScale.caption.copyWith(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: p.onHero,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   List<Widget> _column(AppPalette p, int i, String d, double w) {
     final day = widget.occs.where((o) => o.date == d && o.kind != OccKind.event).toList();

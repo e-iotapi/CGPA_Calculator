@@ -3,7 +3,10 @@
 This document explains how Pointer is put together: where data lives, how it
 moves, who may change what, and how a build reaches users. It is written for
 contributors. The detailed design record, with every decision and its
-reasoning, is [`agent_instructions/ARCHITECTURE.md`](../agent_instructions/ARCHITECTURE.md).
+reasoning, is [`agent_instructions/ARCHITECTURE.md`](https://github.com/e-iotapi/Pointer/blob/pointer-dev/agent_instructions/ARCHITECTURE.md)
+on the `pointer-dev` branch. Paths under `test/`, `tools/`, `agent_instructions/`
+and `agent_toolchains/` exist on `pointer-dev` only (§11); how to work on them
+is in [`docs/DEVELOPMENT.md`](https://github.com/e-iotapi/Pointer/blob/pointer-dev/docs/DEVELOPMENT.md).
 
 - [1. The shape of the system](#1-the-shape-of-the-system)
 - [2. The budget that shapes every design choice](#2-the-budget-that-shapes-every-design-choice)
@@ -15,7 +18,7 @@ reasoning, is [`agent_instructions/ARCHITECTURE.md`](../agent_instructions/ARCHI
 - [8. Roles and permissions](#8-roles-and-permissions)
 - [9. Grades and the CGPA rule](#9-grades-and-the-cgpa-rule)
 - [10. Routes and screens](#10-routes-and-screens)
-- [11. Environments, testing and deployment](#11-environments-testing-and-deployment)
+- [11. Branches, environments and releases](#11-branches-environments-and-releases)
 - [12. Things that will surprise you](#12-things-that-will-surprise-you)
 - [13. Performance and loading](#13-performance-and-loading)
 
@@ -38,7 +41,7 @@ flowchart LR
     FS[("Cloud Firestore<br/>+ security rules")]
   end
 
-  CF["Cloudflare Pages<br/>landing page at /, app at /calculator/"]
+  CF["Cloudflare Pages<br/>landing page at /, app at /calculator/,<br/>beta at /beta/"]
   FH["Firebase Hosting<br/>staging only"]
   W["Cloudflare Worker + Durable Objects<br/>version markers, live push<br/>(read-only on Firestore)"]
 
@@ -394,7 +397,7 @@ flowchart TD
   expired one, so nobody keeps access after their term.
 - **The rules are the enforcement.** The app hides what a user can't do, but
   the rules in [`firestore.rules`](../firestore.rules) are what actually
-  refuse it, and [`test/rules`](../test/rules) tests them against the
+  refuse it, and [`test/rules`](https://github.com/e-iotapi/Pointer/tree/pointer-dev/test/rules) tests them against the
   emulator.
 - **Capabilities** in `lib/core/roles/capabilities.dart` map each role to what
   the UI offers; `test/core/capabilities_test.dart` checks them against the
@@ -440,42 +443,71 @@ flowchart LR
 
 Route guards redirect anyone without the right grant back to `/`.
 
-## 11. Environments, testing and deployment
+## 11. Branches, environments and releases
 
-The build chooses its backend with a compile-time define,
-`POINTER_ENV=prod|staging|emulator` (`lib/core/env`). Production is the
-default. Test sign-in (`?as=<account>`) exists only in staging and emulator
-builds: `isTestEnv` is a `const`, so the compiler removes that code from a
-production build entirely, and `test/env/prod_build_guard_test.dart` keeps it
-that way.
+### Three branches, three channels
+
+| Branch | Channel | Served at | Data |
+|---|---|---|---|
+| `master` | Stable, for everyone | `pointer-bits-pilani.pages.dev/calculator/` | Production |
+| `pointer-beta` | Beta Program | `pointer-bits-pilani.pages.dev/beta/` | Production |
+| `pointer-dev` | Development | `pointer-staging.web.app` | Staging (seeded test accounts) |
+
+`pointer-dev` holds everything: the app, tests, tools, the demo and the design
+records. `master` and `pointer-beta` hold the app and its deploy configuration
+only; the `DEV_ONLY` list in `.github/workflows/release.yml` names what stays
+behind.
 
 ```mermaid
 flowchart LR
-  subgraph Local
-    Dev["flutter run / tests"]
-    Emu["Firebase emulators<br/>tools/test_env/up.sh<br/>(seeded)"]
-    Dev --> Emu
-  end
-  subgraph CI["GitHub Actions"]
-    Check["check.yml on every PR:<br/>analyze, tests, rules tests,<br/>prod build guard"]
-    E2E["e2e.yml: Playwright<br/>perf and quota specs"]
-    Deploy["deploy.yml on master:<br/>checks, then build"]
-    DStaging["deploy-staging.yml on every push<br/>to pointer-rebuild (reseeds only<br/>when the seed changed)"]
-  end
-  Deploy --> Prod["Cloudflare Pages<br/>pointer-bits-pilani.pages.dev"]
-  Rules["firebase deploy --only firestore:rules<br/>(by hand, when rules change)"] --> ProdFS[("Production Firestore")]
-  Wrangler["server/: npx wrangler deploy<br/>(by the owner; --env staging for staging)"] --> Workers["Cloudflare Workers<br/>pointer-heads, pointer-heads-staging"]
-  DStaging --> Staging["Firebase Hosting<br/>pointer-staging.web.app<br/>(seeded test accounts)"]
-  Local -- "tools/test_env/staging.sh" --> Staging
+  Dev["pointer-dev"] -- "push" --> Staging["Firebase Hosting<br/>pointer-staging.web.app"]
+  Dev -- "release.yml → pointer-beta<br/>full checks, then a PR<br/>of one commit" --> Beta["pointer-beta"]
+  Beta -- "release.yml → master<br/>a PR of one commit" --> Master["master"]
+  Beta -- "push: deploy.yml" --> Pages["Cloudflare Pages<br/>/ landing, /calculator/ master,<br/>/beta/ pointer-beta"]
+  Master -- "push: deploy.yml" --> Pages
 ```
 
-| Command | What it checks |
-|---|---|
-| `flutter test` | Unit, widget and render tests |
-| `cd test/rules && npm test` | `firestore.rules` against the emulator |
-| `python3 agent_toolchains/code/verify.py` | Format, analyzer baseline and the full test suite |
-| `python3 agent_toolchains/ui_check/ui_check.py run` | Renders every screen in light and dark at phone widths and reports layout, contrast and tap-size problems |
-| `tools/e2e` (Playwright) | End-to-end, performance and quota budgets on the seeded emulator |
+**A release is one commit.** `release.yml` (run by hand from the Actions
+tab) builds a commit on top of the target branch that holds the source
+branch's files exactly, minus the dev-only paths, and opens it as a pull
+request listing every change since the last release. The target's history is
+one commit per release, and a pull request into `master` or `pointer-beta`
+never shows a test or a tool. Promoting `pointer-dev` to `pointer-beta` first
+runs `check.yml` from `pointer-dev`: the analyzer baseline, every test, the
+rules tests and the production-build guard. `master` and `pointer-beta` carry
+no tests, so nothing is tested on them; a beta reaches `master` exactly as it
+was checked.
+
+**One site, two builds.** A Pages deploy replaces the whole site, so
+`deploy.yml` (on a push to either `master` or `pointer-beta`) builds both
+branches: `master` with `--base-href /calculator/`, `pointer-beta` with
+`--base-href /beta/`, and the landing page at `/`. `/beta/` gets the same deep
+links and cache headers as `/calculator/`, generated from
+`landing/_redirects` and `landing/_headers`, and is kept out of search.
+
+**The beta shares everything with the stable app**: the origin (so the same
+IndexedDB, Hive boxes and sign-in), the production Firestore and the
+production Worker. A beta therefore may not change stored data in a way the
+stable app can't read: new fields are additive, and a rules change is
+deployed only once both channels can live with it. Enrolling in the Beta
+Program from inside the app is planned.
+
+### Build environments
+
+The build chooses its backend with a compile-time define,
+`POINTER_ENV=prod|staging|emulator` (`lib/core/env`). Production is the
+default, and both public channels are production builds. Test sign-in
+(`?as=<account>`) exists only in staging and emulator builds: `isTestEnv` is a
+`const`, so the compiler removes that code from a production build entirely,
+and both `check.yml` and `deploy.yml` fail a build that still contains it.
+
+### What stays manual
+
+The owner deploys these by hand: Firestore rules and indexes
+(`firebase deploy --only firestore:rules,firestore:indexes --project default`),
+and the Worker (`cd server && npx wrangler deploy`; `--env staging` for
+staging). Tests, emulators and the data tools are described in
+[`docs/DEVELOPMENT.md`](https://github.com/e-iotapi/Pointer/blob/pointer-dev/docs/DEVELOPMENT.md) on `pointer-dev`.
 
 ## 12. Things that will surprise you
 
@@ -493,9 +525,10 @@ flowchart LR
   personal, and cleared on sign-out.
 - **The web API key is public by design.** Firebase web config is meant to be
   shipped; the rules and API-key restrictions are what protect data.
-- **The app never draws above 2× pixel density.** `web/index.html` caps
-  `window.devicePixelRatio` at 2 before the engine starts; `?dpr=3` lifts the
-  cap for comparison (§13).
+- **Pixel density is full by default.** `web/index.html` can cap
+  `window.devicePixelRatio` before the engine starts: `?dpr=2` turns the cap
+  on for comparison (§13). Touch resampling (`?resample=1`) and the semantics
+  tree (`?semantics=1`, always on in the emulator build) are off otherwise.
 - **The WebAssembly build is stricter about JS numbers.** `dartify()` returns
   a `double` there, so `as int` on a browser value throws (and a throw after
   the first frame blanks the app). Read JS numbers as `num`.
@@ -541,7 +574,7 @@ prints every startup step in staging and test builds.
 
 Goal: no screen waits on the network, including the first open after a
 relaunch. It is the client half of the server plan in
-[`agent_instructions/DATA_SYNC_PLAN.md`](../agent_instructions/DATA_SYNC_PLAN.md).
+[`agent_instructions/DATA_SYNC_PLAN.md`](https://github.com/e-iotapi/Pointer/blob/pointer-dev/agent_instructions/DATA_SYNC_PLAN.md).
 
 **Every data store keeps its data on the phone.** Each store read
 (resources, reviews, representatives, professors, roles, offerings, admin
@@ -578,11 +611,11 @@ starts when the previous one finishes; anything whose version hasn't moved is
 skipped; prefetch pauses offline and runs once per session; a screen opened
 early jumps the queue.
 
-**Built (`pointer-rebuild`):** the on-phone caches and `peek` on every
+**Built and in production:** the on-phone caches and `peek` on every
 screen, level prefetch, Stage 1 markers with rules, and the Stage 2 Worker
-and Stage 3 Durable Object in `server/`. Staging runs its own Worker
-(`pointer-heads-staging`, `wrangler deploy --env staging`), verified with two
-browsers; production waits for the owner's deploy. Without
+and Stage 3 Durable Object in `server/`. Production runs `pointer-heads`;
+staging runs its own Worker (`pointer-heads-staging`,
+`wrangler deploy --env staging`). Without
 `POINTER_HEADS_URL` and `POINTER_LIVE_URL` the app reads `heads/{campus}`
 from Firestore as before.
 

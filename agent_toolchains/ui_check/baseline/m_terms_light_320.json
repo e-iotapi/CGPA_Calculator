@@ -1,8 +1,0 @@
-{
- "errors": [],
- "issues": [
-  "dead: button \"Longer\" has no tap action",
-  "dead: button \"Shorter\" has no tap action",
-  "tap: \"Back\" 42x42"
- ]
-}

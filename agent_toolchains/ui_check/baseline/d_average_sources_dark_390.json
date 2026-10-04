@@ -1,7 +1,0 @@
-{
- "errors": [],
- "issues": [
-  "contrast: \"OFFICIAL\" 4.06:1, needs 4.5 (10.0 px)",
-  "tap: \"Back\" 42x42"
- ]
-}
