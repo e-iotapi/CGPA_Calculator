@@ -140,7 +140,8 @@ class _AdminGrantState extends State<AdminGrant> {
     GrantRole.contributor || null => null,
   };
 
-  String get _address => _email.text.trim().toLowerCase();
+  // "f20230800@goa" is enough; the campus domain is filled in.
+  String get _address => fullBitsAddress(_email.text);
   String? get _campus =>
       _role == GrantRole.admin ? 'all' : campusOfAddress(_address);
 
@@ -383,7 +384,7 @@ class _AdminGrantState extends State<AdminGrant> {
               AppTextField(
                 controller: _email,
                 label: 'BITS student address',
-                hint: 'f20230802@goa.bits-pilani.ac.in',
+                hint: 'f20230802@goa',
                 labelAbove: true,
                 onChanged: _typed,
               ),

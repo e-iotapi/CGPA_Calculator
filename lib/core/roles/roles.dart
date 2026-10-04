@@ -14,6 +14,16 @@ final _bits = RegExp(
   r'^[^@]+@(goa|pilani|dubai|hyderabad)\.bits-pilani\.ac\.in$',
 );
 
+/// [typed] with the campus domain filled in: `f20230800@goa` becomes
+/// `f20230800@goa.bits-pilani.ac.in`. Anything else comes back trimmed and
+/// lower-cased.
+String fullBitsAddress(String typed) {
+  final t = typed.trim().toLowerCase();
+  return RegExp(r'^[^@\s]+@(goa|pilani|dubai|hyderabad)$').hasMatch(t)
+      ? '$t.bits-pilani.ac.in'
+      : t;
+}
+
 /// A BITS student address; faculty and alumni addresses are not.
 bool isStudentAddress(String email) => _student.hasMatch(email.toLowerCase());
 
