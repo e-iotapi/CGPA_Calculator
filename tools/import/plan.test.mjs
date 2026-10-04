@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { catalogIndex, classAverages, courseIdOf, planImport, planRebuild, termOf, textOf } from './plan.mjs';
+import { catalogIndex, classAverages, cleanFacultyName, courseIdOf, facultyIdOf, planFaculty, planImport, planRebuild, termOf, textOf } from './plan.mjs';
 
 const idx = catalogIndex({ master: [['HSS F314', 'Maritime Studies', 3], ['CS F211', 'Data Structures', 4]], chartOld: [], chartNew: [] });
 const row = (o) => ({ review_id: 'r1', course_code: 'CSF211', course_name: '', prof: 'Dr. Alder Quill', taken_in: '2024-25 Sem 1', created_at: '2025-01-01T00:00:00Z', your_grade: 'a-', ...o });
@@ -107,4 +107,27 @@ test('rebuild: counters, copies, links and reps from the source docs', () => {
   assert.deepEqual(ops['repIndex/goa'].p, {});
   assert.deepEqual(Object.keys(ops['heads/goa'].v).sort(), ['reps', 'resources', 'reviews', 'reviews/CS F211', 'reviews/OLD']);
   assert.equal(plan.batches.at(-1).ops.at(-1).path, 'heads/dubai', 'markers move last');
+});
+
+test('faculty: one professor each under their own department, titles off, existing names kept', () => {
+  assert.equal(cleanFacultyName('Dr. Mainak Banerjee, PhD, FRSC'), 'Mainak Banerjee');
+  assert.equal(cleanFacultyName('Prof. K.A.Geetha'), 'K.A.Geetha');
+  assert.equal(facultyIdOf('https://x/goa/a-baskar/'), 'fac_a-baskar');
+  const f = (name, department, slug, campus = 'K K Birla Goa') => ({ name, department, url: `https://x/goa/${slug}`, campus });
+  const faculty = [
+    f('Dr. Leshma Manogna', 'Economics & Finance', 'leshma'),
+    f('Ann Other', 'Humanities and Social Sciences', 'ann'),
+    f('Al Ready', 'Physics', 'al'),
+    f('Bo Near', 'Physics', 'bo'),
+    f('Du Bai', 'Physics', 'du', 'Dubai'),
+  ];
+  const live = { profs: [{ id: 'p1', name: 'AL READY' }, { id: 'p2', name: 'B. Near' }], existing: new Set() };
+  const p = planFaculty({ faculty, live, newId });
+  assert.deepEqual(p.created.map((c) => [c.id, c.name, c.department]), [['fac_leshma', 'Leshma Manogna', 'ECON'], ['fac_ann', 'Ann Other', 'GEN']]);
+  assert.deepEqual(p.linked, [{ name: 'Al Ready', id: 'p1' }]);
+  assert.equal(p.unsure[0].name, 'Bo Near');
+  assert.deepEqual(p.skipped, ['Du Bai']);
+  const heads = p.batches.flatMap((b) => b.ops).filter((o) => o.path === 'heads/goa');
+  assert.deepEqual(Object.keys(heads[0].merge.v).sort(), ['professors/ECON', 'professors/GEN']);
+  assert.equal(planFaculty({ faculty, live, newId, answers: { 'Bo Near': 'new' } }).created.length, 3);
 });

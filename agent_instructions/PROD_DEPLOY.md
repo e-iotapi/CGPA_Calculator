@@ -61,7 +61,12 @@ yet; without them those screens show empty. Run, with the prod admin key:
    moved and the app loads signed in.
 
 ## 5. Data
-1. Timetable: `node tools/timetable/extract.mjs "<pdf>" --campus goa --sem 2026-1`
+0. Faculty first, so the timetable and the reviews link to them:
+   `node tools/import/import.mjs faculty --project cgpa-calculator-fb90c --allow-prod --key <key>`
+   (dry run: 266 Goa faculty from `tools/course_reviews_out/faculty.json`, each under
+   their own department; any "close to an existing professor" needs an answer), then `--commit`.
+1. Timetable, with `--answers tools/course_reviews_out/tt_answers.json` (PDF names to
+   faculty ids): `node tools/timetable/extract.mjs "<pdf>" --campus goa --sem 2026-1`
    (dry run, read the report), then the same with `--commit --project cgpa-calculator-fb90c
    --allow-prod --key <path to the prod admin key>`. Credits for the U-courses
    first (`--credits`).
