@@ -85,13 +85,19 @@ class AppNav extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(child: PointerMark(color: p.hero, size: 30)),
+              Center(
+                child: PointerMark(
+                  color: p.isDark ? AppPalette.light.accent : p.hero,
+                  size: 30,
+                ),
+              ),
               const SizedBox(height: Space.lg),
               for (var i = 0; i < destinations.length; i++) ...[
                 _tour(
                   destinations[i],
                   _RailItem(
                     destination: destinations[i],
+                    light: p.isDark,
                     selected: i == selectedIndex,
                     onTap: () => onSelected(i),
                   ),
@@ -144,7 +150,10 @@ class AppNav extends StatelessWidget {
       label: 'Navigation',
       child: Container(
         decoration: BoxDecoration(
-          color: p.navBackground,
+          // In dark mode the rail is light, so it stands out (owner,
+          // 2026-10-04); the pill keeps the dark nav colour.
+          color:
+              vertical && p.isDark ? AppPalette.light.surface : p.navBackground,
           // On dark grounds the nav is only a shade lighter; a hairline keeps
           // its edge visible.
           border: p.isDark ? Border.all(color: p.divider) : null,
@@ -290,17 +299,22 @@ class _RailItem extends StatelessWidget {
   const _RailItem({
     required this.destination,
     required this.selected,
+    required this.light,
     required this.onTap,
   });
 
   final NavDestination destination;
   final bool selected;
+
+  /// Drawn on the light rail of dark mode: dark icons and labels.
+  final bool light;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final fg = selected ? p.onHero : p.navIcon;
+    final fg =
+        selected ? p.onHero : (light ? AppPalette.light.icon : p.navIcon);
     const shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(Radii.row)),
     );
