@@ -1,9 +1,0 @@
-{
- "errors": [],
- "issues": [
-  "anim: frames still scheduled after settling",
-  "contrast: \"PDF\" 3.97:1, needs 4.5 (11.5 px)",
-  "dead: button \"Choose your performance sheet, PDF\" has no tap action",
-  "stretch: OutlinedPill \"Open ERP\" 320 of 390 wide"
- ]
-}

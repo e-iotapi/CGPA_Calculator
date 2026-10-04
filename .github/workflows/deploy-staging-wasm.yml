@@ -3,7 +3,7 @@ name: deploy-staging-wasm
 # channel, to compare iPhone scrolling and tab switches with the JS build
 # (TM-14). Browsers without WasmGC get the JS build from the same deploy.
 # Never replaces https://pointer-staging.web.app.
-# Trigger: git push -f origin pointer-rebuild:staging-wasm
+# Trigger: git push -f origin pointer-dev:staging-wasm
 on:
   push:
     branches: [staging-wasm]

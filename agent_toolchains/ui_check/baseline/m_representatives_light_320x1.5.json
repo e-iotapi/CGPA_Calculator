@@ -1,9 +1,0 @@
-{
- "errors": [],
- "issues": [
-  "tap: \"Back\" 42x42",
-  "tap: \"Email\" 101x36",
-  "tap: \"WhatsApp\" 147x36",
-  "word-break: \"Representatives\" split across lines in \"Representatives\""
- ]
-}

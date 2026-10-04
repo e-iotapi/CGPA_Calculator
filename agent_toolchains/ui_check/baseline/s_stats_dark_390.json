@@ -1,8 +1,0 @@
-{
- "errors": [],
- "issues": [
-  "contrast: \"You need 10.15 average across your remai…\" 1.19:1, needs 4.5 (14.0 px)",
-  "tap: \"Degree\" 172x38",
-  "tap: \"Progress\" 172x38"
- ]
-}

@@ -3,7 +3,7 @@ name: deploy-staging-profile
 # function names (a --profile build hangs in firebase_auth_web's auth-state
 # stream before the first frame), deployed to a 7-day preview channel of the staging site. It never
 # replaces https://pointer-staging.web.app. Trigger: push a commit to the
-# staging-profile branch (git push origin pointer-rebuild:staging-profile).
+# staging-profile branch (git push origin pointer-dev:staging-profile).
 on:
   push:
     branches: [staging-profile]

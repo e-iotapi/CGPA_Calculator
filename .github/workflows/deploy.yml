@@ -1,73 +1,81 @@
 name: deploy
+# One Cloudflare Pages site serves every channel (docs/ARCHITECTURE.md §11):
+#   /             the landing page
+#   /calculator/  master, the release everyone gets
+#   /beta/        pointer-beta, the next release for Beta Program members
+# A deploy replaces the whole site, so a push to either branch rebuilds both.
+# Tests run before a release reaches these branches (release.yml), not here:
+# master and pointer-beta carry no tests.
 on:
   push:
-    branches: [master]
+    branches: [master, pointer-beta]
   workflow_dispatch:
 
-jobs:
-  # Mirrors check.yml's job (T7): needs cannot cross workflow files, and
-  # check.yml must still run standalone on PRs. Keep the two in sync.
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - run: npm install -g firebase-tools
-      - run: flutter pub get
-      - name: flutter analyze (no new issues vs. tools/analyze_baseline.txt)
-        run: |
-          flutter analyze --no-fatal-infos > /tmp/analyze.out 2>&1 || true
-          cat /tmp/analyze.out
-          node tools/check_analyze_baseline.mjs < /tmp/analyze.out
-      - run: flutter test
-      - name: firestore.rules tests
-        run: |
-          cd test/rules
-          npm ci
-          npm test
-      - name: production build + prod guard (T1)
-        run: |
-          flutter build web --release --base-href /calculator/ \
-            --dart-define=POINTER_HEADS_URL=${{ vars.PROD_POINTER_HEADS_URL }} \
-            --dart-define=POINTER_LIVE_URL=${{ vars.PROD_POINTER_LIVE_URL }}
-          if grep -q 'pointer-test-only' build/web/main.dart.js; then
-            echo "Test-only sign-in leaked into the production build." >&2
-            exit 1
-          fi
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
 
+jobs:
   web:
-    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: prod
+      - name: Is there a beta?
+        id: beta
+        run: |
+          if git -C prod ls-remote --exit-code --heads origin pointer-beta >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.beta.outputs.exists == 'true'
+        with:
+          ref: pointer-beta
+          path: beta
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-      - run: flutter pub get
       # Prod's Worker URLs (not staging's POINTER_* vars); unset, they build
-      # empty and the app reads heads from Firestore with no live push.
-      - run: |
-          flutter build web --release --base-href /calculator/ \
-            --dart-define=POINTER_HEADS_URL=${{ vars.PROD_POINTER_HEADS_URL }} \
-            --dart-define=POINTER_LIVE_URL=${{ vars.PROD_POINTER_LIVE_URL }}
+      # empty and the app reads heads from Firestore with no live push. Beta
+      # talks to the same production data as master.
+      - name: Build master at /calculator/ and pointer-beta at /beta/
+        run: |
+          build() {
+            (cd "$1" && flutter pub get && flutter build web --release --base-href "/$2/" \
+              --dart-define=POINTER_HEADS_URL=${{ vars.PROD_POINTER_HEADS_URL }} \
+              --dart-define=POINTER_LIVE_URL=${{ vars.PROD_POINTER_LIVE_URL }})
+            # Test sign-in must never reach a public build.
+            if grep -q 'pointer-test-only' "$1/build/web/main.dart.js"; then
+              echo "Test-only sign-in leaked into the $1 build." >&2
+              exit 1
+            fi
+          }
+          build prod calculator
+          if [ -d beta ]; then
+            build beta beta
+            sed -i 's#/calculator/#/beta/#g' beta/build/web/manifest.json
+          fi
       # The landing page at /, the app under /calculator/ (ARCHITECTURE.md §7).
       # Installs from before the move registered a service worker at the
       # root; Flutter's own worker is the self-unregistering one, so a copy
-      # there retires them.
-      - run: |
+      # there retires them. /beta/ gets the same deep links and headers as
+      # /calculator/, generated here so landing/ stays the one source.
+      - name: Assemble the site
+        run: |
           mkdir site
-          cp -r landing/. site/
-          cp -r web/icons web/favicon.png site/
-          cp -r build/web site/calculator
-          cp build/web/flutter_service_worker.js site/
+          cp -r prod/landing/. site/
+          cp -r prod/web/icons prod/web/favicon.png site/
+          cp -r prod/build/web site/calculator
+          cp prod/build/web/flutter_service_worker.js site/
+          if [ -d beta ]; then
+            cp -r beta/build/web site/beta
+            grep '^/calculator/' prod/landing/_redirects | sed 's#/calculator/#/beta/#g' >> site/_redirects
+            sed -n '/^\/calculator\//,$p' prod/landing/_headers | sed 's#^/calculator/#/beta/#' >> site/_headers
+            printf '\nDisallow: /beta/\n' >> site/robots.txt
+          fi
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
