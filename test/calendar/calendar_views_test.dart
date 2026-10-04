@@ -361,6 +361,70 @@ void main() {
       expect(find.text('CCC F311'), findsOneWidget);
     });
 
+    testWidgets(
+      'Add finds a catalogue course the timetable lacks, and its times are typed',
+      (t) async {
+        final tt = fakeTimetable();
+        await pump(
+          t,
+          home: Builder(
+            builder: (c) => Scaffold(
+              body: TextButton(
+                onPressed: () => showModalBottomSheet<Object>(
+                  context: c,
+                  isScrollControlled: true,
+                  builder: (_) => AddSheet(
+                    timetable: tt,
+                    state: cal.state,
+                    catalogue: const [
+                      (id: 'CS F211', title: 'Data Structures'),
+                      (id: 'CS F211', title: 'Data Structures'),
+                      (id: _aaa, title: 'Intro Widgets'),
+                    ],
+                  ),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await t.tap(find.text('open'));
+        await t.pumpAndSettle();
+        await t.enterText(find.byType(TextField), 'cs f211');
+        await t.pumpAndSettle();
+        expect(find.text('Data Structures'), findsOneWidget);
+        expect(find.textContaining('you add the times'), findsOneWidget);
+        // A published course still searches as before, with no such note.
+        await t.enterText(find.byType(TextField), 'widgets');
+        await t.pumpAndSettle();
+        expect(find.text('Intro Widgets'), findsOneWidget);
+        expect(find.textContaining('you add the times'), findsNothing);
+      },
+    );
+
+    testWidgets('a course with no timetable: pick it, type day and time, it shows', (t) async {
+      await pump(t);
+      await tab(t, 'Week');
+      await t.tap(find.text('Add'));
+      await t.pumpAndSettle();
+      // CS F211 is in the real catalogue; the fake timetable has no such course.
+      await t.enterText(find.byType(TextField), 'CS F211');
+      await t.pumpAndSettle();
+      await t.tap(find.text('Data Structures & Algorithms'));
+      await t.pumpAndSettle();
+      expect(find.text('Class times'), findsOneWidget);
+      await t.enterText(find.byType(TextField).at(0), '11:00 AM');
+      await t.enterText(find.byType(TextField).at(1), '12:00 PM');
+      await t.enterText(find.byType(TextField).at(2), 'D201');
+      await t.tap(find.text('Save'));
+      await t.pumpAndSettle();
+      final c = cal.state.custom.single;
+      expect((c.course, c.title, c.d, c.s, c.e, c.room), ('CS F211', 'Data Structures & Algorithms', 1, 660, 720, 'D201'));
+      expect(c.until, '2026-11-28');
+      expect(find.text('CS F211'), findsWidgets);
+      expect(t.takeException(), isNull);
+    });
+
     testWidgets('Add an event of my own with no course', (t) async {
       await pump(t);
       await tab(t, 'Day');

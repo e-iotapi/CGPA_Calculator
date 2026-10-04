@@ -144,6 +144,31 @@ void main() {
       expect(o.map((x) => x.date), ['2026-08-12', '2026-08-19', '2026-09-01']);
     });
 
+    test('a course of the student\'s own timings expands weekly under its code', () {
+      const s = CalendarState(custom: [
+        CalendarCustom(
+          id: 'o1', title: 'Data Structures', d: 7, s: 600, e: 660, from: '2026-08-03',
+          until: '2026-08-17', course: 'CS F211', room: 'D201',
+        ),
+      ]);
+      final o = expandOccurrences(null, s, from: '2026-08-01', to: '2026-12-31');
+      expect(o.map((x) => (x.date, x.courseId, x.room)), [
+        ('2026-08-09', 'CS F211', 'D201'),
+        ('2026-08-16', 'CS F211', 'D201'),
+      ]);
+    });
+
+    test('searchCourses matches by code and by title prefix, id first', () {
+      final all = [
+        const TtCourse(id: 'CS F211', title: 'Data Structures'),
+        const TtCourse(id: 'CS F212', title: 'Database Systems'),
+        const TtCourse(id: 'MATH F211', title: 'Cs Maths'),
+      ];
+      expect(searchCourses(all, 'cs f211').map((c) => c.id), ['CS F211', 'MATH F211']);
+      expect(searchCourses(all, 'cs').map((c) => c.id), ['CS F211', 'CS F212', 'MATH F211']);
+      expect(searchCourses(all, '   '), isEmpty);
+    });
+
     test('republish: vanished slot keeps the student time as stale, vanished section is listed', () {
       final repub = doc();
       final sec = ((repub['courses'] as Map)['AAA F111'] as Map)['sec'] as List;
@@ -193,6 +218,23 @@ void main() {
       expect(again.slotOverrides['AAA F111|L1|1-540']!.d, 2);
       await st.setSlotOverride('AAA F111|L1|1-540', d: 2, s: 600, e: 660);
       await expectLater(st.setSlotOverride('q', d: 1, s: 60, e: 60), throwsStateError);
+    });
+
+    test('setOwnCourse replaces the course\'s times; removeCourse takes them with it', () async {
+      final st = CalendarStore(box, profile: 3);
+      await st.addCustom(const CalendarCustom(id: 'x', title: 'Club', d: 1, s: 1, e: 2, from: '2026-08-03'));
+      await st.setOwnCourse('CS F211', 'DSA', [(d: 1, s: 540, e: 600, room: ''), (d: 3, s: 540, e: 600, room: 'D1')],
+          from: '2026-08-03', until: '2026-11-28');
+      await st.setOwnCourse('CS F211', 'DSA', [(d: 7, s: 600, e: 660, room: '')],
+          from: '2026-08-03', until: '2026-11-28');
+      expect(st.state.custom.where((c) => c.course == 'CS F211').map((c) => c.d), [7]);
+      expect(CalendarStore(box, profile: 3).state.custom.last.course, 'CS F211');
+      await expectLater(
+        st.setOwnCourse('CS F211', 'DSA', [(d: 1, s: 60, e: 60, room: '')], from: '2026-08-03', until: '2026-11-28'),
+        throwsStateError,
+      );
+      await st.removeCourse('CS F211');
+      expect(st.state.custom.map((c) => c.id), ['x']);
     });
 
     test('setSection swaps the pick and drops the old section\'s edits', () async {
