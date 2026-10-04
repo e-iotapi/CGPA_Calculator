@@ -34,7 +34,9 @@ jobs:
           npm test
       - name: production build + prod guard (T1)
         run: |
-          flutter build web --release --base-href /calculator/
+          flutter build web --release --base-href /calculator/ \
+            --dart-define=POINTER_HEADS_URL=${{ vars.PROD_POINTER_HEADS_URL }} \
+            --dart-define=POINTER_LIVE_URL=${{ vars.PROD_POINTER_LIVE_URL }}
           if grep -q 'pointer-test-only' build/web/main.dart.js; then
             echo "Test-only sign-in leaked into the production build." >&2
             exit 1
@@ -50,7 +52,12 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build web --release --base-href /calculator/
+      # Prod's Worker URLs (not staging's POINTER_* vars); unset, they build
+      # empty and the app reads heads from Firestore with no live push.
+      - run: |
+          flutter build web --release --base-href /calculator/ \
+            --dart-define=POINTER_HEADS_URL=${{ vars.PROD_POINTER_HEADS_URL }} \
+            --dart-define=POINTER_LIVE_URL=${{ vars.PROD_POINTER_LIVE_URL }}
       # The landing page at /, the app under /calculator/ (ARCHITECTURE.md §7).
       # Installs from before the move registered a service worker at the
       # root; Flutter's own worker is the self-unregistering one, so a copy

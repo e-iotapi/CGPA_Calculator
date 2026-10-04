@@ -135,10 +135,31 @@ async function approve(db, actor, rid, { username = 'cee', email = C, bid = 'b1'
   return b.commit();
 }
 
-function claim(db, e, u, { campus = 'goa' } = {}) {
+// Claims u the way the Apply page does: beside a pending request for dept
+// (d), unless apply is false (a contributor who already has the grant).
+function claim(db, e, u, { campus = 'goa', apply = true, dept = 'ELEC', d = dept } = {}) {
   const b = writeBatch(db);
+  if (apply) {
+    b.set(doc(db, 'contributorRequests', reqId(e, dept)), {
+      name: name(e), email: e, campus: 'goa', dept, status: 'pending', createdAt: serverTimestamp(),
+    });
+    bumps(b, db, [`contributorRequests/${dept}`]);
+  }
   b.set(doc(db, 'usernames', `${campus}|${u}`), { email: e, claimedAt: serverTimestamp() });
-  b.set(doc(db, 'contributors', e), { username: u, campus, points: 0 });
+  b.set(doc(db, 'contributors', e), { username: u, campus, points: 0, ...(d ? { d } : {}) });
+  return b.commit();
+}
+
+// Declines e's request, releasing their username in the same batch.
+function declineReleasing(db, actor, e, u, { dept = 'ELEC' } = {}) {
+  const b = writeBatch(db);
+  const auditId = audit(b, db, actor, `contributorRequests/${reqId(e, dept)}`);
+  b.update(doc(db, 'contributorRequests', reqId(e, dept)), {
+    status: 'declined', decidedBy: actor, decidedAt: serverTimestamp(), auditId,
+  });
+  bumps(b, db, [`contributorRequests/${dept}`]);
+  b.update(doc(db, 'contributors', e), { username: deleteField() });
+  b.delete(doc(db, 'usernames', `goa|${u}`));
   return b.commit();
 }
 
@@ -481,8 +502,38 @@ describe('approval and points', () => {
 });
 
 describe('usernames and leaderboard', () => {
-  test('claim a username', async () => {
+  test('claim a username beside the application', async () => {
     await assertSucceeds(claim(as(STUDENT), STUDENT, 'cee_9'));
+  });
+
+  test('no request and no grant, or a request that is not pending: denied (#7)', async () => {
+    await assertFails(claim(as(STUDENT), STUDENT, 'squat', { apply: false }));
+    await assertFails(claim(as(STUDENT), STUDENT, 'squat', { apply: false, d: '' }));
+    await apply(as(STUDENT), STUDENT);
+    await decide(as(PRES), PRES, STUDENT, 'declined');
+    await assertFails(claim(as(STUDENT), STUDENT, 'squat', { apply: false }));
+  });
+
+  test('an active or a revoked contributor claims without a request', async () => {
+    await seedContributor(C);
+    await assertSucceeds(claim(as(C), C, 'active1', { apply: false, d: '' }));
+    await seed((db) => setDoc(doc(db, 'grants', gid(C2)), {
+      role: 'contributor', campus: 'goa', scope: 'goa', email: C2, name: name(C2), dept: 'ELEC',
+      active: false, expiresAt: SENTINEL,
+    }));
+    await assertSucceeds(claim(as(C2), C2, 'revoked1', { apply: false, d: '' }));
+  });
+
+  test('declining an applicant releases their name; a student cannot; a contributor keeps it', async () => {
+    await claim(as(STUDENT), STUDENT, 'gone');
+    await assertFails(declineReleasing(as(OTHER), OTHER, STUDENT, 'gone'));
+    await assertSucceeds(declineReleasing(as(PRES), PRES, STUDENT, 'gone'));
+    await assertSucceeds(claim(as(C), C, 'gone'));
+    await seed((db) => setDoc(doc(db, 'grants', gid(C)), {
+      role: 'contributor', campus: 'goa', scope: 'goa', email: C, name: name(C), dept: 'ELEC',
+      active: false, expiresAt: SENTINEL,
+    }));
+    await assertFails(declineReleasing(as(PRES), PRES, C, 'gone'));
   });
 
   test('taken, bad charset, too short, too long, uppercase, other campus: denied', async () => {

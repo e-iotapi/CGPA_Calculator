@@ -146,6 +146,30 @@ void main() {
       );
     });
 
+    test('a first claim applies in the same batch; a decline gives it back',
+        () async {
+      await student.claimUsername('goa', 'cee_9', applyTo: 'ELEC');
+      expect(
+        (await db.doc('contributorRequests/goa|ELEC|$_stu').get())
+            .data()!['status'],
+        'pending',
+      );
+      expect((await db.doc('contributors/$_stu').get()).data()!['d'], 'ELEC');
+      await president.decline((await president.requests('goa', 'ELEC')).single);
+      expect((await db.doc('usernames/goa|cee_9').get()).exists, isFalse);
+      expect(
+        (await db.doc('contributors/$_stu').get()).data()!.containsKey('username'),
+        isFalse,
+      );
+    });
+
+    test('a decline keeps the name of someone who held the grant', () async {
+      await student.claimUsername('goa', 'kept', applyTo: 'ELEC');
+      await db.doc('grants/contributor|goa|goa|$_stu').set({'active': false});
+      await president.decline((await president.requests('goa', 'ELEC')).single);
+      expect((await db.doc('usernames/goa|kept').get()).exists, isTrue);
+    });
+
     test('a username claimed after earning points keeps the points', () async {
       await db.doc('contributors/$_stu').set({'campus': 'goa', 'points': 8});
       await student.claimUsername('goa', 'later');
