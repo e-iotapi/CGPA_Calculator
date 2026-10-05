@@ -1,6 +1,7 @@
 import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/minor_progress.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/minor.dart';
@@ -13,6 +14,8 @@ import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/script.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -284,6 +287,8 @@ class StatsScreen extends StatelessWidget {
                   child:
                       shown == StatsView.minor
                           ? MinorView(progress: pr!)
+                          : degree && app.batch >= firstUBatch
+                          ? const _DegreeComingSoon()
                           : degree
                           ? DegreeView(
                             data: data,
@@ -414,4 +419,24 @@ class StatsBody extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The U group follows a new degree policy the Senate has not published;
+/// until it does, their Degree view says so instead of measuring them
+/// against the old one.
+class _DegreeComingSoon extends StatelessWidget {
+  const _DegreeComingSoon();
+
+  @override
+  Widget build(BuildContext context) => const Align(
+    alignment: Alignment.topCenter,
+    child: Notice(
+      icon: Icons.school_outlined,
+      text: TextSpan(
+        text:
+            'Your Degree Requirements are coming soon. They will be out as '
+            'soon as the Senate explains the new Degree policy.',
+      ),
+    ),
+  );
 }

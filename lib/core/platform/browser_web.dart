@@ -66,6 +66,31 @@ void reloadPage() => web.window.location.reload();
 
 String userAgent() => web.window.navigator.userAgent;
 
+void sendBeacon(String url, String body) {
+  web.window.navigator.sendBeacon(url, body.toJS);
+}
+
+const _redirectKey = 'pointer.signInRedirect';
+
+void markSignInRedirect() {
+  try {
+    web.window.sessionStorage.setItem(_redirectKey, '1');
+  } on Object {
+    // Storage blocked: the result still lands; only its error is unseen.
+  }
+}
+
+bool takeSignInRedirect() {
+  try {
+    final s = web.window.sessionStorage;
+    final was = s.getItem(_redirectKey) != null;
+    s.removeItem(_redirectKey);
+    return was;
+  } on Object {
+    return false;
+  }
+}
+
 bool isStandalone() {
   // iOS has its own flag, and only iOS has it; trust it there over the media
   // query, which some WebKit builds answer for a Safari tab too.

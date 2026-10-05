@@ -134,7 +134,8 @@ ImportPlan planImport(
   );
 
   for (final r in sheet.rows) {
-    var grade = gradeValueOf(r.grade);
+    // No grade yet: running this semester (the sheet lists no later one).
+    var grade = r.grade == null ? GradeCode.ongoing : gradeValueOf(r.grade);
     if (grade == null) {
       unknown.add('${r.id}: ${r.grade}');
       grade = GradeCode.clr;
@@ -184,7 +185,7 @@ ImportPlan planImport(
           grade2: GradeCode.clr,
         ),
       );
-      if (grade != GradeCode.clr) graded++;
+      if (grade != GradeCode.clr && grade != GradeCode.ongoing) graded++;
       continue;
     }
 
@@ -218,7 +219,9 @@ ImportPlan planImport(
     } else {
       put[match.key] = next;
       if (next.grade1 != c.grade1) {
-        next.grade1 == GradeCode.clr ? running.add(c.id) : graded++;
+        next.grade1 == GradeCode.clr || next.grade1 == GradeCode.ongoing
+            ? running.add(c.id)
+            : graded++;
       }
     }
   }
