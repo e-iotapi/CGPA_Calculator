@@ -6,6 +6,11 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Content-Security-Policy: frame-ancestors 'none'
+# Firebase sign-in frames its helper (/__/auth/iframe) inside the app, and the
+# popup answers through it: framing it MUST stay allowed, or no one who is
+# signed out can sign in.
+/__/auth/*
+  ! Content-Security-Policy
 /
   Cache-Control: no-cache
 /index.html
