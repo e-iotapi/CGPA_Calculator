@@ -430,12 +430,16 @@ class _DegreeComingSoon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Align(
     alignment: Alignment.topCenter,
-    child: Notice(
-      icon: Icons.school_outlined,
-      text: TextSpan(
-        text:
-            'Your Degree Requirements are coming soon. They will be out as '
-            'soon as the Senate explains the new Degree policy.',
+    child: Padding(
+      // The gutter DegreeView keeps.
+      padding: EdgeInsets.all(Space.gutter),
+      child: Notice(
+        icon: Icons.school_outlined,
+        text: TextSpan(
+          text:
+              'Your Degree Requirements are coming soon. They will be out as '
+              'soon as the Senate explains the new Degree policy.',
+        ),
       ),
     ),
   );
