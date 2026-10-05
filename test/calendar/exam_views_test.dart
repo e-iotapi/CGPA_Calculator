@@ -190,6 +190,7 @@ void main() {
     Future<void> pump(
       WidgetTester t, {
       Size size = const Size(390, 844),
+      bool week = true,
     }) async {
       await t.runAsync(() async {
         await saveEvaluative(_marks());
@@ -210,9 +211,27 @@ void main() {
         ),
       );
       await t.pumpAndSettle();
+      if (!week) return;
       await t.tap(find.text('Week'));
       await t.pumpAndSettle();
     }
+
+    testWidgets(
+      'a Month eval opens the same sheet as in Week, not the course',
+      (t) async {
+        await pump(t, week: false);
+        await t.tap(find.text('ZZZ F999').last);
+        await t.pumpAndSettle();
+        expect(find.text('Save time'), findsOneWidget, reason: 'Marks date');
+        await t.tapAt(const Offset(195, 40));
+        await t.pumpAndSettle();
+        await t.tap(find.text(_aaa).first); // its Midsem, from the timetable
+        await t.pumpAndSettle();
+        expect(find.text('DATE'), findsOneWidget, reason: 'published exam');
+        expect(find.byType(CalendarPage), findsOneWidget);
+        expect(t.takeException(), isNull);
+      },
+    );
 
     testWidgets(
       'exams name their course; the published midsem has no all-day twin',
