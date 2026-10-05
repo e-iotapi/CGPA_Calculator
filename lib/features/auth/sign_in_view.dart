@@ -111,8 +111,8 @@ class SignInView extends StatelessWidget {
                               entrance(
                                 2,
                                 Text(
-                                  'Your CGPA, every semester behind it, and '
-                                  'where the next one lands. Built for BITS.',
+                                  'An all-in-one academics manager, and a '
+                                  'lovely community of BITSians.',
                                   style: TypeScale.body.copyWith(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,

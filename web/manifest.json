@@ -7,7 +7,7 @@
     "display": "standalone",
     "background_color": "#F2F2EF",
     "theme_color": "#F2F2EF",
-    "description": "Pointer: the CGPA calculator for BITS Pilani, Goa and Hyderabad. Instant SGPA and CGPA for every semester, evaluative marks with best-of rules, the finance offshoot score, a target planner and your degree progress — synced to your BITS account and usable offline.",
+    "description": "Pointer is the all-in-one academics app for BITS Pilani, Goa and Hyderabad (BPPC, BPGC, BPHC): live SGPA and CGPA, marks with class averages, a timetable built from the campus timetable, course reviews and resources for every course.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
