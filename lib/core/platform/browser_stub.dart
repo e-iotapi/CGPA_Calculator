@@ -8,6 +8,10 @@ String userAgent() => 'vm';
 
 void sendBeacon(String url, String body) {}
 
+void markSignInRedirect() {}
+
+bool takeSignInRedirect() => false;
+
 bool isStandalone() => false;
 
 bool hasTouch() => false;
