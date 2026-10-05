@@ -1,0 +1,22 @@
+Pointer
+Copyright (c) 2026 Siddharth Mishra
+
+Pointer began as a fork of CGPA_Calculator by Srijen Raja
+(https://github.com/Srijen-Raja/CGPA_Calculator), Copyright 2025 Srijen Raja,
+licensed under the Apache License 2.0 (LICENSE-APACHE).
+
+The app has since been rebuilt. Code from that project remains in these
+files, which Siddharth Mishra has modified; it stays under the Apache License
+2.0:
+
+  lib/script.dart
+  lib/home_page.dart
+  lib/course.dart
+  lib/course.g.dart  (generated from lib/course.dart)
+  lib/main.dart
+
+Everything else is under the PolyForm Noncommercial License 1.0.0
+(LICENSE), except the Pointer brand, which is not licensed (see LICENSE).
+
+landing/__/auth/ is Firebase's sign-in helper, Copyright Google LLC, under
+the Apache License 2.0, served unchanged.
