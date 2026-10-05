@@ -67,6 +67,12 @@ describe('role matrix against the seeded emulator', () => {
     assert.equal(await canGet(full.email, `users/${dual.uid}`), false);
   });
 
+  test('a first-login account (the 2026 student) has no users/{uid} doc', async () => {
+    const fresher = byKey.student_new;
+    const snap = await getDoc(doc(as('student_new'), `users/${fresher.uid}`));
+    assert.equal(snap.exists(), false);
+  });
+
   test('a plain student cannot read another account\'s grant', async () => {
     const student = byKey.student_full, admin = byKey.admin;
     const adminGrantId = `admin|all|all|${admin.email}`;

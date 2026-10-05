@@ -277,7 +277,12 @@ async function seedUserDocs(db, accounts) {
   for (const a of accounts) {
     // first_login (and no dataset at all): no users/{uid} doc, so the app
     // takes the genuine new-user path (Sync.pull sees nothing and pushes).
-    if (!a.dataset || a.dataset === 'first_login') continue;
+    // One a previous visit pushed is deleted: left, every sign-in restored
+    // it, courses from an older build and all.
+    if (!a.dataset || a.dataset === 'first_login') {
+      await db.doc(`users/${a.uid}`).delete();
+      continue;
+    }
     const file = path.join(root, 'tools', 'test_env', 'out', `${a.dataset}.json`);
     // Fail, don't skip: without its snapshot the account opens on setup and
     // the app pushes that empty state over the seed (QA-09).
