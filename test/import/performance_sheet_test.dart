@@ -306,8 +306,16 @@ void main() {
     test('added courses take the master title and the sheet tag', () {
       expect(after('GS F211')!.elective, Elective.humanity.tag);
       expect(after('ECON F354')!.elective, Elective.del1.tag);
-      expect(after('CS F213')!.grade1, GradeCode.clr);
       expect(after('CS F213')!.title, isNot('OBJECT ORIENTED PROG'));
+    });
+
+    test('this semester\'s courses are Ongoing; later ones stay empty', () {
+      expect(after('CS F213')!.grade1, GradeCode.ongoing);
+      final later = planImport(sheet, {
+        'CS F303': _stored('CS F303', '4 - 2', GradeCode.clr),
+      }, discipline: 'B3A7');
+      expect(later.put.containsKey('CS F303'), isFalse);
+      expect(later.remove, isNot(contains('CS F303')));
     });
 
     test('untagged courses are core, in the half that offers them', () {
