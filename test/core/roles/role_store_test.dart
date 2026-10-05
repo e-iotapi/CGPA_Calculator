@@ -138,6 +138,31 @@ void main() {
       expect(r.may(Capability.appointCrs), isFalse);
     });
 
+    test('an admin manages resources on their own campus only', () {
+      final r = MyRoles(
+        email: 'x@goa.bits-pilani.ac.in',
+        grants: [
+          Grant(
+            role: GrantRole.admin,
+            email: 'x@goa.bits-pilani.ac.in',
+            name: 'X',
+            campus: 'all',
+            scope: 'all',
+            active: true,
+            expiresAt: until,
+          ),
+        ],
+      );
+      for (final c in [
+        Capability.departmentResources,
+        Capability.courseResources,
+      ]) {
+        expect(r.may(c, campus: 'goa', scope: 'ELEC'), isTrue);
+        expect(r.may(c, campus: 'pilani', scope: 'ELEC'), isFalse);
+      }
+      expect(r.may(Capability.courseStructures, campus: 'goa'), isFalse);
+    });
+
     test('an owner may publish; nobody else may', () {
       expect(
         const MyRoles(email: 'o', owner: true).may(Capability.publish),

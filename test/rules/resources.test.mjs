@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { describe, test } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
-import { OTHER, OWNER, PRES, STUDENT, as, bump as mark, days, name, seed, useEmulator } from './helpers.mjs';
+import { ADMIN, OTHER, OWNER, PRES, STUDENT, as, bump as mark, days, name, seed, useEmulator } from './helpers.mjs';
 
 useEmulator();
 
@@ -40,7 +40,7 @@ function base(extra = {}) {
 }
 
 /// A resource write the way the app makes it: resource, audit, version bump.
-async function put(db, actor, id, data, { update = false, bump = true, auditPath, link } = {}) {
+async function put(db, actor, id, data, { update = false, bump = true, auditPath, link, campus = data.campus ?? 'goa' } = {}) {
   const b = writeBatch(db);
   const a = doc(collection(db, 'audit'));
   const ref = doc(db, 'resources', id);
@@ -56,14 +56,14 @@ async function put(db, actor, id, data, { update = false, bump = true, auditPath
   }
   b.set(a, {
     actor: { email: actor, name: name(actor), role: 'test' },
-    action: 'resource', path: auditPath ?? `resources/${id}`, campus: 'goa', at: serverTimestamp(),
+    action: 'resource', path: auditPath ?? `resources/${id}`, campus, at: serverTimestamp(),
   });
-  mark(b, db, 'goa', 'resources');
+  mark(b, db, campus, 'resources');
   if (bump) {
-    const v = (await getDoc(doc(db, 'resourceVersions', 'goa'))).data()?.v ?? 0;
+    const v = (await getDoc(doc(db, 'resourceVersions', campus))).data()?.v ?? 0;
     const copy = link ?? (update ? null : (({ title, url, department, scope, courseIds, pinnedToDepartment }) =>
       ({ title, url, department, scope, courseIds, pinnedToDepartment }))(data));
-    b.set(doc(db, 'resourceVersions', 'goa'),
+    b.set(doc(db, 'resourceVersions', campus),
       copy ? { v: v + 1, k: id, links: { [id]: copy } } : { v: v + 1 }, { merge: true });
   }
   return b.commit();
@@ -127,6 +127,15 @@ describe('resources', () => {
     await existing('d1', {});
     await assertSucceeds(put(as(CR), CR, 'd1', { courseIds: ['EEE F211'], actingFor: 'EEE F211' }, { update: true }));
     await assertFails(put(as(CR), CR, 'd1', { title: 'Mine now', actingFor: 'EEE F211' }, { update: true }));
+  });
+
+  test('an admin adds and edits links on their own campus only', async () => {
+    const pilani = base({ campus: 'pilani' });
+    await assertSucceeds(put(as(ADMIN), ADMIN, 'a1', pilani));
+    await assertSucceeds(put(as(ADMIN), ADMIN, 'a1', { title: 'Renamed' }, { update: true, campus: 'pilani' }));
+    await assertFails(put(as(ADMIN), ADMIN, 'a2', base()));
+    await existing('d1', {});
+    await assertFails(put(as(ADMIN), ADMIN, 'd1', { title: 'Renamed' }, { update: true }));
   });
 
   test('read on the same campus only', async () => {

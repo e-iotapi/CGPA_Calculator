@@ -157,8 +157,8 @@ document no longer has to carry the catalogue.
 | Course structures, eval schemes | ✓ | — | ✓ | ✓ own courses |
 | Bulk upload a JSON of eval schemes | ✓ | — | ✓ | — |
 | Degree requirements | ✓ | — | ✓ | — |
-| Department resources | ✓ | — | ✓ | — |
-| Course resources | ✓ | — | ✓ | ✓ own courses |
+| Department resources | ✓ | ✓ own campus | ✓ | — |
+| Course resources | ✓ | ✓ own campus | ✓ | ✓ own courses |
 | Averages — course, component, part | ✓ | — | ✓ | ✓ own courses |
 | Professors — create, rename | ✓ | — | ✓ | pick only |
 | Moderate reviews | ✓ | — | ✓ in scope | — |
@@ -167,8 +167,9 @@ document no longer has to carry the catalogue.
 
 **Admin is deliberately narrow.** It exists so appointments do not queue behind one person,
 and nothing else. An admin cannot publish, cannot appoint another admin and **cannot touch
-course data** — the rules give an admin write access to grants and nothing else. That is the
-whole point of separating it from Owner: the dangerous powers stay with named owner accounts.
+course data** — the rules give an admin write access to grants and nothing else, save resource
+links on the admin's own campus (added one at a time or in bulk). That is the whole point of
+separating it from Owner: the dangerous powers stay with named owner accounts.
 
 ### Owners are a list, and any verified account can be on it
 

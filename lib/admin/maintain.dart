@@ -557,38 +557,8 @@ class _DeptCoursesState extends State<DeptCourses> {
     setState(() => _loads++);
   }
 
-  Future<void> _paste() async {
-    final c = TextEditingController();
-    final text = await showDialog<String>(
-      context: context,
-      builder:
-          (context) => AppDialog(
-            title: 'Paste JSON',
-            maxWidth: 520,
-            content: TextField(
-              controller: c,
-              maxLines: 12,
-              minLines: 6,
-              style: appFieldStyle(AppPalette.of(context)),
-              cursorColor: AppPalette.of(context).text,
-              decoration: appFieldDecoration(
-                AppPalette.of(context),
-                hint: '{"schema":"pointer.eval.v1", …}',
-              ),
-            ),
-            actions: [
-              DialogAction('Cancel', onTap: () => Navigator.pop(context)),
-              DialogAction(
-                'Preview',
-                onTap: () => Navigator.pop(context, c.text),
-                ink: true,
-              ),
-            ],
-          ),
-    );
-    c.dispose();
-    await _upload(text);
-  }
+  Future<void> _paste() async =>
+      _upload(await pasteJson(context, '{"schema":"pointer.eval.v1", …}'));
 
   @override
   Widget build(BuildContext context) {
@@ -633,7 +603,7 @@ class _DeptCoursesState extends State<DeptCourses> {
             title: 'Course structures',
           ),
           children: [
-            _DropZone(
+            DropZone(
               onFile:
                   () async =>
                       _upload(await pickTextFile('.json,application/json')),
@@ -846,9 +816,54 @@ class _ClaimRow extends StatelessWidget {
 }
 
 /// The dashed mint drop zone: upload many courses' schemes as JSON.
-class _DropZone extends StatelessWidget {
-  const _DropZone({required this.onFile, required this.onPaste});
+/// The Paste JSON dialog: the text, or null on Cancel.
+Future<String?> pasteJson(BuildContext context, String hint) async {
+  final c = TextEditingController();
+  final text = await showDialog<String>(
+    context: context,
+    builder:
+        (context) => AppDialog(
+          title: 'Paste JSON',
+          maxWidth: 520,
+          content: TextField(
+            controller: c,
+            maxLines: 12,
+            minLines: 6,
+            style: appFieldStyle(AppPalette.of(context)),
+            cursorColor: AppPalette.of(context).text,
+            decoration: appFieldDecoration(
+              AppPalette.of(context),
+              hint: hint,
+            ),
+          ),
+          actions: [
+            DialogAction('Cancel', onTap: () => Navigator.pop(context)),
+            DialogAction(
+              'Preview',
+              onTap: () => Navigator.pop(context, c.text),
+              ink: true,
+            ),
+          ],
+        ),
+  );
+  // Not disposed here: the closing dialog still draws the field. It has no
+  // listeners left, so it is simply collected.
+  return text;
+}
+
+/// Choose a file or Paste, for a bulk JSON upload.
+class DropZone extends StatelessWidget {
+  const DropZone({
+    super.key,
+    required this.onFile,
+    required this.onPaste,
+    this.title = 'Upload schemes as JSON',
+    this.body =
+        'Many courses at once. You see every change before anything is '
+        'written.',
+  });
   final VoidCallback onFile, onPaste;
+  final String title, body;
 
   @override
   Widget build(BuildContext context) {
@@ -869,14 +884,13 @@ class _DropZone extends StatelessWidget {
             Icon(Icons.upload_file_rounded, color: p.text),
             const SizedBox(height: 6),
             Text(
-              'Upload schemes as JSON',
+              title,
               textAlign: TextAlign.center,
               style: TypeScale.body.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 2),
             Text(
-              'Many courses at once. You see every change before anything '
-              'is written.',
+              body,
               textAlign: TextAlign.center,
               style: TypeScale.caption.copyWith(height: 1.45, color: p.text),
             ),
@@ -905,7 +919,26 @@ class _DropZone extends StatelessWidget {
 /// The EXTRACTION PROMPT card: Copy, what it is for, and a quoted preview
 /// that Show opens.
 class UploadCard extends StatefulWidget {
-  const UploadCard({super.key});
+  const UploadCard({
+    super.key,
+    this.prompt = evalPrompt,
+    this.quote =
+        '“Read every attached course handout and return one JSON object…”',
+    this.use =
+        'Paste this into any AI tool along with the handout PDFs. It states '
+        'the exact shape this page accepts, so what comes back uploads '
+        'without hand-editing.',
+    this.after =
+        'Handouts differ per professor, so extraction is the messy part, not '
+        'the upload. The preview still shows every change before anything is '
+        'written.',
+  });
+
+  /// The prompt copied and shown; [quote] stands for it while closed.
+  final String prompt, quote;
+
+  /// What the prompt is for, and the note under it.
+  final String use, after;
 
   @override
   State<UploadCard> createState() => _UploadCardState();
@@ -944,7 +977,7 @@ class _UploadCardState extends State<UploadCard> {
                 padding: 12,
                 onPressed: () async {
                   await Clipboard.setData(
-                    const ClipboardData(text: evalPrompt),
+                    ClipboardData(text: widget.prompt),
                   );
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context)
@@ -957,12 +990,7 @@ class _UploadCardState extends State<UploadCard> {
             ],
           ),
           const SizedBox(height: Space.xs),
-          Text(
-            'Paste this into any AI tool along with the handout PDFs. It '
-            'states the exact shape this page accepts, so what comes back '
-            'uploads without hand-editing.',
-            style: caption,
-          ),
+          Text(widget.use, style: caption),
           const SizedBox(height: Space.sm),
           Container(
             width: double.infinity,
@@ -976,13 +1004,12 @@ class _UploadCardState extends State<UploadCard> {
               children: [
                 if (_open)
                   SelectableText(
-                    evalPrompt,
+                    widget.prompt,
                     style: TypeScale.caption.copyWith(height: 1.5),
                   )
                 else
                   Text(
-                    '“Read every attached course handout and return one JSON '
-                    'object…”',
+                    widget.quote,
                     style: TypeScale.caption.copyWith(
                       fontStyle: FontStyle.italic,
                       color: p.text,
@@ -996,12 +1023,7 @@ class _UploadCardState extends State<UploadCard> {
             ),
           ),
           const SizedBox(height: Space.sm),
-          Text(
-            'Handouts differ per professor, so extraction is the messy part, '
-            'not the upload. The preview still shows every change before '
-            'anything is written.',
-            style: caption,
-          ),
+          Text(widget.after, style: caption),
         ],
       ),
     );

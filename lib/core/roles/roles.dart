@@ -363,7 +363,13 @@ class MyRoles {
   /// department key or a course id), through any role they hold.
   bool may(Capability action, {String? campus, String? scope}) {
     if (owner && can(Role.owner, action)) return true;
-    if (admin && can(Role.admin, action)) return true;
+    if (admin &&
+        can(Role.admin, action) &&
+        (!action.admin.contains('own campus') ||
+            campus == null ||
+            campus == campusOfAddress(email))) {
+      return true;
+    }
     for (final g in presidencies) {
       final inScope =
           (campus == null || campus == g.campus) &&

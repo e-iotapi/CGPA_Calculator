@@ -1391,7 +1391,7 @@ service cloud.firestore {
         && mayUse()
         && resourceOk(request.resource.data)
         && (isOwner() || request.resource.data.campus == campusOf(me()))
-        && (isOwner()
+        && (isOwner() || isAdmin()
             || isPresident(request.resource.data.campus, request.resource.data.department)
             || (request.resource.data.scope == 'course'
                 && request.resource.data.actingFor == request.resource.data.courseIds[0]
@@ -1451,6 +1451,7 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).unchangedKeys()
              .hasAll(['campus', 'department', 'scope', 'addedBy', 'addedAt'])
         && (isOwner() || isPresident(resource.data.campus, resource.data.department)
+            || (isAdmin() && resource.data.campus == campusOf(me()))
             || (crOn(resource.data.campus, request.resource.data.actingFor,
                      resource.data.courseIds, request.resource.data.courseIds)
                 && ((resource.data.scope == 'course'
