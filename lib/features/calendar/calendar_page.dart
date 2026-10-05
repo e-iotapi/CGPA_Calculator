@@ -138,11 +138,10 @@ class _CalendarPageState extends State<CalendarPage> {
 
   static const _seenKey = 'calendar_autofill_seen';
 
-  /// A sem's first load: the student's courses go in, once; the note says so
-  /// the first time only.
+  /// Every load: the student's courses not yet put in go in (a course added
+  /// since the last visit too); the note says so the first time only.
   Future<void> _autoFill(Timetable t) async {
     final c = _cal!;
-    if (c.state.autoFilled) return;
     final fresh = c.state.picks.isEmpty;
     await c.autoFill(autoPicks(t, allCourses(), batch));
     final prefs = widget.prefs ?? (Hive.isBoxOpen('settingsBox') ? Hive.box('settingsBox') : null);

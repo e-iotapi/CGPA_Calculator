@@ -714,7 +714,20 @@ void main() {
         await pump(t, home: page());
         expect(fresh.state.picks, isEmpty);
         expect(find.text(notice), findsNothing);
+        expect(fresh.state.autoFilled, isFalse);
       });
+
+      testWidgets(
+        'opened before any courses (the U group starts empty), it fills once they are added',
+        (t) async {
+          await pump(t, home: page());
+          expect(fresh.state.picks, isEmpty);
+          await have(t, [mine(_aaa, GradeCode.clr, Elective.open.tag)]);
+          await pump(t, home: KeyedSubtree(key: UniqueKey(), child: page()));
+          expect(fresh.state.picks.keys, [_aaa]);
+          expect(fresh.state.autoFilled, isTrue);
+        },
+      );
     });
   });
 }
