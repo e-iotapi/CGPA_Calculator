@@ -231,6 +231,16 @@ a { color: #1F5C4D; } a:hover { color: #144035; }
 .btn:hover { transform: translateY(-2px); }
 .btn:active { transform: scale(0.97); }
 
+/* Phones: the mockup sits between a feature's heading and its tab list, so
+   the list explains what is on screen; sections get shorter. */
+@media (max-width: 760px) {
+  .feat { flex-direction: column; align-items: stretch; gap: 16px; padding: 72px 0; }
+  .feat.flip { flex-direction: column; }
+  .copy { display: contents; }
+  .dev { order: 1; margin: 12px 0; }
+  .legend { order: 2; }
+  .sec > .wrap[style*="padding-top: 120px"], .sec > .wrap[style*="padding-top: 130px"] { padding-top: 72px !important; padding-bottom: 72px !important; }
+}
 /* On narrow screens the hero chips tuck in so nothing leaves the page. */
 @media (max-width: 760px) { .chip-a { left: -12px !important; } .chip-c { left: -8px !important; } .chip-b { right: -8px !important; } }
 
