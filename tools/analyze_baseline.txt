@@ -1,6 +1,6 @@
-unnecessary_import lib/home_page.dart:20:8
-empty_catches lib/script.dart:228:15
-empty_catches lib/script.dart:241:15
-non_constant_identifier_names lib/script.dart:351:8
-non_constant_identifier_names lib/script.dart:354:6
+unnecessary_import lib/home_page.dart:22:8
+empty_catches lib/script.dart:230:15
+empty_catches lib/script.dart:243:15
+non_constant_identifier_names lib/script.dart:353:8
+non_constant_identifier_names lib/script.dart:356:6
 prefer_interpolation_to_compose_strings test/semester/edit_course_test.dart:11:21

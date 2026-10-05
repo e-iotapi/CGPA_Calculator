@@ -1,3 +1,5 @@
+// Contains code from CGPA_Calculator by Srijen Raja (Apache License 2.0),
+// modified by Siddharth Mishra. See NOTICE.
 import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:cgpa_calculator/app/theme/circle_reveal.dart';

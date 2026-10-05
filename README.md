@@ -6,8 +6,9 @@ and share course reviews, class averages and resources with your campus.
 
 **Use it:** [pointer-bits-pilani.pages.dev](https://pointer-bits-pilani.pages.dev/)
 
-Built with Flutter (web) and Firebase. Open source under the
-[Apache 2.0 licence](LICENSE). Maintained by
+Built with Flutter (web) and Firebase. The code is public, free for
+non-commercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+Maintained by
 **Siddharth Mishra** ([@e-iotapi](https://github.com/e-iotapi)).
 
 ---
@@ -22,7 +23,7 @@ Built with Flutter (web) and Firebase. Open source under the
 - [Contributing](#contributing)
 - [Privacy and security](#privacy-and-security)
 - [Moving grades from the old site](#moving-grades-from-the-old-site)
-- [Licence](#licence)
+- [Licence and credits](#licence-and-credits)
 
 ## Features
 
@@ -166,6 +167,18 @@ those two only take releases.
    [docs/ARCHITECTURE.md §2](docs/ARCHITECTURE.md#2-the-budget-that-shapes-every-design-choice).
 5. **Rules changes need rules tests** (`test/rules` on `pointer-dev`).
 
+### Contribution terms
+
+Pointer's code is free for non-commercial use only, and the Pointer name and
+logo are not licensed at all (see [Licence and credits](#licence-and-credits)).
+By opening a pull request, you agree that:
+
+- the contribution is your own work, or you have the right to submit it;
+- you give Siddharth Mishra a perpetual, worldwide, royalty-free, irrevocable
+  licence to use, change, relicense and distribute it as part of Pointer,
+  commercially or not;
+- it is otherwise under the same licence as the rest of Pointer.
+
 ## Privacy and security
 
 - Only verified BITS student accounts can use Pointer; faculty, staff and other
@@ -193,6 +206,21 @@ automatically:
 3. Here, sign in, then **Settings → Import from old site**, paste it, and
    confirm.
 
-## Licence
+## Licence and credits
 
-[Apache License 2.0](LICENSE). © Siddharth Mishra.
+© 2026 Siddharth Mishra. Pointer's code is under the
+[PolyForm Noncommercial License 1.0.0](LICENSE): you may use, copy, change and
+share it for non-commercial purposes. Any commercial use, including running
+it with advertising, selling it or offering it as a paid service, needs
+written permission.
+
+**The Pointer brand is reserved.** The name "Pointer", the Tassel mark, the
+logos and icons belong to Siddharth Mishra and are not licensed: a copy or
+fork must use its own name and look, and must not present itself as Pointer.
+
+Pointer started as a fork of
+[CGPA_Calculator](https://github.com/Srijen-Raja/CGPA_Calculator) by
+**Srijen Raja**; the little of his code still here stays under the
+[Apache License 2.0](LICENSE-APACHE) (see [NOTICE](NOTICE)).
+
+Thank you, Srijen, for building the calculator this all grew out of.
