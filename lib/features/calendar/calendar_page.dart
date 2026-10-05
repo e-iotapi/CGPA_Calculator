@@ -624,6 +624,18 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
+  /// A Month eval opens what Week opens for it: a published exam its class
+  /// sheet, a Marks date its time sheet. Both offer Open course.
+  Future<void> _entryTap(CalendarEntry e) async {
+    final d = dayStr(e.date);
+    if (e.time == null) return _markTime(e.courseId, e.label, d);
+    final kind = e.label == 'Compre' ? OccKind.compre : OccKind.midsem;
+    final o = expandOccurrences(_tt, _state, from: d, to: d)
+        .where((o) => o.courseId == e.courseId && o.kind == kind)
+        .firstOrNull;
+    return o == null ? _openCourse(e.courseId) : _blockTap(o);
+  }
+
   /// A date from Marks gets a start and end (or goes back to all day).
   Future<void> _markTime(String course, String label, String date) async {
     final key = markKey(course, label, date);
@@ -1053,7 +1065,7 @@ class _CalendarPageState extends State<CalendarPage> {
             ? e.courseId
             : '${displayTitle(course.id, course.title)} · ${course.id}';
     return AppCard(
-      onTap: () => _openCourse(e.courseId),
+      onTap: () => _entryTap(e),
       radius: Radii.row - 2,
       border: first ? BorderSide(color: p.border, width: 1.5) : null,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
