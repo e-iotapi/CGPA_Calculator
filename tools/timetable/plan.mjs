@@ -189,12 +189,10 @@ export function resolveProfessors(courses, profs, answers, newId) {
 
 /**
  * A course's credits as the PDF states them: the units digit of a three-digit
- * LPU, else the bare number in the credit column. For first-year U courses that
- * number is credit hours, not credits (CS U111 shows 12 for 4): never used.
+ * LPU, else the bare number in the credit column. For U courses (the 2026
+ * batch on) that number is credit hours, which is what their CGPA weighs by.
  */
 export function pdfCredits(id, c) {
-  if (c.lpu3) return c.credits;
-  if (/^[A-Z]+ U\d/.test(id)) return null;
   return c.credits ?? null;
 }
 

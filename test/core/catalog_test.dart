@@ -47,6 +47,9 @@ void main() {
   test('the shipped asset picks its chart by batch', () {
     expect(shipped.chart(24), same(shipped.chartOld));
     expect(shipped.chart(25), same(shipped.chartNew));
+    // The U group starts empty: the ERP sheet or the student fills it.
+    expect(shipped.chart(firstUBatch), isEmpty);
+    expect(shipped.chart(27), isEmpty);
   });
 
   test('a bundle round-trips, and a newer schema is refused', () {

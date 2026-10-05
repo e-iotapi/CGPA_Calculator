@@ -1,6 +1,7 @@
 import 'package:cgpa_calculator/shared/tour_key.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/grading/minor_progress.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/core/storage/minor.dart';
@@ -286,7 +287,7 @@ class StatsScreen extends StatelessWidget {
                   child:
                       shown == StatsView.minor
                           ? MinorView(progress: pr!)
-                          : degree && app.batch >= newDegreePolicyBatch
+                          : degree && app.batch >= firstUBatch
                           ? const _DegreeComingSoon()
                           : degree
                           ? DegreeView(
@@ -420,11 +421,9 @@ class StatsBody extends StatelessWidget {
   }
 }
 
-/// The 2026 batch onwards (two-digit batch years) follows a new degree policy
-/// the Senate has not published; until it does, their Degree view says so
-/// instead of measuring them against the old one.
-const newDegreePolicyBatch = 26;
-
+/// The U group follows a new degree policy the Senate has not published;
+/// until it does, their Degree view says so instead of measuring them
+/// against the old one.
 class _DegreeComingSoon extends StatelessWidget {
   const _DegreeComingSoon();
 

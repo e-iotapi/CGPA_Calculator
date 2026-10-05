@@ -366,6 +366,27 @@ void main() {
     });
   });
 
+  group('the U group (2026 on)', () {
+    final s = _Sheet()..header('2026A7PS0001G', '0.00');
+    s.band('FIRST SEMESTER 2026-2027', [
+      _r(
+        'CS U111',
+        'COMPUTATIONAL THINKING AND PROGRAMMING',
+        null,
+        units: '12.0',
+      ),
+      _r('MGTS U102', 'INNOVATION AND DESIGN THINKING', null, units: '3.0'),
+    ]);
+    final plan = planImport(s.parse(), const {}, discipline: '--A7');
+
+    test('U courses come in for 1 - 1, weighed by their credit hours', () {
+      expect(
+        [for (final c in plan.add) (c.id, c.sem, c.credits)],
+        [('CS U111', '1 - 1', 12.0), ('MGTS U102', '1 - 1', 3.0)],
+      );
+    });
+  });
+
   group('ImportPreview', () {
     final sheet = _sample().parse();
     final plan = planImport(sheet, const {}, discipline: 'B3A7');
