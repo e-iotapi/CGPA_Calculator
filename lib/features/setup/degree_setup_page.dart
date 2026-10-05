@@ -1,3 +1,4 @@
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/admin/widgets.dart' show ScopeChip;
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
@@ -447,7 +448,18 @@ class _DegreeSetupPageState extends State<DegreeSetupPage> {
                         ),
                       ),
                     ),
-                    if (noChart.isNotEmpty) ...[
+                    if (picked && y % 100 >= firstUBatch) ...[
+                      const SizedBox(height: Space.md),
+                      const Notice(
+                        text: TextSpan(
+                          text:
+                              'From the 2026 batch, courses are U courses '
+                              'counted in credit hours. Your semesters start '
+                              'empty: upload your ERP performance sheet, or '
+                              'add your courses.',
+                        ),
+                      ),
+                    ] else if (noChart.isNotEmpty) ...[
                       const SizedBox(height: Space.md),
                       Notice(
                         warning: true,
