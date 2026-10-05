@@ -1,13 +1,16 @@
 # Pointer
 
-**The CGPA calculator for BITS Pilani students.**
-Track every grade, see your SGPA and CGPA as you go, plan the semesters ahead,
-and share course reviews, class averages and resources with your campus.
+**Know your CGPA before the ERP does.**
+
+Pointer is an all-in-one academics manager, and a lovely community of
+BITSians. Your grades, marks, timetable, reviews and resources, in one app
+that works offline. For BITS Pilani, Goa and Hyderabad.
 
 **Use it:** [pointer-bits-pilani.pages.dev](https://pointer-bits-pilani.pages.dev/)
 
-Built with Flutter (web) and Firebase. Open source under the
-[Apache 2.0 licence](LICENSE). Maintained by
+Built with Flutter (web) and Firebase. The code is public, free for
+non-commercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+Maintained by
 **Siddharth Mishra** ([@e-iotapi](https://github.com/e-iotapi)).
 
 ---
@@ -22,37 +25,74 @@ Built with Flutter (web) and Firebase. Open source under the
 - [Contributing](#contributing)
 - [Privacy and security](#privacy-and-security)
 - [Moving grades from the old site](#moving-grades-from-the-old-site)
-- [Licence](#licence)
+- [Licence and credits](#licence-and-credits)
 
 ## Features
 
-**For every student**
+Five tabs, three spreadsheets, one tired BITSian. Pointer is one app for all
+of it.
 
-- **Your course list, filled in.** Pick your discipline and batch (single or
-  dual degree) and every core course is laid out semester by semester from the
-  official charts.
-- **SGPA and CGPA as you go**, using the BITS rules for NC, RC, W and GD.
-- **Actual, Expected and Compare**: plan what a semester needs, or compare two
-  what-ifs side by side.
-- **Import from ERP**: read your grades from the ERP performance sheet PDF. The
-  PDF is read on your device and never uploaded.
-- **Evaluative marks** per course, with best-of rules and class averages.
-- **Calendar**: your timetable, filled in from the published campus timetable,
-  with your midsems, compres and every dated evaluative. Month, Week and Day
-  views; classes stop for exam weeks on their own.
-- **Stats**: a CGPA forecast, a target planner and degree progress by CDCs,
-  electives and credits.
-- **The finance offshoot score.**
-- **Course reviews**, anonymous, searchable and filterable by year, semester
-  and professor, with class averages on every course.
-- **Resources and representatives**: course handouts, your department's links,
-  presidents and course representatives.
-- **Works offline and syncs.** Sign in with your BITS Google account and your
-  grades follow you to any browser. Install it to your home screen from
-  Settings.
+### 01 · Grades: your course list, filled in for you
 
-**For maintainers** (owners, campus admins, department presidents and
-secretaries, course representatives)
+Pick your discipline and batch, single or dual degree, and every core course
+is laid out semester by semester from the official charts. Tap a grade and
+your SGPA and CGPA move with it, with every BITS rule for NC, RC, W and GD
+built in. Plan with **Actual**, **Expected** and **Compare**, see the SGPA you
+need to hit your target, and import every past semester from your ERP
+performance sheet (read on your device, never uploaded).
+
+### 02 · Calendar: a timetable you never have to build
+
+Pointer reads the campus timetable and puts your courses in, section and all.
+Your midsems and compres land on their own, classes pause for exam weeks, and
+every dated evaluative you enter in Marks shows up too.
+
+### 03 · Marks: every evaluative, no spreadsheet
+
+Quizzes, labs, the midsem and the compre, each with its parts and best-of-n
+rules. Courses out of 300 rescale to 100 on their own, and the class average
+sits right beside your score.
+
+### 04 · Reviews: pick electives like you've taken them
+
+Anonymous reviews of every course, from the batches before you. Know how it is
+graded, whether the slides are enough and if the exams are open book, before
+you register.
+
+### 05 · Resources: every link, where you'd look for it
+
+Handouts, notes and papers, sorted by course and kept fresh by the people who
+run them. Your department president and course reps are one tap away.
+
+### The community: Pointer runs on BITSians
+
+Every review helps the next batch choose. Every link saves a hundred searches
+in a group chat. Course reps and department presidents keep it right, and
+everyone who pitches in climbs the campus leaderboard: add a link, a president
+approves it, and you get 4 points.
+
+- **Review a course.** Tell the next batch what it is really like. Takes two
+  minutes, and no name goes with it.
+- **Add a link.** Notes, papers, slides, live for your whole course at once.
+- **Step up as a CR.** Run your course's page: its scheme, its averages and its
+  links.
+
+### And the small things that make it yours
+
+- **Works offline.** Everything is saved on your phone first.
+- **Syncs everywhere.** Sign in on a laptop and your grades are already there.
+- **On your home screen.** Install it like an app, from Settings. No store, no
+  update queue.
+- **Dark mode.** For the night before the compre.
+- **Your grades stay yours.** Only you can read them. BITS accounts only,
+  checked on every request.
+- **Offshoot score.** Your finance offshoot, worked out the way companies ask
+  for it.
+
+### For maintainers
+
+Owners, campus admins, department presidents and secretaries, and course
+representatives:
 
 - Publish the course catalogue, the timetable, class averages and evaluation
   schemes.
@@ -166,6 +206,18 @@ those two only take releases.
    [docs/ARCHITECTURE.md §2](docs/ARCHITECTURE.md#2-the-budget-that-shapes-every-design-choice).
 5. **Rules changes need rules tests** (`test/rules` on `pointer-dev`).
 
+### Contribution terms
+
+Pointer's code is free for non-commercial use only, and the Pointer name and
+logo are not licensed at all (see [Licence and credits](#licence-and-credits)).
+By opening a pull request, you agree that:
+
+- the contribution is your own work, or you have the right to submit it;
+- you give Siddharth Mishra a perpetual, worldwide, royalty-free, irrevocable
+  licence to use, change, relicense and distribute it as part of Pointer,
+  commercially or not;
+- it is otherwise under the same licence as the rest of Pointer.
+
 ## Privacy and security
 
 - Only verified BITS student accounts can use Pointer; faculty, staff and other
@@ -193,6 +245,21 @@ automatically:
 3. Here, sign in, then **Settings → Import from old site**, paste it, and
    confirm.
 
-## Licence
+## Licence and credits
 
-[Apache License 2.0](LICENSE). © Siddharth Mishra.
+© 2026 Siddharth Mishra. Pointer's code is under the
+[PolyForm Noncommercial License 1.0.0](LICENSE): you may use, copy, change and
+share it for non-commercial purposes. Any commercial use, including running
+it with advertising, selling it or offering it as a paid service, needs
+written permission.
+
+**The Pointer brand is reserved.** The name "Pointer", the Tassel mark, the
+logos and icons belong to Siddharth Mishra and are not licensed: a copy or
+fork must use its own name and look, and must not present itself as Pointer.
+
+Pointer started as a fork of
+[CGPA_Calculator](https://github.com/Srijen-Raja/CGPA_Calculator) by
+**Srijen Raja**; the little of his code still here stays under the
+[Apache License 2.0](LICENSE-APACHE) (see [NOTICE](NOTICE)).
+
+Thank you, Srijen, for building the calculator this all grew out of.
