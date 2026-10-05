@@ -184,9 +184,11 @@ class StatsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final pr = minor;
-    // Without a minor, its tab falls back to the degree.
+    // The U group has no Progression yet: Degree, saying it is coming, is
+    // all they see. Without a minor, its tab falls back to the degree.
+    final u = app.batch >= firstUBatch;
     final shown =
-        view == StatsView.minor && pr == null ? StatsView.degree : view;
+        u || (view == StatsView.minor && pr == null) ? StatsView.degree : view;
     final degree = shown == StatsView.degree;
     return Scaffold(
       backgroundColor: p.background,
@@ -250,6 +252,7 @@ class StatsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
+                if (!u)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
                   child: Row(
@@ -282,12 +285,12 @@ class StatsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                if (!u) const SizedBox(height: 14),
                 Expanded(
                   child:
                       shown == StatsView.minor
                           ? MinorView(progress: pr!)
-                          : degree && app.batch >= firstUBatch
+                          : u
                           ? const _DegreeComingSoon()
                           : degree
                           ? DegreeView(
@@ -430,12 +433,16 @@ class _DegreeComingSoon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Align(
     alignment: Alignment.topCenter,
-    child: Notice(
-      icon: Icons.school_outlined,
-      text: TextSpan(
-        text:
-            'Your Degree Requirements are coming soon. They will be out as '
-            'soon as the Senate explains the new Degree policy.',
+    child: Padding(
+      // The gutter DegreeView keeps.
+      padding: EdgeInsets.all(Space.gutter),
+      child: Notice(
+        icon: Icons.school_outlined,
+        text: TextSpan(
+          text:
+              'Your Degree Requirements are coming soon. They will be out as '
+              'soon as the Senate explains the new Degree policy.',
+        ),
       ),
     ),
   );
