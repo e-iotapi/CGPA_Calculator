@@ -103,7 +103,7 @@ export function renderReport(plan) {
 
   const need = plan.catalog.needCredits ?? [];
   if (need.length) {
-    L.push('### Credits', '', `${need.length} new courses whose credits the PDF does not state (first-year U courses list credit hours, not credits). They are not added until you give them in a JSON file passed as \`--credits <file>\`; the same file can correct any other course's credits.`, '',
+    L.push('### Credits', '', `${need.length} new courses whose credits the PDF does not state (a U course's number is its credit hours, which is its weight). They are not added until you give them in a JSON file passed as \`--credits <file>\`; the same file can correct any other course's credits.`, '',
       '| Course | Title |', '|---|---|');
     for (const a of need) L.push(`| ${a.id} | ${cell(a.title)} |`);
     L.push('', 'Credits file to fill in:', '```json', JSON.stringify(Object.fromEntries(need.map((a) => [a.id, 0])), null, 2), '```', '');

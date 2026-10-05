@@ -161,7 +161,7 @@ export function summarize(result, plan) {
     `compre/midsem disagreements between sections of one course (first kept): ${result.conflicts.length}`,
     ...list(result.conflicts.map((c) => `  ${c.id} ${c.field} (page ${c.page} line ${c.line})`)),
     `new courses (not in the catalogue): ${plan.catalog.adds.length}`,
-    ...list(plan.catalog.adds.map((a) => `  ${a.id} ${a.title} (${a.credits} credits)`)),
+    ...list(plan.catalog.adds.map((a) => `  ${a.id} ${a.title} (${a.credits} ${/ U\d/.test(a.id) ? 'credit hours' : 'credits'})`)),
     `new courses waiting for their credits (give --credits): ${plan.catalog.needCredits.length}`,
     ...list(plan.catalog.needCredits.map((a) => `  ${a.id} ${a.title}`)),
     `new professors: ${res.newProfs.length}`,
