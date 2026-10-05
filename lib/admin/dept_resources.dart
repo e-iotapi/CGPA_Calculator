@@ -1,4 +1,6 @@
+import 'package:cgpa_calculator/admin/bulk_resources.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -9,6 +11,7 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/resources/link_sheet.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
+import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
@@ -436,6 +439,31 @@ class _DeptResourcesState extends State<DeptResources> {
                 '${campusName(widget.campus).toUpperCase()} · '
                 '${course ?? widget.dept}',
             title: 'Resources',
+            actions: [
+              if (course == null &&
+                  myRoles.value.may(
+                    Capability.departmentResources,
+                    campus: widget.campus,
+                    scope: widget.dept,
+                  ))
+                CircleIconButton(
+                  icon: Icons.playlist_add_rounded,
+                  tooltip: 'Bulk add links',
+                  size: 44,
+                  onPressed: _w(() async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder:
+                            (_) => BulkResourcesPage(
+                              campus: widget.campus,
+                              dept: widget.dept,
+                            ),
+                      ),
+                    );
+                    _reload();
+                  }),
+                ),
+            ],
           ),
           bottom:
               course == null && tab == 0
