@@ -71,7 +71,8 @@ jobs:
           cp -r prod/build/web site/calculator
           cp prod/build/web/flutter_service_worker.js site/
           # Pages Functions (/api/signin-log) deploy from ./functions, beside site/.
-          cp -r prod/functions functions
+          # A beta can reach this before master has them: skip, don't fail.
+          if [ -d prod/functions ]; then cp -r prod/functions functions; fi
           if [ -d beta ]; then
             cp -r beta/build/web site/beta
             grep '^/calculator/' prod/landing/_redirects | sed 's#/calculator/#/beta/#g' >> site/_redirects
