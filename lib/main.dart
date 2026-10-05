@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/perf/frame_hud.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
+import 'package:cgpa_calculator/core/diag/sign_in_log.dart';
 import 'package:cgpa_calculator/core/env/app_env.dart';
 import 'package:cgpa_calculator/core/env/test_sign_in.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
@@ -71,11 +72,12 @@ void main() async {
   registerMarksAdapters();
   await Perf.time('startup.openBoxes', Sync.openBoxes);
   String? message;
-  if (signsInByRedirect()) {
+  if (takeSignInRedirect()) {
     // Back from Google on a fresh load: the result, or why it failed.
     try {
       await FirebaseAuth.instance.getRedirectResult();
     } on FirebaseAuthException catch (e) {
+      signInFailed('redirect-result', e);
       message = 'Sign-in failed: ${e.message ?? e.code}';
     }
   }
@@ -209,12 +211,26 @@ Future<void> startApp(User user) async {
   runApp(MyApp());
 }
 
-/// A home-screen app on iOS loses the popup: Safari blocks it, or it opens
-/// and never reports back. There the sign-in is a redirect instead, which
-/// works only because the auth helper is served from this site (authDomain,
-/// landing/__/auth/).
+/// Phones and tablets sign in by redirect: there a popup is a separate tab
+/// or window that Firebase loses track of ("the popup has been closed by
+/// the user" right after the tap), and an iOS home-screen app blocks it
+/// outright. The redirect works because the auth helper is served from this
+/// site (authDomain, landing/__/auth/). Computers use the popup, and the
+/// redirect once a popup has failed.
 bool signsInByRedirect() =>
-    kIsWeb && isStandalone() && installTarget().device == InstallDevice.ios;
+    kIsWeb && (_popupFailed || redirectsOn(installTarget().device));
+
+/// Whether [device] signs in by redirect rather than a popup.
+@visibleForTesting
+bool redirectsOn(InstallDevice device) => device != InstallDevice.desktop;
+
+bool _popupFailed = false;
+
+/// Leaves for Google; main() picks the result up on the way back.
+Future<void> _redirect(AuthProvider provider) {
+  markSignInRedirect();
+  return FirebaseAuth.instance.signInWithRedirect(provider);
+}
 
 /// Why [user] was turned away; [allowed] is what mayUseApp said.
 String refusal(User user, bool? allowed) {
@@ -293,6 +309,8 @@ class _SignInAppState extends State<SignInApp>
 
   Future<void> _signIn() async {
     setState(() => _busy = true);
+    signInStarted();
+    var stage = 'popup';
     try {
       final provider =
           GoogleAuthProvider()
@@ -300,8 +318,8 @@ class _SignInAppState extends State<SignInApp>
             // session is already active in the browser.
             ..setCustomParameters({'prompt': 'select_account'});
       if (signsInByRedirect()) {
-        // Leaves the page; main() picks the result up on the way back.
-        await FirebaseAuth.instance.signInWithRedirect(provider);
+        stage = 'redirect-start';
+        await _redirect(provider);
         return;
       }
       final UserCredential cred;
@@ -309,25 +327,36 @@ class _SignInAppState extends State<SignInApp>
         cred = await FirebaseAuth.instance.signInWithPopup(provider);
       } on FirebaseAuthException catch (e) {
         // A browser that blocks the popup can still take the redirect.
+        if (e.code == 'popup-closed-by-user') _popupFailed = true;
         if (e.code != 'popup-blocked') rethrow;
-        await FirebaseAuth.instance.signInWithRedirect(provider);
+        signInFailed('popup', e);
+        stage = 'redirect-start';
+        await _redirect(provider);
         return;
       }
       final user = cred.user;
       if (user == null) throw FirebaseAuthException(code: 'no-user');
+      stage = 'may-use-app';
       final allowed = await mayUseApp(user);
       if (allowed != true) {
         await FirebaseAuth.instance.signOut();
+        stage = 'refused-${allowed ?? 'unknown'}';
         throw refusal(user, allowed);
       }
+      signInSucceeded();
+      stage = 'start-app';
       await startApp(user); // replaces this app with the real one
       return;
     } catch (e) {
+      signInFailed(stage, e);
       if (!mounted) return;
       setState(() => _busy = false);
       _show(
         e is String
             ? e
+            : e is FirebaseAuthException && e.code == 'popup-closed-by-user'
+            ? 'The sign-in window closed before it finished. Tap Sign in '
+                'again: this time it opens Google in this tab.'
             : 'Sign-in failed: '
                 '${e is FirebaseAuthException ? (e.message ?? e.code) : e}',
       );

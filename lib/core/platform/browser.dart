@@ -36,6 +36,15 @@ void forgetSavedSignIn() => impl.forgetSavedSignIn();
 /// The browser's user agent, for bug reports.
 String userAgent() => impl.userAgent();
 
+/// Posts [body] to [url] in the background, even as the page unloads.
+void sendBeacon(String url, String body) => impl.sendBeacon(url, body);
+
+/// Notes, for this tab, that sign-in left for Google by redirect.
+void markSignInRedirect() => impl.markSignInRedirect();
+
+/// Whether this load is the return from a sign-in redirect; clears the note.
+bool takeSignInRedirect() => impl.takeSignInRedirect();
+
 /// Running as the installed app rather than in a browser tab.
 bool isStandalone() => impl.isStandalone();
 

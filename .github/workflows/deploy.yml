@@ -70,6 +70,8 @@ jobs:
           cp -r prod/web/icons prod/web/favicon.png site/
           cp -r prod/build/web site/calculator
           cp prod/build/web/flutter_service_worker.js site/
+          # Pages Functions (/api/signin-log) deploy from ./functions, beside site/.
+          cp -r prod/functions functions
           if [ -d beta ]; then
             cp -r beta/build/web site/beta
             grep '^/calculator/' prod/landing/_redirects | sed 's#/calculator/#/beta/#g' >> site/_redirects

@@ -17,6 +17,11 @@ const catalogSchema = 1;
 /// The fallback bundle, written by tools/export_catalog.dart.
 const catalogAsset = 'assets/catalog.json';
 
+/// The first batch (two-digit year) of the U group: U courses, weighed by
+/// their credit hours (the number the timetable gives), letter grades as
+/// before. Nothing else about the app differs for them.
+const firstUBatch = 26;
+
 /// The course catalogue: chart rows, the master course list and retired ids.
 class Catalog {
   Catalog({
@@ -43,8 +48,14 @@ class Catalog {
   /// Ids hidden from Add a course; they still resolve and count (§2).
   final Set<String> retired;
 
-  /// The chart rows for a batch (two-digit year).
-  List<Course> chart(int batch) => batch < 25 ? chartOld : chartNew;
+  /// The chart rows for a batch (two-digit year). The U group charts
+  /// nothing: their semesters start empty, filled by the ERP sheet or by hand.
+  List<Course> chart(int batch) =>
+      batch >= firstUBatch
+          ? const []
+          : batch < 25
+          ? chartOld
+          : chartNew;
 
   /// Parses a bundle. Throws [FormatException] on a shape this build cannot
   /// read, including a newer schema.
