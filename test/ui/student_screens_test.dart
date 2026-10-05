@@ -133,24 +133,36 @@ void main() {
     });
   }
 
-  testWidgets('from the 2026 batch, Degree says the requirements are coming', (
-    t,
-  ) async {
-    final was = app.batch;
-    addTearDown(() => app.batch = was);
-    for (final (batch, shown) in [(26, findsOneWidget), (25, findsNothing)]) {
-      app.batch = batch;
+  testWidgets(
+    'from the 2026 batch, Stats is only the coming-soon Degree; no Progression',
+    (t) async {
+      final was = app.batch;
+      addTearDown(() => app.batch = was);
+      app.batch = 26;
       await renderScreen(
         t,
-        's_stats_degree_$batch',
+        's_stats_degree_26',
         () => const StatsPage(discipline: 'B3A7'),
         tall: 980,
         open: (t) async {
-          await t.tap(find.text('Degree').first);
-          await settle(t);
-          expect(find.textContaining('Senate explains'), shown);
+          expect(find.textContaining('Senate explains'), findsOneWidget);
+          expect(find.text('Progress'), findsNothing);
+          expect(find.text('Where you land'), findsNothing);
         },
       );
-    }
-  });
+      app.batch = 25;
+      await renderScreen(
+        t,
+        's_stats_degree_25',
+        () => const StatsPage(discipline: 'B3A7'),
+        tall: 980,
+        open: (t) async {
+          expect(find.text('Progress'), findsOneWidget);
+          await t.tap(find.text('Degree').first);
+          await settle(t);
+          expect(find.textContaining('Senate explains'), findsNothing);
+        },
+      );
+    },
+  );
 }
