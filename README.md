@@ -259,7 +259,7 @@ fork must use its own name and look, and must not present itself as Pointer.
 
 Pointer started as a fork of
 [CGPA_Calculator](https://github.com/Srijen-Raja/CGPA_Calculator) by
-**Srijen Raja**; the little of his code still here stays under the
+**Srijen Raja**; his remaining code still here stays under the
 [Apache License 2.0](LICENSE-APACHE) (see [NOTICE](NOTICE)).
 
 Thank you, Srijen, for building the calculator this all grew out of.
