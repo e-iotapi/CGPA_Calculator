@@ -15,6 +15,8 @@ import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/script.dart' as app;
 import 'package:flutter/material.dart';
 
 /// Opens the add sheet. Resolves to the course to store, or null.
@@ -542,10 +544,11 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
   }
 
   /// Adds [course], after an override when it takes the semester past
-  /// [maxSemesterCredits].
+  /// [maxSemesterCredits]. The U group has no cap: their load is counted in
+  /// credit hours, and no limit for those is published yet.
   Future<void> _add(BuildContext context, Course course) async {
     final total = semesterCredits(widget.held, widget.sem) + course.credits;
-    if (total > maxSemesterCredits) {
+    if (app.batch < firstUBatch && total > maxSemesterCredits) {
       String f(double v) => v == v.roundToDouble() ? '${v.toInt()}' : '$v';
       final go = await confirmDialog(
         context,

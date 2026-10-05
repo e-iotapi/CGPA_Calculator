@@ -11,6 +11,8 @@ import 'package:cgpa_calculator/features/semester/widgets/grade_menu.dart';
 import 'package:cgpa_calculator/features/semester/widgets/grade_scrubber.dart';
 import 'package:cgpa_calculator/mastercourselist.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
+import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/script.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -450,6 +452,50 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('I have approval, add it'));
     await t.pumpAndSettle();
+    expect(added?.id, 'CS F499');
+  });
+
+  testWidgets('the U group has no 25-credit cap', (t) async {
+    final was = app.batch;
+    app.batch = firstUBatch;
+    addTearDown(() => app.batch = was);
+    // 24 credits already in 4 - 1.
+    final full = [for (var i = 0; i < 8; i++) _c('CS F30$i', 9, '4 - 1')];
+    expect(semesterCredits(full, '4 - 1'), 24);
+    Course? added;
+    await t.pumpWidget(
+      _app(
+        Builder(
+          builder:
+              (c) => TextButton(
+                onPressed:
+                    () async =>
+                        added = await showAddCourseSheet(
+                          c,
+                          held: full,
+                          sem: '4 - 1',
+                          discipline: 'A7--',
+                          profile: Profile.actual,
+                        ),
+                child: const Text('open'),
+              ),
+        ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Not in the list? Enter it manually'));
+    await t.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await t.enterText(fields.at(0), 'cs');
+    await t.enterText(fields.at(1), 'f499');
+    await t.enterText(find.widgetWithText(TextField, 'Course name'), 'Extra');
+    await t.pump();
+    final add = find.textContaining('Add to 4 − 1', findRichText: true);
+
+    await t.tap(add);
+    await t.pumpAndSettle();
+    expect(find.text('Over 25 credits'), findsNothing);
     expect(added?.id, 'CS F499');
   });
 
