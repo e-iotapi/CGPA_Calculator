@@ -30,6 +30,7 @@ import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/features/setup/degree_setup_page.dart';
 import 'package:cgpa_calculator/features/setup/programme_pick_page.dart';
 import 'package:cgpa_calculator/features/stats/stats_page.dart';
+import 'package:cgpa_calculator/script.dart' as app;
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -131,4 +132,25 @@ void main() {
       expectRender(name, errors, known);
     });
   }
+
+  testWidgets('from the 2026 batch, Degree says the requirements are coming', (
+    t,
+  ) async {
+    final was = app.batch;
+    addTearDown(() => app.batch = was);
+    for (final (batch, shown) in [(26, findsOneWidget), (25, findsNothing)]) {
+      app.batch = batch;
+      await renderScreen(
+        t,
+        's_stats_degree_$batch',
+        () => const StatsPage(discipline: 'B3A7'),
+        tall: 980,
+        open: (t) async {
+          await t.tap(find.text('Degree').first);
+          await settle(t);
+          expect(find.textContaining('Senate explains'), shown);
+        },
+      );
+    }
+  });
 }

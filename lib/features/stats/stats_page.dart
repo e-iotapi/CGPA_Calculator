@@ -13,6 +13,8 @@ import 'package:cgpa_calculator/shared/widgets/circle_icon_button.dart';
 import 'package:cgpa_calculator/shared/widgets/pill_button.dart';
 import 'package:cgpa_calculator/shared/widgets/confirm_dialog.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/notice.dart';
+import 'package:cgpa_calculator/script.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -284,6 +286,8 @@ class StatsScreen extends StatelessWidget {
                   child:
                       shown == StatsView.minor
                           ? MinorView(progress: pr!)
+                          : degree && app.batch >= newDegreePolicyBatch
+                          ? const _DegreeComingSoon()
                           : degree
                           ? DegreeView(
                             data: data,
@@ -414,4 +418,26 @@ class StatsBody extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The 2026 batch onwards (two-digit batch years) follows a new degree policy
+/// the Senate has not published; until it does, their Degree view says so
+/// instead of measuring them against the old one.
+const newDegreePolicyBatch = 26;
+
+class _DegreeComingSoon extends StatelessWidget {
+  const _DegreeComingSoon();
+
+  @override
+  Widget build(BuildContext context) => const Align(
+    alignment: Alignment.topCenter,
+    child: Notice(
+      icon: Icons.school_outlined,
+      text: TextSpan(
+        text:
+            'Your Degree Requirements are coming soon. They will be out as '
+            'soon as the Senate explains the new Degree policy.',
+      ),
+    ),
+  );
 }
