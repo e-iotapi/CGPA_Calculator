@@ -39,7 +39,7 @@ void main() {
     }
     expect(find.text('Pointer'), findsOneWidget);
     expect(
-      find.text('Import every past semester from your ERP sheet'),
+      find.text('Reviews and resources for every course, from BITSians'),
       findsOneWidget,
     );
     expect(find.textContaining('never uploaded'), findsOneWidget);

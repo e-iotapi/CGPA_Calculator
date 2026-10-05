@@ -128,21 +128,22 @@ class SignInView extends StatelessWidget {
                                   children: [
                                     feature(
                                       Icons.show_chart_rounded,
-                                      'See what SGPA you need to hit your target',
+                                      'Live SGPA and CGPA, every BITS rule '
+                                      'built in',
+                                    ),
+                                    feature(
+                                      Icons.calendar_month_outlined,
+                                      'Your timetable, filled in from the '
+                                      'campus timetable',
                                     ),
                                     feature(
                                       Icons.fact_check_outlined,
-                                      'Track marks per evaluative, best-of rules '
-                                      'included',
+                                      'Every evaluative, with class averages',
                                     ),
                                     feature(
-                                      Icons.workspace_premium_outlined,
-                                      'Offshoot scored out of 50 or 60, best 5 of 6',
-                                    ),
-                                    feature(
-                                      Icons.upload_file_rounded,
-                                      'Import every past semester from your '
-                                      'ERP sheet',
+                                      Icons.forum_outlined,
+                                      'Reviews and resources for every course, '
+                                      'from BITSians',
                                       mint: true,
                                     ),
                                   ],
