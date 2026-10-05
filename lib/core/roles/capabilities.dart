@@ -33,8 +33,14 @@ enum Capability {
   ),
   bulkUpload('Bulk upload a JSON of eval schemes', '✓', '—', '✓', '—'),
   degreeRequirements('Degree requirements', '✓', '—', '✓', '—'),
-  departmentResources('Department resources', '✓', '—', '✓', '—'),
-  courseResources('Course resources', '✓', '—', '✓', '✓ own courses'),
+  departmentResources('Department resources', '✓', '✓ own campus', '✓', '—'),
+  courseResources(
+    'Course resources',
+    '✓',
+    '✓ own campus',
+    '✓',
+    '✓ own courses',
+  ),
   averages(
     'Averages — course, component, part',
     '✓',
