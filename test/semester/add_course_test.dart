@@ -16,7 +16,7 @@ import 'package:cgpa_calculator/script.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final _long = 'A' * 30 + ' ' + 'B' * 29; // 60 characters
+final _long = '${'A' * 30} ${'B' * 29}'; // 60 characters
 
 final _master = [
   Mastercourselist(

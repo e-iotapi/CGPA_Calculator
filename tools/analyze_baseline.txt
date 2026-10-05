@@ -3,5 +3,4 @@ empty_catches lib/script.dart:228:15
 empty_catches lib/script.dart:241:15
 non_constant_identifier_names lib/script.dart:351:8
 non_constant_identifier_names lib/script.dart:354:6
-prefer_interpolation_to_compose_strings test/semester/add_course_test.dart:17:26
 prefer_interpolation_to_compose_strings test/semester/edit_course_test.dart:11:21
