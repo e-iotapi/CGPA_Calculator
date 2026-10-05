@@ -8,6 +8,7 @@ import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/perf/frame_hud.dart';
 import 'package:cgpa_calculator/core/catalog/catalog_store.dart';
+import 'package:cgpa_calculator/core/diag/sign_in_log.dart';
 import 'package:cgpa_calculator/core/env/app_env.dart';
 import 'package:cgpa_calculator/core/env/test_sign_in.dart';
 import 'package:cgpa_calculator/core/perf/perf.dart';
@@ -76,6 +77,7 @@ void main() async {
     try {
       await FirebaseAuth.instance.getRedirectResult();
     } on FirebaseAuthException catch (e) {
+      signInFailed('redirect-result', e);
       message = 'Sign-in failed: ${e.message ?? e.code}';
     }
   }
@@ -293,6 +295,8 @@ class _SignInAppState extends State<SignInApp>
 
   Future<void> _signIn() async {
     setState(() => _busy = true);
+    signInStarted();
+    var stage = 'popup';
     try {
       final provider =
           GoogleAuthProvider()
@@ -301,6 +305,7 @@ class _SignInAppState extends State<SignInApp>
             ..setCustomParameters({'prompt': 'select_account'});
       if (signsInByRedirect()) {
         // Leaves the page; main() picks the result up on the way back.
+        stage = 'redirect-start';
         await FirebaseAuth.instance.signInWithRedirect(provider);
         return;
       }
@@ -310,19 +315,26 @@ class _SignInAppState extends State<SignInApp>
       } on FirebaseAuthException catch (e) {
         // A browser that blocks the popup can still take the redirect.
         if (e.code != 'popup-blocked') rethrow;
+        signInFailed('popup', e);
+        stage = 'redirect-start';
         await FirebaseAuth.instance.signInWithRedirect(provider);
         return;
       }
       final user = cred.user;
       if (user == null) throw FirebaseAuthException(code: 'no-user');
+      stage = 'may-use-app';
       final allowed = await mayUseApp(user);
       if (allowed != true) {
         await FirebaseAuth.instance.signOut();
+        stage = 'refused-${allowed ?? 'unknown'}';
         throw refusal(user, allowed);
       }
+      signInSucceeded();
+      stage = 'start-app';
       await startApp(user); // replaces this app with the real one
       return;
     } catch (e) {
+      signInFailed(stage, e);
       if (!mounted) return;
       setState(() => _busy = false);
       _show(

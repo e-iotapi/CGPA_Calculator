@@ -6,6 +6,8 @@ void reloadPage() {}
 
 String userAgent() => 'vm';
 
+void sendBeacon(String url, String body) {}
+
 bool isStandalone() => false;
 
 bool hasTouch() => false;

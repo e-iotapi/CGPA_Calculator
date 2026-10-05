@@ -66,6 +66,10 @@ void reloadPage() => web.window.location.reload();
 
 String userAgent() => web.window.navigator.userAgent;
 
+void sendBeacon(String url, String body) {
+  web.window.navigator.sendBeacon(url, body.toJS);
+}
+
 bool isStandalone() {
   // iOS has its own flag, and only iOS has it; trust it there over the media
   // query, which some WebKit builds answer for a Safari tab too.

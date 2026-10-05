@@ -36,6 +36,9 @@ void forgetSavedSignIn() => impl.forgetSavedSignIn();
 /// The browser's user agent, for bug reports.
 String userAgent() => impl.userAgent();
 
+/// Posts [body] to [url] in the background, even as the page unloads.
+void sendBeacon(String url, String body) => impl.sendBeacon(url, body);
+
 /// Running as the installed app rather than in a browser tab.
 bool isStandalone() => impl.isStandalone();
 

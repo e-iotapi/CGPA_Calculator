@@ -35,6 +35,11 @@ export function as(email) {
     .firestore();
 }
 
+/// Someone signed out.
+export function anon() {
+  return env.unauthenticatedContext().firestore();
+}
+
 export async function seed(fn) {
   await env.withSecurityRulesDisabled((c) => fn(c.firestore()));
 }
