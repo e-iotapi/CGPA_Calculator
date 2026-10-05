@@ -80,6 +80,7 @@ class CalendarState {
     this.custom = const [],
     this.markTimes = const {},
     this.autoFilled = false,
+    this.filled,
   });
   final String campus, sem;
 
@@ -89,6 +90,11 @@ class CalendarState {
   /// The student's courses were put in once for this sem; removing them all
   /// later does not bring them back.
   final bool autoFilled;
+
+  /// Course ids already put in this sem, by the fill or by hand: a course
+  /// added to the semester later goes in, one taken out stays out. Null on a
+  /// state saved before this was kept.
+  final Set<String>? filled;
 
   /// Course id -> section keys attended.
   final Map<String, List<String>> picks;
@@ -114,6 +120,7 @@ class CalendarState {
     List<CalendarCustom>? custom,
     Map<String, MarkTime>? markTimes,
     bool? autoFilled,
+    Set<String>? filled,
   }) => CalendarState(
     campus: campus ?? this.campus,
     sem: sem ?? this.sem,
@@ -125,6 +132,7 @@ class CalendarState {
     custom: custom ?? this.custom,
     markTimes: markTimes ?? this.markTimes,
     autoFilled: autoFilled ?? this.autoFilled,
+    filled: filled ?? this.filled,
   );
 
   static CalendarState fromJson(Map m) => CalendarState(
@@ -166,6 +174,10 @@ class CalendarState {
         ),
     },
     autoFilled: m['autoFilled'] == true,
+    filled: switch (m['filled']) {
+      final List l => {for (final k in l) '$k'},
+      _ => null,
+    },
   );
 
   Map<String, dynamic> toJson() => {
@@ -186,6 +198,7 @@ class CalendarState {
         for (final e in markTimes.entries) e.key: {'s': e.value.s, 'e': e.value.e},
       },
     if (autoFilled) 'autoFilled': true,
+    if (filled case final f?) 'filled': f.toList()..sort(),
   };
 }
 
@@ -226,6 +239,7 @@ class CalendarStore {
   Future<void> addCourse(TtCourse c, List<String> sectionKeys) => _save(
     _state.copy(
       picks: {..._state.picks, c.id: List.of(sectionKeys)},
+      filled: {..._had, c.id},
       slotOverrides: {
         for (final e in _state.slotOverrides.entries)
           if (!_of(c.id, e.key)) e.key: e.value,
@@ -250,18 +264,39 @@ class CalendarStore {
     ),
   );
 
-  /// The first load of a sem: puts [picks] in (course id -> section keys),
-  /// once. A student who already has picks keeps them; either way it does not
-  /// run again, so removing every course later leaves the calendar empty.
-  Future<void> autoFill(Map<String, List<String>> picks) =>
-      _state.autoFilled
-          ? Future.value()
-          : _save(
-            _state.copy(
-              picks: _state.picks.isEmpty ? picks : _state.picks,
-              autoFilled: true,
-            ),
-          );
+  /// What [CalendarState.filled] holds, for a state saved before it was kept: a calendar
+  /// filled with courses keeps them as filled, so nothing the student took
+  /// out comes back; an empty one was never really filled.
+  Set<String> get _had =>
+      _state.filled ??
+      (_state.autoFilled ? _state.picks.keys.toSet() : <String>{});
+
+  /// Puts in the courses of [picks] (from autoPicks, run on every visit)
+  /// never put in this sem: the first visit fills the calendar, and a course
+  /// added to the semester later goes in on the next one. A course the
+  /// student took out stays in [CalendarState.filled], so it stays out.
+  Future<void> autoFill(Map<String, List<String>> picks) {
+    final legacy =
+        _state.filled == null && _state.autoFilled && _state.picks.isNotEmpty;
+    final had = legacy ? {..._had, ...picks.keys} : _had;
+    final add = {
+      for (final e in picks.entries)
+        if (!had.contains(e.key) && !_state.picks.containsKey(e.key))
+          e.key: e.value,
+    };
+    final filled = {...had, ...picks.keys};
+    if (add.isEmpty && _state.filled != null && filled.length == had.length) {
+      return Future.value();
+    }
+    if (add.isEmpty && filled.isEmpty) return Future.value();
+    return _save(
+      _state.copy(
+        picks: {..._state.picks, ...add},
+        filled: filled,
+        autoFilled: true,
+      ),
+    );
+  }
 
   /// A course the timetable does not have: [times] weekly from [from] to
   /// [until], replacing any earlier ones for [courseId].
@@ -308,6 +343,7 @@ class CalendarStore {
       repeatUntil: {..._state.repeatUntil}..remove(courseId),
       removed: _state.removed.where((k) => !_of(courseId, k)).toSet(),
       examsOff: {..._state.examsOff}..remove(courseId),
+      filled: {..._had, courseId},
     ),
   );
 

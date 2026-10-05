@@ -1,3 +1,5 @@
+// Contains code from CGPA_Calculator by Srijen Raja (Apache License 2.0),
+// modified by Siddharth Mishra. See NOTICE.
 import 'package:hive_ce/hive.dart';
 part 'course.g.dart';
 

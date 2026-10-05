@@ -1,3 +1,5 @@
+// Contains code from CGPA_Calculator by Srijen Raja (Apache License 2.0),
+// modified by Siddharth Mishra. See NOTICE.
 import 'dart:async';
 
 import 'package:cgpa_calculator/features/setup/owner_setup_page.dart';
