@@ -480,8 +480,8 @@ class _CardRow extends StatelessWidget {
 /// never lets pumpAndSettle settle.
 bool sparklesFly = true;
 
-/// Small gold stars drifting across the More card's midnight, behind its
-/// rows, and twinkling (owner, 2026-10-06). Still under reduced motion.
+/// Gold stars drifting across the More card's midnight, behind its rows,
+/// glowing and twinkling (owner, 2026-10-06). Still under reduced motion.
 class _FlyingSparkles extends StatefulWidget {
   const _FlyingSparkles({required this.seed, required this.child});
   final int seed;
@@ -536,7 +536,7 @@ class _SparklePainter extends CustomPainter {
   final Animation<double> t;
   final int seed;
 
-  static const _count = 22;
+  static const _count = 34;
 
   // Each star's gold, picked by its hash (owner, 2026-10-06).
   static const _golds = [Color(0xFFFFE783), Color(0xFFFFD860), Color(0xFFFFCE00)];
@@ -549,7 +549,7 @@ class _SparklePainter extends CustomPainter {
       final start = (h & 0xFF) / 255;
       final lane = ((h >> 8) & 0xF) / 15;
       final speed = 0.6 + ((h >> 12) & 0x3) * 0.25;
-      final r = 1.6 + (i % 3) * 0.9;
+      final r = 3.0 + (i % 3) * 1.5;
       final phase = (start + t.value * speed) % 1;
       final x = phase * (size.width + 2 * r) - r;
       final y =
@@ -557,11 +557,20 @@ class _SparklePainter extends CustomPainter {
           lane * (size.height - 2 * r) +
           math.sin((phase + start) * 2 * math.pi) * 2;
       final glow = 0.5 + 0.5 * math.sin((t.value * 3 + start) * 2 * math.pi);
+      final gold = _golds[(h >> 14) % 3];
+      // A soft halo that swells with the twinkle, then the star on it.
+      canvas.drawCircle(
+        Offset(x, y),
+        r * (1.2 + 0.6 * glow),
+        Paint()
+          ..color = gold.withValues(alpha: 0.15 + 0.35 * glow)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r),
+      );
       _star(
         canvas,
         Offset(x, y),
-        r,
-        _golds[(h >> 14) % 3].withValues(alpha: 0.35 + 0.5 * glow),
+        r * (0.8 + 0.3 * glow),
+        gold.withValues(alpha: 0.45 + 0.55 * glow),
       );
     }
   }
