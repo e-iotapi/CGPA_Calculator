@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/admin/gate_switch.dart';
+import 'package:cgpa_calculator/admin/leaderboard_name.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -158,6 +159,7 @@ class _AdminHomeState extends State<AdminHome> {
             ],
           ),
         ),
+        const LeaderboardNameCard(),
         const SectionLabel('People'),
         _Rows([
           _Row(

@@ -25,7 +25,7 @@ Maintained by
 - [Contributing](#contributing)
 - [Privacy and security](#privacy-and-security)
 - [Moving grades from the old site](#moving-grades-from-the-old-site)
-- [Licence and credits](#licence-and-credits)
+- [Licenses and Policies](#licenses-and-policies)
 
 ## Features
 
@@ -206,18 +206,6 @@ those two only take releases.
    [docs/ARCHITECTURE.md §2](docs/ARCHITECTURE.md#2-the-budget-that-shapes-every-design-choice).
 5. **Rules changes need rules tests** (`test/rules` on `pointer-dev`).
 
-### Contribution terms
-
-Pointer's code is free for non-commercial use only, and the Pointer name and
-logo are not licensed at all (see [Licence and credits](#licence-and-credits)).
-By opening a pull request, you agree that:
-
-- the contribution is your own work, or you have the right to submit it;
-- you give Siddharth Mishra a perpetual, worldwide, royalty-free, irrevocable
-  licence to use, change, relicense and distribute it as part of Pointer,
-  commercially or not;
-- it is otherwise under the same licence as the rest of Pointer.
-
 ## Privacy and security
 
 - Only verified BITS student accounts can use Pointer; faculty, staff and other
@@ -245,7 +233,9 @@ automatically:
 3. Here, sign in, then **Settings → Import from old site**, paste it, and
    confirm.
 
-## Licence and credits
+## Licenses and Policies
+
+### Licence
 
 © 2026 Siddharth Mishra. Pointer's code is under the
 [PolyForm Noncommercial License 1.0.0](LICENSE): you may use, copy, change and
@@ -253,13 +243,29 @@ share it for non-commercial purposes. Any commercial use, including running
 it with advertising, selling it or offering it as a paid service, needs
 written permission.
 
-**The Pointer brand is reserved.** The name "Pointer", the Tassel mark, the
+### The Pointer brand
+
+The brand is reserved. The name "Pointer", the Tassel mark, the
 logos and icons belong to Siddharth Mishra and are not licensed: a copy or
 fork must use its own name and look, and must not present itself as Pointer.
 
+### Contribution terms
+
+Pointer's code is free for non-commercial use only, and the Pointer name and
+logo are not licensed at all (see [Licence](#licence)).
+By opening a pull request, you agree that:
+
+- the contribution is your own work, or you have the right to submit it;
+- you give Siddharth Mishra a perpetual, worldwide, royalty-free, irrevocable
+  licence to use, change, relicense and distribute it as part of Pointer,
+  commercially or not;
+- it is otherwise under the same licence as the rest of Pointer.
+
+### Credits
+
 Pointer started as a fork of
 [CGPA_Calculator](https://github.com/Srijen-Raja/CGPA_Calculator) by
-**Srijen Raja**; his remaining code still here stays under the
+**Srijen Raja**; the little of his code still here stays under the
 [Apache License 2.0](LICENSE-APACHE) (see [NOTICE](NOTICE)).
 
 Thank you, Srijen, for building the calculator this all grew out of.
