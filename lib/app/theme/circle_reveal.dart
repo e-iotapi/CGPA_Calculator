@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:cgpa_calculator/app/theme/screen_cover.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/perf/frame_stats.dart';
@@ -9,6 +10,7 @@ import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart' show timeDilation;
 
 /// Where the last touch or click landed, in global coordinates. Pages and the
 /// theme switch grow their circle from here.
@@ -68,15 +70,28 @@ Future<bool> snapshotsFlipped() async {
   }
 }
 
-/// Whether a display of [physical] pixels at [ratio] is bigger than a phone
-/// (shortest side 600 or more, whatever the orientation): there the theme
-/// switch cross-fades instead of growing a circle (owner, 2026-10-06).
-/// `?fx=circle` or `?fx=fade` on the opening URL forces one, to compare.
-bool fadesTheme(Size physical, double ratio, {String? fx}) => switch (fx) {
-  'fade' => true,
-  'circle' => false,
-  _ => physical.shortestSide / ratio >= 600,
-};
+/// How the theme switch gets the old screen to animate.
+enum SwitchMethod {
+  /// Flutter's own pictures of the screen.
+  pictures,
+
+  /// A copy the browser holds above the app ([ScreenCover]).
+  cover,
+
+  /// No picture: the old ground eases out over the new theme.
+  veil,
+}
+
+/// Firefox reads WebGL pixels back slowly (each Flutter picture froze the
+/// page 1.5-3 s, owner, 2026-10-06), so there the browser copies the screen
+/// instead. `?fx=pictures`, `cover` or `veil` force one, to compare.
+SwitchMethod switchMethod({required bool firefox, String? fx}) =>
+    switch (fx) {
+      'pictures' => SwitchMethod.pictures,
+      'cover' => SwitchMethod.cover,
+      'veil' => SwitchMethod.veil,
+      _ => firefox ? SwitchMethod.cover : SwitchMethod.pictures,
+    };
 
 /// Radius that covers all of [size] from [center].
 double _coverRadius(Offset center, Size size) => [
@@ -182,14 +197,15 @@ class ThemeReveal extends StatefulWidget {
   static Widget root(Widget child) => ThemeReveal(key: _key, child: child);
 
   /// Calls [apply], which changes the theme, behind the reveal. Without a
-  /// root, or with reduced motion, just calls it.
-  static Future<void> run(VoidCallback apply) async {
+  /// root, or with reduced motion, just calls it. [from] is the old theme's
+  /// ground, for the veil where pictures are too slow.
+  static Future<void> run(VoidCallback apply, {Color? from}) async {
     final s = _key.currentState;
     if (s == null) {
       apply();
       return;
     }
-    await s._run(apply);
+    await s._run(apply, from: from);
   }
 
   /// Starts a snapshot now, so it is ready by the time the finger lifts and
@@ -249,10 +265,24 @@ class _ThemeRevealState extends State<ThemeReveal>
 
   // Read at startup: the first navigation drops the query from the URL.
   final _fx = Uri.base.queryParameters['fx'];
+  late final _method = switchMethod(
+    firefox: kIsWeb && installTarget().browser == InstallBrowser.firefox,
+    fx: _fx,
+  );
+  bool get _noPictures => _method != SwitchMethod.pictures;
+  // The circle on every screen, now Firefox runs it smoothly too (owner,
+  // 2026-10-06); `?fx=fade` cross-fades instead, to compare.
+  late final _fadeOnly = _fx == 'fade';
+  Color? _veil;
+  // Animations paused under the browser's copy: each Flutter frame redraws
+  // the whole app on the thread the copy's animation runs on.
+  bool _still = false;
 
   @override
   void initState() {
     super.initState();
+    // The flip check reads pixels back too: none of it where they're slow.
+    if (_noPictures) return;
     snapshotsFlipped().then((f) {
       _flipped = f;
       debugPrint('[Pointer theme] snapshots flipped: $f');
@@ -288,7 +318,8 @@ class _ThemeRevealState extends State<ThemeReveal>
 
   void _prepare() {
     final box = _box;
-    if (box == null ||
+    if (_noPictures ||
+        box == null ||
         _preparedImage != null ||
         _capturing ||
         _anim.isAnimating) {
@@ -310,7 +341,7 @@ class _ThemeRevealState extends State<ThemeReveal>
     });
   }
 
-  Future<void> _run(VoidCallback apply) async {
+  Future<void> _run(VoidCallback apply, {Color? from}) async {
     final box = _box;
     if (box == null ||
         _anim.isAnimating ||
@@ -318,6 +349,9 @@ class _ThemeRevealState extends State<ThemeReveal>
       apply();
       return;
     }
+    final ground = from ?? const Color(0xFF000000);
+    if (_method == SwitchMethod.veil) return _runVeil(apply, ground);
+    if (_method == SwitchMethod.cover) return _runCover(apply, ground);
     ui.Image? image = _preparedImage, next;
     _preparedImage = null;
     _expireTimer?.cancel();
@@ -330,11 +364,10 @@ class _ThemeRevealState extends State<ThemeReveal>
       if (!mounted) return;
       // O1.4: the cover shows, hidden and motionless, before the theme
       // changes.
-      final d = View.of(context).display;
       setState(() {
         _old = image;
         _origin = TapOrigin.last ?? box.size.center(Offset.zero);
-        _crossFade = fadesTheme(d.size, d.devicePixelRatio, fx: _fx);
+        _crossFade = _fadeOnly;
         _anim.value = 0;
       });
       await Future<void>.delayed(Duration.zero); // the cover gets to paint
@@ -373,15 +406,72 @@ class _ThemeRevealState extends State<ThemeReveal>
     }
   }
 
+  /// The browser's copy of the screen covers the app while the theme changes
+  /// under it, then opens (circle) or fades away; the veil if no copy.
+  Future<void> _runCover(VoidCallback apply, Color ground) async {
+    final cover = await ScreenCover.take();
+    if (!mounted || cover == null) {
+      cover?.remove();
+      return _runVeil(apply, ground);
+    }
+    final fade = _fadeOnly;
+    final origin = TapOrigin.last ?? context.size!.center(Offset.zero);
+    try {
+      apply();
+      // Material animates its outline to the new theme over 200 ms; paused
+      // through the circle, pill borders kept the old colour and jumped after
+      // (owner, 2026-10-06). Run time fast for two frames under the copy so
+      // they land, then pause everything for the reveal.
+      timeDilation = 0.01;
+      await WidgetsBinding.instance.endOfFrame;
+      await WidgetsBinding.instance.endOfFrame;
+      timeDilation = 1;
+      if (!mounted) return;
+      setState(() => _still = true);
+      await WidgetsBinding.instance.endOfFrame; // the settled theme, under it
+      await cover.reveal(
+        origin,
+        fade: fade,
+        duration: Duration(milliseconds: fade ? 420 : 560),
+      );
+    } on Object catch (e) {
+      debugPrint('[Pointer theme] cover failed: $e');
+      cover.remove();
+    } finally {
+      timeDilation = 1;
+      if (mounted) setState(() => _still = false);
+    }
+  }
+
+  /// No pictures: the old ground covers the screen, the theme changes under
+  /// it, and it eases out to show the new one.
+  Future<void> _runVeil(VoidCallback apply, Color from) async {
+    setState(() {
+      _veil = from;
+      _anim.value = 0;
+    });
+    await Future<void>.delayed(Duration.zero); // the veil gets to paint
+    apply();
+    try {
+      _anim.duration = const Duration(milliseconds: 420);
+      await _anim.forward(from: 0);
+    } finally {
+      if (mounted) setState(() => _veil = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final old = _old;
+    final old = _old, veil = _veil;
     return Stack(
       textDirection: TextDirection.ltr,
       children: [
         Offstage(
           offstage: _new != null && !_fading,
-          child: RepaintBoundary(key: _boundary, child: widget.child),
+          child: RepaintBoundary(
+            key: _boundary,
+            child: TickerMode(enabled: !_still, child: widget.child),
+          ),
         ),
         if (old != null)
           Positioned.fill(
@@ -408,6 +498,20 @@ class _ThemeRevealState extends State<ThemeReveal>
                         ),
                       ),
                 ),
+              ),
+            ),
+          ),
+        if (veil != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _anim,
+                builder:
+                    (_, _) => ColoredBox(
+                      color: veil.withValues(
+                        alpha: 1 - Curves.easeOut.transform(_anim.value),
+                      ),
+                    ),
               ),
             ),
           ),
