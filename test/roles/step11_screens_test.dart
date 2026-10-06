@@ -809,6 +809,25 @@ void main() {
     );
   });
 
+  testWidgets('Controls offers staff a leaderboard username', (t) async {
+    const me = 'f20200001@pilani.bits-pilani.ac.in';
+    signIn(me, roles: const MyRoles(email: me, owner: true));
+    await db.doc('contributors/$me').set({'campus': 'pilani', 'points': 8});
+    await t.pumpWidget(app(const AdminHome()));
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await t.pumpAndSettle();
+    expect(find.text('Show up on the leaderboard'), findsOneWidget);
+    expect(find.textContaining('8 so far'), findsOneWidget);
+    await t.enterText(find.byType(TextField).first, 'boss_1');
+    await t.runAsync(() async {
+      await t.tap(find.text('Claim username'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await t.pumpAndSettle();
+    expect(find.text('You are on the leaderboard as boss_1.'), findsOneWidget);
+    expect((await db.doc('leaderboard/pilani').get()).data()!['p'], {'boss_1': 8});
+  });
+
   testWidgets('Publish shows waiting changes in amber', (t) async {
     signIn(
       'owner@example.com',

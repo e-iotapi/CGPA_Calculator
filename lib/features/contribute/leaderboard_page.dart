@@ -483,15 +483,14 @@ class LeaderboardCard extends StatelessWidget {
     final campus = viewCampus();
     if (roleStore == null || campus == null) return const SizedBox.shrink();
     final p = AppPalette.of(context);
-    // The board's near-black card; in dark mode a mint one, so it stands
-    // out (owner, 2026-10-04).
-    final fg = p.isDark ? p.onHero : p.onInverse;
+    // The board's purple card, the same in both modes (owner, 2026-10-06).
+    const fg = Colors.white;
     final sub = TypeScale.caption.copyWith(
       fontSize: 10.5,
       color: fg.withValues(alpha: .8),
     );
     return Material(
-      color: p.isDark ? p.hero : p.navBackground,
+      color: const Color(0xFF51308E),
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

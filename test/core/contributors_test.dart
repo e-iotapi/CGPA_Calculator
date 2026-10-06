@@ -176,6 +176,8 @@ void main() {
       final c = (await db.doc('contributors/$_stu').get()).data()!;
       expect(c['username'], 'later');
       expect(c['points'], 8);
+      // Staff earn before they have a name: the board gets them at once.
+      expect((await db.doc('leaderboard/goa').get()).data()!['p'], {'later': 8});
     });
   });
 

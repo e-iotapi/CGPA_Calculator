@@ -524,6 +524,24 @@ describe('usernames and leaderboard', () => {
     await assertSucceeds(claim(as(C2), C2, 'revoked1', { apply: false, d: '' }));
   });
 
+  test('staff claim without a request; their earned points go on the board', async () => {
+    await assertSucceeds(claim(as(ADMIN), ADMIN, 'adm_1', { apply: false, d: '', campus: 'pilani' }));
+    await seed((db) => setDoc(doc(db, 'contributors', PRES), { campus: 'goa', points: 8, lastLink: 'r0' }));
+    const db = as(PRES);
+    const b = writeBatch(db);
+    b.set(doc(db, 'usernames', 'goa|pres_1'), { email: PRES, claimedAt: serverTimestamp() });
+    b.update(doc(db, 'contributors', PRES), { username: 'pres_1' });
+    await assertSucceeds(b.commit());
+    const push = (n) => {
+      const w = writeBatch(db);
+      w.set(doc(db, 'leaderboard', 'goa'), { p: { pres_1: n }, k: 'pres_1' }, { merge: true });
+      bumps(w, db, ['leaderboard']);
+      return w.commit();
+    };
+    await assertFails(push(12));
+    await assertSucceeds(push(8));
+  });
+
   test('declining an applicant releases their name; a student cannot; a contributor keeps it', async () => {
     await claim(as(STUDENT), STUDENT, 'gone');
     await assertFails(declineReleasing(as(OTHER), OTHER, STUDENT, 'gone'));
