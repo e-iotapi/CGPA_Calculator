@@ -46,6 +46,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:cgpa_calculator/core/models/marks.dart';
 import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
+import 'package:cgpa_calculator/features/auth/test_account_sheet.dart';
 
 void main() async {
   // Real paths (/calculator/stats), not #/stats (ARCHITECTURE.md §7).
@@ -368,6 +369,36 @@ class _SignInAppState extends State<SignInApp>
     }
   }
 
+  /// Staging: a test account by email and password, then the same checks
+  /// as Google's.
+  Future<void> _testSignIn() async {
+    final pick = await pickTestAccount(context);
+    if (pick == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final user =
+          (await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: pick.email,
+            password: pick.password,
+          )).user!;
+      final allowed = await mayUseApp(user);
+      if (allowed != true) {
+        await FirebaseAuth.instance.signOut();
+        throw refusal(user, allowed);
+      }
+      await startApp(user);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _show(
+        e is String
+            ? e
+            : 'Sign-in failed: '
+                '${e is FirebaseAuthException ? (e.message ?? e.code) : e}',
+      );
+    }
+  }
+
   void _show(String text) {
     _messengerKey.currentState?.showSnackBar(
       SnackBar(
@@ -393,7 +424,13 @@ class _SignInAppState extends State<SignInApp>
       debugShowCheckedModeBanner: false,
       theme: thm.materialTheme,
       themeAnimationDuration: Duration.zero,
-      home: SignInView(busy: _busy, onSignIn: _signIn, entrance: _entrance),
+      home: SignInView(
+        busy: _busy,
+        onSignIn: _signIn,
+        // Staging only; production drops it (const isTestEnv).
+        onTestSignIn: isTestEnv ? _testSignIn : null,
+        entrance: _entrance,
+      ),
     );
   }
 }
