@@ -71,8 +71,12 @@ Future<bool> snapshotsFlipped() async {
 /// Whether a display of [physical] pixels at [ratio] is bigger than a phone
 /// (shortest side 600 or more, whatever the orientation): there the theme
 /// switch cross-fades instead of growing a circle (owner, 2026-10-06).
-bool fadesTheme(Size physical, double ratio) =>
-    physical.shortestSide / ratio >= 600;
+/// `?fx=circle` or `?fx=fade` on the opening URL forces one, to compare.
+bool fadesTheme(Size physical, double ratio, {String? fx}) => switch (fx) {
+  'fade' => true,
+  'circle' => false,
+  _ => physical.shortestSide / ratio >= 600,
+};
 
 /// Radius that covers all of [size] from [center].
 double _coverRadius(Offset center, Size size) => [
@@ -243,6 +247,9 @@ class _ThemeRevealState extends State<ThemeReveal>
   bool _capturing = false;
   Timer? _expireTimer;
 
+  // Read at startup: the first navigation drops the query from the URL.
+  final _fx = Uri.base.queryParameters['fx'];
+
   @override
   void initState() {
     super.initState();
@@ -327,7 +334,7 @@ class _ThemeRevealState extends State<ThemeReveal>
       setState(() {
         _old = image;
         _origin = TapOrigin.last ?? box.size.center(Offset.zero);
-        _crossFade = fadesTheme(d.size, d.devicePixelRatio);
+        _crossFade = fadesTheme(d.size, d.devicePixelRatio, fx: _fx);
         _anim.value = 0;
       });
       await Future<void>.delayed(Duration.zero); // the cover gets to paint

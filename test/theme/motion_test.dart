@@ -138,5 +138,7 @@ void main() {
     expect(fadesTheme(const Size(2400, 1080), 3), isFalse); // phone, sideways
     expect(fadesTheme(const Size(2048, 2732), 2), isTrue); // iPad
     expect(fadesTheme(const Size(1920, 1080), 1), isTrue); // laptop
+    expect(fadesTheme(const Size(1920, 1080), 1, fx: 'circle'), isFalse);
+    expect(fadesTheme(const Size(1080, 2400), 3, fx: 'fade'), isTrue);
   });
 }
