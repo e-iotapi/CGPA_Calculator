@@ -23,17 +23,27 @@ const headMaxAge = Duration(hours: 6);
 /// Catalogue bundle refresh check.
 const catalogMaxAge = Duration(days: 1);
 
-/// Reviews course index (`reviewIndex`).
-const reviewIndexMaxAge = Duration(hours: 12);
+/// Reviews course index (`reviewIndex`) and professors.
+const reviewIndexMaxAge = Duration(hours: 3);
 
 /// A page of reviews for one course.
 const reviewPageMaxAge = Duration(minutes: 10);
 
 /// Representatives (CR) list per campus.
-const repsMaxAge = Duration(hours: 6);
+const repsMaxAge = Duration(hours: 3);
 
 /// A student's own volunteer offer, per course.
-const offerMaxAge = Duration(hours: 24);
+const offerMaxAge = Duration(hours: 3);
+
+/// Whether the review gate is on, and its counts.
+const gateMaxAge = Duration(hours: 3);
+
+/// Timetable bundle per campus.
+const timetableMaxAge = Duration(hours: 3);
+
+/// Any copy kept under a version is read again past this, live or not: the
+/// safety net for a marker some write forgot to move (owner, 2026-10-06).
+const fullReadEvery = Duration(days: 1);
 
 /// Admin screens' reads (roster, owners, terms, audit, offerings, analytics).
 const adminMaxAge = Duration(minutes: 10);
@@ -45,7 +55,7 @@ const publicContactMaxAge = Duration(days: 7);
 const offeringMaxAge = Duration(hours: 24);
 
 /// Official offering whose head version is unchanged: re-checked this often.
-const offeringVersionRecheck = Duration(days: 7);
+const offeringVersionRecheck = fullReadEvery;
 
 // --- Session (lib/core/roles/session.dart) ---
 

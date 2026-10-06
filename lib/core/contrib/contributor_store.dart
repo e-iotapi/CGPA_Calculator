@@ -400,7 +400,8 @@ class ContributorStore {
       rethrow;
     }
     final mine = _db.collection('contributors').doc(roles.me);
-    final has = (await mine.get()).exists;
+    final had = (await mine.get()).data();
+    final has = had != null;
     final b = _db.batch();
     if (applyTo != null) await _stageApply(b, campus, applyTo);
     b.set(taken, {
@@ -431,5 +432,19 @@ class ContributorStore {
     }
     await forget('me-ct|');
     if (applyTo != null) await _changed(applyTo);
+    // Staff earn points before they have a name: put them on the board now
+    // rather than at their next link. A refusal leaves that to the next link.
+    final points = (had?['points'] as num?)?.toInt() ?? 0;
+    if (points > 0) {
+      final lb = _db.batch();
+      lb.set(_db.collection('leaderboard').doc(campus), {
+        'p': {n: points},
+        'k': n,
+      }, SetOptions(merge: true));
+      bumpPath(lb, _db, campus, Paths.leaderboard);
+      try {
+        await lb.commit();
+      } on FirebaseException catch (_) {}
+    }
   }
 }

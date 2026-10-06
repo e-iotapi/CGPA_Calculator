@@ -13,11 +13,11 @@ import 'package:cgpa_calculator/core/heads/heads_client_stub.dart'
 import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/timetable/timetable.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_ce/hive.dart';
 
 const timetableBoxName = 'timetable';
-const timetableMaxAge = Duration(hours: 12);
 
 class TimetableStore {
   /// [workerBase] is the Worker's URL (POINTER_HEADS_URL); null or empty reads

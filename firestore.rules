@@ -731,12 +731,14 @@ service cloud.firestore {
 
     // Who may hold a username (#7): a contributor, active or revoked (they
     // keep the grant doc), or an applicant whose request for dept `d` is
-    // pending after this write (the app claims it beside the request).
+    // pending after this write (the app claims it beside the request), or
+    // staff, whose links earn points too (owner, 2026-10-06).
     function mayHoldName(campus, d) {
       return exists(grantPath('contributor', campus, campus, me()))
         || (d is string && d.size() > 0 && d.size() <= 8
             && getAfter(contribDoc('contributorRequests/' + campus + '|' + d + '|' + me()))
-                 .data.status == 'pending');
+                 .data.status == 'pending')
+        || isOwner() || isAdmin() || isPresidentOn(campus);
     }
 
     // A declined applicant's username goes back (#7): cleared beside the

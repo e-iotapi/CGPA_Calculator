@@ -18,12 +18,19 @@ export function diffVersions(prev: Versions, next: Versions): Versions {
   return out;
 }
 
-/** The head doc's `v` map (marker path -> version), numbers only; other head fields never leave. */
-const markers = (d: Record<string, unknown> | null): Versions => {
-  const v = d?.v;
-  if (!v || typeof v !== "object") return {};
-  return Object.fromEntries(Object.entries(v).filter(([, n]) => typeof n === "number")) as Versions;
-};
+const numbers = (m: unknown, prefix = ""): [string, number][] =>
+  m && typeof m === "object"
+    ? Object.entries(m)
+        .filter(([, n]) => typeof n === "number")
+        .map(([k, n]) => [prefix + k, n as number])
+    : [];
+
+/**
+ * The head doc's `v` map (marker path -> version) and its scheme versions as
+ * `o:<course|term>` (owner, 2026-10-06), numbers only; other head fields never leave.
+ */
+export const markers = (d: Record<string, unknown> | null): Versions =>
+  Object.fromEntries([...numbers(d?.v), ...numbers(d?.offerings, "o:")]);
 
 export class CampusHub extends DurableObject<Env> {
   private cache: { head: Versions; at: number } | null = null;
