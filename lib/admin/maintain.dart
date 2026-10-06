@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cgpa_calculator/admin/bulk_upload.dart';
 import 'package:cgpa_calculator/admin/dept_resources.dart';
 import 'package:cgpa_calculator/admin/gate_switch.dart';
+import 'package:cgpa_calculator/admin/leaderboard_name.dart';
 import 'package:cgpa_calculator/admin/offering_scale.dart';
 import 'package:cgpa_calculator/admin/professors.dart';
 import 'package:cgpa_calculator/admin/scheme_editor.dart';
@@ -381,6 +382,7 @@ class DeptHome extends StatelessWidget {
                 ],
               ),
             ),
+            const LeaderboardNameCard(),
             // A secretary never hands over, nor does Electives (B2).
             if (dept != genDept &&
                 !myRoles.value.presidencies.any(

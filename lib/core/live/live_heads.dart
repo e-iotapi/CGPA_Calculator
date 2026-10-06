@@ -193,7 +193,8 @@ abstract final class LiveHeads {
   /// Writes the new numbers into the saved `head|<campus>` (leaving its age
   /// and other fields alone) so the next load sees the moved marker and
   /// refetches. With no saved head there is nothing to correct: the next
-  /// `headFor` reads a fresh one.
+  /// `headFor` reads a fresh one. `o:<course|term>` numbers are scheme
+  /// versions and go under `offerings`.
   static void _merge(String campus, Object? v) {
     if (v is! Map) return;
     final box = sharedCacheBox;
@@ -203,18 +204,24 @@ abstract final class LiveHeads {
       final entry = jsonDecode(raw) as Map;
       final head = Map<String, Object?>.from(entry['v'] as Map);
       final marks = Map<String, Object?>.from((head['v'] as Map?) ?? const {});
+      final schemes =
+          Map<String, Object?>.from((head['offerings'] as Map?) ?? const {});
       var moved = false;
       for (final e in v.entries) {
         final n = e.value;
         if (n is! num) continue;
+        final k = '${e.key}';
+        final into = k.startsWith('o:') ? schemes : marks;
+        final key = k.startsWith('o:') ? k.substring(2) : k;
         // Equality, not max: a lowered marker costs one re-read, never a freeze.
-        if (marks['${e.key}'] != n.toInt()) {
-          marks['${e.key}'] = n.toInt();
+        if (into[key] != n.toInt()) {
+          into[key] = n.toInt();
           moved = true;
         }
       }
       if (!moved) return;
       head['v'] = marks;
+      head['offerings'] = schemes;
       entry['v'] = head;
       unawaited(
         box

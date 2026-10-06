@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/heads/paths.dart';
 import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// `reviewGate/<campus>`: the switch for the review gate. Missing doc is off.
@@ -18,7 +19,7 @@ class GateStore {
   /// Whether the gate is on for [campus]. One doc, cached under the marker.
   Future<bool> of(String campus) async => cacheFirst<bool>(
     key: 'gate|$campus',
-    maxAge: const Duration(hours: 1),
+    maxAge: gateMaxAge,
     version: await markerOf(_db, campus, Paths.reviewGate),
     fetch:
         () async =>
