@@ -549,7 +549,7 @@ class _SparklePainter extends CustomPainter {
       final start = (h & 0xFF) / 255;
       final lane = ((h >> 8) & 0xF) / 15;
       final speed = 0.6 + ((h >> 12) & 0x3) * 0.25;
-      final r = 3.0 + (i % 3) * 1.5;
+      final r = 2.4 + (i % 3) * 1.35; // 1.5x the first stars (owner)
       final phase = (start + t.value * speed) % 1;
       final x = phase * (size.width + 2 * r) - r;
       final y =
