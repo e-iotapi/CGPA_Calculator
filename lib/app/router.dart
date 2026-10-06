@@ -117,7 +117,12 @@ final List<RouteBase> appRoutes = [
         builder: (_, _) => const ContributePage(),
         routes: [
           GoRoute(path: 'apply', builder: (_, _) => const ApplyPage()),
-          GoRoute(path: 'add', builder: (_, _) => const AddPage()),
+          GoRoute(
+            path: 'add',
+            builder:
+                (_, s) =>
+                    AddPage(course: s.uri.queryParameters['course'] == '1'),
+          ),
           GoRoute(
             path: 'edit/:id',
             builder: (_, s) => EditPage(id: s.pathParameters['id']!),

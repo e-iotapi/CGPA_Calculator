@@ -22,6 +22,7 @@ abstract final class Routes {
   static const contribute = '/contribute';
   static const contributeApply = '/contribute/apply';
   static const contributeAdd = '/contribute/add';
+  static const contributeAddCourse = '/contribute/add?course=1';
   static String contributeEdit(String id) =>
       '/contribute/edit/${Uri.encodeComponent(id)}';
   static String courseReviews(String id, {String? professor}) =>

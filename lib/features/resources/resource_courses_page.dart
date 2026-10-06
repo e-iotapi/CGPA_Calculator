@@ -3,12 +3,15 @@ import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/features/contribute/add_page.dart';
 import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/shared/widgets/segmented.dart';
@@ -77,6 +80,21 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
     ]..sort();
     return PageFrame(
       header: header,
+      bottom:
+          linkDepts(campus).isEmpty
+              ? null
+              : BottomAction(
+                child: PrimaryButton(
+                  label: 'Add a link',
+                  icon: Icons.add_rounded,
+                  onPressed:
+                      () => openRoute(
+                        context,
+                        Routes.contributeAddCourse,
+                        () => const AddPage(course: true),
+                      ),
+                ),
+              ),
       children: [
         SearchBox(
           controller: _search,

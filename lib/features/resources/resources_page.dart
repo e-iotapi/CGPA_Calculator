@@ -5,7 +5,6 @@ import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
-import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -13,6 +12,7 @@ import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/contribute/contribute_widgets.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/features/contribute/add_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
 import 'package:cgpa_calculator/core/models/offering.dart' show termOf;
@@ -23,7 +23,6 @@ import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 
 /// The signed-in user's resource store, or `null` before sign-in.
@@ -702,28 +701,25 @@ class _ResourcesPageState extends State<ResourcesPage> {
               eyebrow: resourcesEyebrow(campus, dual: dual),
               title: 'Resources',
             ),
-            bottom: switch ([
-              for (final d in degrees)
-                if (campus != null &&
-                    myRoles.value.may(
-                      Capability.departmentResources,
-                      campus: campus,
-                      scope: d.dept,
-                    ))
-                  d.dept,
-            ]) {
-              [final dept, ...] => BottomAction(
-                child: PrimaryButton(
-                  label: 'Add a link',
-                  icon: Icons.add_rounded,
-                  onPressed:
-                      () => GoRouter.maybeOf(
-                        context,
-                      )?.push(Routes.deptResources(campus!, dept)),
-                ),
-              ),
-              _ => null,
-            },
+            // Asks the department or the course; no default (owner,
+            // 2026-10-06).
+            bottom:
+                campus == null || linkDepts(campus).isEmpty
+                    ? null
+                    : BottomAction(
+                      child: PrimaryButton(
+                        label: 'Add a link',
+                        icon: Icons.add_rounded,
+                        onPressed: () async {
+                          await openRoute(
+                            context,
+                            Routes.contributeAdd,
+                            () => const AddPage(),
+                          );
+                          reload();
+                        },
+                      ),
+                    ),
             children: [
               if (roleStore == null)
                 const Note('Sign in with your BITS account to see resources.')

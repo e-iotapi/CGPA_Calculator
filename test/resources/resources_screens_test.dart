@@ -140,6 +140,7 @@ void main() {
       await open(t, As.student, const ResourceCoursesPage());
       expect(find.textContaining(takingId), findsOneWidget);
       expect(find.text('This semester'), findsOneWidget);
+      expect(find.text('Add a link'), findsNothing);
       await t.enterText(find.byType(TextField), 'zzzzzz');
       await t.pump();
       expect(
@@ -171,6 +172,27 @@ void main() {
         const ResourceCoursePage(courseId: takingId),
       );
       expect(find.text('Add a link'), findsOneWidget);
+    });
+
+    // Add a link asks where; it never picks the first degree (owner,
+    // 2026-10-06), and Course resources has it too.
+    testWidgets('staff Add a link asks the department or the course', (
+      t,
+    ) async {
+      await open(t, As.president2, const ResourcesPage());
+      await t.tap(find.text('Add a link'));
+      await settle(t);
+      expect(find.text('Add links'), findsOneWidget);
+      expect(find.text('Choose'), findsOneWidget);
+    });
+
+    testWidgets('Course resources has Add a link for staff, on a course', (
+      t,
+    ) async {
+      await open(t, As.president2, const ResourceCoursesPage());
+      await t.tap(find.text('Add a link'));
+      await settle(t);
+      expect(find.text('COURSE · ANY ON CAMPUS'), findsOneWidget);
     });
 
     testWidgets('course: Last updated beside the CR', (t) async {
