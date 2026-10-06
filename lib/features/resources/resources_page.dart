@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cgpa_calculator/core/resources/link_search.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
@@ -20,6 +23,7 @@ import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:flutter/material.dart';
@@ -678,6 +682,102 @@ class ResourcesPage extends StatefulWidget {
 }
 
 class _ResourcesPageState extends State<ResourcesPage> {
+  final _search = TextEditingController();
+  Timer? _settle;
+  List<Resource>? _links;
+  Map<String, Map<String, int>> _hints = const {};
+
+  /// The last settled search that found nothing, and when: a link opened
+  /// within a minute from another search teaches the pair.
+  String? _emptyQ;
+  DateTime? _emptyAt;
+
+  String get _q => _search.text.trim();
+
+  SearchHints? get _hintStore =>
+      roleStore == null ? null : SearchHints(roleStore!.db);
+
+  List<Resource> _results() => searchLinks(
+    _links ?? const [],
+    _q,
+    also: alsoSearch(_q, _hints),
+    courseTitle: courseTitle,
+    departmentName: departmentName,
+  );
+
+  void _typed(String campus) {
+    setState(() {});
+    _links ??= resourceStore?.peekAll(campus);
+    if (_links == null) {
+      resourceStore?.all(campus).then((l) {
+        if (!mounted) return;
+        setState(() => _links = l);
+        _armSettle();
+      }, onError: (Object _) {});
+    }
+    if (_hints.isEmpty) {
+      final hints = _hintStore;
+      _hints = hints?.peek(campus) ?? const {};
+      hints?.load(campus).then((h) {
+        if (mounted) setState(() => _hints = h);
+      }, onError: (Object _) {});
+    }
+    _armSettle();
+  }
+
+  /// A search left alone 800 ms that found nothing is remembered.
+  void _armSettle() {
+    _settle?.cancel();
+    _settle = Timer(const Duration(milliseconds: 800), () {
+      if (_links != null && _q.isNotEmpty && _results().isEmpty) {
+        _emptyQ = _q;
+        _emptyAt = DateTime.now();
+      }
+    });
+  }
+
+  void _open(String campus, Resource r) {
+    final from = _emptyQ, at = _emptyAt;
+    if (from != null &&
+        at != null &&
+        DateTime.now().difference(at) <= const Duration(minutes: 1)) {
+      unawaited(_hintStore?.learn(campus, from, _q));
+    }
+    _emptyQ = null;
+    openUrl(r.url);
+  }
+
+  @override
+  void dispose() {
+    _settle?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  List<Widget> _found(String campus) {
+    final p = AppPalette.of(context);
+    if (_links == null) return const [Note('Searching…')];
+    final found = _results();
+    if (found.isEmpty) return [Note('No links match “$_q”.')];
+    return [
+      AppCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            for (final (i, r) in found.take(60).indexed) ...[
+              if (i > 0) Divider(height: 1, indent: 15, color: p.divider),
+              LinkRow(
+                r: r,
+                tag: r.courseIds.isEmpty ? r.department : r.courseIds.first,
+                onTap: () => _open(campus, r),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ];
+  }
+
   @override
   void initState() {
     super.initState();
@@ -726,6 +826,15 @@ class _ResourcesPageState extends State<ResourcesPage> {
               else if (campus == null)
                 campusPrompt(context)
               else ...[
+                SearchBox(
+                  controller: _search,
+                  hint: 'Search notes, papers, courses',
+                  onChanged: (_) => _typed(campus),
+                ),
+                const SizedBox(height: Space.sm),
+                if (_q.isNotEmpty)
+                  ..._found(campus)
+                else ...[
                 for (final (i, d) in degrees.indexed) ...[
                   if (i > 0) const SizedBox(height: 9),
                   _ResourceCard(
@@ -753,6 +862,7 @@ class _ResourcesPageState extends State<ResourcesPage> {
                         () => const ResourceCoursesPage(),
                       ),
                 ),
+                ],
               ],
             ],
           ),
