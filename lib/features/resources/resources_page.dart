@@ -766,7 +766,17 @@ class _ResourcesPageState extends State<ResourcesPage> {
   Widget build(BuildContext context) {
     final campus = viewCampus();
     final dual = programmesOf(selecteddiscipline).length > 1;
-    return Loaded<List<ResourceDegreeData>>(
+    // Back with a search open closes the search, not the page (owner,
+    // 2026-10-06).
+    return PopScope(
+      canPop: _q.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _search.clear();
+        FocusManager.instance.primaryFocus?.unfocus();
+        setState(() {});
+      },
+      child: Loaded<List<ResourceDegreeData>>(
       // A reopen shows the last links at once and refreshes behind them.
       cacheKey: degreesKey(campus),
       load: loadDegrees,
@@ -861,6 +871,7 @@ class _ResourcesPageState extends State<ResourcesPage> {
               ],
             ],
           ),
+    ),
     );
   }
 }

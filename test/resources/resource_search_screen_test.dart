@@ -66,4 +66,36 @@ void main() {
     await t.pump();
     expect(find.text('OS lab sheets'), findsNothing);
   });
+
+  testWidgets('back with a search open closes the search, then the page', (
+    t,
+  ) async {
+    await open(
+      t,
+      As.student,
+      Builder(
+        builder:
+            (c) => TextButton(
+              onPressed:
+                  () => Navigator.of(c).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ResourcesPage(),
+                    ),
+                  ),
+              child: const Text('open'),
+            ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await settle(t);
+    await t.enterText(find.byType(TextField), 'lab');
+    await settle(t);
+    await t.binding.handlePopRoute();
+    await settle(t);
+    expect(find.text('Course resources'), findsOneWidget);
+    expect(t.widget<TextField>(find.byType(TextField)).controller!.text, '');
+    await t.binding.handlePopRoute();
+    await settle(t);
+    expect(find.text('open'), findsOneWidget);
+  });
 }
