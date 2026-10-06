@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cgpa_calculator/admin/admin.dart' deferred as admin;
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/core/roles/capabilities.dart';
+import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/course.dart';
@@ -44,7 +45,7 @@ final GoRouter appRouter = GoRouter(
   refreshListenable: Listenable.merge([profileDue, ownerSetupDue]),
   redirect: (_, s) {
     leaveRoleOutside(s.matchedLocation);
-    return profileGate(s.matchedLocation);
+    return profileGate(s.matchedLocation) ?? movedPath(s.uri);
   },
   errorBuilder: (_, _) => const NotFoundPage(),
 );
@@ -65,6 +66,33 @@ void leaveRoleOutside(String location) {
   viewAs.value = null;
 }
 
+/// Where an old or bare address now lives: `/` opens the last tab, and the
+/// pages More opens moved under `/more` (owner, 2026-10-06).
+String? movedPath(Uri uri) {
+  final path = uri.path;
+  if (path == Routes.home) return Routes.tab(selectedprofile);
+  for (final p in _underMore) {
+    if (path == p || path.startsWith('$p/')) {
+      return Routes.more + _resourcesPath(uri.toString());
+    }
+  }
+  return null;
+}
+
+const _underMore = [
+  '/resources',
+  '/leaderboard',
+  '/contribute',
+  '/representatives',
+  '/reviews',
+];
+
+/// Resources dropped `degree/` and `course/` from its paths.
+String _resourcesPath(String s) => s.replaceFirst(
+  RegExp(r'^/resources/(degree|course)/'),
+  '/resources/',
+);
+
 /// RepProfile comes first after an appointment (§16.3 fix 8): while it is
 /// due, every location resolves to it.
 /// A non-BITS owner sets campus and batch before anything else (§10.21).
@@ -79,7 +107,7 @@ String? profileGate(String location) {
 final List<RouteBase> appRoutes = [
   GoRoute(
     path: Routes.home,
-    builder: (_, _) => const MyHomePage(title: 'Pointer'),
+    pageBuilder: (_, _) => _homePage(null),
     routes: [
       GoRoute(
         path: 'stats',
@@ -87,51 +115,83 @@ final List<RouteBase> appRoutes = [
       ),
       GoRoute(path: 'calendar', builder: (_, _) => const CalendarPage()),
       GoRoute(path: 'settings', builder: (_, _) => const SettingsPage()),
+      // More and the pages it opens (owner, 2026-10-06).
       GoRoute(
-        path: 'resources',
-        builder: (_, _) => const ResourcesPage(),
+        path: 'more',
+        builder: (_, _) => const MorePage(),
         routes: [
           GoRoute(
-            path: 'degree/:code',
-            builder:
-                (c, s) => ResourceDegreePage(
-                  code: s.pathParameters['code']!,
-                  onRepresentatives: () => c.push(Routes.representatives),
-                ),
+            path: 'resources',
+            builder: (_, _) => const ResourcesPage(),
+            routes: [
+              GoRoute(
+                path: 'courses',
+                builder: (_, _) => const ResourceCoursesPage(),
+              ),
+              // A degree code (A7) or a course id (CS F372).
+              GoRoute(
+                path: ':id',
+                builder: (c, s) {
+                  final id = s.pathParameters['id']!;
+                  return departmentOfProgramme(id) != null
+                      ? ResourceDegreePage(
+                        code: id,
+                        onRepresentatives: () => c.push(Routes.representatives),
+                      )
+                      : ResourceCoursePage(courseId: id);
+                },
+              ),
+            ],
+          ),
+          GoRoute(path: 'leaderboard', builder: (_, _) => const LeaderboardPage()),
+          GoRoute(
+            path: 'contribute',
+            builder: (_, _) => const ContributePage(),
+            routes: [
+              GoRoute(path: 'apply', builder: (_, _) => const ApplyPage()),
+              GoRoute(
+                path: 'add',
+                builder:
+                    (_, s) =>
+                        AddPage(course: s.uri.queryParameters['course'] == '1'),
+              ),
+              GoRoute(
+                path: 'edit/:id',
+                builder: (_, s) => EditPage(id: s.pathParameters['id']!),
+              ),
+            ],
           ),
           GoRoute(
-            path: 'courses',
-            builder: (_, _) => const ResourceCoursesPage(),
+            path: 'representatives',
+            builder: (_, _) => const RepresentativesPage(),
           ),
           GoRoute(
-            path: 'course/:id',
-            builder:
-                (_, s) => ResourceCoursePage(courseId: s.pathParameters['id']!),
+            path: 'reviews',
+            builder: (_, _) => const ReviewsHome(),
+            routes: [
+              // Before :courseId: no course code is "professor".
+              GoRoute(
+                path: 'compulsory',
+                redirect: (_, _) => viewCampus() == null ? Routes.reviews : null,
+                builder: (_, _) => const CompulsoryPickPage(),
+              ),
+              GoRoute(
+                path: 'professor/:id',
+                builder:
+                    (_, s) =>
+                        ProfessorReviewsPage(professorId: s.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: ':courseId',
+                builder:
+                    (_, s) => CourseReviewsPage(
+                      courseId: s.pathParameters['courseId']!,
+                      professorId: s.uri.queryParameters['professor'],
+                    ),
+              ),
+            ],
           ),
         ],
-      ),
-      GoRoute(path: 'more', builder: (_, _) => const MorePage()),
-      GoRoute(path: 'leaderboard', builder: (_, _) => const LeaderboardPage()),
-      GoRoute(
-        path: 'contribute',
-        builder: (_, _) => const ContributePage(),
-        routes: [
-          GoRoute(path: 'apply', builder: (_, _) => const ApplyPage()),
-          GoRoute(
-            path: 'add',
-            builder:
-                (_, s) =>
-                    AddPage(course: s.uri.queryParameters['course'] == '1'),
-          ),
-          GoRoute(
-            path: 'edit/:id',
-            builder: (_, s) => EditPage(id: s.pathParameters['id']!),
-          ),
-        ],
-      ),
-      GoRoute(
-        path: 'representatives',
-        builder: (_, _) => const RepresentativesPage(),
       ),
       GoRoute(
         path: 'setup/owner',
@@ -148,32 +208,6 @@ final List<RouteBase> appRoutes = [
         path: 'welcome',
         redirect: (_, _) => roleStore == null ? Routes.home : null,
         builder: (_, _) => const RepProfilePage(onSignOut: signOut),
-      ),
-      GoRoute(
-        path: 'reviews',
-        builder: (_, _) => const ReviewsHome(),
-        routes: [
-          // Before :courseId: no course code is "professor".
-          GoRoute(
-            path: 'compulsory',
-            redirect: (_, _) => viewCampus() == null ? Routes.reviews : null,
-            builder: (_, _) => const CompulsoryPickPage(),
-          ),
-          GoRoute(
-            path: 'professor/:id',
-            builder:
-                (_, s) =>
-                    ProfessorReviewsPage(professorId: s.pathParameters['id']!),
-          ),
-          GoRoute(
-            path: ':courseId',
-            builder:
-                (_, s) => CourseReviewsPage(
-                  courseId: s.pathParameters['courseId']!,
-                  professorId: s.uri.queryParameters['professor'],
-                ),
-          ),
-        ],
       ),
       GoRoute(
         path: 'course/:id',
@@ -353,7 +387,16 @@ final List<RouteBase> appRoutes = [
       ),
     ],
   ),
+  for (final (path, profile) in Routes.tabs)
+    GoRoute(path: path, pageBuilder: (_, _) => _homePage(profile)),
 ];
+
+/// Home under every route, one page whatever the tab: the same key keeps
+/// it (and its state) when the tab's path changes.
+Page<void> _homePage(int? profile) => MaterialPage(
+  key: const ValueKey('home'),
+  child: MyHomePage(title: 'Pointer', profile: profile),
+);
 
 bool _mayMaintain(GoRouterState s, {bool course = false}) => myRoles.value.may(
   course ? Capability.courseStructures : Capability.bulkUpload,

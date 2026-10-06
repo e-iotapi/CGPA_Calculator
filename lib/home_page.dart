@@ -19,6 +19,7 @@ import 'package:cgpa_calculator/auth_util.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:cgpa_calculator/features/settings/settings_page.dart';
@@ -56,8 +57,11 @@ int? homeNextProfile(int current, int delta, bool offshoot) {
 
 /// The home screen: the course list, SGPA and CGPA.
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({super.key, required this.title, this.profile});
   final String title;
+
+  /// The tab its path names (`/expected` is 2); null under other pages.
+  final int? profile;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -93,10 +97,33 @@ class _MyHomePageState extends State<MyHomePage> {
     offshootHiddenNow.addListener(_offshootChanged);
     // A saved Offshoot profile from before it was hidden (or from another
     // device): land on Actual instead of an unhighlighted nav.
+    _follow(widget.profile);
     if (selectedprofile == 4 && offshootHiddenNow.value) selectedprofile = 1;
     // The guided tour: first sign-in after setup, and its profile switches.
     tourSelectProfile = _tourSelectProfile;
     maybeStartFirstTour();
+  }
+
+  @override
+  void didUpdateWidget(MyHomePage old) {
+    super.didUpdateWidget(old);
+    _follow(widget.profile);
+  }
+
+  /// A tab's path was opened (a bookmark, Back, Forward): show that tab.
+  void _follow(int? id) {
+    if (id == null || id == selectedprofile) return;
+    if (id == 4 && offshootHiddenNow.value) return;
+    _isrightswipe = id > selectedprofile;
+    selectedprofile = id;
+    _persist(HomeChange.profile);
+  }
+
+  /// The address bar follows the tab, so each tab can be bookmarked.
+  void _showPath() {
+    final path = Routes.tab(selectedprofile);
+    final router = GoRouter.maybeOf(context);
+    if (router != null && router.state.uri.path != path) router.go(path);
   }
 
   /// The tour looks at a profile without saving the choice.
@@ -123,6 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if (selectedprofile == 4 && offshootHiddenNow.value) {
         selectedprofile = 1;
         _persist(HomeChange.profile);
+        _showPath();
       }
     });
   }
@@ -207,6 +235,7 @@ class _MyHomePageState extends State<MyHomePage> {
             selectedprofile = id;
           });
           _persist(HomeChange.profile);
+          _showPath();
         },
         destinations: [for (final id in _navIds) _navDestination(id)],
         body: LayoutBuilder(
@@ -416,6 +445,7 @@ class _MyHomePageState extends State<MyHomePage> {
           selectedprofile = next;
         });
         _persist(HomeChange.profile);
+        _showPath();
       },
       onOpenAnalytics:
           () => openRoute(

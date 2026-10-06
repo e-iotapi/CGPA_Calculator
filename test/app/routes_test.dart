@@ -4,6 +4,7 @@ import 'package:cgpa_calculator/admin/roster.dart';
 import 'package:cgpa_calculator/app/router.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
+import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/not_found_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +18,7 @@ void main() {
   ];
 
   // Top-level segments under Home: 'stats', 'course' (from 'course/:id')…
-  final home = appRoutes.single as GoRoute;
+  final home = appRoutes.first as GoRoute;
   final segments = [
     for (final r in home.routes.whereType<GoRoute>()) r.path.split('/').first,
   ];
@@ -42,6 +43,27 @@ void main() {
       // does not match `/x`.
       if (nested) expect(sources, contains('/calculator/$s'));
     }
+  });
+
+  test('every tab path has a _redirects line', () {
+    for (final r in appRoutes.skip(1).whereType<GoRoute>()) {
+      expect(sources, contains('/calculator${r.path}'));
+    }
+  });
+
+  test('old and bare paths move: / to the last tab, More pages under /more',
+      () {
+    selectedprofile = 3;
+    expect(movedPath(Uri.parse('/')), '/compare');
+    expect(movedPath(Uri.parse('/reviews/CS%20F372?professor=p1')),
+        '/more/reviews/CS%20F372?professor=p1');
+    expect(movedPath(Uri.parse('/resources/degree/A7')), '/more/resources/A7');
+    expect(movedPath(Uri.parse('/resources/course/CS%20F372')),
+        '/more/resources/CS%20F372');
+    expect(movedPath(Uri.parse('/contribute')), '/more/contribute');
+    expect(movedPath(Uri.parse('/more/reviews')), isNull);
+    expect(movedPath(Uri.parse('/stats')), isNull);
+    selectedprofile = 1;
   });
 
   test('no catch-all rule rewrites the app\'s own files', () {

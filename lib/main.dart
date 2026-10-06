@@ -40,6 +40,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
@@ -49,6 +50,8 @@ import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
 void main() async {
   // Real paths (/calculator/stats), not #/stats (ARCHITECTURE.md §7).
   usePathUrlStrategy();
+  // Pages opened with push show their path too, so they can be bookmarked.
+  GoRouter.optionURLReflectsImperativeAPIs = true;
   WidgetsFlutterBinding.ensureInitialized();
   // Touch resampling (on since 26 Sep) held the finger's position ~38 ms
   // back and let it catch up in a leap on lift; with frames on time since
