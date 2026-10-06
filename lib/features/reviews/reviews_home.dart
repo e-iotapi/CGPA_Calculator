@@ -5,6 +5,7 @@ import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/professors/professor_store.dart';
 import 'package:cgpa_calculator/core/reviews/gate.dart';
@@ -50,6 +51,7 @@ class ReviewsHome extends StatefulWidget {
 class _ReviewsHomeState extends State<ReviewsHome> {
   late bool _yours = widget.yours;
   final _search = TextEditingController();
+  final _learner = QueryLearner();
   final _mine = TextEditingController();
   Timer? _debounce;
   Future<List<Professor>>? _profs;
@@ -70,6 +72,7 @@ class _ReviewsHomeState extends State<ReviewsHome> {
 
   @override
   void dispose() {
+    _learner.dispose();
     _debounce?.cancel();
     _search.dispose();
     _mine.dispose();
@@ -179,7 +182,8 @@ class _ReviewsHomeState extends State<ReviewsHome> {
           return out;
         },
         builder: (context, mine, _) {
-          final mq = _mine.text.trim().toLowerCase();
+          final mq = _mine.text.trim();
+          final phrases = queryPhrases(mq);
           final shown = filterMine(
             mine,
             _filter,
@@ -189,9 +193,12 @@ class _ReviewsHomeState extends State<ReviewsHome> {
           final sorted = [
             for (final r in shown)
               if (mq.isEmpty ||
-                  r.courseId.toLowerCase().contains(mq) ||
-                  courseTitle(r.courseId).toLowerCase().contains(mq) ||
-                  (r.text ?? '').toLowerCase().contains(mq))
+                  phrases.any(
+                    (ph) => textMatches(
+                      ph,
+                      '${r.courseId} ${courseTitle(r.courseId)} ${r.text ?? ''}',
+                    ),
+                  ))
                 r,
           ]..sort(
             (a, b) => switch (_order) {
@@ -281,18 +288,18 @@ class _ReviewsHomeState extends State<ReviewsHome> {
         ],
       );
     }
-    final q = _search.text.trim().toLowerCase();
+    final q = _search.text.trim();
     final found =
         q.length < 2
             ? const []
-            : catalog.master
-                .where(
-                  (m) =>
-                      m.id.toLowerCase().contains(q) ||
-                      m.title.toLowerCase().contains(q),
-                )
-                .take(20)
-                .toList();
+            : widen(
+              q,
+              (ph) => catalog.master.where(
+                (m) => textMatches(ph, '${m.id} ${m.title}'),
+              ),
+              (m) => m.id,
+            ).take(20).toList();
+    if (q.length >= 2) _learner.typed(q, found: found.isNotEmpty);
     final now = takingNow().toList()..sort();
     return Loaded<
       ({
@@ -381,7 +388,10 @@ class _ReviewsHomeState extends State<ReviewsHome> {
                       NavRow(
                         icon: Icons.menu_book_outlined,
                         title: '${m.id} · ${m.title}',
-                        onTap: () => _open(m.id),
+                        onTap: () {
+                          _learner.picked(q);
+                          _open(m.id);
+                        },
                       ),
                   ],
                 ),

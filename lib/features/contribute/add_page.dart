@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
@@ -359,6 +360,14 @@ class _CoursePicker extends StatefulWidget {
 }
 
 class _CoursePickerState extends State<_CoursePicker> {
+  final _learner = QueryLearner();
+
+  @override
+  void dispose() {
+    _learner.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -370,17 +379,21 @@ class _CoursePickerState extends State<_CoursePicker> {
         fill: p.surface,
       );
     }
-    final q = widget.search.text.trim().toLowerCase();
+    final q = widget.search.text.trim();
     final hits =
         q.isEmpty
             ? const <String>[]
-            : [
-              for (final m in catalog.master)
-                if ((widget.dept == null || deptOf(m.id) == widget.dept) &&
-                    (m.id.toLowerCase().contains(q) ||
-                        m.title.toLowerCase().contains(q)))
-                  m.id,
-            ].take(8).toList();
+            : widen(
+              q,
+              (ph) => [
+                for (final m in catalog.master)
+                  if ((widget.dept == null || deptOf(m.id) == widget.dept) &&
+                      textMatches(ph, '${m.id} ${m.title}'))
+                    m.id,
+              ],
+              (id) => id,
+            ).take(8).toList();
+    if (q.isNotEmpty) _learner.typed(q, found: hits.isNotEmpty);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -391,7 +404,10 @@ class _CoursePickerState extends State<_CoursePicker> {
         ),
         for (final id in hits)
           InkWell(
-            onTap: () => widget.onPick(id),
+            onTap: () {
+              _learner.picked(q);
+              widget.onPick(id);
+            },
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: Sizes.minTouch),
               child: Align(

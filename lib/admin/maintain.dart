@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cgpa_calculator/admin/bulk_upload.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/admin/dept_resources.dart';
 import 'package:cgpa_calculator/admin/gate_switch.dart';
 import 'package:cgpa_calculator/admin/leaderboard_name.dart';
@@ -573,11 +574,11 @@ class _DeptCoursesState extends State<DeptCourses> {
       builder: (context, data, reload) {
         final (offerings, crs, claims) = data;
         final courses = managedCourses(widget.dept, claims);
-        final q = _search.text.trim().toLowerCase();
+        final q = _search.text.trim();
+        final phrases = queryPhrases(q);
         bool matches(Mastercourselist c) =>
             q.isEmpty ||
-            c.id.toLowerCase().contains(q) ||
-            c.title.toLowerCase().contains(q);
+            phrases.any((ph) => textMatches(ph, '${c.id} ${c.title}'));
         final shown = [
           for (final c in courses)
             if (matches(c) &&

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -683,24 +681,15 @@ class ResourcesPage extends StatefulWidget {
 
 class _ResourcesPageState extends State<ResourcesPage> {
   final _search = TextEditingController();
-  Timer? _settle;
+  final _learner = QueryLearner();
   List<Resource>? _links;
-  Map<String, Map<String, int>> _hints = const {};
-
-  /// The last settled search that found nothing, and when: a link opened
-  /// within a minute from another search teaches the pair.
-  String? _emptyQ;
-  DateTime? _emptyAt;
 
   String get _q => _search.text.trim();
-
-  SearchHints? get _hintStore =>
-      roleStore == null ? null : SearchHints(roleStore!.db);
 
   List<Resource> _results() => searchLinks(
     _links ?? const [],
     _q,
-    also: alsoSearch(_q, _hints),
+    also: queryPhrases(_q).skip(1).toList(),
     courseTitle: courseTitle,
     departmentName: departmentName,
   );
@@ -712,44 +701,21 @@ class _ResourcesPageState extends State<ResourcesPage> {
       resourceStore?.all(campus).then((l) {
         if (!mounted) return;
         setState(() => _links = l);
-        _armSettle();
+        _learner.typed(_q, found: _results().isNotEmpty);
       }, onError: (Object _) {});
+    } else {
+      _learner.typed(_q, found: _results().isNotEmpty);
     }
-    if (_hints.isEmpty) {
-      final hints = _hintStore;
-      _hints = hints?.peek(campus) ?? const {};
-      hints?.load(campus).then((h) {
-        if (mounted) setState(() => _hints = h);
-      }, onError: (Object _) {});
-    }
-    _armSettle();
   }
 
-  /// A search left alone 800 ms that found nothing is remembered.
-  void _armSettle() {
-    _settle?.cancel();
-    _settle = Timer(const Duration(milliseconds: 800), () {
-      if (_links != null && _q.isNotEmpty && _results().isEmpty) {
-        _emptyQ = _q;
-        _emptyAt = DateTime.now();
-      }
-    });
-  }
-
-  void _open(String campus, Resource r) {
-    final from = _emptyQ, at = _emptyAt;
-    if (from != null &&
-        at != null &&
-        DateTime.now().difference(at) <= const Duration(minutes: 1)) {
-      unawaited(_hintStore?.learn(campus, from, _q));
-    }
-    _emptyQ = null;
+  void _open(Resource r) {
+    _learner.picked(_q);
     openUrl(r.url);
   }
 
   @override
   void dispose() {
-    _settle?.cancel();
+    _learner.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -769,7 +735,7 @@ class _ResourcesPageState extends State<ResourcesPage> {
               LinkRow(
                 r: r,
                 tag: r.courseIds.isEmpty ? r.department : r.courseIds.first,
-                onTap: () => _open(campus, r),
+                onTap: () => _open(r),
               ),
             ],
           ],

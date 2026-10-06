@@ -85,4 +85,13 @@ void main() {
     expect(normQuery('  PYQs!!  2024 '), 'pyqs 2024');
     expect(normQuery('x' * 50).length, 40);
   });
+
+  test('every search box: hel finds HSS and GS courses, typos still hit', () {
+    expect(alsoSearch('hel', const {}), containsAll(['hss', 'gs']));
+    expect(textMatches('hss', 'HSS F222 Linguistics'), isTrue);
+    expect(textMatches('gs', 'GS F211 Modern Political Concepts'), isTrue);
+    expect(textMatches('S F37', 'CS F372 Operating Systems'), isTrue);
+    expect(textMatches('opertaing', 'CS F372 Operating Systems'), isTrue);
+    expect(textMatches('zebra', 'CS F372 Operating Systems'), isFalse);
+  });
 }

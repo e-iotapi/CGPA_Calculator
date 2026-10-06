@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
 import 'package:cgpa_calculator/core/grading/grade_scale.dart';
 import 'package:cgpa_calculator/core/grading/requirements.dart' show departments;
@@ -107,10 +108,29 @@ List<CourseHit> searchCourses(
   List<Mastercourselist>? master,
   int limit = 40,
 }) {
-  final q = query.trim().toLowerCase();
+  // Synonyms and taught pairs widen it; each phrase's codes first.
+  final found = widen(
+    query.trim(),
+    (ph) => _found(ph.trim().toLowerCase(), master ?? catalog.master),
+    (m) => m.id,
+  );
+  return [
+    for (final m in found.take(limit))
+      CourseHit(
+        id: m.id,
+        title: displayTitle(m.id, m.title),
+        credits: m.credits,
+        category: categoryFor(m.id, discipline),
+        heldIn:
+            held.where((c) => courseGraph.same(c.id, m.id)).firstOrNull?.sem,
+      ),
+  ];
+}
+
+List<Mastercourselist> _found(String q, Iterable<Mastercourselist> all) {
   if (q.isEmpty) return const [];
   final compact = q.replaceAll(' ', '');
-  final byId = {for (final m in master ?? catalog.master) m.id: m};
+  final byId = {for (final m in all) m.id: m};
   bool codeStarts(Mastercourselist m) =>
       m.id.toLowerCase().replaceAll(' ', '').startsWith(compact);
   final found =
@@ -127,17 +147,7 @@ List<CourseHit> searchCourses(
           final r = (codeStarts(x) ? 0 : 1) - (codeStarts(y) ? 0 : 1);
           return r != 0 ? r : x.id.compareTo(y.id);
         });
-  return [
-    for (final m in found.take(limit))
-      CourseHit(
-        id: m.id,
-        title: displayTitle(m.id, m.title),
-        credits: m.credits,
-        category: categoryFor(m.id, discipline),
-        heldIn:
-            held.where((c) => courseGraph.same(c.id, m.id)).firstOrNull?.sem,
-      ),
-  ];
+  return found;
 }
 
 /// The course as it will be stored.
