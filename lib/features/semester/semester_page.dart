@@ -218,8 +218,38 @@ class _SemesterViewState extends State<SemesterView> {
     ],
   );
 
-  Widget _listLayout(bool wide) {
+  Widget _listLayout(bool wide) => LayoutBuilder(
+    // Only the courses scroll, so the GPAs stay in sight (owner,
+    // 2026-10-06); a screen too short for that scrolls it all.
+    builder:
+        (context, c) =>
+            _listBody(wide, pinned: c.maxHeight >= 600, height: c.maxHeight),
+  );
+
+  Widget _listBody(bool wide, {required bool pinned, required double height}) {
     final p = AppPalette.of(context);
+    final top = Padding(
+      padding: EdgeInsets.fromLTRB(
+        Space.gutter,
+        Space.lg,
+        Space.gutter,
+        pinned ? Space.md : 0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _header(),
+          const SizedBox(height: 15),
+          _editorial(),
+          if (!wide) ...[const SizedBox(height: 15), _stats(false)],
+          const SizedBox(height: 15),
+          _semesterPills(),
+          const SizedBox(height: 15),
+          _sectionHeader(),
+          if (!pinned) const SizedBox(height: Space.md),
+        ],
+      ),
+    );
     final scroll = NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: CustomScrollView(
@@ -227,27 +257,7 @@ class _SemesterViewState extends State<SemesterView> {
           parent: AlwaysScrollableScrollPhysics(),
         ),
         slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
-              Space.gutter,
-              Space.lg,
-              Space.gutter,
-              0,
-            ),
-            sliver: SliverList.list(
-              children: [
-                _header(),
-                const SizedBox(height: 15),
-                _editorial(),
-                if (!wide) ...[const SizedBox(height: 15), _stats(false)],
-                const SizedBox(height: 15),
-                _semesterPills(),
-                const SizedBox(height: 15),
-                _sectionHeader(),
-                const SizedBox(height: Space.md),
-              ],
-            ),
-          ),
+          if (!pinned) SliverToBoxAdapter(child: top),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
             sliver: SliverReorderableList(
@@ -337,12 +347,26 @@ class _SemesterViewState extends State<SemesterView> {
       ],
     );
 
-    if (!wide) return list;
+    final body =
+        pinned
+            ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Large text: the top scrolls within 60%, courses keep the rest.
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: height * 0.6),
+                  child: SingleChildScrollView(child: top),
+                ),
+                Expanded(child: ClipRect(child: list)),
+              ],
+            )
+            : list;
+    if (!wide) return body;
     // Tablet and up: the stat cards move into a right rail.
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: list),
+        Expanded(child: body),
         SizedBox(
           width: 260,
           child: Padding(
