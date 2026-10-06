@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/script.dart' show selecteddiscipline;
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_widgets.dart';
 import 'package:cgpa_calculator/features/reviews/course_reviews.dart';
 import 'package:cgpa_calculator/features/reviews/gate_ui.dart';
 import 'package:cgpa_calculator/features/reviews/mine_filter.dart';
@@ -62,6 +63,9 @@ class _ReviewsHomeState extends State<ReviewsHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) maybeShowContributePrompt(context, reviews: true);
+    });
     // The saved gate draws the first frame; a changed one lands behind it.
     if (myCampus case final c?) {
       refreshGate(c).then((_) {

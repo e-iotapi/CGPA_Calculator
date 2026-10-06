@@ -92,6 +92,14 @@ void main() {
       before: r,
     );
     r = (await me.mine('CS F111'))!;
+    // +2 for the review, nothing for the edit (owner, 2026-10-06).
+    final points =
+        (await db
+                .collection('contributors')
+                .doc('p@goa.bits-pilani.ac.in')
+                .get())
+            .data();
+    expect(points?['points'], 2);
     expect(r.text, isNull);
     expect(r.grade, 'ND');
     expect(r.marks, isNull);

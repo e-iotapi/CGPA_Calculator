@@ -758,8 +758,17 @@ service cloud.firestore {
         && getAfter(p).data.email == me();
     }
 
+    // +2 for a review, in the batch that creates the writer's own review of
+    // course c (owner, 2026-10-06); edits earn nothing.
+    function reviewedNow(c) {
+      return c is string
+        && existsAfter(/databases/$(db)/documents/reviews/$(c)/entries/$(hashOf(c)))
+        && !exists(/databases/$(db)/documents/reviews/$(c)/entries/$(hashOf(c)));
+    }
+
     // contributors/{email}: { username?, campus, points }. Self writes the
-    // username once; points move only by +4 beside a link's approval.
+    // username once; points move only by +4 beside a link's approval, or
+    // +2 beside the writer's new review.
     match /contributors/{email} {
       allow get: if resource == null ? mayUse()
         : (signedIn() && email == me()) || readsRoster(resource.data.campus);
@@ -783,6 +792,15 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'lastLink'])
         && request.resource.data.points == resource.data.points + 4
         && pointsMoved(email, resource.data.campus);
+      allow create: if isBits() && email == me()
+        && request.resource.data.keys().hasOnly(['campus', 'points', 'lastReview'])
+        && request.resource.data.points == 2
+        && request.resource.data.campus == campusOf(me())
+        && reviewedNow(request.resource.data.lastReview);
+      allow update: if isBits() && email == me()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'lastReview'])
+        && request.resource.data.points == resource.data.points + 2
+        && reviewedNow(request.resource.data.lastReview);
       // A president clears an offensive username (audited, points stay).
       allow update: if mayUse() && resource.data.get('username', null) != null
         && (isOwner() || isAdmin() || isPresidentOn(resource.data.campus))
