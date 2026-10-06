@@ -92,16 +92,6 @@ SwitchMethod switchMethod({required bool firefox, String? fx}) =>
       _ => firefox ? SwitchMethod.cover : SwitchMethod.pictures,
     };
 
-/// Whether a display of [physical] pixels at [ratio] is bigger than a phone
-/// (shortest side 600 or more, whatever the orientation): there the theme
-/// switch cross-fades instead of growing a circle (owner, 2026-10-06).
-/// `?fx=circle` or `?fx=fade` on the opening URL forces one, to compare.
-bool fadesTheme(Size physical, double ratio, {String? fx}) => switch (fx) {
-  'fade' => true,
-  'circle' => false,
-  _ => physical.shortestSide / ratio >= 600,
-};
-
 /// Radius that covers all of [size] from [center].
 double _coverRadius(Offset center, Size size) => [
   Offset.zero,
@@ -279,6 +269,9 @@ class _ThemeRevealState extends State<ThemeReveal>
     fx: _fx,
   );
   bool get _noPictures => _method != SwitchMethod.pictures;
+  // The circle on every screen, now Firefox runs it smoothly too (owner,
+  // 2026-10-06); `?fx=fade` cross-fades instead, to compare.
+  late final _fadeOnly = _fx == 'fade';
   Color? _veil;
   // Animations paused under the browser's copy: each Flutter frame redraws
   // the whole app on the thread the copy's animation runs on.
@@ -370,11 +363,10 @@ class _ThemeRevealState extends State<ThemeReveal>
       if (!mounted) return;
       // O1.4: the cover shows, hidden and motionless, before the theme
       // changes.
-      final d = View.of(context).display;
       setState(() {
         _old = image;
         _origin = TapOrigin.last ?? box.size.center(Offset.zero);
-        _crossFade = fadesTheme(d.size, d.devicePixelRatio, fx: _fx);
+        _crossFade = _fadeOnly;
         _anim.value = 0;
       });
       await Future<void>.delayed(Duration.zero); // the cover gets to paint
@@ -421,8 +413,7 @@ class _ThemeRevealState extends State<ThemeReveal>
       cover?.remove();
       return _runVeil(apply, ground);
     }
-    final d = View.of(context).display;
-    final fade = fadesTheme(d.size, d.devicePixelRatio, fx: _fx);
+    final fade = _fadeOnly;
     final origin = TapOrigin.last ?? context.size!.center(Offset.zero);
     try {
       setState(() => _still = true);
