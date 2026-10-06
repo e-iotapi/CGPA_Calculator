@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -474,6 +476,130 @@ class _CardRow extends StatelessWidget {
   }
 }
 
+/// Off in widget tests (flutter_test_config.dart): an endless animation
+/// never lets pumpAndSettle settle.
+bool sparklesFly = true;
+
+/// Gold stars drifting across the More card's midnight, behind its rows,
+/// glowing and twinkling (owner, 2026-10-06). Still under reduced motion.
+class _FlyingSparkles extends StatefulWidget {
+  const _FlyingSparkles({required this.seed, required this.child});
+  final int seed;
+  final Widget child;
+
+  @override
+  State<_FlyingSparkles> createState() => _FlyingSparklesState();
+}
+
+class _FlyingSparklesState extends State<_FlyingSparkles>
+    with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 48),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (sparklesFly && !MediaQuery.disableAnimationsOf(context)) {
+      if (!_c.isAnimating) _c.repeat();
+    } else {
+      _c.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      Positioned.fill(
+        child: IgnorePointer(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _SparklePainter(_c, widget.seed),
+            ),
+          ),
+        ),
+      ),
+      widget.child,
+    ],
+  );
+}
+
+class _SparklePainter extends CustomPainter {
+  _SparklePainter(this.t, this.seed) : super(repaint: t);
+  final Animation<double> t;
+  final int seed;
+
+  static const _count = 34;
+
+  // Each star's gold, picked by its hash (owner, 2026-10-06).
+  static const _golds = [Color(0xFFFFE783), Color(0xFFFFD860), Color(0xFFFFCE00)];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var i = 0; i < _count; i++) {
+      // Fixed per star: start, lane, speed, size, colour, twinkle.
+      final h = ((seed * 7 + i) * 2654435761) & 0xFFFF;
+      final start = (h & 0xFF) / 255;
+      final lane = ((h >> 8) & 0xF) / 15;
+      // Whole crossings and twinkles per loop, so the loop's end is its
+      // start and the repeat never jumps (owner, 2026-10-06).
+      // 3-5 crossings a loop: one every 16, 12 or 9.6 s.
+      final speed = 3 + ((h >> 12) & 0x3) % 3;
+      final r = 2.4 + (i % 3) * 1.35; // 1.5x the first stars (owner)
+      final phase = (start + t.value * speed) % 1;
+      final x = phase * (size.width + 2 * r) - r;
+      final y =
+          r +
+          lane * (size.height - 2 * r) +
+          math.sin((phase + start) * 2 * math.pi) * 2;
+      final glow = 0.5 + 0.5 * math.sin((t.value * 20 + start) * 2 * math.pi);
+      final gold = _golds[(h >> 14) % 3];
+      // A soft halo that swells with the twinkle, then the star on it.
+      canvas.drawCircle(
+        Offset(x, y),
+        r * (1.2 + 0.6 * glow),
+        Paint()
+          ..color = gold.withValues(alpha: 0.15 + 0.35 * glow)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r),
+      );
+      _star(
+        canvas,
+        Offset(x, y),
+        r * (0.8 + 0.3 * glow),
+        gold.withValues(alpha: 0.45 + 0.55 * glow),
+      );
+    }
+  }
+
+  void _star(Canvas canvas, Offset c, double r, Color color) {
+    final k = r * 0.28;
+    canvas.drawPath(
+      Path()
+        ..moveTo(c.dx, c.dy - r)
+        ..lineTo(c.dx + k, c.dy - k)
+        ..lineTo(c.dx + r, c.dy)
+        ..lineTo(c.dx + k, c.dy + k)
+        ..lineTo(c.dx, c.dy + r)
+        ..lineTo(c.dx - k, c.dy + k)
+        ..lineTo(c.dx - r, c.dy)
+        ..lineTo(c.dx - k, c.dy - k)
+        ..close(),
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SparklePainter old) =>
+      old.seed != seed;
+}
+
 /// More's bigger card: the top five and where I stand.
 class LeaderboardCard extends StatelessWidget {
   const LeaderboardCard({super.key});
@@ -483,15 +609,14 @@ class LeaderboardCard extends StatelessWidget {
     final campus = viewCampus();
     if (roleStore == null || campus == null) return const SizedBox.shrink();
     final p = AppPalette.of(context);
-    // The board's near-black card; in dark mode a mint one, so it stands
-    // out (owner, 2026-10-04).
-    final fg = p.isDark ? p.onHero : p.onInverse;
+    // The board's midnight card, the same in both modes (owner, 2026-10-06).
+    const fg = Colors.white;
     final sub = TypeScale.caption.copyWith(
       fontSize: 10.5,
       color: fg.withValues(alpha: .8),
     );
     return Material(
-      color: p.isDark ? p.hero : p.navBackground,
+      color: const Color(0xFF272757),
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -501,7 +626,7 @@ class LeaderboardCard extends StatelessWidget {
               Routes.leaderboard,
               () => const LeaderboardPage(),
             ),
-        child: Padding(
+        child: _FlyingSparkles(seed: 1, child: Padding(
           padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
           child: Loaded<LeaderData>(
             cacheKey: leaderKey(campus),
@@ -582,7 +707,7 @@ class LeaderboardCard extends StatelessWidget {
               );
             },
           ),
-        ),
+        )),
       ),
     );
   }

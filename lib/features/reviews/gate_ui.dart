@@ -15,6 +15,7 @@ import 'package:cgpa_calculator/core/reviews/gate_store.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart' show markerOf;
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:cgpa_calculator/course.dart';
 import 'package:cgpa_calculator/features/reviews/mine_filter.dart';
 import 'package:cgpa_calculator/features/reviews/review_widgets.dart';
@@ -352,7 +353,7 @@ Future<GateInfo> gateInfo(String campus) async {
   final db = roleStore!.db;
   return cacheFirst<GateInfo>(
     key: 'gateinfo|$campus',
-    maxAge: const Duration(hours: 1),
+    maxAge: gateMaxAge,
     version: await markerOf(db, campus, Paths.reviewGate),
     fetch: () async {
       final m = (await db.collection('reviewGate').doc(campus).get()).data();

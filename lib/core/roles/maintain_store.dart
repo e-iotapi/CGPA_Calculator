@@ -3,6 +3,7 @@ import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/activity_store.dart';
 import 'package:cgpa_calculator/core/grading/eval_import.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
+import 'package:cgpa_calculator/core/live/live_heads.dart';
 import 'package:cgpa_calculator/core/models/offering.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/timings.dart';
@@ -159,6 +160,9 @@ class MaintainStore {
     ActivityStore.touch(b, _db, o.campus,
         courseId: o.courseId, dept: deptOf(o.courseId));
     await b.commit();
+    // Students online see the new scheme on their next open. ponytail: the
+    // poke reaches my own campus's hub; another campus's waits for its timers.
+    LiveHeads.poke('offerings');
     await _forget([o.campus]);
   }
 
@@ -197,6 +201,7 @@ class MaintainStore {
       await _forget({for (final o in chunk) o.campus});
       onLanded?.call([for (final o in chunk) o.courseId]);
     }
+    LiveHeads.poke('offerings');
     return (uploadId: uploadId, error: null);
   }
 }
