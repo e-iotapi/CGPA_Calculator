@@ -495,7 +495,7 @@ class _FlyingSparklesState extends State<_FlyingSparkles>
     with SingleTickerProviderStateMixin {
   late final _c = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 14),
+    duration: const Duration(seconds: 48),
   );
 
   @override
@@ -550,7 +550,8 @@ class _SparklePainter extends CustomPainter {
       final lane = ((h >> 8) & 0xF) / 15;
       // Whole crossings and twinkles per loop, so the loop's end is its
       // start and the repeat never jumps (owner, 2026-10-06).
-      final speed = 1 + ((h >> 12) & 0x3) % 3;
+      // 3-5 crossings a loop: one every 16, 12 or 9.6 s.
+      final speed = 3 + ((h >> 12) & 0x3) % 3;
       final r = 2.4 + (i % 3) * 1.35; // 1.5x the first stars (owner)
       final phase = (start + t.value * speed) % 1;
       final x = phase * (size.width + 2 * r) - r;
@@ -558,7 +559,7 @@ class _SparklePainter extends CustomPainter {
           r +
           lane * (size.height - 2 * r) +
           math.sin((phase + start) * 2 * math.pi) * 2;
-      final glow = 0.5 + 0.5 * math.sin((t.value * 6 + start) * 2 * math.pi);
+      final glow = 0.5 + 0.5 * math.sin((t.value * 20 + start) * 2 * math.pi);
       final gold = _golds[(h >> 14) % 3];
       // A soft halo that swells with the twinkle, then the star on it.
       canvas.drawCircle(
