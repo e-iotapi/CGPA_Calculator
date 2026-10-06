@@ -371,8 +371,8 @@ class _SignInAppState extends State<SignInApp>
 
   /// Staging: a test account by email and password, then the same checks
   /// as Google's.
-  Future<void> _signInTestAccount() async {
-    final pick = await pickTestAccount(context);
+  Future<void> _signInTestAccount(BuildContext screen) async {
+    final pick = await pickTestAccount(screen);
     if (pick == null || !mounted) return;
     setState(() => _busy = true);
     try {

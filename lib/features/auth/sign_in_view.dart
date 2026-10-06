@@ -18,8 +18,9 @@ class SignInView extends StatelessWidget {
   final bool busy;
   final VoidCallback onSignIn;
 
-  /// Staging only: sign in with a test account.
-  final VoidCallback? onTestSignIn;
+  /// Staging only: sign in with a test account, the sheet opened from
+  /// this screen (the app's root is above the navigator).
+  final void Function(BuildContext context)? onTestSignIn;
 
   /// Wraps each block for a staggered intro; identity by default.
   final Widget Function(int order, Widget child) entrance;
@@ -180,7 +181,8 @@ class SignInView extends StatelessWidget {
                               const SizedBox(height: 20),
                               if (onTestSignIn case final test?) ...[
                                 OutlinedButton(
-                                  onPressed: busy ? null : test,
+                                  onPressed:
+                                      busy ? null : () => test(context),
                                   style: OutlinedButton.styleFrom(
                                     minimumSize: const Size.fromHeight(48),
                                     shape: const StadiumBorder(),

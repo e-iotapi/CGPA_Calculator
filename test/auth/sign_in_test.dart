@@ -1,5 +1,6 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/features/auth/sign_in_view.dart';
+import 'package:cgpa_calculator/features/auth/test_account_sheet.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,5 +74,28 @@ void main() {
     );
     expect(find.textContaining('never carry your name'), findsOneWidget);
     expect(find.text('Built By Siddharth Mishra'), findsOneWidget);
+  });
+
+  // Staging's Use test account opens the list from the screen itself
+  // (owner, 2026-10-06: it did nothing from the app's root).
+  testWidgets('Use test account lists the accounts, then asks a password', (
+    t,
+  ) async {
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppPalette.light.materialTheme,
+        home: SignInView(
+          busy: false,
+          onSignIn: () {},
+          onTestSignIn: pickTestAccount,
+        ),
+      ),
+    );
+    await t.tap(find.text('Use test account'));
+    await t.pumpAndSettle();
+    expect(find.text('Test accounts'), findsOneWidget);
+    await t.tap(find.text('student_dual'));
+    await t.pumpAndSettle();
+    expect(find.text('Password'), findsOneWidget);
   });
 }
