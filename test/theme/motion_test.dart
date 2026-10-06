@@ -132,4 +132,11 @@ void main() {
     await t.pump();
     expect(find.byType(CustomPaint).evaluate().length, before);
   });
+
+  test('the theme switch fades on screens bigger than a phone', () {
+    expect(fadesTheme(const Size(1080, 2400), 3), isFalse); // phone
+    expect(fadesTheme(const Size(2400, 1080), 3), isFalse); // phone, sideways
+    expect(fadesTheme(const Size(2048, 2732), 2), isTrue); // iPad
+    expect(fadesTheme(const Size(1920, 1080), 1), isTrue); // laptop
+  });
 }

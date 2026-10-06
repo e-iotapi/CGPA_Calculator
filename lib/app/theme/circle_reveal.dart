@@ -68,6 +68,12 @@ Future<bool> snapshotsFlipped() async {
   }
 }
 
+/// Whether a display of [physical] pixels at [ratio] is bigger than a phone
+/// (shortest side 600 or more, whatever the orientation): there the theme
+/// switch cross-fades instead of growing a circle (owner, 2026-10-06).
+bool fadesTheme(Size physical, double ratio) =>
+    physical.shortestSide / ratio >= 600;
+
 /// Radius that covers all of [size] from [center].
 double _coverRadius(Offset center, Size size) => [
   Offset.zero,
@@ -228,7 +234,7 @@ class _ThemeRevealState extends State<ThemeReveal>
     vsync: this,
     duration: const Duration(milliseconds: 250),
   );
-  bool _fading = false;
+  bool _fading = false, _crossFade = false;
   ui.Image? _old, _new;
   Offset _origin = Offset.zero;
 
@@ -317,9 +323,11 @@ class _ThemeRevealState extends State<ThemeReveal>
       if (!mounted) return;
       // O1.4: the cover shows, hidden and motionless, before the theme
       // changes.
+      final d = View.of(context).display;
       setState(() {
         _old = image;
         _origin = TapOrigin.last ?? box.size.center(Offset.zero);
+        _crossFade = fadesTheme(d.size, d.devicePixelRatio);
         _anim.value = 0;
       });
       await Future<void>.delayed(Duration.zero); // the cover gets to paint
@@ -336,7 +344,8 @@ class _ThemeRevealState extends State<ThemeReveal>
       if (!mounted) return;
       setState(() => _new = next);
       FrameStats.start('theme');
-      await _anim.forward(from: 0); // now only the hole moves
+      _anim.duration = Duration(milliseconds: _crossFade ? 420 : 560);
+      await _anim.forward(from: 0); // now only the hole (or the fade) moves
       FrameStats.stop();
       if (!mounted) return;
       setState(() => _fading = true); // the live app returns under it
@@ -382,11 +391,13 @@ class _ThemeRevealState extends State<ThemeReveal>
                           _new,
                           _origin,
                           _flipped,
-                          Curves.easeInOutCubic.transform(_anim.value),
+                          (_crossFade ? Curves.easeOut : Curves.easeInOutCubic)
+                              .transform(_anim.value),
                           1 - Curves.easeInOut.transform(_fade.value),
                           deviceTier == DeviceTier.low
                               ? FilterQuality.low
                               : FilterQuality.medium,
+                          crossFade: _crossFade,
                         ),
                       ),
                 ),
@@ -411,8 +422,9 @@ class _HolePainter extends CustomPainter {
     this.flipped,
     this.t,
     this.opacity,
-    this.quality,
-  );
+    this.quality, {
+    this.crossFade = false,
+  });
 
   final ui.Image image;
   final ui.Image? next;
@@ -423,6 +435,9 @@ class _HolePainter extends CustomPainter {
   /// The whole overlay's, for the closing fade.
   final double opacity;
   final FilterQuality quality;
+
+  /// No hole: the old screen fades out over the new by [t].
+  final bool crossFade;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -449,6 +464,12 @@ class _HolePainter extends CustomPainter {
       paint,
     );
     if (next != null) draw(next!);
+    if (crossFade) {
+      paint.color = Color.fromRGBO(0, 0, 0, opacity * (1 - t));
+      if (t < 1) draw(image);
+      canvas.restore();
+      return;
+    }
     canvas.restore();
     if (t >= 1) return; // the hole is the whole screen
     canvas.save();
@@ -467,5 +488,6 @@ class _HolePainter extends CustomPainter {
       old.t != t ||
       old.opacity != opacity ||
       old.image != image ||
-      old.next != next;
+      old.next != next ||
+      old.crossFade != crossFade;
 }
