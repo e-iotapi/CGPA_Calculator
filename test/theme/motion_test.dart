@@ -141,4 +141,12 @@ void main() {
     expect(fadesTheme(const Size(1920, 1080), 1, fx: 'circle'), isFalse);
     expect(fadesTheme(const Size(1080, 2400), 3, fx: 'fade'), isTrue);
   });
+
+  test('Firefox switches through a veil, no pictures; fx overrides', () {
+    expect(veilsTheme(firefox: true), isTrue);
+    expect(veilsTheme(firefox: false), isFalse);
+    expect(veilsTheme(firefox: true, fx: 'fade'), isFalse);
+    expect(veilsTheme(firefox: true, fx: 'circle'), isFalse);
+    expect(veilsTheme(firefox: false, fx: 'veil'), isTrue);
+  });
 }

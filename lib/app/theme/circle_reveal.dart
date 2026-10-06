@@ -68,6 +68,13 @@ Future<bool> snapshotsFlipped() async {
   }
 }
 
+/// Whether the theme switch should skip pictures of the screen: Firefox reads
+/// WebGL pixels back slowly (a full-screen read froze the page 1.5-3 s on
+/// each switch, owner, 2026-10-06), so there it fades through a veil of the
+/// old ground instead. `?fx=veil` forces it; `fade` or `circle` force pictures.
+bool veilsTheme({required bool firefox, String? fx}) =>
+    fx == 'veil' || (fx != 'fade' && fx != 'circle' && firefox);
+
 /// Whether a display of [physical] pixels at [ratio] is bigger than a phone
 /// (shortest side 600 or more, whatever the orientation): there the theme
 /// switch cross-fades instead of growing a circle (owner, 2026-10-06).
@@ -182,14 +189,15 @@ class ThemeReveal extends StatefulWidget {
   static Widget root(Widget child) => ThemeReveal(key: _key, child: child);
 
   /// Calls [apply], which changes the theme, behind the reveal. Without a
-  /// root, or with reduced motion, just calls it.
-  static Future<void> run(VoidCallback apply) async {
+  /// root, or with reduced motion, just calls it. [from] is the old theme's
+  /// ground, for the veil where pictures are too slow.
+  static Future<void> run(VoidCallback apply, {Color? from}) async {
     final s = _key.currentState;
     if (s == null) {
       apply();
       return;
     }
-    await s._run(apply);
+    await s._run(apply, from: from);
   }
 
   /// Starts a snapshot now, so it is ready by the time the finger lifts and
@@ -249,10 +257,17 @@ class _ThemeRevealState extends State<ThemeReveal>
 
   // Read at startup: the first navigation drops the query from the URL.
   final _fx = Uri.base.queryParameters['fx'];
+  late final _veilOnly = veilsTheme(
+    firefox: kIsWeb && installTarget().browser == InstallBrowser.firefox,
+    fx: _fx,
+  );
+  Color? _veil;
 
   @override
   void initState() {
     super.initState();
+    // The flip check reads pixels back too: none of it where they're slow.
+    if (_veilOnly) return;
     snapshotsFlipped().then((f) {
       _flipped = f;
       debugPrint('[Pointer theme] snapshots flipped: $f');
@@ -288,7 +303,8 @@ class _ThemeRevealState extends State<ThemeReveal>
 
   void _prepare() {
     final box = _box;
-    if (box == null ||
+    if (_veilOnly ||
+        box == null ||
         _preparedImage != null ||
         _capturing ||
         _anim.isAnimating) {
@@ -310,7 +326,7 @@ class _ThemeRevealState extends State<ThemeReveal>
     });
   }
 
-  Future<void> _run(VoidCallback apply) async {
+  Future<void> _run(VoidCallback apply, {Color? from}) async {
     final box = _box;
     if (box == null ||
         _anim.isAnimating ||
@@ -318,6 +334,7 @@ class _ThemeRevealState extends State<ThemeReveal>
       apply();
       return;
     }
+    if (_veilOnly) return _runVeil(apply, from ?? const Color(0xFF000000));
     ui.Image? image = _preparedImage, next;
     _preparedImage = null;
     _expireTimer?.cancel();
@@ -373,9 +390,26 @@ class _ThemeRevealState extends State<ThemeReveal>
     }
   }
 
+  /// No pictures: the old ground covers the screen, the theme changes under
+  /// it, and it eases out to show the new one.
+  Future<void> _runVeil(VoidCallback apply, Color from) async {
+    setState(() {
+      _veil = from;
+      _anim.value = 0;
+    });
+    await Future<void>.delayed(Duration.zero); // the veil gets to paint
+    apply();
+    try {
+      _anim.duration = const Duration(milliseconds: 420);
+      await _anim.forward(from: 0);
+    } finally {
+      if (mounted) setState(() => _veil = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final old = _old;
+    final old = _old, veil = _veil;
     return Stack(
       textDirection: TextDirection.ltr,
       children: [
@@ -408,6 +442,20 @@ class _ThemeRevealState extends State<ThemeReveal>
                         ),
                       ),
                 ),
+              ),
+            ),
+          ),
+        if (veil != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _anim,
+                builder:
+                    (_, _) => ColoredBox(
+                      color: veil.withValues(
+                        alpha: 1 - Curves.easeOut.transform(_anim.value),
+                      ),
+                    ),
               ),
             ),
           ),
