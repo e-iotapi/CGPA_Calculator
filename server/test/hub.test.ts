@@ -75,6 +75,13 @@ describe("CampusHub", () => {
     expect(readDoc).toHaveBeenCalledWith("heads/goa", expect.anything());
   });
 
+  it("hello carries scheme versions as o:<course|term>", async () => {
+    vi.mocked(readDoc).mockResolvedValue({ v: { p: 1 }, offerings: { "CS F372|2026-27-1": 3, bad: "x" } });
+    const { connect } = makeHub();
+    const ws = await connect("u1");
+    expect(ws.sent[0].head).toEqual({ p: 1, "o:CS F372|2026-27-1": 3 });
+  });
+
   it("caches the head for 60s across hellos", async () => {
     vi.mocked(readDoc).mockResolvedValue({ v: { p: 1 } });
     const { connect } = makeHub();

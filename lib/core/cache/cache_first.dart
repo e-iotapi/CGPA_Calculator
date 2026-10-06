@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cgpa_calculator/core/storage/cache_boxes.dart';
+import 'package:cgpa_calculator/core/timings.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
 
@@ -46,7 +47,8 @@ final _inFlight = <String, Future<Object?>>{};
 /// the same single read, but the caller sees the new value now, not next open.
 /// With a [version], a saved value from another version is stale and awaited
 /// like [awaitStale]; one saved under it is fresh while [versionsLive] (the
-/// live socket keeps versions current), otherwise only within [maxAge].
+/// live socket keeps versions current), otherwise only within [maxAge], and
+/// never past [fullReadEvery].
 Future<T> cacheFirst<T>({
   required String key,
   required Duration maxAge,
@@ -65,9 +67,12 @@ Future<T> cacheFirst<T>({
     try {
       final m = jsonDecode(raw) as Map;
       final value = decode(m['v']);
-      final young = at - (m['at'] as int) < maxAge.inMilliseconds;
+      final age = at - (m['at'] as int);
+      final young = age < maxAge.inMilliseconds;
       final moved = version != null && m['ver'] != version;
-      final fresh = version != null ? !moved && (versionsLive || young) : young;
+      final fresh = version != null
+          ? !moved && age < fullReadEvery.inMilliseconds && (versionsLive || young)
+          : young;
       if (fresh) return value;
       if (awaitStale || moved) {
         try {

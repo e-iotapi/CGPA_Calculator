@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -437,7 +439,7 @@ class _CardRow extends StatelessWidget {
                   ? null
                   : LinearGradient(colors: medal.colors, stops: medal.stops),
         ),
-        child: Row(
+        child: _FlyingSparkles(seed: rank, color: ink, child: Row(
           children: [
             SizedBox(
               width: 30,
@@ -468,10 +470,125 @@ class _CardRow extends StatelessWidget {
               ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }
+}
+
+/// Off in widget tests (flutter_test_config.dart): an endless animation
+/// never lets pumpAndSettle settle.
+bool sparklesFly = true;
+
+/// Small stars drifting behind a More card row's name and twinkling (owner,
+/// 2026-10-06). Still under reduced motion.
+class _FlyingSparkles extends StatefulWidget {
+  const _FlyingSparkles({
+    required this.seed,
+    required this.color,
+    required this.child,
+  });
+  final int seed;
+  final Color color;
+  final Widget child;
+
+  @override
+  State<_FlyingSparkles> createState() => _FlyingSparklesState();
+}
+
+class _FlyingSparklesState extends State<_FlyingSparkles>
+    with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 7),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (sparklesFly && !MediaQuery.disableAnimationsOf(context)) {
+      if (!_c.isAnimating) _c.repeat();
+    } else {
+      _c.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      Positioned.fill(
+        child: IgnorePointer(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _SparklePainter(_c, widget.seed, widget.color),
+            ),
+          ),
+        ),
+      ),
+      widget.child,
+    ],
+  );
+}
+
+class _SparklePainter extends CustomPainter {
+  _SparklePainter(this.t, this.seed, this.color) : super(repaint: t);
+  final Animation<double> t;
+  final int seed;
+  final Color color;
+
+  static const _count = 7;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var i = 0; i < _count; i++) {
+      // Fixed per star, varied by row: start, lane, speed, size, twinkle.
+      final h = ((seed * 7 + i) * 2654435761) & 0xFFFF;
+      final start = (h & 0xFF) / 255;
+      final lane = ((h >> 8) & 0xF) / 15;
+      final speed = 0.6 + ((h >> 12) & 0x3) * 0.25;
+      final r = 1.6 + (i % 3) * 0.9;
+      final phase = (start + t.value * speed) % 1;
+      final x = phase * (size.width + 2 * r) - r;
+      final y =
+          r +
+          lane * (size.height - 2 * r) +
+          math.sin((phase + start) * 2 * math.pi) * 2;
+      final glow = 0.5 + 0.5 * math.sin((t.value * 3 + start) * 2 * math.pi);
+      _star(
+        canvas,
+        Offset(x, y),
+        r,
+        color.withValues(alpha: 0.12 + 0.3 * glow),
+      );
+    }
+  }
+
+  void _star(Canvas canvas, Offset c, double r, Color color) {
+    final k = r * 0.28;
+    canvas.drawPath(
+      Path()
+        ..moveTo(c.dx, c.dy - r)
+        ..lineTo(c.dx + k, c.dy - k)
+        ..lineTo(c.dx + r, c.dy)
+        ..lineTo(c.dx + k, c.dy + k)
+        ..lineTo(c.dx, c.dy + r)
+        ..lineTo(c.dx - k, c.dy + k)
+        ..lineTo(c.dx - r, c.dy)
+        ..lineTo(c.dx - k, c.dy - k)
+        ..close(),
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SparklePainter old) =>
+      old.seed != seed || old.color != color;
 }
 
 /// More's bigger card: the top five and where I stand.
@@ -483,14 +600,14 @@ class LeaderboardCard extends StatelessWidget {
     final campus = viewCampus();
     if (roleStore == null || campus == null) return const SizedBox.shrink();
     final p = AppPalette.of(context);
-    // The board's purple card, the same in both modes (owner, 2026-10-06).
+    // The board's midnight card, the same in both modes (owner, 2026-10-06).
     const fg = Colors.white;
     final sub = TypeScale.caption.copyWith(
       fontSize: 10.5,
       color: fg.withValues(alpha: .8),
     );
     return Material(
-      color: const Color(0xFF51308E),
+      color: const Color(0xFF272757),
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

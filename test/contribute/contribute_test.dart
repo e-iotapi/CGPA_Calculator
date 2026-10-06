@@ -261,6 +261,37 @@ void main() {
     expect(find.textContaining('quiet_owl'), findsOneWidget);
   });
 
+  testWidgets('More: the card rows sparkle, still under reduced motion',
+      (t) async {
+    await t.runAsync(() async {
+      await sharedDb.collection('leaderboard').doc('goa').set({
+        'p': {'ann': 12},
+      });
+    });
+    await open(t, As.student, const MorePage());
+    expect(find.textContaining('ann'), findsOneWidget);
+    expect(t.binding.hasScheduledFrame, isFalse);
+    sparklesFly = true;
+    addTearDown(() => sparklesFly = false);
+    await t.pumpWidget(const SizedBox());
+    await t.pumpWidget(
+      MaterialApp(theme: AppPalette.light.materialTheme, home: const MorePage()),
+    );
+    await t.pump(const Duration(milliseconds: 500));
+    expect(t.binding.hasScheduledFrame, isTrue);
+    await t.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          home: const MorePage(),
+        ),
+      ),
+    );
+    await t.pump(const Duration(milliseconds: 500));
+    expect(t.binding.hasScheduledFrame, isFalse);
+  });
+
   testWidgets('More: Contribute card follows the state', (t) async {
     await open(t, As.student, const MorePage());
     contribState.value = ContribState.none;

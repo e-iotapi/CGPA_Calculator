@@ -8,6 +8,10 @@ import 'package:cgpa_calculator/core/cache/cache_first.dart';
 import 'package:cgpa_calculator/core/heads/heads.dart';
 import 'package:cgpa_calculator/core/live/live_channel.dart';
 import 'package:cgpa_calculator/core/live/live_heads.dart';
+import 'package:cgpa_calculator/core/models/offering.dart';
+import 'package:cgpa_calculator/core/roles/maintain_store.dart';
+import 'package:cgpa_calculator/core/roles/role_store.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 
@@ -150,6 +154,20 @@ void main() {
     expect(savedV(), {'resources': 3, 'reps': 0});
   });
 
+  test('o: numbers are scheme versions, saved under offerings', () async {
+    start();
+    await pumpEventQueue();
+    chans.single.push({
+      't': 'head',
+      'v': {'o:CS F372|2026-27-1': 2, 'resources': 4},
+    });
+    await pumpEventQueue();
+    final m = jsonDecode(sharedCacheBox!.get('head|goa') as String) as Map;
+    final head = Head.fromMap(m['v'] as Map);
+    expect(head.offering('CS F372', '2026-27-1'), 2);
+    expect(savedV(), {'resources': 4});
+  });
+
   test('an empty hello (hub read failed) does not count as live', () async {
     start();
     await pumpEventQueue();
@@ -175,6 +193,25 @@ void main() {
     LiveHeads.poke('reviews/CS F111');
     expect(chans.single.sent, [
       {'t': 'poke', 'path': 'reviews/CS F111'},
+    ]);
+  });
+
+  test('saving a scheme pokes the hub', () async {
+    start();
+    await pumpEventQueue();
+    final roles = RoleStore(FakeFirebaseFirestore(), me: 'p@x.com', myName: 'P');
+    await MaintainStore(roles).save(
+      const Offering(
+        courseId: 'CS F372',
+        campus: 'goa',
+        term: '2026-27-1',
+        components: [],
+        updatedAt: 1,
+      ),
+      'Saved',
+    );
+    expect(chans.single.sent, [
+      {'t': 'poke', 'path': 'offerings'},
     ]);
   });
 

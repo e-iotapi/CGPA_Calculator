@@ -158,11 +158,11 @@ void main() {
       expect(peekCache<int>('missing', (v) => v as int, box: box), isNull);
     });
 
-    test('a matching version is fresh at any age while versions are live',
+    test('a matching version stays fresh while live, but not past a day',
         () async {
       var n = 0;
       Future<int> get(String? ver, DateTime now) => cacheFirst<int>(
-        key: 'v', maxAge: const Duration(minutes: 1), box: box,
+        key: 'v', maxAge: const Duration(hours: 3), box: box,
         now: () => now, version: ver,
         fetch: () async => ++n, encode: (v) => v, decode: (v) => v as int,
       );
@@ -170,14 +170,29 @@ void main() {
       versionsLive = true;
       addTearDown(() => versionsLive = false);
       expect(await get('3', t0), 1);
-      expect(await get('3', t0.add(const Duration(days: 30))), 1);
+      expect(await get('3', t0.add(const Duration(hours: 23))), 1);
       expect(n, 1);
-      // Socket down: the same old entry is past maxAge, so it refreshes.
-      versionsLive = false;
-      expect(await get('3', t0.add(const Duration(days: 30))), 1);
+      // Live, but a day old: the one full read a day, in the background.
+      expect(await get('3', t0.add(const Duration(hours: 25))), 1);
       await Future<void>.delayed(Duration.zero);
       expect(n, 2);
-      expect(await get('3', t0.add(const Duration(days: 30, seconds: 5))), 2);
+      expect(await get('3', t0.add(const Duration(hours: 25, seconds: 5))), 2);
+    });
+
+    test('socket down: a matching version is read again past maxAge', () async {
+      var n = 0;
+      Future<int> get(DateTime now) => cacheFirst<int>(
+        key: 'v3', maxAge: const Duration(hours: 3), box: box,
+        now: () => now, version: '3',
+        fetch: () async => ++n, encode: (v) => v, decode: (v) => v as int,
+      );
+      final t0 = DateTime(2026, 10, 1);
+      expect(await get(t0), 1);
+      expect(await get(t0.add(const Duration(hours: 2))), 1);
+      expect(n, 1);
+      expect(await get(t0.add(const Duration(hours: 4))), 1);
+      await Future<void>.delayed(Duration.zero);
+      expect(n, 2);
     });
 
     test('a moved version refetches', () async {

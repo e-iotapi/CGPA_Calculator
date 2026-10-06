@@ -338,7 +338,9 @@ void main() {
     Future<void> age(String key) async {
       final b = sharedCacheBox!;
       final m = jsonDecode(b.get(key) as String) as Map;
-      await b.put(key, jsonEncode({...m, 'at': 0}));
+      // Past every timer here (3 h at most), inside the daily full read.
+      final at = DateTime.now().subtract(const Duration(hours: 4));
+      await b.put(key, jsonEncode({...m, 'at': at.millisecondsSinceEpoch}));
     }
 
     Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 50));
