@@ -10,6 +10,7 @@ import 'package:cgpa_calculator/core/platform/browser.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart' show timeDilation;
 
 /// Where the last touch or click landed, in global coordinates. Pages and the
 /// theme switch grow their circle from here.
@@ -416,9 +417,18 @@ class _ThemeRevealState extends State<ThemeReveal>
     final fade = _fadeOnly;
     final origin = TapOrigin.last ?? context.size!.center(Offset.zero);
     try {
-      setState(() => _still = true);
       apply();
-      await WidgetsBinding.instance.endOfFrame; // the new theme, under it
+      // Material animates its outline to the new theme over 200 ms; paused
+      // through the circle, pill borders kept the old colour and jumped after
+      // (owner, 2026-10-06). Run time fast for two frames under the copy so
+      // they land, then pause everything for the reveal.
+      timeDilation = 0.01;
+      await WidgetsBinding.instance.endOfFrame;
+      await WidgetsBinding.instance.endOfFrame;
+      timeDilation = 1;
+      if (!mounted) return;
+      setState(() => _still = true);
+      await WidgetsBinding.instance.endOfFrame; // the settled theme, under it
       await cover.reveal(
         origin,
         fade: fade,
@@ -428,6 +438,7 @@ class _ThemeRevealState extends State<ThemeReveal>
       debugPrint('[Pointer theme] cover failed: $e');
       cover.remove();
     } finally {
+      timeDilation = 1;
       if (mounted) setState(() => _still = false);
     }
   }
