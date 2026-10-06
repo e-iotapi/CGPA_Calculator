@@ -142,11 +142,13 @@ void main() {
     expect(fadesTheme(const Size(1080, 2400), 3, fx: 'fade'), isTrue);
   });
 
-  test('Firefox switches through a veil, no pictures; fx overrides', () {
-    expect(veilsTheme(firefox: true), isTrue);
-    expect(veilsTheme(firefox: false), isFalse);
-    expect(veilsTheme(firefox: true, fx: 'fade'), isFalse);
-    expect(veilsTheme(firefox: true, fx: 'circle'), isFalse);
-    expect(veilsTheme(firefox: false, fx: 'veil'), isTrue);
+  test('Firefox switches with a browser copy; fx picks the method', () {
+    expect(switchMethod(firefox: true), SwitchMethod.cover);
+    expect(switchMethod(firefox: false), SwitchMethod.pictures);
+    expect(switchMethod(firefox: true, fx: 'pictures'), SwitchMethod.pictures);
+    expect(switchMethod(firefox: false, fx: 'cover'), SwitchMethod.cover);
+    expect(switchMethod(firefox: false, fx: 'veil'), SwitchMethod.veil);
+    // circle/fade pick the effect, not the method.
+    expect(switchMethod(firefox: true, fx: 'circle'), SwitchMethod.cover);
   });
 }

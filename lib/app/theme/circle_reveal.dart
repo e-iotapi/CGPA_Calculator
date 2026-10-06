@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:cgpa_calculator/app/theme/screen_cover.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/perf/device_tier.dart';
 import 'package:cgpa_calculator/core/perf/frame_stats.dart';
@@ -68,12 +69,28 @@ Future<bool> snapshotsFlipped() async {
   }
 }
 
-/// Whether the theme switch should skip pictures of the screen: Firefox reads
-/// WebGL pixels back slowly (a full-screen read froze the page 1.5-3 s on
-/// each switch, owner, 2026-10-06), so there it fades through a veil of the
-/// old ground instead. `?fx=veil` forces it; `fade` or `circle` force pictures.
-bool veilsTheme({required bool firefox, String? fx}) =>
-    fx == 'veil' || (fx != 'fade' && fx != 'circle' && firefox);
+/// How the theme switch gets the old screen to animate.
+enum SwitchMethod {
+  /// Flutter's own pictures of the screen.
+  pictures,
+
+  /// A copy the browser holds above the app ([ScreenCover]).
+  cover,
+
+  /// No picture: the old ground eases out over the new theme.
+  veil,
+}
+
+/// Firefox reads WebGL pixels back slowly (each Flutter picture froze the
+/// page 1.5-3 s, owner, 2026-10-06), so there the browser copies the screen
+/// instead. `?fx=pictures`, `cover` or `veil` force one, to compare.
+SwitchMethod switchMethod({required bool firefox, String? fx}) =>
+    switch (fx) {
+      'pictures' => SwitchMethod.pictures,
+      'cover' => SwitchMethod.cover,
+      'veil' => SwitchMethod.veil,
+      _ => firefox ? SwitchMethod.cover : SwitchMethod.pictures,
+    };
 
 /// Whether a display of [physical] pixels at [ratio] is bigger than a phone
 /// (shortest side 600 or more, whatever the orientation): there the theme
@@ -257,17 +274,18 @@ class _ThemeRevealState extends State<ThemeReveal>
 
   // Read at startup: the first navigation drops the query from the URL.
   final _fx = Uri.base.queryParameters['fx'];
-  late final _veilOnly = veilsTheme(
+  late final _method = switchMethod(
     firefox: kIsWeb && installTarget().browser == InstallBrowser.firefox,
     fx: _fx,
   );
+  bool get _noPictures => _method != SwitchMethod.pictures;
   Color? _veil;
 
   @override
   void initState() {
     super.initState();
     // The flip check reads pixels back too: none of it where they're slow.
-    if (_veilOnly) return;
+    if (_noPictures) return;
     snapshotsFlipped().then((f) {
       _flipped = f;
       debugPrint('[Pointer theme] snapshots flipped: $f');
@@ -303,7 +321,7 @@ class _ThemeRevealState extends State<ThemeReveal>
 
   void _prepare() {
     final box = _box;
-    if (_veilOnly ||
+    if (_noPictures ||
         box == null ||
         _preparedImage != null ||
         _capturing ||
@@ -334,7 +352,9 @@ class _ThemeRevealState extends State<ThemeReveal>
       apply();
       return;
     }
-    if (_veilOnly) return _runVeil(apply, from ?? const Color(0xFF000000));
+    final ground = from ?? const Color(0xFF000000);
+    if (_method == SwitchMethod.veil) return _runVeil(apply, ground);
+    if (_method == SwitchMethod.cover) return _runCover(apply, ground);
     ui.Image? image = _preparedImage, next;
     _preparedImage = null;
     _expireTimer?.cancel();
@@ -387,6 +407,31 @@ class _ThemeRevealState extends State<ThemeReveal>
       }
       image?.dispose();
       next?.dispose();
+    }
+  }
+
+  /// The browser's copy of the screen covers the app while the theme changes
+  /// under it, then opens (circle) or fades away; the veil if no copy.
+  Future<void> _runCover(VoidCallback apply, Color ground) async {
+    final cover = await ScreenCover.take();
+    if (!mounted || cover == null) {
+      cover?.remove();
+      return _runVeil(apply, ground);
+    }
+    final d = View.of(context).display;
+    final fade = fadesTheme(d.size, d.devicePixelRatio, fx: _fx);
+    final origin = TapOrigin.last ?? context.size!.center(Offset.zero);
+    try {
+      apply();
+      await WidgetsBinding.instance.endOfFrame; // the new theme, under it
+      await cover.reveal(
+        origin,
+        fade: fade,
+        duration: Duration(milliseconds: fade ? 420 : 560),
+      );
+    } on Object catch (e) {
+      debugPrint('[Pointer theme] cover failed: $e');
+      cover.remove();
     }
   }
 
