@@ -371,7 +371,7 @@ class _SignInAppState extends State<SignInApp>
 
   /// Staging: a test account by email and password, then the same checks
   /// as Google's.
-  Future<void> _testSignIn() async {
+  Future<void> _signInTestAccount() async {
     final pick = await pickTestAccount(context);
     if (pick == null || !mounted) return;
     setState(() => _busy = true);
@@ -428,7 +428,7 @@ class _SignInAppState extends State<SignInApp>
         busy: _busy,
         onSignIn: _signIn,
         // Staging only; production drops it (const isTestEnv).
-        onTestSignIn: isTestEnv ? _testSignIn : null,
+        onTestSignIn: isTestEnv ? _signInTestAccount : null,
         entrance: _entrance,
       ),
     );
