@@ -439,7 +439,7 @@ class _CardRow extends StatelessWidget {
                   ? null
                   : LinearGradient(colors: medal.colors, stops: medal.stops),
         ),
-        child: _FlyingSparkles(seed: rank, color: ink, child: Row(
+        child: Row(
           children: [
             SizedBox(
               width: 30,
@@ -470,7 +470,7 @@ class _CardRow extends StatelessWidget {
               ),
             ),
           ],
-        )),
+        ),
       ),
     );
   }
@@ -480,16 +480,11 @@ class _CardRow extends StatelessWidget {
 /// never lets pumpAndSettle settle.
 bool sparklesFly = true;
 
-/// Small stars drifting behind a More card row's name and twinkling (owner,
-/// 2026-10-06). Still under reduced motion.
+/// Small gold stars drifting across the More card's midnight, behind its
+/// rows, and twinkling (owner, 2026-10-06). Still under reduced motion.
 class _FlyingSparkles extends StatefulWidget {
-  const _FlyingSparkles({
-    required this.seed,
-    required this.color,
-    required this.child,
-  });
+  const _FlyingSparkles({required this.seed, required this.child});
   final int seed;
-  final Color color;
   final Widget child;
 
   @override
@@ -526,7 +521,7 @@ class _FlyingSparklesState extends State<_FlyingSparkles>
         child: IgnorePointer(
           child: RepaintBoundary(
             child: CustomPaint(
-              painter: _SparklePainter(_c, widget.seed, widget.color),
+              painter: _SparklePainter(_c, widget.seed),
             ),
           ),
         ),
@@ -537,17 +532,19 @@ class _FlyingSparklesState extends State<_FlyingSparkles>
 }
 
 class _SparklePainter extends CustomPainter {
-  _SparklePainter(this.t, this.seed, this.color) : super(repaint: t);
+  _SparklePainter(this.t, this.seed) : super(repaint: t);
   final Animation<double> t;
   final int seed;
-  final Color color;
 
-  static const _count = 7;
+  static const _count = 22;
+
+  // Each star's gold, picked by its hash (owner, 2026-10-06).
+  static const _golds = [Color(0xFFFFE783), Color(0xFFFFD860), Color(0xFFFFCE00)];
 
   @override
   void paint(Canvas canvas, Size size) {
     for (var i = 0; i < _count; i++) {
-      // Fixed per star, varied by row: start, lane, speed, size, twinkle.
+      // Fixed per star: start, lane, speed, size, colour, twinkle.
       final h = ((seed * 7 + i) * 2654435761) & 0xFFFF;
       final start = (h & 0xFF) / 255;
       final lane = ((h >> 8) & 0xF) / 15;
@@ -564,7 +561,7 @@ class _SparklePainter extends CustomPainter {
         canvas,
         Offset(x, y),
         r,
-        color.withValues(alpha: 0.12 + 0.3 * glow),
+        _golds[(h >> 14) % 3].withValues(alpha: 0.35 + 0.5 * glow),
       );
     }
   }
@@ -588,7 +585,7 @@ class _SparklePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SparklePainter old) =>
-      old.seed != seed || old.color != color;
+      old.seed != seed;
 }
 
 /// More's bigger card: the top five and where I stand.
@@ -617,7 +614,7 @@ class LeaderboardCard extends StatelessWidget {
               Routes.leaderboard,
               () => const LeaderboardPage(),
             ),
-        child: Padding(
+        child: _FlyingSparkles(seed: 1, child: Padding(
           padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
           child: Loaded<LeaderData>(
             cacheKey: leaderKey(campus),
@@ -698,7 +695,7 @@ class LeaderboardCard extends StatelessWidget {
               );
             },
           ),
-        ),
+        )),
       ),
     );
   }
