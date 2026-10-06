@@ -118,8 +118,15 @@ class TierTag extends StatelessWidget {
       decoration: BoxDecoration(
         color: strong ? p.navBackground : p.hero,
         borderRadius: BorderRadius.circular(11),
-        border: strong && p.isDark ? Border.all(color: p.divider) : null,
       ),
+      // On top, not a border: one size in both themes.
+      foregroundDecoration:
+          strong && p.isDark
+              ? BoxDecoration(
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: p.divider),
+              )
+              : null,
       child: Center(
         widthFactor: 1,
         heightFactor: 1,

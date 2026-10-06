@@ -153,13 +153,22 @@ class AppNav extends StatelessWidget {
           // In dark mode the rail is mint, so it stands out (owner,
           // 2026-10-04); the pill keeps the dark nav colour.
           color: vertical && p.isDark ? p.hero : p.navBackground,
-          // On dark grounds the nav is only a shade lighter; a hairline keeps
-          // its edge visible.
-          border: p.isDark ? Border.all(color: p.divider) : null,
           borderRadius: BorderRadius.circular(
             vertical ? Radii.card : Radii.nav,
           ),
         ),
+        // On dark grounds the nav is only a shade lighter; a hairline keeps
+        // its edge visible. Drawn on top: as a border it padded the items,
+        // shifting them 1 px in dark mode only (owner, 2026-10-06).
+        foregroundDecoration:
+            p.isDark
+                ? BoxDecoration(
+                  border: Border.all(color: p.divider),
+                  borderRadius: BorderRadius.circular(
+                    vertical ? Radii.card : Radii.nav,
+                  ),
+                )
+                : null,
         child: body,
       ),
     );

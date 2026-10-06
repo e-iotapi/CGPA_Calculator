@@ -376,7 +376,7 @@ Future<void> switchTheme(bool dark, {VoidCallback? then}) async {
     thm = AppPalette.byName(selected_theme);
     themeVersion.value++;
     then?.call();
-  });
+  }, from: thm.background);
   setnavcolor();
   await settheme();
 }
