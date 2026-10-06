@@ -280,6 +280,9 @@ class _ThemeRevealState extends State<ThemeReveal>
   );
   bool get _noPictures => _method != SwitchMethod.pictures;
   Color? _veil;
+  // Animations paused under the browser's copy: each Flutter frame redraws
+  // the whole app on the thread the copy's animation runs on.
+  bool _still = false;
 
   @override
   void initState() {
@@ -422,6 +425,7 @@ class _ThemeRevealState extends State<ThemeReveal>
     final fade = fadesTheme(d.size, d.devicePixelRatio, fx: _fx);
     final origin = TapOrigin.last ?? context.size!.center(Offset.zero);
     try {
+      setState(() => _still = true);
       apply();
       await WidgetsBinding.instance.endOfFrame; // the new theme, under it
       await cover.reveal(
@@ -432,6 +436,8 @@ class _ThemeRevealState extends State<ThemeReveal>
     } on Object catch (e) {
       debugPrint('[Pointer theme] cover failed: $e');
       cover.remove();
+    } finally {
+      if (mounted) setState(() => _still = false);
     }
   }
 
@@ -460,7 +466,10 @@ class _ThemeRevealState extends State<ThemeReveal>
       children: [
         Offstage(
           offstage: _new != null && !_fading,
-          child: RepaintBoundary(key: _boundary, child: widget.child),
+          child: RepaintBoundary(
+            key: _boundary,
+            child: TickerMode(enabled: !_still, child: widget.child),
+          ),
         ),
         if (old != null)
           Positioned.fill(
