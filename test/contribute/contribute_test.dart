@@ -17,6 +17,8 @@ import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/settings/settings_view.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show SetOptions;
+import 'package:cgpa_calculator/features/reviews/reviews_home.dart';
+import 'package:cgpa_calculator/features/contribute/contribute_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -336,6 +338,40 @@ void main() {
     );
     await settle(t);
     expect(find.text('Contribute to the Community Now'), findsNothing);
+  });
+
+  // Reviews asks on every open, never once someone is a contributor
+  // (owner, 2026-10-06).
+  testWidgets('Reviews prompt: every open, never for a contributor', (
+    t,
+  ) async {
+    reviewsPromptOff = false;
+    addTearDown(() => reviewsPromptOff = true);
+    await open(t, As.student, const SizedBox());
+    const email = 'f20250002@goa.bits-pilani.ac.in';
+    roleStore = RoleStore(sharedDb, me: email, myName: 'New');
+    Future<void> reviews() async {
+      await t.pumpWidget(const SizedBox());
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppPalette.light.materialTheme,
+          home: const ReviewsHome(),
+        ),
+      );
+      await settle(t);
+    }
+
+    myRoles.value = const MyRoles(email: email);
+    for (var i = 0; i < 2; i++) {
+      await reviews();
+      expect(find.textContaining('2 points for every course'), findsOneWidget);
+      await t.tap(find.text('Not now'));
+      await settle(t);
+    }
+    myRoles.value = const MyRoles(email: email, contributor: true);
+    await reviews();
+    expect(find.textContaining('2 points for every course'), findsNothing);
+    await t.pumpWidget(const SizedBox());
   });
 
   testWidgets('Approvals: a failed load says so, and Try again loads it', (
