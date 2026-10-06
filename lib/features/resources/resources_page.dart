@@ -14,6 +14,8 @@ import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/contribute/contribute_widgets.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
 import 'package:cgpa_calculator/features/contribute/add_page.dart';
+import 'package:cgpa_calculator/features/resources/bookmarks.dart';
+import 'package:cgpa_calculator/features/resources/bookmarks_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
 import 'package:cgpa_calculator/core/models/offering.dart' show termOf;
@@ -70,6 +72,7 @@ class LinkRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.showAdder = true,
+    this.bookmark = true,
   });
 
   final Resource r;
@@ -78,6 +81,9 @@ class LinkRow extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool showAdder;
+
+  /// The bookmark button, on every link a student opens.
+  final bool bookmark;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +94,10 @@ class LinkRow extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 52),
         child: Padding(
-          padding: EdgeInsets.only(left: 15, right: onReport == null ? 15 : 4),
+          padding: EdgeInsets.only(
+            left: 15,
+            right: onReport == null && !bookmark ? 15 : 4,
+          ),
           child: Row(
             children: [
               Container(
@@ -147,6 +156,7 @@ class LinkRow extends StatelessWidget {
                 ),
               ),
               if (trailing != null) trailing!,
+              if (bookmark && trailing == null) BookmarkButton(r),
               if (onReport != null)
                 SizedBox.square(
                   dimension: 44,
@@ -816,6 +826,25 @@ class _ResourcesPageState extends State<ResourcesPage> {
                         ),
                   ),
                 ],
+                const SizedBox(height: 9),
+                _ResourceCard(
+                  icon: Icons.bookmark_border_rounded,
+                  title: 'Bookmarked',
+                  subtitle: switch (bookmarks.value.length) {
+                    0 => 'Tap the bookmark on any link to keep it here',
+                    1 => '1 link you saved',
+                    final n => '$n links you saved',
+                  },
+                  // The count is redrawn on the way back.
+                  onTap: () async {
+                    await openRoute(
+                      context,
+                      Routes.resourceBookmarks,
+                      () => const BookmarksPage(),
+                    );
+                    if (mounted) setState(() {});
+                  },
+                ),
                 const SizedBox(height: 9),
                 _ResourceCard(
                   icon: Icons.menu_book_outlined,

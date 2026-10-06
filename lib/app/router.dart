@@ -16,6 +16,7 @@ import 'package:cgpa_calculator/features/contribute/edit_page.dart';
 import 'package:cgpa_calculator/features/contribute/leaderboard_page.dart';
 import 'package:cgpa_calculator/features/more/more_page.dart';
 import 'package:cgpa_calculator/features/more/representatives_page.dart';
+import 'package:cgpa_calculator/features/resources/bookmarks_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
@@ -127,6 +128,10 @@ final List<RouteBase> appRoutes = [
               GoRoute(
                 path: 'courses',
                 builder: (_, _) => const ResourceCoursesPage(),
+              ),
+              GoRoute(
+                path: 'bookmarked',
+                builder: (_, _) => const BookmarksPage(),
               ),
               // A degree code (A7) or a course id (CS F372).
               GoRoute(

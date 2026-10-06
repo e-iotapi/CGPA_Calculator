@@ -26,6 +26,7 @@ abstract final class Routes {
   static String resourceDegree(String code) =>
       '/more/resources/${Uri.encodeComponent(code)}';
   static const resourceCourses = '/more/resources/courses';
+  static const resourceBookmarks = '/more/resources/bookmarked';
   static String resourceCourse(String id) =>
       '/more/resources/${Uri.encodeComponent(id)}';
   static const reviews = '/more/reviews';
