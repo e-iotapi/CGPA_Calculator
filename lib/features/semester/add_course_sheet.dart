@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/shared/debounce.dart';
 import 'package:cgpa_calculator/core/grading/cgpa.dart';
@@ -119,6 +120,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
 
   @override
   void dispose() {
+    _learner.dispose();
     _typed.dispose();
     for (final c in [_query, _dept, _number, _title]) {
       c.dispose();
@@ -161,6 +163,8 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
   // leave the previous query's rows on screen and tappable (BUG-17).
   String _hitsQuery = '';
 
+  final _learner = QueryLearner();
+
   void _search(String q) => setState(() {
     _hitsQuery = q;
     _hits = searchCourses(
@@ -169,6 +173,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
       discipline: widget.discipline,
       master: widget.master,
     );
+    _learner.typed(q, found: _hits.isNotEmpty);
     if (_picked != null && !_hits.any((h) => h.id == _picked!.id)) {
       _picked = null;
     }
@@ -178,6 +183,7 @@ class _AddCourseSheetState extends State<AddCourseSheet> {
       _hitsQuery == _query.text ? _hits : const [];
 
   void _pick(CourseHit h) => setState(() {
+    _learner.picked(_query.text);
     _picked = h;
     _category = h.category;
     _grade = GradeCode.clr;

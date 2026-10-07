@@ -158,12 +158,21 @@ class _CardButton extends StatelessWidget {
 
 /// The first Resources open of a session offers to become a contributor, to
 /// anyone who has not applied (or was declined). In-memory flag, no print.
-Future<void> maybeShowContributePrompt(BuildContext context) async {
-  if (contributePromptShown || roleStore == null || viewCampus() == null) {
+/// Off in widget tests, like [contributePromptShown].
+bool reviewsPromptOff = false;
+
+Future<void> maybeShowContributePrompt(
+  BuildContext context, {
+  bool reviews = false,
+}) async {
+  // Reviews asks on every open (owner, 2026-10-06); elsewhere once a run.
+  if ((reviews ? reviewsPromptOff : contributePromptShown) ||
+      roleStore == null ||
+      viewCampus() == null) {
     return;
   }
   if (myRoles.value.staff) return;
-  contributePromptShown = true;
+  if (!reviews) contributePromptShown = true;
   await refreshContribState();
   if (!context.mounted) return;
   final s = contribState.value;
@@ -175,7 +184,7 @@ Future<void> maybeShowContributePrompt(BuildContext context) async {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
     ),
-    builder: (_) => const _PromptSheet(),
+    builder: (_) => _PromptSheet(reviews: reviews),
   );
   if (apply == true && context.mounted) {
     openRoute(context, Routes.contributeApply, () => const ApplyPage());
@@ -184,7 +193,10 @@ Future<void> maybeShowContributePrompt(BuildContext context) async {
 
 /// Board `PfContribPrompt`: the offer, with Not now and Apply now.
 class _PromptSheet extends StatelessWidget {
-  const _PromptSheet();
+  const _PromptSheet({this.reviews = false});
+
+  /// The Reviews copy: points for reviews, and the leaderboard.
+  final bool reviews;
 
   @override
   Widget build(BuildContext context) {
@@ -255,9 +267,13 @@ class _PromptSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                'Share links to notes, papers and handouts for any course on '
-                'your campus. Approvers confirm each link within 15 days. You '
-                'earn 4 points for each approved link.',
+                reviews
+                    ? 'Become a contributor and claim a username to show up on '
+                        'the leaderboard. You earn 2 points for every course '
+                        'review and 4 for each approved link you share.'
+                    : 'Share links to notes, papers and handouts for any course '
+                        'on your campus. Approvers confirm each link within 15 '
+                        'days. You earn 4 points for each approved link.',
                 style: TypeScale.caption.copyWith(
                   fontSize: 12,
                   height: 1.45,
@@ -265,7 +281,7 @@ class _PromptSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const Note('Shown once each time you open the app.'),
+            if (!reviews) const Note('Shown once each time you open the app.'),
             const SizedBox(height: 30),
             Row(
               children: [

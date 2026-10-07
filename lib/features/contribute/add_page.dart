@@ -1,9 +1,12 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
+import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/contribute/contribute_data.dart';
 import 'package:cgpa_calculator/features/resources/link_sheet.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
@@ -30,7 +33,10 @@ class _Row {
 /// Board `ContributeAdd`: one batch of links for a department or a course.
 /// A student's batch waits for approval as one entry; staff publish at once.
 class AddPage extends StatefulWidget {
-  const AddPage({super.key});
+  const AddPage({super.key, this.course = false});
+
+  /// Opens on A course (from Course resources).
+  final bool course;
 
   @override
   State<AddPage> createState() => _AddPageState();
@@ -39,7 +45,8 @@ class AddPage extends StatefulWidget {
 class _AddPageState extends State<AddPage> {
   final _rows = [_Row()];
   final _search = TextEditingController();
-  bool _course = false, _busy = false;
+  late bool _course = widget.course;
+  bool _busy = false;
   String? _dept, _courseId, _error;
 
   @override
@@ -161,15 +168,19 @@ class _AddPageState extends State<AddPage> {
         ],
       );
     }
-    final depts = departmentsAt(campus);
+    // Staff publish at once, so only where they may; and they pick it, the
+    // first one is no default (owner, 2026-10-06).
+    final depts = direct ? linkDepts(campus) : departmentsAt(campus);
     final n = _rows
         .where(
           (r) => r.name.text.trim().isNotEmpty || r.url.text.trim().isNotEmpty,
         )
         .length
         .clamp(1, 999);
-    _dept ??=
-        depts.contains(myContribDept()) ? myContribDept() : depts.firstOrNull;
+    if (!direct) {
+      _dept ??=
+          depts.contains(myContribDept()) ? myContribDept() : depts.firstOrNull;
+    }
     return PageFrame(
       header: header,
       bottom: BottomAction(
@@ -289,6 +300,17 @@ class _AddPageState extends State<AddPage> {
   }
 }
 
+/// The departments on [campus] where I publish links at once.
+List<String> linkDepts(String campus) => [
+  for (final d in departmentsAt(campus))
+    if (myRoles.value.may(
+      Capability.departmentResources,
+      campus: campus,
+      scope: d,
+    ))
+      d,
+];
+
 /// The small upper-case caption above a field or a card (board `.lbl`).
 class _Cap extends StatelessWidget {
   const _Cap(this.text);
@@ -338,6 +360,14 @@ class _CoursePicker extends StatefulWidget {
 }
 
 class _CoursePickerState extends State<_CoursePicker> {
+  final _learner = QueryLearner();
+
+  @override
+  void dispose() {
+    _learner.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -349,17 +379,21 @@ class _CoursePickerState extends State<_CoursePicker> {
         fill: p.surface,
       );
     }
-    final q = widget.search.text.trim().toLowerCase();
+    final q = widget.search.text.trim();
     final hits =
         q.isEmpty
             ? const <String>[]
-            : [
-              for (final m in catalog.master)
-                if ((widget.dept == null || deptOf(m.id) == widget.dept) &&
-                    (m.id.toLowerCase().contains(q) ||
-                        m.title.toLowerCase().contains(q)))
-                  m.id,
-            ].take(8).toList();
+            : widen(
+              q,
+              (ph) => [
+                for (final m in catalog.master)
+                  if ((widget.dept == null || deptOf(m.id) == widget.dept) &&
+                      textMatches(ph, '${m.id} ${m.title}'))
+                    m.id,
+              ],
+              (id) => id,
+            ).take(8).toList();
+    if (q.isNotEmpty) _learner.typed(q, found: hits.isNotEmpty);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -370,7 +404,10 @@ class _CoursePickerState extends State<_CoursePicker> {
         ),
         for (final id in hits)
           InkWell(
-            onTap: () => widget.onPick(id),
+            onTap: () {
+              _learner.picked(q);
+              widget.onPick(id);
+            },
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: Sizes.minTouch),
               child: Align(

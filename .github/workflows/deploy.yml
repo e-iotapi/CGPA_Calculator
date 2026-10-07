@@ -75,7 +75,10 @@ jobs:
           if [ -d prod/functions ]; then cp -r prod/functions functions; fi
           if [ -d beta ]; then
             cp -r beta/build/web site/beta
-            grep '^/calculator/' prod/landing/_redirects | sed 's#/calculator/#/beta/#g' >> site/_redirects
+            # Beta's own deep links: its paths can be ahead of master's.
+            redirects=beta/landing/_redirects
+            [ -f "$redirects" ] || redirects=prod/landing/_redirects
+            grep '^/calculator/' "$redirects" | sed 's#/calculator/#/beta/#g' >> site/_redirects
             sed -n '/^\/calculator\//,$p' prod/landing/_headers | sed 's#^/calculator/#/beta/#' >> site/_headers
             printf '\nDisallow: /beta/\n' >> site/robots.txt
           fi

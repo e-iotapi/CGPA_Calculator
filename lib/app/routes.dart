@@ -5,30 +5,45 @@ import 'package:go_router/go_router.dart';
 /// to the `/calculator/` base href.
 abstract final class Routes {
   static const home = '/';
+
+  /// The tabs' own paths, so each can be bookmarked (owner, 2026-10-06).
+  static const tabs = [
+    ('/home', 1),
+    ('/expected', 2),
+    ('/compare', 3),
+    ('/offshoot', 4),
+  ];
+
+  /// The path of home profile [profile] (1 Actual … 4 Offshoot).
+  static String tab(int profile) =>
+      tabs.firstWhere((t) => t.$2 == profile, orElse: () => tabs.first).$1;
+
   static const stats = '/stats';
   static const calendar = '/calendar';
   static const settings = '/settings';
-  static const resources = '/resources';
-  static String resourceDegree(String code) =>
-      '/resources/degree/${Uri.encodeComponent(code)}';
-  static const resourceCourses = '/resources/courses';
-  static String resourceCourse(String id) =>
-      '/resources/course/${Uri.encodeComponent(id)}';
-  static const reviews = '/reviews';
-  static const compulsoryReviews = '/reviews/compulsory';
   static const more = '/more';
-  static const representatives = '/representatives';
-  static const leaderboard = '/leaderboard';
-  static const contribute = '/contribute';
-  static const contributeApply = '/contribute/apply';
-  static const contributeAdd = '/contribute/add';
+  static const resources = '/more/resources';
+  static String resourceDegree(String code) =>
+      '/more/resources/${Uri.encodeComponent(code)}';
+  static const resourceCourses = '/more/resources/courses';
+  static const resourceBookmarks = '/more/resources/bookmarked';
+  static String resourceCourse(String id) =>
+      '/more/resources/${Uri.encodeComponent(id)}';
+  static const reviews = '/more/reviews';
+  static const compulsoryReviews = '/more/reviews/compulsory';
+  static const representatives = '/more/representatives';
+  static const leaderboard = '/more/leaderboard';
+  static const contribute = '/more/contribute';
+  static const contributeApply = '/more/contribute/apply';
+  static const contributeAdd = '/more/contribute/add';
+  static const contributeAddCourse = '/more/contribute/add?course=1';
   static String contributeEdit(String id) =>
-      '/contribute/edit/${Uri.encodeComponent(id)}';
+      '/more/contribute/edit/${Uri.encodeComponent(id)}';
   static String courseReviews(String id, {String? professor}) =>
-      '/reviews/${Uri.encodeComponent(id)}'
+      '/more/reviews/${Uri.encodeComponent(id)}'
       '${professor == null ? '' : '?professor=${Uri.encodeQueryComponent(professor)}'}';
   static String professorReviews(String id) =>
-      '/reviews/professor/${Uri.encodeComponent(id)}';
+      '/more/reviews/professor/${Uri.encodeComponent(id)}';
   static String course(String id) => '/course/${Uri.encodeComponent(id)}';
   static const roles = '/roles';
   static const previewCampus = '/campus';

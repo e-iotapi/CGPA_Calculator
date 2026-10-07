@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/admin/widgets.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/admin/dept_list.dart';
 import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
@@ -318,7 +319,9 @@ class _ViewAsDeptPageState extends State<ViewAsDeptPage> {
       final keys = recentFirst(depts, recent);
       final shown = [
         for (final b in deptBranches(keys))
-          if (branchMatches(b, q)) b,
+          if (queryPhrases(q).any((ph) => branchMatches(b, ph)) ||
+              q.isEmpty)
+            b,
       ];
       int presidents(String d, String? prog) =>
           grants
@@ -476,8 +479,11 @@ class _ViewAsCoursePageState extends State<ViewAsCoursePage> {
       final shown = [
         for (final id in order)
           if (q.isEmpty ||
-              id.toLowerCase().contains(q) ||
-              byId[id]!.professors.any((n) => n.toLowerCase().contains(q)))
+              queryPhrases(q).any(
+                (ph) =>
+                    textMatches(ph, id) ||
+                    byId[id]!.professors.any((n) => textMatches(ph, n)),
+              ))
             byId[id]!,
       ];
       return _PickerFrame(
