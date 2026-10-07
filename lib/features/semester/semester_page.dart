@@ -218,8 +218,33 @@ class _SemesterViewState extends State<SemesterView> {
     ],
   );
 
-  Widget _listLayout(bool wide) {
+  Widget _listLayout(bool wide) => LayoutBuilder(
+    // The greeting scrolls away; the GPAs and semester pills stick to the
+    // top, so they stay in sight over the courses (owner, 2026-10-06). A
+    // screen too short for that scrolls it all.
+    builder: (context, c) => _listBody(wide, pinned: c.maxHeight >= 600),
+  );
+
+  Widget _listBody(bool wide, {required bool pinned}) {
     final p = AppPalette.of(context);
+    final sticky = ColoredBox(
+      color: p.background,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          Space.gutter,
+          Space.sm,
+          Space.gutter,
+          Space.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!wide) ...[_stats(false), const SizedBox(height: 15)],
+            _semesterPills(),
+          ],
+        ),
+      ),
+    );
     final scroll = NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: CustomScrollView(
@@ -232,21 +257,24 @@ class _SemesterViewState extends State<SemesterView> {
               Space.gutter,
               Space.lg,
               Space.gutter,
-              0,
+              Space.sm,
             ),
             sliver: SliverList.list(
-              children: [
-                _header(),
-                const SizedBox(height: 15),
-                _editorial(),
-                if (!wide) ...[const SizedBox(height: 15), _stats(false)],
-                const SizedBox(height: 15),
-                _semesterPills(),
-                const SizedBox(height: 15),
-                _sectionHeader(),
-                const SizedBox(height: Space.md),
-              ],
+              children: [_header(), const SizedBox(height: 15), _editorial()],
             ),
+          ),
+          if (pinned)
+            PinnedHeaderSliver(child: sticky)
+          else
+            SliverToBoxAdapter(child: sticky),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              Space.gutter,
+              Space.sm,
+              Space.gutter,
+              Space.md,
+            ),
+            sliver: SliverToBoxAdapter(child: _sectionHeader()),
           ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
@@ -337,12 +365,13 @@ class _SemesterViewState extends State<SemesterView> {
       ],
     );
 
-    if (!wide) return list;
+    final body = list;
+    if (!wide) return body;
     // Tablet and up: the stat cards move into a right rail.
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: list),
+        Expanded(child: body),
         SizedBox(
           width: 260,
           child: Padding(

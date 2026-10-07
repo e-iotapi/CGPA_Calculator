@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/shared/widgets/card_row.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
@@ -84,10 +85,11 @@ class _PickSheetState<T> extends State<_PickSheet<T>> {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final q = _q.text.trim().toLowerCase();
+    final q = _q.text.trim();
+    final phrases = queryPhrases(q);
     final listed = [
       for (final o in widget.options)
-        if (q.isEmpty || o.$2.toLowerCase().contains(q)) o,
+        if (q.isEmpty || phrases.any((ph) => textMatches(ph, o.$2))) o,
     ];
     final values = {for (final o in widget.options) o.$1};
     final rows = [
