@@ -3,9 +3,9 @@ import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/programmes.dart';
+import 'package:cgpa_calculator/core/resources/link_search.dart';
 import 'package:cgpa_calculator/core/resources/resource.dart';
 import 'package:cgpa_calculator/core/resources/resource_store.dart';
-import 'package:cgpa_calculator/core/roles/capabilities.dart';
 import 'package:cgpa_calculator/core/roles/role_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
@@ -13,6 +13,9 @@ import 'package:cgpa_calculator/core/catalog/catalog.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
 import 'package:cgpa_calculator/features/contribute/contribute_widgets.dart';
 import 'package:cgpa_calculator/features/marks/official.dart';
+import 'package:cgpa_calculator/features/contribute/add_page.dart';
+import 'package:cgpa_calculator/features/resources/bookmarks.dart';
+import 'package:cgpa_calculator/features/resources/bookmarks_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_courses_page.dart';
 import 'package:cgpa_calculator/features/resources/resource_degree_page.dart';
 import 'package:cgpa_calculator/core/models/offering.dart' show termOf;
@@ -20,10 +23,10 @@ import 'package:cgpa_calculator/script.dart';
 import 'package:cgpa_calculator/shared/widgets/app_card.dart';
 import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
+import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
 import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:cgpa_calculator/core/platform/browser.dart';
 
 /// The signed-in user's resource store, or `null` before sign-in.
@@ -69,6 +72,7 @@ class LinkRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.showAdder = true,
+    this.bookmark = true,
   });
 
   final Resource r;
@@ -77,6 +81,9 @@ class LinkRow extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool showAdder;
+
+  /// The bookmark button, on every link a student opens.
+  final bool bookmark;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +94,10 @@ class LinkRow extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 52),
         child: Padding(
-          padding: EdgeInsets.only(left: 15, right: onReport == null ? 15 : 4),
+          padding: EdgeInsets.only(
+            left: 15,
+            right: onReport == null && !bookmark ? 15 : 4,
+          ),
           child: Row(
             children: [
               Container(
@@ -146,6 +156,7 @@ class LinkRow extends StatelessWidget {
                 ),
               ),
               if (trailing != null) trailing!,
+              if (bookmark && trailing == null) BookmarkButton(r),
               if (onReport != null)
                 SizedBox.square(
                   dimension: 44,
@@ -679,6 +690,70 @@ class ResourcesPage extends StatefulWidget {
 }
 
 class _ResourcesPageState extends State<ResourcesPage> {
+  final _search = TextEditingController();
+  final _learner = QueryLearner();
+  List<Resource>? _links;
+
+  String get _q => _search.text.trim();
+
+  List<Resource> _results() => searchLinks(
+    _links ?? const [],
+    _q,
+    also: queryPhrases(_q).skip(1).toList(),
+    courseTitle: courseTitle,
+    departmentName: departmentName,
+  );
+
+  void _typed(String campus) {
+    setState(() {});
+    _links ??= resourceStore?.peekAll(campus);
+    if (_links == null) {
+      resourceStore?.all(campus).then((l) {
+        if (!mounted) return;
+        setState(() => _links = l);
+        _learner.typed(_q, found: _results().isNotEmpty);
+      }, onError: (Object _) {});
+    } else {
+      _learner.typed(_q, found: _results().isNotEmpty);
+    }
+  }
+
+  void _open(Resource r) {
+    _learner.picked(_q);
+    openUrl(r.url);
+  }
+
+  @override
+  void dispose() {
+    _learner.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  List<Widget> _found(String campus) {
+    final p = AppPalette.of(context);
+    if (_links == null) return const [Note('Searching…')];
+    final found = _results();
+    if (found.isEmpty) return [Note('No links match “$_q”.')];
+    return [
+      AppCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            for (final (i, r) in found.take(60).indexed) ...[
+              if (i > 0) Divider(height: 1, indent: 15, color: p.divider),
+              LinkRow(
+                r: r,
+                tag: r.courseIds.isEmpty ? r.department : r.courseIds.first,
+                onTap: () => _open(r),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ];
+  }
+
   @override
   void initState() {
     super.initState();
@@ -691,7 +766,17 @@ class _ResourcesPageState extends State<ResourcesPage> {
   Widget build(BuildContext context) {
     final campus = viewCampus();
     final dual = programmesOf(selecteddiscipline).length > 1;
-    return Loaded<List<ResourceDegreeData>>(
+    // Back with a search open closes the search, not the page (owner,
+    // 2026-10-06).
+    return PopScope(
+      canPop: _q.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _search.clear();
+        FocusManager.instance.primaryFocus?.unfocus();
+        setState(() {});
+      },
+      child: Loaded<List<ResourceDegreeData>>(
       // A reopen shows the last links at once and refreshes behind them.
       cacheKey: degreesKey(campus),
       load: loadDegrees,
@@ -702,34 +787,40 @@ class _ResourcesPageState extends State<ResourcesPage> {
               eyebrow: resourcesEyebrow(campus, dual: dual),
               title: 'Resources',
             ),
-            bottom: switch ([
-              for (final d in degrees)
-                if (campus != null &&
-                    myRoles.value.may(
-                      Capability.departmentResources,
-                      campus: campus,
-                      scope: d.dept,
-                    ))
-                  d.dept,
-            ]) {
-              [final dept, ...] => BottomAction(
-                child: PrimaryButton(
-                  label: 'Add a link',
-                  icon: Icons.add_rounded,
-                  onPressed:
-                      () => GoRouter.maybeOf(
-                        context,
-                      )?.push(Routes.deptResources(campus!, dept)),
-                ),
-              ),
-              _ => null,
-            },
+            // Asks the department or the course; no default (owner,
+            // 2026-10-06).
+            bottom:
+                campus == null || linkDepts(campus).isEmpty
+                    ? null
+                    : BottomAction(
+                      child: PrimaryButton(
+                        label: 'Add a link',
+                        icon: Icons.add_rounded,
+                        onPressed: () async {
+                          await openRoute(
+                            context,
+                            Routes.contributeAdd,
+                            () => const AddPage(),
+                          );
+                          reload();
+                        },
+                      ),
+                    ),
             children: [
               if (roleStore == null)
                 const Note('Sign in with your BITS account to see resources.')
               else if (campus == null)
                 campusPrompt(context)
               else ...[
+                SearchBox(
+                  controller: _search,
+                  hint: 'Search notes, papers, courses',
+                  onChanged: (_) => _typed(campus),
+                ),
+                const SizedBox(height: Space.sm),
+                if (_q.isNotEmpty)
+                  ..._found(campus)
+                else ...[
                 for (final (i, d) in degrees.indexed) ...[
                   if (i > 0) const SizedBox(height: 9),
                   _ResourceCard(
@@ -747,6 +838,25 @@ class _ResourcesPageState extends State<ResourcesPage> {
                 ],
                 const SizedBox(height: 9),
                 _ResourceCard(
+                  icon: Icons.bookmark_border_rounded,
+                  title: 'Bookmarked',
+                  subtitle: switch (bookmarks.value.length) {
+                    0 => 'Tap the bookmark on any link to keep it here',
+                    1 => '1 link you saved',
+                    final n => '$n links you saved',
+                  },
+                  // The count is redrawn on the way back.
+                  onTap: () async {
+                    await openRoute(
+                      context,
+                      Routes.resourceBookmarks,
+                      () => const BookmarksPage(),
+                    );
+                    if (mounted) setState(() {});
+                  },
+                ),
+                const SizedBox(height: 9),
+                _ResourceCard(
                   icon: Icons.menu_book_outlined,
                   title: 'Course resources',
                   subtitle: 'Links for one course, with its CR’s contact',
@@ -757,9 +867,11 @@ class _ResourcesPageState extends State<ResourcesPage> {
                         () => const ResourceCoursesPage(),
                       ),
                 ),
+                ],
               ],
             ],
           ),
+    ),
     );
   }
 }

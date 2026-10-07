@@ -758,8 +758,17 @@ service cloud.firestore {
         && getAfter(p).data.email == me();
     }
 
+    // +2 for a review, in the batch that creates the writer's own review of
+    // course c (owner, 2026-10-06); edits earn nothing.
+    function reviewedNow(c) {
+      return c is string
+        && existsAfter(/databases/$(db)/documents/reviews/$(c)/entries/$(hashOf(c)))
+        && !exists(/databases/$(db)/documents/reviews/$(c)/entries/$(hashOf(c)));
+    }
+
     // contributors/{email}: { username?, campus, points }. Self writes the
-    // username once; points move only by +4 beside a link's approval.
+    // username once; points move only by +4 beside a link's approval, or
+    // +2 beside the writer's new review.
     match /contributors/{email} {
       allow get: if resource == null ? mayUse()
         : (signedIn() && email == me()) || readsRoster(resource.data.campus);
@@ -783,6 +792,15 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'lastLink'])
         && request.resource.data.points == resource.data.points + 4
         && pointsMoved(email, resource.data.campus);
+      allow create: if isBits() && email == me()
+        && request.resource.data.keys().hasOnly(['campus', 'points', 'lastReview'])
+        && request.resource.data.points == 2
+        && request.resource.data.campus == campusOf(me())
+        && reviewedNow(request.resource.data.lastReview);
+      allow update: if isBits() && email == me()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'lastReview'])
+        && request.resource.data.points == resource.data.points + 2
+        && reviewedNow(request.resource.data.lastReview);
       // A president clears an offensive username (audited, points stay).
       allow update: if mayUse() && resource.data.get('username', null) != null
         && (isOwner() || isAdmin() || isPresidentOn(resource.data.campus))
@@ -921,6 +939,30 @@ service cloud.firestore {
     // Admin grants (campus 'all') count on the goa head, as owners and terms
     // do; the app moves every campus's head for those.
     function markerCampus(c) { return c == 'all' ? 'goa' : c; }
+
+    // searchHints/{campus} (owner, 2026-10-06): what students taught the
+    // resource search, q: {query: {otherQuery: votes}}. A vote moves one
+    // pair by +1, named by k and t. A bad pair is removed in the console.
+    function hintKey(s) { return s is string && s.matches('^[a-z0-9 ]{1,40}$'); }
+
+    function hintVote() {
+      let a = request.resource.data;
+      let b = resource == null ? {} : resource.data.get('q', {});
+      let before = b.get(a.k, {});
+      return a.keys().hasOnly(['q', 'k', 't'])
+        && hintKey(a.k) && hintKey(a.t) && a.k != a.t
+        && a.q is map && a.q.size() <= 500
+        && a.q.diff(b).affectedKeys().hasOnly([a.k])
+        && a.q[a.k] is map && a.q[a.k].size() <= 20
+        && a.q[a.k].diff(before).affectedKeys().hasOnly([a.t])
+        && a.q[a.k][a.t] == before.get(a.t, 0) + 1;
+    }
+
+    match /searchHints/{campus} {
+      allow get: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());
+      allow create, update: if isBits() && campus == campusOf(me()) && hintVote();
+      allow delete: if false;
+    }
 
     match /heads/{campus} {
       allow read: if mayUse() && (campus == campusOf(me()) || isOwner() || isAdmin());

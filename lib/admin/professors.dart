@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/admin/grant_form.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/admin/maintain.dart';
 import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/admin/dept_list.dart';
@@ -242,10 +243,12 @@ class _DeptProfessorsState extends State<DeptProfessors> {
       gated: (context, data, _, saved) {
         final q = _search.text.trim();
         final live = data.profs.where((x) => !x.removed);
-        final shown = live.where((x) => x.matches(q)).toList();
+        final phrases = q.isEmpty ? [q] : queryPhrases(q);
+        bool hit(Professor x) => phrases.any(x.matches);
+        final shown = live.where(hit).toList();
         final gone = [
           for (final x in data.profs)
-            if (x.removed && x.matches(q)) x,
+            if (x.removed && hit(x)) x,
         ];
         return PageFrame(
           header: PageHeader(

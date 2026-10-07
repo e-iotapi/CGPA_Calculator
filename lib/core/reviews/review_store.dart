@@ -516,9 +516,41 @@ class ReviewStore {
         );
       }
     }
+    if (before == null) await _award(b, campus, courseId);
     await b.commit();
     if (before == null || !before.hidden) _poke(courseId, index: true);
     await _forget(courseId, campus);
+  }
+
+  /// Points for a new review (owner, 2026-10-06).
+  static const reviewPoints = 2;
+
+  /// [reviewPoints] to the writer, and their leaderboard row once they hold
+  /// a username, in the review's own batch. Unread, the review goes alone.
+  Future<void> _award(WriteBatch b, String campus, String courseId) async {
+    final me = roles?.me;
+    if (me == null || me.isEmpty) return;
+    final ref = db.collection('contributors').doc(me);
+    final Map<String, dynamic>? c;
+    try {
+      c = (await ref.get()).data();
+    } on Object {
+      return;
+    }
+    final points = ((c?['points'] as num?)?.toInt() ?? 0) + reviewPoints;
+    if (c == null) {
+      b.set(ref, {'campus': campus, 'points': points, 'lastReview': courseId});
+    } else {
+      b.update(ref, {'points': points, 'lastReview': courseId});
+    }
+    final username = c?['username'] as String? ?? '';
+    if (username.isNotEmpty) {
+      b.set(db.collection('leaderboard').doc(campus), {
+        'p': {username: points},
+        'k': username,
+      }, SetOptions(merge: true));
+      bumpPath(b, db, campus, Paths.leaderboard);
+    }
   }
 
   /// After a commit that moved [courseId]'s review marker (and the index's,

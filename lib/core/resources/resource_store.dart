@@ -69,8 +69,16 @@ class ResourceStore {
     ];
   }
 
-  List<Resource>? _peekDepartment(String campus, String department) {
-    final cached = _cache?.get('$campus|$department');
+  /// Every live link on [campus], for the search (one read, like a
+  /// department's).
+  Future<List<Resource>> all(String campus) async =>
+      _live(await _department(campus, null))!;
+
+  /// The saved [all], read synchronously; null when none is saved.
+  List<Resource>? peekAll(String campus) => _live(_peekDepartment(campus, null));
+
+  List<Resource>? _peekDepartment(String campus, String? department) {
+    final cached = _cache?.get('$campus|${department ?? '*'}');
     if (cached is! String) return null;
     try {
       return [
@@ -89,10 +97,12 @@ class ResourceStore {
   Future<List<Resource>> department(String campus, String department) async =>
       _live(await _department(campus, department))!;
 
-  Future<List<Resource>> _department(String campus, String department) async {
+  Future<List<Resource>> _department(String campus, String? department) async {
     final hit = _peekDepartment(campus, department);
     if (hit == null) return _load(campus, department);
-    final saved = (jsonDecode(_cache!.get('$campus|$department') as String) as Map)['hv'];
+    final saved =
+        (jsonDecode(_cache!.get('$campus|${department ?? '*'}') as String)
+            as Map)['hv'];
     final marker = (await headFor(campus, db: _db))?.version(Paths.resources);
     if (marker != null && marker != saved) {
       try {
@@ -112,8 +122,8 @@ class ResourceStore {
     await c.deleteAll(c.keys.where((k) => '$k'.startsWith('$campus|')).toList());
   }
 
-  Future<List<Resource>> _load(String campus, String department) async {
-    final key = '$campus|$department';
+  Future<List<Resource>> _load(String campus, String? department) async {
+    final key = '$campus|${department ?? '*'}';
     final cached = _cache?.get(key);
     List<Resource>? fromCache;
     int? cachedV, cachedMarker;
@@ -156,20 +166,19 @@ class ResourceStore {
                   ...e.value as Map,
                   'campus': campus,
                 }, '${e.key}')
-                case final r when r.department == department && !r.removed)
+                case final r
+                when (department == null || r.department == department) &&
+                    !r.removed)
               r,
         ];
       } else {
         // ponytail: campuses whose links predate the index; drop once
         // every campus has been re-saved or backfilled.
-        final q = await Perf.time(
-          'resources.department',
-          () =>
-              _resources
-                  .where('campus', isEqualTo: campus)
-                  .where('department', isEqualTo: department)
-                  .get(),
-        );
+        var query = _resources.where('campus', isEqualTo: campus);
+        if (department != null) {
+          query = query.where('department', isEqualTo: department);
+        }
+        final q = await Perf.time('resources.department', query.get);
         rows = [
           for (final d in q.docs)
             if (Resource.fromMap(d.data(), d.id) case final r when !r.removed)
