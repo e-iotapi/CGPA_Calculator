@@ -3,12 +3,16 @@ import 'package:cgpa_calculator/app/routes.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/catalog/catalog.dart';
+import 'package:cgpa_calculator/features/contribute/add_page.dart';
 import 'package:cgpa_calculator/core/prefs/prefs_store.dart';
 import 'package:cgpa_calculator/core/roles/roles.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/core/roles/session.dart';
 import 'package:cgpa_calculator/features/resources/resource_course_page.dart';
 import 'package:cgpa_calculator/features/resources/resources_page.dart';
 import 'package:cgpa_calculator/features/setup/campus_pick_page.dart';
+import 'package:cgpa_calculator/shared/widgets/app_text_field.dart';
+import 'package:cgpa_calculator/shared/widgets/bottom_action.dart';
 import 'package:cgpa_calculator/shared/widgets/page_header.dart';
 import 'package:cgpa_calculator/shared/widgets/search_box.dart';
 import 'package:cgpa_calculator/shared/widgets/segmented.dart';
@@ -26,12 +30,14 @@ class ResourceCoursesPage extends StatefulWidget {
 
 class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
   final _search = TextEditingController();
+  final _learner = QueryLearner();
 
   /// 'now' (this semester), 'starred' or 'all'.
   var _show = 'now';
 
   @override
   void dispose() {
+    _learner.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -55,7 +61,7 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
         ],
       );
     }
-    final q = _search.text.trim().toLowerCase();
+    final q = _search.text.trim();
     final now = takingNow(), starred = starredCourses();
     // Every catalogue course plus the student's own (a manual add may not be
     // charted). A search covers them all; the pills only shape the empty box.
@@ -63,20 +69,46 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
     for (final id in now) {
       titles.putIfAbsent(id, () => courseTitle(id));
     }
-    final courses = [
-      for (final e in titles.entries)
-        if (q.isNotEmpty
-            ? e.key.toLowerCase().contains(q) ||
-                e.value.toLowerCase().contains(q)
-            : switch (_show) {
-              'all' => true,
-              'starred' => starred.contains(e.key),
-              _ => now.contains(e.key),
-            })
-          e.key,
-    ]..sort();
+    // A search widens with synonyms and what students taught it.
+    final courses =
+        q.isNotEmpty
+            ? (widen(
+                q,
+                // The typed query's own matches first.
+                (ph) => [
+                  for (final e in titles.entries)
+                    if (textMatches(ph, '${e.key} ${e.value}'))
+                      e.key,
+                ]..sort(),
+                (id) => id,
+              ))
+            : ([
+              for (final e in titles.entries)
+                if (switch (_show) {
+                  'all' => true,
+                  'starred' => starred.contains(e.key),
+                  _ => now.contains(e.key),
+                })
+                  e.key,
+            ]..sort());
+    if (q.isNotEmpty) _learner.typed(q, found: courses.isNotEmpty);
     return PageFrame(
       header: header,
+      bottom:
+          linkDepts(campus).isEmpty
+              ? null
+              : BottomAction(
+                child: PrimaryButton(
+                  label: 'Add a link',
+                  icon: Icons.add_rounded,
+                  onPressed:
+                      () => openRoute(
+                        context,
+                        Routes.contributeAddCourse,
+                        () => const AddPage(course: true),
+                      ),
+                ),
+              ),
       children: [
         SearchBox(
           controller: _search,
@@ -107,12 +139,14 @@ class _ResourceCoursesPageState extends State<ResourceCoursesPage> {
             count: courses.length,
             row:
                 (context, i) => InkWell(
-                  onTap:
-                      () => openRoute(
-                        context,
-                        Routes.resourceCourse(courses[i]),
-                        () => ResourceCoursePage(courseId: courses[i]),
-                      ),
+                  onTap: () {
+                    _learner.picked(q);
+                    openRoute(
+                      context,
+                      Routes.resourceCourse(courses[i]),
+                      () => ResourceCoursePage(courseId: courses[i]),
+                    );
+                  },
                   child: Container(
                     constraints: const BoxConstraints(minHeight: 52),
                     padding: const EdgeInsets.only(left: 15, right: 8),

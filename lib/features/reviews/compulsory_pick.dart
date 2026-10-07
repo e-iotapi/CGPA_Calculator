@@ -2,6 +2,7 @@ import 'package:cgpa_calculator/admin/widgets.dart';
 import 'package:cgpa_calculator/app/theme/palette.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/models/semesters.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/core/professors/professor.dart';
 import 'package:cgpa_calculator/core/reviews/gate.dart';
 import 'package:cgpa_calculator/core/storage/courses.dart';
@@ -78,6 +79,7 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
   final _drafts = <String, _Draft>{};
   final _ticked = <String>{};
   final _search = TextEditingController();
+  final _learner = QueryLearner();
   bool _busy = false, _searching = false;
 
   @override
@@ -98,6 +100,7 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
 
   @override
   void dispose() {
+    _learner.dispose();
     _search.dispose();
     for (final d in _drafts.values) {
       d.marks.dispose();
@@ -194,20 +197,24 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final chosen = _chosen;
-    final q = _search.text.trim().toLowerCase();
+    final q = _search.text.trim();
     final done = myReviewedCourses().toSet();
     final found =
         q.length < 2
             ? const <Course>[]
-            : [
-              for (final c in allCourses())
-                if (!_drafts.containsKey(c.id) &&
-                    !done.contains(c.id) &&
-                    tookIt(c.id) != null &&
-                    (c.id.toLowerCase().contains(q) ||
-                        c.title.toLowerCase().contains(q)))
-                  c,
-            ].take(5).toList();
+            : widen(
+              q,
+              (ph) => [
+                for (final c in allCourses())
+                  if (!_drafts.containsKey(c.id) &&
+                      !done.contains(c.id) &&
+                      tookIt(c.id) != null &&
+                      textMatches(ph, '${c.id} ${c.title}'))
+                    c,
+              ],
+              (c) => c.id,
+            ).take(5).toList();
+    if (q.length >= 2) _learner.typed(q, found: found.isNotEmpty);
     return PageFrame(
       header: const PageHeader(
         eyebrow: 'COMPULSORY REVIEWS',
@@ -282,6 +289,7 @@ class _CompulsoryPickPageState extends State<CompulsoryPickPage> {
                   icon: Icons.add_rounded,
                   title: '${c.id} · ${c.title}',
                   onTap: () {
+                    _learner.picked(q);
                     _search.clear();
                     setState(() {
                       _drafts[c.id] = _Draft(c);

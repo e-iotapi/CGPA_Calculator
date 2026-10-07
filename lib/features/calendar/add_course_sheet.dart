@@ -1,4 +1,5 @@
 import 'package:cgpa_calculator/app/theme/palette.dart';
+import 'package:cgpa_calculator/core/search/hints.dart';
 import 'package:cgpa_calculator/app/theme/tokens.dart';
 import 'package:cgpa_calculator/core/timetable/calendar_store.dart';
 import 'package:cgpa_calculator/core/timetable/timetable.dart';
@@ -58,6 +59,7 @@ class _AddSheetState extends State<AddSheet> {
 
   @override
   void dispose() {
+    _learner.dispose();
     for (final c in [_q, _title, _room, _start, _end]) {
       c.dispose();
     }
@@ -72,7 +74,10 @@ class _AddSheetState extends State<AddSheet> {
       if (!widget.timetable.courses.containsKey(m.id)) TtCourse(id: m.id, title: m.title),
   ];
 
+  final _learner = QueryLearner();
+
   void _pick(TtCourse c) {
+    _learner.picked(_q.text);
     if (c.sections.isEmpty) return Navigator.pop<Object>(context, (course: c, keys: <String>[]));
     _pickSections(c);
   }
@@ -91,7 +96,15 @@ class _AddSheetState extends State<AddSheet> {
 
   List<TtCourse> get _results {
     final t = widget.timetable;
-    if (_q.text.trim().isNotEmpty) return searchCourses(_all, _q.text);
+    if (_q.text.trim().isNotEmpty) {
+      final found = widen(
+        _q.text,
+        (ph) => searchCourses(_all, ph),
+        (c) => c.id,
+      ).take(50).toList();
+      _learner.typed(_q.text, found: found.isNotEmpty);
+      return found;
+    }
     return [for (final id in widget.suggested.toList()..sort()) if (t.courses[id] != null) t.courses[id]!];
   }
 
